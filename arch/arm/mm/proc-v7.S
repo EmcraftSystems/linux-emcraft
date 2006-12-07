@@ -245,6 +245,7 @@ ENTRY(v7_processor_functions)
 	.word	cpu_v7_dcache_clean_area
 	.word	cpu_v7_switch_mm
 	.word	cpu_v7_set_pte
+	.word	pabort_ifar
 	.size	v7_processor_functions, . - v7_processor_functions
 
 	.type	cpu_arch_name, #object
@@ -275,7 +276,7 @@ __v7_proc_info:
 	b	__v7_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_FAST_MULT | HWCAP_VFP
+	.long	HWCAP_SWP | HWCAP_THUMB | HWCAP_HALF | HWCAP_FAST_MULT | HWCAP_VFP
 	.long	cpu_v7_name
 	.long	v7_processor_functions
 	.long	v6wbi_tlb_fns
