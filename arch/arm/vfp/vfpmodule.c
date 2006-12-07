@@ -92,13 +92,13 @@ void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 	send_sig_info(SIGFPE, &info, current);
 }
 
-static void vfp_panic(char *reason)
+static void vfp_panic(char *reason, u32 inst)
 {
 	int i;
 
 	printk(KERN_ERR "VFP: Error: %s\n", reason);
 	printk(KERN_ERR "VFP: EXC 0x%08x SCR 0x%08x INST 0x%08x\n",
-		fmrx(FPEXC), fmrx(FPSCR), fmrx(FPINST));
+		fmrx(FPEXC), fmrx(FPSCR), inst);
 	for (i = 0; i < 32; i += 2)
 		printk(KERN_ERR "VFP: s%2u: 0x%08x s%2u: 0x%08x\n",
 		       i, vfp_get_float(i), i+1, vfp_get_float(i+1));
@@ -114,7 +114,7 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 	pr_debug("VFP: raising exceptions %08x\n", exceptions);
 
 	if (exceptions == (u32)-1) {
-		vfp_panic("unhandled bounce");
+		vfp_panic("unhandled bounce", inst);
 		vfp_raise_sigfpe(0, regs);
 		return;
 	}
@@ -228,11 +228,16 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 * FPEXC bounce reason, but this appears to be unreliable.
 	 * Emulate the bounced instruction instead.
 	 */
+#ifndef CONFIG_VFPv3
 	inst = fmrx(FPINST);
+#else
+	inst = trigger;
+#endif
 	exceptions = vfp_emulate_instruction(inst, fpscr, regs);
 	if (exceptions)
 		vfp_raise_exceptions(exceptions, inst, orig_fpscr, regs);
 
+#ifndef CONFIG_VFPv3
 	/*
 	 * If there isn't a second FP instruction, exit now.
 	 */
@@ -246,6 +251,9 @@ void VFP9_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	barrier();
 	trigger = fmrx(FPINST2);
 	orig_fpscr = fpscr = fmrx(FPSCR);
+#else
+	return;
+#endif
 
  emulate:
 	exceptions = vfp_emulate_instruction(trigger, fpscr, regs);

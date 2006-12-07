@@ -206,6 +206,11 @@ __v7_setup:
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
+#ifdef CONFIG_VFP
+	mrc	p15, 0, r0, c1, c0, 2
+	orr	r0, r0, #(0xf << 20)
+	mcr	p15, 0, r0, c1, c0, 2		@ Enable full access to VFP
+#endif
 
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
 	ldr	r10, cr1_clear			@ get mask for bits to clear
