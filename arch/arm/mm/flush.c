@@ -84,6 +84,19 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 		return;
 	}
 
+	if (cache_is_vipt_nonaliasing()) {
+		if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask)
+		    && vma->vm_flags | VM_EXEC) {
+			unsigned long addr = (unsigned long)page_address(pfn_to_page(pfn));
+			/*
+			 * For VIPT non-aliasing caches, flushing the
+			 * kernel mapping is enough
+			 */
+			__cpuc_coherent_kern_range(addr, addr + PAGE_SIZE);
+		}
+		return;
+	}
+
 	if (cache_is_vipt_aliasing())
 		flush_pfn_alias(pfn, user_addr);
 }
