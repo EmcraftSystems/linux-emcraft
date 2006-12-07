@@ -196,6 +196,8 @@ INLINE int snd_mask_refine(struct snd_mask *mask, const struct snd_mask *v)
 	struct snd_mask old;
 	assert(!snd_mask_empty(mask));
 	snd_mask_copy(&old, mask);
+	/* add the barrier to fix the optimization error if GCC 4.1 */
+	mb();
 	snd_mask_intersect(mask, v);
 	if (snd_mask_empty(mask))
 		return -EINVAL;
