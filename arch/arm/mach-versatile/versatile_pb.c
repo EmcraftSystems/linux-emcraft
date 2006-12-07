@@ -82,6 +82,155 @@ static struct amba_device *amba_devs[] __initdata = {
 	&mmc1_device,
 };
 
+#ifdef CONFIG_ARM_AMBA_DMA
+#include "dma.h"
+#include <sound/driver.h>
+#include <sound/core.h>
+#include <sound/initval.h>
+#include <sound/ac97_codec.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
+#include <linux/amba/pl080.h>
+extern setting  settings[];
+/*
+ * Configure the board && the dma controller channel for the requesting peripheral
+ * as far as possible when the actual transfer
+ * (source address, size, dest address, etc.) is not known
+ *
+ * Versatile PB :
+ *
+ *	Other possible assignments:
+ *	DMA	Peripheral
+ *
+ *	 15 	UART0 Tx
+ *	 14 	UART0 Rx
+ *	 13 	UART1 Tx
+ *	 12 	UART1 Rx
+ *	 11 	UART2 Tx
+ *	 10 	UART2 Rx
+ *	  9 	SSP Tx
+ *	  8 	SSP Rx
+ *	  7 	SCI Tx
+ *	  6 	SCI Rx
+ *
+ *	5-3 	I/O device in RealView Logic Tile
+ *
+ *	2-0 	I/O device in RealView Logic Tile or FPGA
+ *
+ *	FPGA peripherals using DMA channels 0,1,2
+ *
+ *	AACI	Tx
+ *	AACI	Rx
+ *	USB	A
+ *	USB	B
+ *	MCI	0
+ *	MCI	1
+ *	UART3	Tx
+ *	UART3	Rx
+ *	SCI0	int A
+ *	SCI0	int B
+ *
+ *	Return 1 for success
+ *
+ */
+const int versatilepb_dma_configure(dmach_t chan_num, dma_t * chan_data, struct amba_device * client){
+	int retval = 0;
+
+	/*
+	 *  Versatile DMA mapping register for assigned DMA channel
+	 */
+	void __iomem **map_base = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_DMAPSR0_OFFSET + (chan_num * 4);
+
+	struct amba_dma_data * data = &client->dma_data;
+
+	/* Switch by client AMBA device part number*/
+	switch(amba_part(client)) {
+	case AMBA_PERIPHID_AACI_97:
+		/*
+		 * Only DMA channels 0,1,2 can be used for AACI DMA
+		 */
+		switch(chan_num){
+		case 0:
+		case 1:
+		case 2:
+			/*
+			 * Set V/PB DMA mapping register to connect
+			 * AACI Tx DMAC request signals to DMAC peripheral #0 request lines
+			 *
+			 * ASSUMES Tx
+			 * TODO:: Distinguish Tx/Rx
+			 */
+			writel(
+				// [31:8] 	Reserved
+				(1 << 7) |	// 1 = Enable this mapping
+				// [6:5] 	Reserved
+				(0 << 0)	// 0b00000 = AACI Tx
+				, &map_base[chan_num]);
+
+			pl080_configure_chan(chan_num, data);
+			retval = 1;
+			break;
+		default:
+			break;
+		}
+		break;
+
+	default:
+		printk(KERN_ERR "mach-versatile/dma.c::versatile_dma_configure() Unexpected device %p, periphid part number 0x%03x\n", client, amba_part(client));
+	}
+	return retval;
+}
+
+const int versatilepb_dma_transfer_setup(dmach_t chan_num, dma_t * chan_data, struct amba_device * client){
+	pl080_lli setting;
+
+	unsigned int ccfg = 0;
+	dma_addr_t cllis = 0;
+	int retval = 0;
+	unsigned int periph_index = 0;
+
+	switch(amba_part(client)) {
+	case AMBA_PERIPHID_AACI_97:
+	{
+		while(amba_part(client) != settings[periph_index].periphid){
+			periph_index++;
+		}
+		ccfg 		= settings[periph_index].cfg;
+		/* Destination is the FIFO read/write register */
+		setting.dest 	= VERSATILE_AACI_BASE + (unsigned int)client->dma_data.dmac_data;
+		setting.cword 	= settings[periph_index].ctl;
+
+		/*
+		 * Construct the LLIs
+		 */
+		// TODO:: determine whether the bus address needs the bus distinguishing bit set
+		// - hard code the 1 for now
+		setting.next = 1;
+		cllis = pl080_make_llis(chan_num, chan_data->buf.dma_address, chan_data->count ,client->dma_data.packet_size, &setting);
+
+		if(cllis) {
+			retval = 1;
+		} else {
+			printk(KERN_ERR "mach-versatile/dma.c::versatile_dma_transfer_setup() No memory for LLIs\n");
+		}
+	}
+		break;
+
+	default:
+		printk(KERN_ERR "mach-versatile/dma.c::versatile_dma_transfer_setup() - Unexpected device %p, periphid part number 0x%03x\n", client, amba_part(client));
+		return 0;
+		break;
+	}
+
+	if(retval)
+		pl080_transfer_configure(chan_num, &setting, ccfg);
+
+	return retval;
+}
+
+#endif
+
+
 static int __init versatile_pb_init(void)
 {
 	int i;
@@ -91,8 +240,30 @@ static int __init versatile_pb_init(void)
 			struct amba_device *d = amba_devs[i];
 			amba_device_register(d, &iomem_resource);
 		}
-	}
 
+#ifdef CONFIG_ARM_AMBA_DMA
+		{
+		volatile unsigned int r;
+		/*
+		 * Initial disposition of the DMA select signals
+		 * - later a contention mechanism must be implemented to allow
+		 *   apps/drivers of the 10 FPGA sources to contend for the 3 lines
+		 */
+		/* AACI TX is line 0 */
+		r  = readl(VA_SYS_BASE + VERSATILE_SYS_DMAPSR0_OFFSET);
+		mb();
+		r &= VSYSMASK_DMAPSR;
+		r |= VSYS_VAL_DMAPSR_AACI_TX;
+		r |= VSYS_VAL_DMAPSR_ENABLE;
+		writel(r, VA_SYS_BASE + VERSATILE_SYS_DMAPSR0_OFFSET);
+		mb();
+
+
+		vops.versatile_dma_configure      = versatilepb_dma_configure     ;
+		vops.versatile_dma_transfer_setup = versatilepb_dma_transfer_setup;
+		}
+#endif
+	}
 	return 0;
 }
 

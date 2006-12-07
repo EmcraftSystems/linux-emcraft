@@ -235,6 +235,8 @@ config ARCH_OMAP
 config ARCH_VERSATILE
 	bool "Versatile"
 	select ARM_AMBA
+	select ARM_AMBA_PL080
+	select ARM_AMBA_PL041
 	select ARM_VIC
 	select ICST307
 	help
@@ -337,8 +339,7 @@ config FORCE_MAX_ZONEORDER
 
 menu "Bus support"
 
-config ARM_AMBA
-	bool
+source "drivers/amba/Kconfig"
 
 config ISA
 	bool

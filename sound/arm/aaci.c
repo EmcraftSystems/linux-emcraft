@@ -18,10 +18,18 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/amba/bus.h>
+#include <linux/dma-mapping.h>	/* DMA memory is used for the buffer even if no DMA for this architecture */
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
+
+#ifdef CONFIG_ARM_AMBA_DMA
+/*
+ * DMA code is for Versatile PB only
+ */
+# include <asm/mach-types.h>
+#endif
 
 #include <sound/driver.h>
 #include <sound/core.h>
@@ -31,12 +39,12 @@
 #include <sound/pcm_params.h>
 
 #include "aaci.h"
-#include "devdma.h"
+#include "devdma.h"		/* DMA memory is used for the buffer even if no DMA for this architecture */
 
 #define DRIVER_NAME	"aaci-pl041"
 
 /*
- * PM support is not complete.  Turn it off.
+ * PM support is not complete. Turn it off.
  */
 #undef CONFIG_PM
 
@@ -122,10 +130,9 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	} while (v & SLFR_1TXB);
 
 	/*
-	 * Give the AC'97 codec more than enough time
-	 * to respond. (42us = ~2 frames at 48kHz.)
+	 * Allow time for AC'97 codec response
 	 */
-	udelay(42);
+	udelay(TIME_TO_RESPOND);
 
 	/*
 	 * Wait for slot 2 to indicate data.
@@ -164,7 +171,59 @@ static inline void aaci_chan_wait_ready(struct aaci_runtime *aacirun)
 /*
  * Interrupt support.
  */
-static void aaci_fifo_irq(struct aaci *aaci, u32 mask)
+#if defined(CONFIG_ARM_AMBA_DMA) && defined(CONFIG_ARCH_VERSATILE) 
+
+/* 
+ * Simple handler for chaining to the DMAC interrupt
+ * - called after each DMA packet (half a fifo depth)
+ */
+static irqreturn_t simpleDMA(int irq, void *devid, struct pt_regs *regs)
+{
+
+	struct amba_device *	client	= devid;
+	struct amba_dma_data *	data 	= &(client->dma_data);
+	snd_card_t *		card 	= amba_get_drvdata(client);
+	struct aaci *		aaci 	= card->private_data;
+	struct aaci_runtime *	tsfr	= &aaci->playback;
+	unsigned long flags;
+
+	/* e.g. check for errors */
+	data->irq_pre(0);	
+
+	/* Update pointer by one packet */
+	spin_lock_irqsave(&aaci->lock, flags);
+	{
+		tsfr->ptr += aaci->fifosize/2;
+		if (tsfr->ptr >= tsfr->end) {
+			tsfr->ptr = tsfr->start;
+		}
+		
+		tsfr->bytes -= aaci->fifosize;
+
+		if(tsfr->bytes <= 0){
+			/* Starting another period */
+			tsfr->bytes += tsfr->period;
+			spin_unlock_irqrestore(&aaci->lock, flags);
+			snd_pcm_period_elapsed(tsfr->substream);
+			spin_lock_irqsave(&aaci->lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&aaci->lock, flags);
+	
+	/*
+	 * Should we examine the FIFO status
+	 * to ensure we don't re-trigger on same DMABREQ
+	 */
+
+	/* e.g clear interrupt on the DMAC */
+	data->irq_post(tsfr->dma_chan);
+	
+	return IRQ_HANDLED;
+}
+
+#endif
+
+static void aaci_fifo_irq(struct aaci *aaci, u32 mask, unsigned long * flags)
 {
 	if (mask & ISR_URINTR) {
 		writel(ICLR_TXUEC1, aaci->base + AACI_INTCLR);
@@ -188,9 +247,9 @@ static void aaci_fifo_irq(struct aaci *aaci, u32 mask)
 			if (aacirun->bytes <= 0) {
 				aacirun->bytes += aacirun->period;
 				aacirun->ptr = ptr;
-				spin_unlock(&aaci->lock);
+				spin_unlock_irqrestore(&aaci->lock, *flags);
 				snd_pcm_period_elapsed(aacirun->substream);
-				spin_lock(&aaci->lock);
+				spin_lock_irqsave(&aaci->lock, *flags);
 			}
 			if (!(aacirun->cr & TXCR_TXEN))
 				break;
@@ -220,24 +279,27 @@ static void aaci_fifo_irq(struct aaci *aaci, u32 mask)
 		aacirun->ptr = ptr;
 	}
 }
-
+/*
+ * Interrupt handler for AACI FIFO operation
+ */
 static irqreturn_t aaci_irq(int irq, void *devid, struct pt_regs *regs)
 {
 	struct aaci *aaci = devid;
 	u32 mask;
 	int i;
+	unsigned long flags;
 
-	spin_lock(&aaci->lock);
+	spin_lock_irqsave(&aaci->lock, flags);
 	mask = readl(aaci->base + AACI_ALLINTS);
 	if (mask) {
 		u32 m = mask;
 		for (i = 0; i < 4; i++, m >>= 7) {
 			if (m & 0x7f) {
-				aaci_fifo_irq(aaci, m);
+				aaci_fifo_irq(aaci, m, &flags);
 			}
 		}
 	}
-	spin_unlock(&aaci->lock);
+	spin_unlock_irqrestore(&aaci->lock, flags);
 
 	return mask ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -334,18 +396,26 @@ static int aaci_pcm_open(struct aaci *aaci, struct snd_pcm_substream *substream,
 			 struct aaci_runtime *aacirun)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret;
-
+	int ret = 0;
+	
+#ifdef CONFIG_ARM_AMBA_DMA
+	if(machine_is_versatile_pb() || machine_is_versatile_ab())
+		/* 
+		 * Indicate no channel yet assigned
+		 */
+		aacirun->dma_chan = MAX_DMA_CHANNELS;
+#endif
+	
 	aacirun->substream = substream;
 	runtime->private_data = aacirun;
 	runtime->hw = aaci_hw_info;
 
 	/*
-	 * FIXME: ALSA specifies fifo_size in bytes.  If we're in normal
-	 * mode, each 32-bit word contains one sample.  If we're in
+	 * FIXME: ALSA specifies fifo_size in bytes. If we're in normal
+	 * mode, each 32-bit word contains one sample. If we're in
 	 * compact mode, each 32-bit word contains two samples, effectively
 	 * halving the FIFO size.  However, we don't know for sure which
-	 * we'll be using at this point.  We set this to the lower limit.
+	 * we'll be using at this point. We set this to the lower limit.
 	 */
 	runtime->hw.fifo_size = aaci->fifosize * 2;
 
@@ -357,17 +427,6 @@ static int aaci_pcm_open(struct aaci *aaci, struct snd_pcm_substream *substream,
 				  aaci_rule_rate_by_channels, aaci,
 				  SNDRV_PCM_HW_PARAM_CHANNELS,
 				  SNDRV_PCM_HW_PARAM_RATE, -1);
-	if (ret)
-		goto out;
-
-	ret = request_irq(aaci->dev->irq[0], aaci_irq, SA_SHIRQ|SA_INTERRUPT,
-			  DRIVER_NAME, aaci);
-	if (ret)
-		goto out;
-
-	return 0;
-
- out:
 	return ret;
 }
 
@@ -383,14 +442,40 @@ static int aaci_pcm_close(struct snd_pcm_substream *substream)
 	WARN_ON(aacirun->cr & TXCR_TXEN);
 
 	aacirun->substream = NULL;
-	free_irq(aaci->dev->irq[0], aaci);
+	
+#ifdef CONFIG_ARM_AMBA_DMA
+	if(machine_is_versatile_pb() || machine_is_versatile_ab()){
+		/* If DMA was in use, free it */ 
+	
+		if(MAX_DMA_CHANNELS == aacirun->dma_chan){
+			free_irq(aaci->dev->irq[0], aaci);
+		} else {
+			unsigned long flags;
+			flags = claim_dma_lock();
+			free_dma(aacirun->dma_chan);
+			aacirun->dma_chan = MAX_DMA_CHANNELS; 
+			free_irq(INT_DMAINT, aaci->dev);
+			release_dma_lock(flags);
+		}
+	} else {
+		free_irq(aaci->dev->irq[0], aaci);
+	}
+#else /* No DMA in this architecture */
+ 
+ 	free_irq(aaci->dev->irq[0], aaci);
+
+#endif	
+	// TODO:: Should only be done when all transfers complete, not just the playback...
+	writel(aaci->maincr & ~MAINCR_IE, aaci->base + AACI_MAINCR);
 
 	return 0;
 }
 
+/* There may be multiple calls during one transfer */
 static int aaci_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
+	struct aaci *aaci = substream->private_data;
 
 	/*
 	 * This must not be called with the device enabled.
@@ -399,26 +484,30 @@ static int aaci_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	if (aacirun->pcm_open)
 		snd_ac97_pcm_close(aacirun->pcm);
+
 	aacirun->pcm_open = 0;
 
 	/*
 	 * Clear out the DMA and any allocated buffers.
 	 */
-	devdma_hw_free(NULL, substream);
+	devdma_hw_free((struct device *)aaci->dev, substream);
+	aacirun->start = NULL;
 
 	return 0;
 }
 
+/* There may be multiple calls during one transfer */
 static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 			      struct aaci_runtime *aacirun,
 			      struct snd_pcm_hw_params *params)
 {
 	int err;
+	struct aaci *aaci = substream->private_data;
 
 	aaci_pcm_hw_free(substream);
 
-	err = devdma_hw_alloc(NULL, substream,
-			      params_buffer_bytes(params));
+	err = devdma_hw_alloc((struct device *)aaci->dev, substream,
+			 params_buffer_bytes(params));
 	if (err < 0)
 		goto out;
 
@@ -434,20 +523,115 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 	return err;
 }
 
+/* There may be multiple calls during one transfer */
+/*
+ * Setup the AACI for the transfer
+ */
+/*
+ * For DMA :-
+ * Finalize the linked list 
+ * - we dont know the period size until here
+ * 
+ * If using the pl080 and a different DMA buffer has been allocated 
+ * we must set up the LLIs again
+ */
 static int aaci_pcm_prepare(struct snd_pcm_substream *substream)
 {
+	int ret = -EINVAL;
+
+	struct aaci *aaci = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aaci_runtime *aacirun = runtime->private_data;
-
+	
 	aacirun->start	= (void *)runtime->dma_area;
 	aacirun->end	= aacirun->start + runtime->dma_bytes;
 	aacirun->ptr	= aacirun->start;
 	aacirun->period	=
 	aacirun->bytes	= frames_to_bytes(runtime, runtime->period_size);
 
-	return 0;
-}
+#ifdef CONFIG_ARM_AMBA_DMA 
+	if(machine_is_versatile_pb() || machine_is_versatile_ab()){
 
+		/*
+		 *	Try for DMA, if fails fall back to fifo interrrupts
+		 *	- first, attempt to attach our handler to the DMA interrupt
+		 */
+
+		/* 
+		 * May be a multiple call
+		 * - if so release any assigned channel & re-acquire 
+		 */
+		if(MAX_DMA_CHANNELS != aacirun->dma_chan){ 
+			unsigned long flags;
+			flags = claim_dma_lock();
+			free_dma(aacirun->dma_chan);
+			aacirun->dma_chan = MAX_DMA_CHANNELS; 
+			free_irq(INT_DMAINT, aaci->dev);
+			release_dma_lock(flags);
+		}
+
+		if(!request_irq(IRQ_DMAINT, simpleDMA, SA_SHIRQ|SA_INTERRUPT,
+				DRIVER_NAME, aaci->dev)){
+
+			/* Acquired the DMA interrupt, now request a channel for playback */
+			int i;
+
+			/*
+			 * May need to change when capture implemented
+			 */
+			/*
+			 * Transfer half a FIFO's worth of data in each DMA transfer
+			 * - ensures no overrun
+			 */
+			aaci->dev->dma_data.packet_size = aaci->fifosize/2;
+			/* 
+			 * FIFO register offset - DMA only available on channel 1
+			 */
+			aaci->dev->dma_data.dmac_data = (void *)AACI_DR1;
+
+			for(i = 0; i < MAX_DMA_CHANNELS; i++){
+
+				if(!dma_channel_active(i)){
+				 	set_dma_mode (i, DMA_TO_DEVICE);
+					set_dma_addr (i, runtime->dma_buffer_p->addr);
+					set_dma_count(i, runtime->dma_bytes);
+
+					if(!(ret = request_dma(i, DRIVER_NAME))){
+						aacirun->dma_chan = i;
+						break;
+					}
+
+				}
+			}
+
+			if(MAX_DMA_CHANNELS == aacirun->dma_chan)
+				free_irq(IRQ_DMAINT, aaci->dev);
+
+		} else {
+			printk(KERN_ERR "aaci.c::aaci_pcm_prepare() Couldn't attach the interrupt handler\n");
+		}
+
+		if(MAX_DMA_CHANNELS == aacirun->dma_chan){
+			/* No DMA available - use fifo interrupts */
+			printk(KERN_ERR "aaci.c::aaci_pcm_prepare() USING FIFO\n");
+			ret = request_irq(aaci->dev->irq[0], aaci_irq, SA_SHIRQ|SA_INTERRUPT,
+					DRIVER_NAME, aaci);
+		}
+	} else  {
+		ret = request_irq(aaci->dev->irq[0], aaci_irq, SA_SHIRQ|SA_INTERRUPT,
+				DRIVER_NAME, aaci);
+	}
+#else /* No DMA in this architecture */
+
+	ret = request_irq(aaci->dev->irq[0], aaci_irq, SA_SHIRQ|SA_INTERRUPT,
+ 			DRIVER_NAME, aaci);
+#endif
+
+	return ret;
+}
+/*
+ * Must be atomic
+ */
 static snd_pcm_uframes_t aaci_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -554,9 +738,36 @@ static void aaci_pcm_playback_stop(struct aaci_runtime *aacirun)
 {
 	u32 ie;
 
-	ie = readl(aacirun->base + AACI_IE);
-	ie &= ~(IE_URIE|IE_TXIE);
-	writel(ie, aacirun->base + AACI_IE);
+#ifdef CONFIG_ARM_AMBA_DMA 
+
+	if(machine_is_versatile_pb() || machine_is_versatile_ab()){
+
+		if(MAX_DMA_CHANNELS != aacirun->dma_chan){
+			struct aaci* aaci = aacirun->substream->private_data;
+			disable_dma(aacirun->dma_chan);
+			/* 
+			 * Disable DMA on the AACI by clearing the 'DMAEnable' bit. 
+			 */	
+			writel(aaci->maincr & ~MAINCR_DMAEN, aaci->base + AACI_MAINCR);
+		} else {
+			ie = readl(aacirun->base + AACI_IE);
+			ie &= ~(IE_URIE|IE_TXIE);
+			writel(ie, aacirun->base + AACI_IE);
+		}
+	} else {
+		ie = readl(aacirun->base + AACI_IE);
+		ie &= ~(IE_URIE|IE_TXIE);
+		writel(ie, aacirun->base + AACI_IE);
+	}
+
+#else /* No DMA in this architecture */
+
+ 	ie = readl(aacirun->base + AACI_IE);
+ 	ie &= ~(IE_URIE|IE_TXIE);
+ 	writel(ie, aacirun->base + AACI_IE);
+
+#endif
+
 	aacirun->cr &= ~TXCR_TXEN;
 	aaci_chan_wait_ready(aacirun);
 	writel(aacirun->cr, aacirun->base + AACI_TXCR);
@@ -565,16 +776,56 @@ static void aaci_pcm_playback_stop(struct aaci_runtime *aacirun)
 static void aaci_pcm_playback_start(struct aaci_runtime *aacirun)
 {
 	u32 ie;
-
+	
+	/*
+	 * Get ready
+	 */
 	aaci_chan_wait_ready(aacirun);
 	aacirun->cr |= TXCR_TXEN;
+
+	/*
+	 * Go
+	 */
+#ifdef CONFIG_ARM_AMBA_DMA 
+	if(machine_is_versatile_pb() || machine_is_versatile_ab()){
+		/*
+		 * Ensure the DMAC finds a BREQ from the AACI
+		 * as soon as the DMAC is enabled
+		 */
+		writel(aacirun->cr, aacirun->base + AACI_TXCR);
+		if(MAX_DMA_CHANNELS != aacirun->dma_chan){
+			struct aaci* aaci = aacirun->substream->private_data;
+			/*
+			 * Set the 'DMAEnable' bit in the AACI PrimeCell. 
+			 */
+			writel(aaci->maincr | MAINCR_DMAEN, aaci->base + AACI_MAINCR);
+			enable_dma(aacirun->dma_chan);
+		} else {
+			ie = readl(aacirun->base + AACI_IE);
+			ie |= IE_URIE | IE_TXIE;
+			writel(ie, aacirun->base + AACI_IE);
+		}
+	} else {
+	 	ie = readl(aacirun->base + AACI_IE);
+	 	ie |= IE_URIE | IE_TXIE;
+	 	writel(ie, aacirun->base + AACI_IE);
+		writel(aacirun->cr, aacirun->base + AACI_TXCR);
+	}
+
+#else /* No DMA in this architecture */
 
 	ie = readl(aacirun->base + AACI_IE);
 	ie |= IE_URIE | IE_TXIE;
 	writel(ie, aacirun->base + AACI_IE);
 	writel(aacirun->cr, aacirun->base + AACI_TXCR);
+
+#endif
+
 }
 
+/*
+ * Must be atomic
+ */
 static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct aaci *aaci = substream->private_data;
@@ -719,11 +970,10 @@ static int __devinit aaci_probe_ac97(struct aaci *aaci)
 	udelay(2);
 	writel(RESET_NRST, aaci->base + AACI_RESET);
 
-	/*
-	 * Give the AC'97 codec more than enough time
-	 * to wake up. (42us = ~2 frames at 48kHz.)
-	 */
-	udelay(42);
+ 	/*
+	 * Allow time for AC'97 codec response
+ 	 */
+	udelay(TIME_TO_RESPOND);
 
 	ret = snd_ac97_bus(aaci->card, 0, &aaci_bus_ops, aaci, &ac97_bus);
 	if (ret)
@@ -788,6 +1038,14 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 	aaci->card = card;
 	aaci->dev = dev;
 
+#ifdef CONFIG_ARM_AMBA_DMA 
+	
+	if(machine_is_versatile_pb() || machine_is_versatile_ab()){
+		aaci->playback.dma_chan = MAX_DMA_CHANNELS;
+		aaci->capture.dma_chan = MAX_DMA_CHANNELS;
+	}
+#endif
+
 	/* Set MAINCR to allow slot 1 and 2 data IO */
 	aaci->maincr = MAINCR_IE | MAINCR_SL1RXEN | MAINCR_SL1TXEN |
 		       MAINCR_SL2RXEN | MAINCR_SL2TXEN;
@@ -830,6 +1088,8 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	 * Re-initialise the AACI after the FIFO depth test, to
 	 * ensure that the FIFOs are empty.  Unfortunately, merely
 	 * disabling the channel doesn't clear the FIFO.
+	 * TRM:: "The FIFOs are flushed when the AACIfEN bit 
+	 * in the AACIMAINCR is deasserted"
 	 */
 	writel(aaci->maincr & ~MAINCR_IE, aaci->base + AACI_MAINCR);
 	writel(aaci->maincr, aaci->base + AACI_MAINCR);
@@ -867,6 +1127,7 @@ static int __devinit aaci_probe(struct amba_device *dev, void *id)
 
 	/*
 	 * Playback uses AACI channel 0
+	 * - known in the TRM as channel 1
 	 */
 	aaci->playback.base = aaci->base + AACI_CSCH1;
 	aaci->playback.fifo = aaci->base + AACI_DR1;

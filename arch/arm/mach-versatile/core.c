@@ -47,13 +47,16 @@
 #include "core.h"
 #include "clock.h"
 
+#ifdef CONFIG_ARM_AMBA_DMA
+# include "dma.h"
+#endif
+
 /*
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
  * is the (PA >> 12).
  *
  * Setup a VA for the Versatile Vectored Interrupt Controller.
  */
-#define __io_address(n)		__io(IO_ADDRESS(n))
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
@@ -707,7 +710,13 @@ AMBA_DEVICE(uart1, "dev:f2",  UART1,    NULL);
 AMBA_DEVICE(uart2, "dev:f3",  UART2,    NULL);
 AMBA_DEVICE(ssp0,  "dev:f4",  SSP,      NULL);
 
-static struct amba_device *amba_devs[] __initdata = {
+static struct amba_device *amba_devs[]
+#ifdef CONFIG_ARM_AMBA_DMA
+// Do not discard - used by AMBA DMA code
+// These devices are common to Versatile AB && PB 
+__initdata
+#endif 
+= {
 	&dmac_device,
 	&uart0_device,
 	&uart1_device,

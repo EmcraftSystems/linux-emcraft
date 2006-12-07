@@ -1,0 +1,32 @@
+config ARM_AMBA
+	bool "ARM AMBA bus"
+	---help---
+	 This motherboard has AMBA bus support.
+
+config ARM_AMBA_DMA
+	bool "AMBA DMA"
+	depends on ARM_AMBA && (ARCH_VERSATILE_PB || MACH_VERSATILE_AB)
+	select ISA_DMA_API
+	default y
+	---help---
+	 This motherboard has AMBA DMA support.
+	 If you wish DMA capable drivers to use it,
+	 say Y, otherwise N.
+
+
+config ARM_AMBA_PL080
+	bool "AMBA PrimeCell DMAC PL080" if (ARCH_VERSATILE_PB || MACH_VERSATILE_AB)
+	depends on ARM_AMBA_DMA
+	---help---
+	 This board has an AMBA PrimeCell PL080 DMA Controller.
+	 It will be used if AMBA DMA is selected.
+
+
+config ARM_AMBA_PL041
+	bool "AMBA PrimeCell AACI AC'97" if (ARCH_VERSATILE_PB || MACH_VERSATILE_AB)
+	depends on ARM_AMBA
+	---help---
+	 This board has an AMBA PrimeCell Advanced Audio Codec Interface.
+	 It can be selected under sound/Advanced Linux Sound Architecture/ALSA ARM devices.
+
+

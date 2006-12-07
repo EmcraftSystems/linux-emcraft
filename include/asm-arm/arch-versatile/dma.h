@@ -18,3 +18,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#ifndef	__ASM_ARCH_DMA_H
+#define	__ASM_ARCH_DMA_H
+ 
+#define	MAX_DMA_ADDRESS		0xffffffff
+#ifdef CONFIG_ARM_AMBA_DMA
+# define	MAX_DMA_CHANNELS	8	
+#else
+# define	MAX_DMA_CHANNELS	0
+#endif	
+
+#endif	/* _ASM_ARCH_DMA_H */
+

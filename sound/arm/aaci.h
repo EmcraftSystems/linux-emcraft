@@ -1,7 +1,7 @@
 /*
- *  linux/sound/arm/aaci.c - ARM PrimeCell AACI PL041 driver
+ * linux/sound/arm/aaci.c - ARM PrimeCell AACI PL041 driver
  *
- *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
+ * Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,7 +12,7 @@
 
 /*
  * Control and status register offsets
- *  P39.
+ * - see Programmer's Model in TRM
  */
 #define AACI_CSCH1	0x000
 #define AACI_CSCH2	0x014
@@ -22,8 +22,8 @@
 #define AACI_RXCR	0x000	/* 29 bits Control Rx FIFO */
 #define AACI_TXCR	0x004	/* 17 bits Control Tx FIFO */
 #define AACI_SR		0x008	/* 12 bits Status */
-#define AACI_ISR	0x00c	/* 7 bits  Int Status */
-#define AACI_IE 	0x010	/* 7 bits  Int Enable */
+#define AACI_ISR	0x00c	/* 7 bits Int Status */
+#define AACI_IE 	0x010	/* 7 bits Int Enable */
 
 /*
  * Other registers
@@ -209,6 +209,10 @@ struct aaci_runtime {
 	u32			cr;
 	struct snd_pcm_substream	*substream;
 
+#ifdef CONFIG_ARM_AMBA_DMA 
+	dmach_t 		dma_chan;
+#endif
+
 	/*
 	 * PIO support
 	 */
@@ -223,7 +227,7 @@ struct aaci_runtime {
 struct aaci {
 	struct amba_device	*dev;
 	struct snd_card		*card;
-	void			__iomem *base;
+	void			__iomem *base;	/* AACI register base */
 	unsigned int		fifosize;
 
 	/* AC'97 */
@@ -242,5 +246,18 @@ struct aaci {
 #define ACSTREAM_FRONT		0
 #define ACSTREAM_SURROUND	1
 #define ACSTREAM_LFE		2
+
+#define TIME_TO_RESPOND		42	/* 42us = ~2 frames at 48kHz. */
+					/* This should give the AC'97 codec */
+					/* sufficient time to respond */ 
+
+#ifdef CONFIG_ARM_AMBA_DMA 
+/* 
+ * DMA only possible on audio channel 1 
+ * - the first of four 
+ */
+# define AACI_INDEX_DMACHAN	0
+# define AACI_DMACHAN		1
+#endif
 
 #endif

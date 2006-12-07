@@ -30,6 +30,12 @@ extern void __init versatile_map_io(void);
 extern struct sys_timer versatile_timer;
 extern unsigned int mmc_status(struct device *dev);
 
+/*
+ * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
+ * is the (PA >> 12).
+ */
+#define __io_address(n)		__io(IO_ADDRESS(n))
+
 #define AMBA_DEVICE(name,busid,base,plat)			\
 static struct amba_device name##_device = {			\
 	.dev		= {					\
@@ -44,7 +50,6 @@ static struct amba_device name##_device = {			\
 	},							\
 	.dma_mask	= ~0,					\
 	.irq		= base##_IRQ,				\
-	/* .dma		= base##_DMA,*/				\
 }
 
 #endif

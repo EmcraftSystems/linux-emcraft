@@ -11,18 +11,8 @@
  *  (dma.c) and the architecture-specific DMA backends (dma-*.c)
  */
 
-struct dma_struct;
-typedef struct dma_struct dma_t;
-
-struct dma_ops {
-	int	(*request)(dmach_t, dma_t *);		/* optional */
-	void	(*free)(dmach_t, dma_t *);		/* optional */
-	void	(*enable)(dmach_t, dma_t *);		/* mandatory */
-	void 	(*disable)(dmach_t, dma_t *);		/* mandatory */
-	int	(*residue)(dmach_t, dma_t *);		/* optional */
-	int	(*setspeed)(dmach_t, dma_t *, int);	/* optional */
-	char	*type;
-};
+#ifndef _ASMARM_MACH_DMA_H_
+#define _ASMARM_MACH_DMA_H_
 
 struct dma_struct {
 	void		*addr;		/* single DMA address		*/
@@ -48,6 +38,20 @@ struct dma_struct {
 	struct dma_ops	*d_ops;
 };
 
+typedef struct dma_struct dma_t;
+
+struct dma_ops {
+	int	(*request)(dmach_t, dma_t *);		/* optional */
+	void	(*free)(dmach_t, dma_t *);		/* optional */
+	void	(*enable)(dmach_t, dma_t *);		/* mandatory */
+	void 	(*disable)(dmach_t, dma_t *);		/* mandatory */
+	int	(*residue)(dmach_t, dma_t *);		/* optional */
+	int	(*setspeed)(dmach_t, dma_t *, int);	/* optional */
+	char	*type;
+};
+
+
+
 /* Prototype: void arch_dma_init(dma)
  * Purpose  : Initialise architecture specific DMA
  * Params   : dma - pointer to array of DMA structures
@@ -55,3 +59,10 @@ struct dma_struct {
 extern void arch_dma_init(dma_t *dma);
 
 extern void isa_init_dma(dma_t *dma);
+
+#ifdef CONFIG_ARM_AMBA_DMA
+extern void amba_init_dma(dma_t *dma);
+#endif
+
+
+#endif

@@ -15,6 +15,8 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 
 #include <asm/dma.h>
 
@@ -24,23 +26,6 @@ DEFINE_SPINLOCK(dma_spin_lock);
 EXPORT_SYMBOL(dma_spin_lock);
 
 static dma_t dma_chan[MAX_DMA_CHANNELS];
-
-/*
- * Get dma list for /proc/dma
- */
-int get_dma_list(char *buf)
-{
-	dma_t *dma;
-	char *p = buf;
-	int i;
-
-	for (i = 0, dma = dma_chan; i < MAX_DMA_CHANNELS; i++, dma++)
-		if (dma->lock)
-			p += sprintf(p, "%2d: %14s %s\n", i,
-				     dma->d_ops->type, dma->device_id);
-
-	return p - buf;
-}
 
 /*
  * Request DMA channel
@@ -140,8 +125,15 @@ void __set_dma_addr (dmach_t channel, void *addr)
 		printk(KERN_ERR "dma%d: altering DMA address while "
 		       "DMA active\n", channel);
 
+#ifdef CONFIG_ARM_AMBA_DMA
+ 	dma->sg = &dma->buf;
+ 	dma->sgcount = 1;
+	dma->buf.dma_address = virt_to_bus(addr);
+#else
 	dma->sg = NULL;
 	dma->addr = addr;
+#endif
+
 	dma->invalid = 1;
 }
 EXPORT_SYMBOL(__set_dma_addr);
@@ -263,5 +255,46 @@ static int __init init_dma(void)
 	arch_dma_init(dma_chan);
 	return 0;
 }
+
+#ifdef CONFIG_PROC_FS
+static int proc_dma_show(struct seq_file *m, void *v)
+{
+	int i;
+
+	for (i = 0 ; i < MAX_DMA_CHANNELS ; i++) {
+		if (dma_chan[i].lock) {
+			seq_printf(m, "%2d: %14s %s\n", i,
+				   dma_chan[i].d_ops->type, dma_chan[i].device_id);
+		}
+	}
+	return 0;
+}
+static int proc_dma_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_dma_show, NULL);
+}
+
+static struct file_operations proc_dma_operations = {
+	.open		= proc_dma_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init proc_dma_init(void)
+{
+	if(MAX_DMA_CHANNELS > 0){
+		struct proc_dir_entry *e;
+
+		e = create_proc_entry("dma", 0, NULL);
+		if (e)
+			e->proc_fops = &proc_dma_operations;
+	}
+	return 0;
+}
+
+__initcall(proc_dma_init);
+
+#endif
 
 core_initcall(init_dma);

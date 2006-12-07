@@ -349,6 +349,57 @@ void amba_release_regions(struct amba_device *dev)
 	release_mem_region(dev->res.start, SZ_4K);
 }
 
+#ifdef CONFIG_ARCH_VERSATILE
+/*
+ * In the request & free we want to call versatile routines with the amba_device *
+ * We need this so we can pass the driver the interrupt etc DMAC driver routines
+ * & to identify the amba_device for e.g setting the DMA mapping register
+ */
+
+typedef struct _query_data {
+	struct amba_device * ad;
+	char * name;
+} query_data;
+
+static int match_name(struct device * dev, void * data){
+	query_data * d = (query_data*)data;
+	int ret = 0;
+
+	if(dev && data){
+		if(dev->driver){
+			if(dev->driver->name){
+				if(0 == strncmp(dev->driver->name, (const char *)d->name, strlen(dev->driver->name))){
+					get_device(dev);
+					d->ad = to_amba_device(dev);
+					ret = 1;
+				}
+			} else {
+				printk(KERN_ERR "amba.c::match_name() - no driver name for device %p, driver %p\n", dev, dev->driver);
+			}
+		} /* else no driver attached */
+	} else  {
+		printk(KERN_ERR "amba.c::match_name() - void pointer(s) dev %p, data %p\n", dev, data);
+	}
+	return ret;
+}
+
+/*
+ * Attempt to match the passed name to the driver, if any, of each AMBA device on the bus
+ */
+struct amba_device * amba_get_device_with_name(char * name){
+
+	query_data d;
+
+	d.ad = NULL;
+	d.name = name;
+
+	bus_for_each_dev(&amba_bustype, NULL, &d, match_name);
+
+	return d.ad;
+}
+EXPORT_SYMBOL(amba_get_device_with_name);
+#endif
+
 EXPORT_SYMBOL(amba_driver_register);
 EXPORT_SYMBOL(amba_driver_unregister);
 EXPORT_SYMBOL(amba_device_register);
