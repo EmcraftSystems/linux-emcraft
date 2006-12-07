@@ -420,9 +420,11 @@ void __init build_mem_type_table(void)
 
 		/*
 		 * Mark the device area as "shared device"
+		 * Bit 4 (execute-never) has to be set to avoid
+		 * speculative prefetching
 		 */
 		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
-		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
+		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED|PMD_BIT4;
 
 		/*
 		 * User pages need to be mapped with the ASID

@@ -274,6 +274,10 @@ __create_page_tables:
 #ifdef CONFIG_DEBUG_LL
 	bic	r7, r7, #0x0c			@ turn off cacheable
 						@ and bufferable bits
+#if __LINUX_ARM_ARCH__ >= 6
+	orr	r7, r7, #(1 << 4)		@ must set XN to avoid
+						@ speculative prefetch
+#endif
 	/*
 	 * Map in IO space for serial debugging.
 	 * This allows debug messages to be output
