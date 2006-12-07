@@ -208,8 +208,12 @@ __v6_setup:
 	/* Set up the SCU on core 0 only */
 	mrc	p15, 0, r0, c0, c0, 5		@ CPU core number
 	ands	r0, r0, #15
+#ifdef CONFIG_REALVIEW_MPCORE_REVB
 	moveq	r0, #0x10000000 @ SCU_BASE
 	orreq	r0, r0, #0x00100000
+#else
+	moveq	r0, #0x1F000000			@ SCU control registers
+#endif
 	ldreq	r5, [r0, #SCU_CTRL]
 	orreq	r5, r5, #1
 	streq	r5, [r0, #SCU_CTRL]
