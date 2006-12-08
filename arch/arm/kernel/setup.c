@@ -354,12 +354,6 @@ static void __init setup_processor(void)
 #ifndef CONFIG_ARM_THUMB
 	elf_hwcap &= ~HWCAP_THUMB;
 #endif
-#ifndef CONFIG_VFP
-	elf_hwcap &= ~HWCAP_VFP;
-#endif
-#ifndef CONFIG_IWMMXT
-	elf_hwcap &= ~HWCAP_IWMMXT;
-#endif
 
 	cpu_proc_init();
 }
