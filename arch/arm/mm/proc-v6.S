@@ -207,6 +207,21 @@ __v6_setup:
 #endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #endif /* CONFIG_MMU */
+
+	/* Workaround for the 364296 ARM1136 r0pX errata (possible cache data
+	 * corruption with hit-under-miss enabled). The conditional code below
+	 * (setting the undocumented bit 31 in the auxiliary control register
+	 * and the FI bit in the control register) disables hit-under-miss
+	 * without putting the processor into full low interrupt latency mode.
+	 */
+	ldr	r5, =0x4107b360			@ id for ARM1136 r0pX
+	mrc	p15, 0, r0, c0, c0, 0		@ get processor id
+	bic	r0, r0, #0xf			@ mask out part bits [3:0]
+	teq	r0, r5				@ check for the faulty core
+	mrceq	p15, 0, r0, c1, c0, 1		@ load aux control reg
+	orreq	r0, r0, #0x80000000		@ set bit 31
+	mcreq	p15, 0, r0, c1, c0, 1		@ write aux control reg
+
 	adr	r5, v6_crval
 	ldmia	r5, {r5, r6}
 	mrc	p15, 0, r0, c1, c0, 0		@ read control register
