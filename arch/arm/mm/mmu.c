@@ -259,6 +259,13 @@ static void __init build_mem_type_table(void)
 		ecc_mask = 0;
 	}
 
+#ifdef CONFIG_SMP
+	/* To ensure the cache coherency between multiple ARMv6 cores,
+	 * the cache policy has to be write-allocate */
+	if (cpu_arch == CPU_ARCH_ARMv6 && cachepolicy >= CPOLICY_WRITEBACK)
+		cachepolicy = CPOLICY_WRITEALLOC;
+#endif
+
 	/*
 	 * Xscale must not have PMD bit 4 set for section mappings.
 	 */
