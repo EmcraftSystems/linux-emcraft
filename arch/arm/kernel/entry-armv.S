@@ -280,7 +280,6 @@ __pabt_svc:
 	mrs	r9, cpsr
 	tst	r3, #PSR_I_BIT
 	biceq	r9, r9, #PSR_I_BIT
-	msr	cpsr_c, r9
 
 	@
 	@ set args, then call main handler
@@ -288,7 +287,15 @@ __pabt_svc:
 	@  r0 - address of faulting instruction
 	@  r1 - pointer to registers on stack
 	@
-	mov	r0, r2				@ address (pc)
+#ifdef MULTI_PABORT
+	mov	r0, r2			@ pass address of aborted instruction.
+	ldr	r4, .LCprocfns
+	mov	lr, pc
+	ldr	pc, [r4, #]
+#else
+	CPU_PABORT_HANDLER(r0, r2)
+#endif
+	msr	cpsr_c, r9			@ Maybe enable interrupts
 	mov	r1, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 
@@ -435,10 +442,6 @@ __irq_usr:
 __und_usr:
 	usr_entry
 
-	tst	r3, #PSR_T_BIT			@ Thumb mode?
-	bne	__und_usr_unknown		@ ignore FP
-	sub	r4, r2, #4
-
 	@
 	@ fall through to the emulation code, which returns using r9 if
 	@ it has emulated the instruction, or the more conventional lr
@@ -446,21 +449,60 @@ __und_usr:
 	@
 	@  r0 - instruction
 	@
-1:	ldrt	r0, [r4]
 	adr	r9, ret_from_exception
 	adr	lr, __und_usr_unknown
-	@
-	@ fallthrough to call_fpe
-	@
+
+	tst	r3, #PSR_T_BIT			@ Thumb mode?
+	addne	r2, r2, #2
+	sub	r4, r2, #4
+1:	ldreqt	r0, [r4]
+	beq	call_fpe
+	@ Thumb instruction
+#if __LINUX_ARM_ARCH__ >= 7
+2:	ldrht	r5, [r4], #2
+	@ ignore 16-bit instructions.
+	and	r0, r5, #0xf800
+	cmp	r0, #0xe800
+	bcc	__und_usr_unknown
+3:	ldrht	r0, [r4]
+	orr	r0, r0, r5, lsl #16
+#ifdef CONFIG_NEON
+	@ NEON data processing instructions are the same as ARM except
+	@ bit 28 is moved to bit 24.
+	and	r5, r0, #0xef000000
+	cmp	r5, #0xef000000
+	andeq	r5, r0, #0x10000000
+	biceq	r0, r0, #0x10000000
+	orreq	r0, r0, r5, lsr #4
+	beq	undef_neon
+#endif
+	@ Coprocessor instructions use the same encodings in both
+	@ ARM and Thumb mode.
+	and	r5, r0, #0xec000000
+	cmp	r5, #0xec000000
+	beq	call_fpe
+#ifdef CONFIG_NEON
+	@ NEON element load instructions.
+	and	r5, r0, #0xff00000000
+	cmp	r5, #0xf9000000
+	tsteq	r0, #0x00100000
+	beq	undef_neon
+#endif
+#endif
+	b	__und_usr_unknown
 
 /*
  * The out of line fixup for the ldrt above.
  */
 	.section .fixup, "ax"
-2:	mov	pc, r9
+4:	mov	pc, r9
 	.previous
 	.section __ex_table,"a"
-	.long	1b, 2b
+	.long	1b, 4b
+#if __LINUX_ARM_ARCH__ >= 7
+	.long	2b, 4b
+	.long	3b, 4b
+#endif
 	.previous
 
 /*
@@ -606,8 +648,15 @@ __und_usr_unknown:
 __pabt_usr:
 	usr_entry
 
+#ifdef MULTI_PABORT
+	mov	r0, r2			@ pass address of aborted instruction.
+	ldr	r4, .LCprocfns
+	mov	lr, pc
+	ldr	pc, [r4, #]
+#else
+	CPU_PABORT_HANDLER(r0, r2)
+#endif
 	enable_irq				@ Enable interrupts
-	mov	r0, r2				@ address (pc)
 	mov	r1, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 	/* fall through */
