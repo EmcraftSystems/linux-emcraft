@@ -32,6 +32,7 @@
  */
 #define REALVIEW_EB_PCI_VIRT_BASE	0xe8000000
 #define REALVIEW_EB_PCI_CFG_VIRT_BASE	0xe9000000
+#define REALVIEW_EB_PCI_IO_VIRT_BASE	0xea000000
 
 /* CIK guesswork */
 #define PCIBIOS_MIN_IO			0x62000000
@@ -44,6 +45,6 @@
 #else
 #define IO_ADDRESS(x)		(x)
 #endif
-#define __io_address(n)		__io(IO_ADDRESS(n))
+#define __io_address(n)		((void __iomem *)IO_ADDRESS(n))
 
 #endif
