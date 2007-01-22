@@ -82,7 +82,25 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(REALVIEW_UART0_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
-	}
+	},
+#endif
+#ifdef CONFIG_PCI
+ 	{
+		.virtual	=  IO_ADDRESS(REALVIEW_EB_PCI_CORE_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB_PCI_CORE_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	=  REALVIEW_EB_PCI_VIRT_BASE,
+		.pfn		= __phys_to_pfn(REALVIEW_EB_PCI_BASE),
+		.length		= REALVIEW_EB_PCI_BASE_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= REALVIEW_EB_PCI_CFG_VIRT_BASE,
+		.pfn		= __phys_to_pfn(REALVIEW_EB_PCI_CFG_BASE),
+		.length		= REALVIEW_EB_PCI_CFG_BASE_SIZE,
+		.type		= MT_DEVICE
+	},
 #endif
 };
 
