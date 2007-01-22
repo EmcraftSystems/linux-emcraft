@@ -25,6 +25,18 @@
 #include <asm/sizes.h>
 #include <asm/arch/platform.h>
 
+/*
+ * PCI space virtual addresses
+ */
+#define REALVIEW_EB_PCI_VIRT_BASE	0xe8000000
+#define REALVIEW_EB_PCI_CFG_VIRT_BASE	0xe9000000
+
+/* CIK guesswork */
+#define PCIBIOS_MIN_IO			0x62000000
+#define PCIBIOS_MIN_MEM			0x63000000
+
+#define pcibios_assign_all_busses()     1
+
 /* macro to get at IO space when running virtually */
 #define IO_ADDRESS(x)		((((x) & 0x0effffff) | (((x) >> 4) & 0x0f000000)) + 0xf0000000)
 #define __io_address(n)		__io(IO_ADDRESS(n))
