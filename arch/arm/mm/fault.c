@@ -21,6 +21,7 @@
 
 #include "fault.h"
 
+#ifdef CONFIG_MMU
 /*
  * This is useful to dump out the page tables associated with
  * 'addr' in mm 'mm'.
@@ -72,6 +73,10 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 
 	printk("\n");
 }
+#else					/* CONFIG_MMU */
+void show_pte(struct mm_struct *mm, unsigned long addr)
+{ }
+#endif					/* CONFIG_MMU */
 
 /*
  * Oops.  The kernel tried to access some page that wasn't present.
@@ -146,6 +151,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		__do_kernel_fault(mm, addr, fsr, regs);
 }
 
+#ifdef CONFIG_MMU
 #define VM_FAULT_BADMAP		(-20)
 #define VM_FAULT_BADACCESS	(-21)
 
@@ -298,6 +304,13 @@ no_context:
 	__do_kernel_fault(mm, addr, fsr, regs);
 	return 0;
 }
+#else					/* CONFIG_MMU */
+static int
+do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+{
+	return 0;
+}
+#endif					/* CONFIG_MMU */
 
 /*
  * First Level Translation Fault Handler
@@ -316,6 +329,7 @@ no_context:
  * interrupt or a critical region, and should only copy the information
  * from the master page table, nothing more.
  */
+#ifdef CONFIG_MMU
 static int
 do_translation_fault(unsigned long addr, unsigned int fsr,
 		     struct pt_regs *regs)
@@ -354,6 +368,14 @@ bad_area:
 	do_bad_area(addr, fsr, regs);
 	return 0;
 }
+#else					/* CONFIG_MMU */
+static int
+do_translation_fault(unsigned long addr, unsigned int fsr,
+		     struct pt_regs *regs)
+{
+	return 0;
+}
+#endif					/* CONFIG_MMU */
 
 /*
  * Some section permission faults need to be handled gracefully.
