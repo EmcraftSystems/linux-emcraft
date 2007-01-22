@@ -199,7 +199,6 @@
 	/* Reserved 0x10016000 */
 #define REALVIEW_RTC_BASE             0x10017000	/* Real Time Clock */
 #define REALVIEW_DMC_BASE             0x10018000	/* DMC configuration */
-#define REALVIEW_PCI_CORE_BASE        0x10019000	/* PCI configuration */
 	/* Reserved 0x1001A000 - 0x1001FFFF */
 #define REALVIEW_CLCD_BASE            0x10020000	/* CLCD */
 #define REALVIEW_DMAC_BASE            0x10030000	/* DMA controller */
@@ -231,19 +230,23 @@
 	/* Reserved 0x10090000 - 0x100EFFFF */
 
 #define REALVIEW_ETH_BASE             0x4E000000	/* Ethernet */
+#define REALVIEW_EB_PCI_CORE_BASE		0x10019000	/* PCI configuration */
 
-/* PCI space */
-#define REALVIEW_PCI_BASE             0x41000000	/* PCI Interface */
-#define REALVIEW_PCI_CFG_BASE	      0x42000000
-#define REALVIEW_PCI_MEM_BASE0        0x44000000
-#define REALVIEW_PCI_MEM_BASE1        0x50000000
-#define REALVIEW_PCI_MEM_BASE2        0x60000000
-/* Sizes of above maps */
-#define REALVIEW_PCI_BASE_SIZE	       0x01000000
-#define REALVIEW_PCI_CFG_BASE_SIZE    0x02000000
-#define REALVIEW_PCI_MEM_BASE0_SIZE   0x0c000000	/* 32Mb */
-#define REALVIEW_PCI_MEM_BASE1_SIZE   0x10000000	/* 256Mb */
-#define REALVIEW_PCI_MEM_BASE2_SIZE   0x10000000	/* 256Mb */
+/* EB PCI regions */
+#define REALVIEW_EB_PCI_BASE			0x60000000	/* PCI self config */
+#define REALVIEW_EB_PCI_CFG_BASE		0x61000000	/* PCI config */
+#define REALVIEW_EB_PCI_IO_BASE0		0x62000000	/* PCI IO region */
+#define REALVIEW_EB_PCI_MEM_BASE0		0x63000000	/* Memory region 1 */
+#define REALVIEW_EB_PCI_MEM_BASE1		0x64000000	/* Memory region 2 */
+#define REALVIEW_EB_PCI_MEM_BASE2		0x68000000	/* Memory region 3 */
+
+/* EB PCI region sizes */
+#define REALVIEW_EB_PCI_BASE_SIZE		0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_CFG_BASE_SIZE		0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_IO_BASE0_SIZE		0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_MEM_BASE0_SIZE		0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_MEM_BASE1_SIZE		0x04000000	/* 64MB */
+#define REALVIEW_EB_PCI_MEM_BASE2_SIZE		0x08000000	/* 128MB */
 
 #define REALVIEW_SDRAM67_BASE         0x70000000	/* SDRAM banks 6 and 7 */
 #define REALVIEW_LT_BASE              0x80000000	/* Logic Tile expansion */
