@@ -208,6 +208,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		unsigned long kaddr = (unsigned long)page_address(page);
 		memset(page_address(page), 0, size);
 		dmac_flush_range(kaddr, kaddr + size);
+		outer_flush_range(kaddr, kaddr + size);
 	}
 
 	/*
@@ -488,12 +489,15 @@ void consistent_sync(void *vaddr, size_t size, int direction)
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
 		dmac_inv_range(start, end);
+		outer_inv_range(start, end);
 		break;
 	case DMA_TO_DEVICE:		/* writeback only */
 		dmac_clean_range(start, end);
+		outer_clean_range(start, end);
 		break;
 	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
 		dmac_flush_range(start, end);
+		outer_flush_range(start, end);
 		break;
 	default:
 		BUG();

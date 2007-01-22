@@ -334,6 +334,7 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 			 */
 			ptr = (unsigned long)buf->ptr;
 			dmac_clean_range(ptr, ptr + size);
+			outer_clean_range(ptr, ptr + size);
 		}
 		free_safe_buffer(device_info, buf);
 	}
