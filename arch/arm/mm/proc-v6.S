@@ -95,7 +95,7 @@ ENTRY(cpu_v6_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) || defined (CONFIG_OUTER_CACHE)
 	orr	r0, r0, #TTB_RGN_WBWA|TTB_S	@ mark PTWs shared, outer cacheable
 #endif
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
@@ -204,7 +204,7 @@ __v6_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r0, c2, c0, 2		@ TTB control register
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) || defined (CONFIG_OUTER_CACHE)
 	orr	r4, r4, #TTB_RGN_WBWA|TTB_S	@ mark PTWs shared, outer cacheable
 #endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
