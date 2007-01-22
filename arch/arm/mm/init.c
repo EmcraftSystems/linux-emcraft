@@ -210,11 +210,13 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 		map_memory_bank(bank);
 	}
 
+#ifdef CONFIG_MMU
 	/*
 	 * Since the new mappings override the initial sections,
 	 * flushing the whole TLB is needed
 	 */
 	local_flush_tlb_all();
+#endif
 
 	/*
 	 * If there is no memory in this node, ignore it.
