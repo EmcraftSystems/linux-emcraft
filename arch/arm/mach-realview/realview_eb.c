@@ -244,6 +244,26 @@ static struct platform_device realview_eb_smc91x_device = {
 	.resource	= realview_eb_smc91x_resources,
 };
 
+static struct resource realview_eb_smsc911x_resources[] = {
+	[0] = {
+		.start		= REALVIEW_ETH_BASE,
+		.end		= REALVIEW_ETH_BASE + SZ_64K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= IRQ_EB_ETH,
+		.end		= IRQ_EB_ETH,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device realview_eb_smsc911x_device = {
+	.name		= "smsc911x",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(realview_eb_smsc911x_resources),
+	.resource	= realview_eb_smsc911x_resources,
+};
+
 static void __init gic_init_irq(void)
 {
 	if (core_tile_eb11mp()) {
@@ -303,6 +323,8 @@ static void realview_eb11mp_fixup(void)
 	/* platform devices */
 	realview_eb_smc91x_resources[1].start	= IRQ_EB11MP_ETH;
 	realview_eb_smc91x_resources[1].end	= IRQ_EB11MP_ETH;
+	realview_eb_smsc911x_resources[1].start	= IRQ_EB11MP_ETH;
+	realview_eb_smsc911x_resources[1].end	= IRQ_EB11MP_ETH;
 }
 
 static void __init realview_eb_timer_init(void)
@@ -328,6 +350,7 @@ static struct sys_timer realview_eb_timer = {
 static void __init realview_eb_init(void)
 {
 	int i;
+	u32 sys_id = readl(__io_address(REALVIEW_SYS_ID));
 
 	if (core_tile_eb11mp()) {
 		realview_eb11mp_fixup();
@@ -340,8 +363,14 @@ static void __init realview_eb_init(void)
 	clk_register(&realview_clcd_clk);
 
 	platform_device_register(&realview_flash_device);
-	platform_device_register(&realview_eb_smc91x_device);
 	platform_device_register(&realview_i2c_device);
+
+	/* RealView/EB rev D platforms use the newer SMSC LAN9118
+	 * Ethernet chip */
+	if ((sys_id >> 28) <= 2)
+		platform_device_register(&realview_eb_smc91x_device);
+	else
+		platform_device_register(&realview_eb_smsc911x_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
