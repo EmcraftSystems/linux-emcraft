@@ -583,7 +583,7 @@ ENTRY(__switch_to)
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
 #if __LINUX_ARM_ARCH__ >= 6
-#ifdef CONFIG_CPU_32v6K
+#if defined(CONFIG_CPU_32v6K) || __LINUX_ARM_ARCH__ > 6
 	clrex
 #else
 	strex	r5, r4, [ip]			@ Clear exclusive monitor
