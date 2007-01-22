@@ -211,6 +211,12 @@ bootmem_init_node(int node, int initrd_node, struct meminfo *mi)
 	}
 
 	/*
+	 * Since the new mappings override the initial sections,
+	 * flushing the whole TLB is needed
+	 */
+	local_flush_tlb_all();
+
+	/*
 	 * If there is no memory in this node, ignore it.
 	 */
 	if (end_pfn == 0)
