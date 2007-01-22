@@ -23,12 +23,32 @@
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
+#ifdef CONFIG_ARM_ERRATA_351422
+#define spinlock_backoff_delay()			\
+{							\
+	unsigned int delay;				\
+	__asm__ __volatile__(				\
+	"1:	mrc     p15, 0, %0, c0, c0, 5\n"	\
+	"	and	%0, %0, #0xf\n"			\
+	"	mov	%0, %0, lsl #8\n"		\
+	"2:	subs	%0, %0, #1\n"			\
+	"	bpl	2b\n"				\
+	: "=&r" (delay)					\
+	:						\
+	: "cc" );					\
+}
+#else
+#define spinlock_backoff_delay()			\
+	__asm__ __volatile__("1:	\n");
+#endif
+
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
-"1:	ldrex	%0, [%1]\n"
+"	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
 #ifdef CONFIG_CPU_32v6K
 "	wfene\n"
@@ -47,6 +67,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
@@ -90,8 +111,9 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
-"1:	ldrex	%0, [%1]\n"
+"	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
 #ifdef CONFIG_CPU_32v6K
 "	wfene\n"
@@ -110,6 +132,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
@@ -160,8 +183,9 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
-"1:	ldrex	%0, [%2]\n"
+"	ldrex	%0, [%2]\n"
 "	adds	%0, %0, #1\n"
 "	strexpl	%1, %0, [%2]\n"
 #ifdef CONFIG_CPU_32v6K
@@ -182,8 +206,9 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 
 	smp_mb();
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
-"1:	ldrex	%0, [%2]\n"
+"	ldrex	%0, [%2]\n"
 "	sub	%0, %0, #1\n"
 "	strex	%1, %0, [%2]\n"
 "	teq	%1, #0\n"
