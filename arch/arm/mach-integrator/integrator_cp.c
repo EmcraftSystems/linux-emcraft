@@ -148,6 +148,7 @@ static void cic_mask_irq(unsigned int irq)
 {
 	irq -= IRQ_CIC_START;
 	cic_writel(1 << irq, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
+	dsb();
 }
 
 static void cic_unmask_irq(unsigned int irq)

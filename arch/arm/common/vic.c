@@ -30,6 +30,7 @@ static void vic_mask_irq(unsigned int irq)
 	void __iomem *base = get_irq_chipdata(irq);
 	irq &= 31;
 	writel(1 << irq, base + VIC_INT_ENABLE_CLEAR);
+	dsb();
 }
 
 static void vic_unmask_irq(unsigned int irq)

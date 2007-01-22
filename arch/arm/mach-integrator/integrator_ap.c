@@ -154,6 +154,7 @@ static void __init ap_map_io(void)
 static void sc_mask_irq(unsigned int irq)
 {
 	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_CLEAR);
+	dsb();
 }
 
 static void sc_unmask_irq(unsigned int irq)
