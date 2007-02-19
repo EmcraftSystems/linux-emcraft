@@ -300,7 +300,7 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
  	addr = (unsigned long)area->addr;
 
 #ifndef CONFIG_SMP
-	if (DOMAIN_IO == 0 &&
+	if (DOMAIN_IO == 0 && pfn >= 0x100000 &&
 	    (((cpu_architecture() >= CPU_ARCH_ARMv6) && (get_cr() & CR_XP)) ||
 	       cpu_is_xsc3()) &&
 	       !((__pfn_to_phys(pfn) | size | addr) & ~SUPERSECTION_MASK)) {

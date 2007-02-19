@@ -465,6 +465,12 @@ void __init create_mapping(struct map_desc *md)
 	 * Catch 36-bit addresses
 	 */
 	if(md->pfn >= 0x100000) {
+		if (!(cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())) {
+			printk(KERN_ERR "MM: supersection mapping not "
+				"supported for 0x%08llx at 0x%08lx\n",
+				__pfn_to_phys((u64)md->pfn), md->virtual);
+			return;
+		}
 		if(domain) {
 			printk(KERN_ERR "MM: invalid domain in supersection "
 				"mapping for 0x%08llx at 0x%08lx\n",
@@ -505,39 +511,17 @@ void __init create_mapping(struct map_desc *md)
 		length -= PAGE_SIZE;
 	}
 
-	/* N.B.	ARMv6 supersections are only defined to work with domain 0.
-	 *	Since domain assignments can in fact be arbitrary, the
-	 *	'domain == 0' check below is required to insure that ARMv6
-	 *	supersections are only allocated for domain 0 regardless
-	 *	of the actual domain assignments in use.
+	/*
+	 * Architecture version, domain 0 and high pages alignment
+	 * have already been checked above.
 	 */
-	if ((cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())
-		&& domain == 0) {
-		/*
-		 * Align to supersection boundary if !high pages.
-		 * High pages have already been checked for proper
-		 * alignment above and they will fail the SUPSERSECTION_MASK
-		 * check because of the way the address is encoded into
-		 * offset.
-		 */
-		if (md->pfn <= 0x100000) {
-			while ((virt & ~SUPERSECTION_MASK ||
-			        (virt + off) & ~SUPERSECTION_MASK) &&
-				length >= (PGDIR_SIZE / 2)) {
-				alloc_init_section(virt, virt + off, prot_sect);
-
-				virt   += (PGDIR_SIZE / 2);
-				length -= (PGDIR_SIZE / 2);
-			}
-		}
-
+	if (md->pfn >= 0x100000)
 		while (length >= SUPERSECTION_SIZE) {
 			alloc_init_supersection(virt, virt + off, prot_sect);
 
 			virt   += SUPERSECTION_SIZE;
 			length -= SUPERSECTION_SIZE;
 		}
-	}
 
 	/*
 	 * A section mapping covers half a "pgdir" entry.
