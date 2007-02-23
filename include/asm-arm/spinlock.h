@@ -23,10 +23,34 @@
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
+#if defined(CONFIG_SMP) && defined(CONFIG_REALVIEW_MPCORE)
+
+/* RevB and RevC MPCore contains r0p0 silicon, which needs this workaround */
+
+static inline int spinlock_backoff_delay(void)
+{
+  unsigned int delay;
+	__asm__ __volatile__(
+"2: mrc     p15, 0, %0, c0, c0, 5\n"
+" and %0, %0, #0xf\n"
+" mov %0, %0, lsl #8\n"
+"1: subs %0, %0, #1\n"
+" bpl 1b\n"
+	: "=&r" (delay)
+  :
+  : "cc" );
+
+  return 1;
+}
+#else
+#define spinlock_backoff_delay()
+#endif
+
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
@@ -35,7 +59,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 #endif
 "	strexeq	%0, %2, [%1]\n"
 "	teqeq	%0, #0\n"
-"	bne	1b"
+"	bne	2b"
 	: "=&r" (tmp)
 	: "r" (&lock->lock), "r" (1)
 	: "cc");
@@ -47,6 +71,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
@@ -91,6 +116,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
@@ -99,7 +125,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 #endif
 "	strexeq	%0, %2, [%1]\n"
 "	teq	%0, #0\n"
-"	bne	1b"
+"	bne	2b"
 	: "=&r" (tmp)
 	: "r" (&rw->lock), "r" (0x80000000)
 	: "cc");
@@ -111,6 +137,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
 	unsigned long tmp;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
@@ -161,6 +188,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%2]\n"
 "	adds	%0, %0, #1\n"
@@ -169,7 +197,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 "	wfemi\n"
 #endif
 "	rsbpls	%0, %1, #0\n"
-"	bmi	1b"
+"	bmi	2b"
 	: "=&r" (tmp), "=&r" (tmp2)
 	: "r" (&rw->lock)
 	: "cc");
@@ -183,12 +211,13 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 
 	smp_mb();
 
+	spinlock_backoff_delay();
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%2]\n"
 "	sub	%0, %0, #1\n"
 "	strex	%1, %0, [%2]\n"
 "	teq	%1, #0\n"
-"	bne	1b"
+"	bne	2b"
 #ifdef CONFIG_CPU_32v6K
 "\n	cmp	%0, #0\n"
 "	mcreq   p15, 0, %0, c7, c10, 4\n"
