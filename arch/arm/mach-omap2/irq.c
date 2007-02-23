@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <asm/system.h>
 #include <asm/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
@@ -61,6 +62,7 @@ static void omap_mask_irq(unsigned int irq)
 	}
 
 	omap_writel(1 << irq, irq_banks[0].base_reg + INTC_MIR_SET0 + offset);
+	dsb();
 }
 
 static void omap_unmask_irq(unsigned int irq)
