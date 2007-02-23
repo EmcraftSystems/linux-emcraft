@@ -174,6 +174,7 @@ static void __init realview_eb_init(void)
 
 	platform_device_register(&realview_flash_device);
 	platform_device_register(&realview_smc91x_device);
+	platform_device_register(&realview_smsc911x_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
