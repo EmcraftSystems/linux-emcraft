@@ -29,5 +29,6 @@ struct map_desc {
 #ifdef CONFIG_MMU
 extern void iotable_init(struct map_desc *, int);
 #else
-#define iotable_init(map,num)	do { } while (0)
+static void inline iotable_init(struct map_desc *io_desc, int nr)
+{ }
 #endif
