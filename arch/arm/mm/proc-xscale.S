@@ -535,6 +535,7 @@ ENTRY(xscale_processor_functions)
 	.word	cpu_xscale_dcache_clean_area
 	.word	cpu_xscale_switch_mm
 	.word	cpu_xscale_set_pte
+	.word	pabort_noifar
 	.size	xscale_processor_functions, . - xscale_processor_functions
 
 	.section ".rodata"
