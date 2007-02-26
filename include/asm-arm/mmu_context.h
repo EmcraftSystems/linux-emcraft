@@ -19,7 +19,7 @@
 
 void __check_kvm_seq(struct mm_struct *mm);
 
-#if __LINUX_ARM_ARCH__ >= 6
+#if defined(CONFIG_MMU) && __LINUX_ARM_ARCH__ >= 6
 
 /*
  * On ARMv6, we have the following structure in the Context ID:
@@ -58,8 +58,10 @@ static inline void check_context(struct mm_struct *mm)
 
 static inline void check_context(struct mm_struct *mm)
 {
+#ifdef CONFIG_MMU
 	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
 		__check_kvm_seq(mm);
+#endif
 }
 
 #define init_new_context(tsk,mm)	0
