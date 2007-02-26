@@ -56,7 +56,7 @@
  *
  * Setup a VA for the Versatile Vectored Interrupt Controller.
  */
-#define __io_address(n)		__io(IO_ADDRESS(n))
+#define __io_address(n)		((void __iomem *)IO_ADDRESS(n))
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 
@@ -200,25 +200,12 @@ static struct map_desc versatile_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_CFG_BASE),
 		.length		= VERSATILE_PCI_CFG_BASE_SIZE,
 		.type		= MT_DEVICE
-	},
-#if 0
- 	{
-		.virtual	=  VERSATILE_PCI_VIRT_MEM_BASE0,
+	}, {
+		.virtual	=  (unsigned long)VERSATILE_PCI_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(VERSATILE_PCI_MEM_BASE0),
 		.length		= SZ_16M,
 		.type		= MT_DEVICE
-	}, {
-		.virtual	=  VERSATILE_PCI_VIRT_MEM_BASE1,
-		.pfn		= __phys_to_pfn(VERSATILE_PCI_MEM_BASE1),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	=  VERSATILE_PCI_VIRT_MEM_BASE2,
-		.pfn		= __phys_to_pfn(VERSATILE_PCI_MEM_BASE2),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE
 	},
-#endif
 #endif
 };
 

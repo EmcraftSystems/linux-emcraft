@@ -28,9 +28,9 @@
 /*
  * PCI space virtual addresses
  */
-#define VERSATILE_PCI_VIRT_BASE		(void __iomem *)0xe8000000ul
-#define VERSATILE_PCI_CFG_VIRT_BASE	(void __iomem *)0xe9000000ul
-
+#define VERSATILE_PCI_VIRT_BASE		(void __iomem *)0xE8000000
+#define VERSATILE_PCI_CFG_VIRT_BASE	(void __iomem *)0xE9000000
+#define VERSATILE_PCI_IO_VIRT_BASE	(void __iomem *)0xEA000000
 #if 0
 #define VERSATILE_PCI_VIRT_MEM_BASE0	0xf4000000
 #define VERSATILE_PCI_VIRT_MEM_BASE1	0xf5000000
@@ -41,7 +41,7 @@
 #endif
 
 /* CIK guesswork */
-#define PCIBIOS_MIN_IO			0x44000000
+#define PCIBIOS_MIN_IO			0x43000000
 #define PCIBIOS_MIN_MEM			0x50000000
 
 #define pcibios_assign_all_busses()     1
