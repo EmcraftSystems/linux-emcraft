@@ -257,16 +257,16 @@ not_relocated:	mov	r0, #0
  * r6     = processor ID
  * r7     = architecture ID
  * r8     = atags pointer
- * r9-r14 = corrupted
+ * r9-r12,r14 = corrupted
  */
 		add	r1, r5, r0		@ end of decompressed kernel
 		adr	r2, reloc_start
 		ldr	r3, LC1
 		add	r3, r2, r3
-1:		ldmia	r2!, {r9 - r14}		@ copy relocation code
-		stmia	r1!, {r9 - r14}
-		ldmia	r2!, {r9 - r14}
-		stmia	r1!, {r9 - r14}
+1:		ldmia	r2!, {r9 - r12, r14}		@ copy relocation code
+		stmia	r1!, {r9 - r12, r14}
+		ldmia	r2!, {r9 - r12, r14}
+		stmia	r1!, {r9 - r12, r14}
 		cmp	r2, r3
 		blo	1b
 
@@ -472,7 +472,7 @@ __common_mmu_cache_on:
  * r6     = processor ID
  * r7     = architecture ID
  * r8     = atags pointer
- * r9-r14 = corrupted
+ * r9-r12,r14 = corrupted
  */
 		.align	5
 reloc_start:	add	r9, r5, r0
@@ -480,8 +480,8 @@ reloc_start:	add	r9, r5, r0
 		mov	r1, r4
 1:
 		.rept	4
-		ldmia	r5!, {r0, r2, r3, r10 - r14}	@ relocate kernel
-		stmia	r1!, {r0, r2, r3, r10 - r14}
+		ldmia	r5!, {r0, r2, r3, r10 - r12, r14}	@ relocate kernel
+		stmia	r1!, {r0, r2, r3, r10 - r12, r14}
 		.endr
 
 		cmp	r5, r9
