@@ -37,7 +37,9 @@ struct proc_info_list {
 	unsigned int		elf_hwcap;
 	const char		*cpu_name;
 	struct processor	*proc;
+#ifdef CONFIG_MMU
 	struct cpu_tlb_fns	*tlb;
+#endif
 	struct cpu_user_fns	*user;
 	struct cpu_cache_fns	*cache;
 };

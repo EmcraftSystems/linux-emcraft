@@ -79,12 +79,14 @@ void arm_machine_restart(char mode)
 	 */
 	cpu_proc_fin();
 
+#ifdef CONFIG_MMU
 	/*
 	 * Tell the mm system that we are going to reboot -
 	 * we may need it to insert some 1:1 mappings so that
 	 * soft boot works.
 	 */
 	setup_mm_for_reboot(mode);
+#endif
 
 	/*
 	 * Now call the architecture specific reboot code.
