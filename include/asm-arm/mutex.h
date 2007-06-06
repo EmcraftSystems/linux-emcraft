@@ -111,8 +111,11 @@ __mutex_fastpath_trylock(atomic_t *count, int (*fail_fn)(atomic_t *))
 
 		"1: ldrex	%0, [%3]	\n\t"
 		"subs		%1, %0, #1	\n\t"
+		"it		eq\n\t"
 		"strexeq	%2, %1, [%3]	\n\t"
+		"it		lt\n\t"
 		"movlt		%0, #0		\n\t"
+		"it		eq\n\t"
 		"cmpeq		%2, #0		\n\t"
 		"bgt		1b		"
 
