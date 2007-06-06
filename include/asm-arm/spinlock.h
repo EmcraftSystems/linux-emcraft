@@ -51,7 +51,10 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 "	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
 #ifdef CONFIG_CPU_32v6K
+"	itee	ne\n"
 "	wfene\n"
+#else
+"	itt	eq\n"
 #endif
 "	strexeq	%0, %2, [%1]\n"
 "	teqeq	%0, #0\n"
@@ -71,6 +74,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	__asm__ __volatile__(
 "	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
+"	it	eq\n"
 "	strexeq	%0, %2, [%1]"
 	: "=&r" (tmp)
 	: "r" (&lock->lock), "r" (1)
@@ -116,7 +120,10 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 "	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
 #ifdef CONFIG_CPU_32v6K
+"	itee	ne\n"
 "	wfene\n"
+#else
+"	itt	eq\n"
 #endif
 "	strexeq	%0, %2, [%1]\n"
 "	teq	%0, #0\n"
@@ -136,6 +143,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
+"	it	eq\n"
 "	strexeq	%0, %2, [%1]"
 	: "=&r" (tmp)
 	: "r" (&rw->lock), "r" (0x80000000)
@@ -187,6 +195,11 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	__asm__ __volatile__(
 "	ldrex	%0, [%2]\n"
 "	adds	%0, %0, #1\n"
+#ifdef CONFIG_CPU_32v6K
+"	itet	pl\n"
+#else
+"	itt	pl\n"
+#endif
 "	strexpl	%1, %0, [%2]\n"
 #ifdef CONFIG_CPU_32v6K
 "	wfemi\n"
@@ -215,6 +228,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 "	bne	1b"
 #ifdef CONFIG_CPU_32v6K
 "\n	cmp	%0, #0\n"
+"	itt	eq\n"
 "	mcreq   p15, 0, %0, c7, c10, 4\n"
 "	seveq"
 #endif
