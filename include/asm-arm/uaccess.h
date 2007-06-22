@@ -12,6 +12,7 @@
  * User space memory access functions
  */
 #include <linux/sched.h>
+#include <asm/unified.h>
 #include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/domain.h>
@@ -68,7 +69,7 @@ static inline void set_fs(mm_segment_t fs)
 
 #define __addr_ok(addr) ({ \
 	unsigned long flag; \
-	__asm__("cmp %2, %0; movlo %0, #0" \
+	__asm__("cmp %2, %0; it lo; movlo %0, #0" \
 		: "=&r" (flag) \
 		: "0" (current_thread_info()->addr_limit), "r" (addr) \
 		: "cc"); \
@@ -78,7 +79,7 @@ static inline void set_fs(mm_segment_t fs)
 #define __range_ok(addr,size) ({ \
 	unsigned long flag, roksum; \
 	__chk_user_ptr(addr);	\
-	__asm__("adds %1, %2, %3; sbcccs %1, %1, %0; movcc %0, #0" \
+	__asm__("adds %1, %2, %3; it cc; sbcccs %1, %1, %0; it cc; movcc %0, #0" \
 		: "=&r" (flag), "=&r" (roksum) \
 		: "r" (addr), "Ir" (size), "0" (current_thread_info()->addr_limit) \
 		: "cc"); \
@@ -225,7 +226,7 @@ do {									\
 
 #define __get_user_asm_byte(x,addr,err)				\
 	__asm__ __volatile__(					\
-	"1:	ldrbt	%1,[%2],#0\n"				\
+	"1:	ldrbt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -261,7 +262,7 @@ do {									\
 
 #define __get_user_asm_word(x,addr,err)				\
 	__asm__ __volatile__(					\
-	"1:	ldrt	%1,[%2],#0\n"				\
+	"1:	ldrt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -306,7 +307,7 @@ do {									\
 
 #define __put_user_asm_byte(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strbt	%1,[%2],#0\n"				\
+	"1:	strbt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -339,7 +340,7 @@ do {									\
 
 #define __put_user_asm_word(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strt	%1,[%2],#0\n"				\
+	"1:	strt	%1,[%2]\n"				\
 	"2:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\
@@ -364,8 +365,10 @@ do {									\
 
 #define __put_user_asm_dword(x,__pu_addr,err)			\
 	__asm__ __volatile__(					\
-	"1:	strt	" __reg_oper1 ", [%1], #4\n"		\
-	"2:	strt	" __reg_oper0 ", [%1], #0\n"		\
+ ARM(	"1:	strt	" __reg_oper1 ", [%1], #4\n"	)	\
+ THUMB(	"1:	strt	" __reg_oper1 ", [%1]\n"	)	\
+ THUMB(	"	add	%1, %1, #4\n"			)	\
+	"2:	strt	" __reg_oper0 ", [%1]\n"		\
 	"3:\n"							\
 	"	.section .fixup,\"ax\"\n"			\
 	"	.align	2\n"					\

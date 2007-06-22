@@ -7,6 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/errno.h>
@@ -23,7 +25,10 @@
 ENTRY(__strncpy_from_user)
 	mov	ip, r1
 1:	subs	r2, r2, #1
-USER(	ldrplbt	r3, [r1], #1)
+ARM(USER(	ldrplbt	r3, [r1], #1	))
+	itt	pl
+THUMB(USER(	ldrplbt	r3, [r1]	))
+THUMB(		addpl	r1, #1		)
 	bmi	2f
 	strb	r3, [r0], #1
 	teq	r3, #0

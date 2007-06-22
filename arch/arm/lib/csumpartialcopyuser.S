@@ -10,6 +10,8 @@
  * 27/03/03 Ian Molton Clean up CONFIG_CPU
  *
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/errno.h>
@@ -18,17 +20,22 @@
 		.text
 
 		.macro	save_regs
-		mov	ip, sp
-		stmfd	sp!, {r1 - r2, r4 - r8, fp, ip, lr, pc}
-		sub	fp, ip, #4
+ ARM(		mov	ip, sp					)
+ ARM(		stmfd	sp!, {r1 - r2, r4 - r8, fp, ip, lr, pc}	)
+ ARM(		sub	fp, ip, #4				)
+ THUMB(		stmfd	sp!, {r1, r2, r4 - r8, lr}		)
 		.endm
 
 		.macro	load_regs
-		ldmfd	sp, {r1, r2, r4-r8, fp, sp, pc}
+ ARM(		ldmfd	sp, {r1, r2, r4-r8, fp, sp, pc}		)
+ THUMB(		ldmfd	sp!, {r1, r2, r4 - r8, pc}		)
 		.endm
 
 		.macro	load1b,	reg1
-9999:		ldrbt	\reg1, [r0], $1
+9999:
+ ARM(		ldrbt	\reg1, [r0], $1	)
+ THUMB(		ldrbt	\reg1, [r0]	)
+ THUMB(		add	\reg1, $1	)
 		.section __ex_table, "a"
 		.align	3
 		.long	9999b, 6001f
@@ -36,8 +43,14 @@
 		.endm
 
 		.macro	load2b, reg1, reg2
-9999:		ldrbt	\reg1, [r0], $1
-9998:		ldrbt	\reg2, [r0], $1
+9999:
+ ARM(		ldrbt	\reg1, [r0], $1	)
+ THUMB(		ldrbt	\reg1, [r0]	)
+ THUMB(		add	\reg1, $1	)
+9998:
+ ARM(		ldrbt	\reg2, [r0], $1	)
+ THUMB(		ldrbt	\reg2, [r0]	)
+ THUMB(		add	\reg2, $1	)
 		.section __ex_table, "a"
 		.long	9999b, 6001f
 		.long	9998b, 6001f
@@ -45,7 +58,10 @@
 		.endm
 
 		.macro	load1l, reg1
-9999:		ldrt	\reg1, [r0], $4
+9999:
+ ARM(		ldrt	\reg1, [r0], $4	)
+ THUMB(		ldrt	\reg1, [r0]	)
+ THUMB(		add	\reg1, $4	)
 		.section __ex_table, "a"
 		.align	3
 		.long	9999b, 6001f
@@ -53,8 +69,14 @@
 		.endm
 
 		.macro	load2l, reg1, reg2
-9999:		ldrt	\reg1, [r0], $4
-9998:		ldrt	\reg2, [r0], $4
+9999:
+ ARM(		ldrt	\reg1, [r0], $4	)
+ THUMB(		ldrt	\reg1, [r0]	)
+ THUMB(		add	\reg1, $4	)
+9998:
+ ARM(		ldrt	\reg2, [r0], $4	)
+ THUMB(		ldrt	\reg2, [r0]	)
+ THUMB(		add	\reg2, $4	)
 		.section __ex_table, "a"
 		.long	9999b, 6001f
 		.long	9998b, 6001f
@@ -62,10 +84,22 @@
 		.endm
 
 		.macro	load4l, reg1, reg2, reg3, reg4
-9999:		ldrt	\reg1, [r0], $4
-9998:		ldrt	\reg2, [r0], $4
-9997:		ldrt	\reg3, [r0], $4
-9996:		ldrt	\reg4, [r0], $4
+9999:
+ ARM(		ldrt	\reg1, [r0], $4	)
+ THUMB(		ldrt	\reg1, [r0]	)
+ THUMB(		add	\reg1, $4	)
+9998:
+ ARM(		ldrt	\reg2, [r0], $4	)
+ THUMB(		ldrt	\reg2, [r0]	)
+ THUMB(		add	\reg2, $4	)
+9997:
+ ARM(		ldrt	\reg3, [r0], $4	)
+ THUMB(		ldrt	\reg3, [r0]	)
+ THUMB(		add	\reg3, $4	)
+9996:
+ ARM(		ldrt	\reg4, [r0], $4	)
+ THUMB(		ldrt	\reg4, [r0]	)
+ THUMB(		add	\reg4, $4	)
 		.section __ex_table, "a"
 		.long	9999b, 6001f
 		.long	9998b, 6001f
@@ -100,6 +134,7 @@
 		add	r2, r2, r1
 		mov	r0, #0			@ zero the buffer
 6002:		teq	r2, r1
+		it 	ne
 		strneb	r0, [r1], #1
 		bne	6002b
 		load_regs

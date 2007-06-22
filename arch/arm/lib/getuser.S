@@ -26,6 +26,8 @@
  * Note that ADDR_LIMIT is either 0 or 0xc0000000.
  * Note also that it is intended that __get_user_bad is not global.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/errno.h>
 
@@ -36,7 +38,10 @@ ENTRY(__get_user_1)
 ENDPROC(__get_user_1)
 
 ENTRY(__get_user_2)
-2:	ldrbt	r2, [r0], #1
+2:
+ ARM(	ldrbt	r2, [r0], #1	)
+ THUMB(	ldrbt	r2, [r0]	)
+ THUMB(	add	r0, #1		)
 3:	ldrbt	r3, [r0]
 #ifndef __ARMEB__
 	orr	r2, r2, r3, lsl #8

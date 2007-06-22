@@ -9,6 +9,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
@@ -37,7 +38,9 @@
 ENTRY(memmove)
 
 		subs	ip, r0, r1
+		it	hi
 		cmphi	r2, ip
+		it	ls
 		bls	memcpy
 
 		stmfd	sp!, {r0, r4, lr}
@@ -79,46 +82,55 @@ ENTRY(memmove)
 
 5:		ands	ip, r2, #28
 		rsb	ip, ip, #32
+		it	ne
 		addne	pc, pc, ip		@ C is always clear here
 		b	7f
 6:		nop
-		ldr	r3, [r1, #-4]!
-		ldr	r4, [r1, #-4]!
-		ldr	r5, [r1, #-4]!
-		ldr	r6, [r1, #-4]!
-		ldr	r7, [r1, #-4]!
-		ldr	r8, [r1, #-4]!
-		ldr	lr, [r1, #-4]!
+		W(ldr)	r3, [r1, #-4]!
+		W(ldr)	r4, [r1, #-4]!
+		W(ldr)	r5, [r1, #-4]!
+		W(ldr)	r6, [r1, #-4]!
+		W(ldr)	r7, [r1, #-4]!
+		W(ldr)	r8, [r1, #-4]!
+		W(ldr)	lr, [r1, #-4]!
 
 		add	pc, pc, ip
 		nop
 		nop
-		str	r3, [r0, #-4]!
-		str	r4, [r0, #-4]!
-		str	r5, [r0, #-4]!
-		str	r6, [r0, #-4]!
-		str	r7, [r0, #-4]!
-		str	r8, [r0, #-4]!
-		str	lr, [r0, #-4]!
+		W(str)	r3, [r0, #-4]!
+		W(str)	r4, [r0, #-4]!
+		W(str)	r5, [r0, #-4]!
+		W(str)	r6, [r0, #-4]!
+		W(str)	r7, [r0, #-4]!
+		W(str)	r8, [r0, #-4]!
+		W(str)	lr, [r0, #-4]!
 
 	CALGN(	bcs	2b			)
 
 7:		ldmfd	sp!, {r5 - r8}
 
 8:		movs	r2, r2, lsl #31
+		it	ne
 		ldrneb	r3, [r1, #-1]!
+		itt	cs
 		ldrcsb	r4, [r1, #-1]!
 		ldrcsb	ip, [r1, #-1]
+		it	ne
 		strneb	r3, [r0, #-1]!
+		itt	cs
 		strcsb	r4, [r0, #-1]!
 		strcsb	ip, [r0, #-1]
 		ldmfd	sp!, {r0, r4, pc}
 
 9:		cmp	ip, #2
+		it	gt
 		ldrgtb	r3, [r1, #-1]!
+		it	ge
 		ldrgeb	r4, [r1, #-1]!
 		ldrb	lr, [r1, #-1]!
+		it	gt
 		strgtb	r3, [r0, #-1]!
+		it	ge
 		strgeb	r4, [r0, #-1]!
 		subs	r2, r2, ip
 		strb	lr, [r0, #-1]!
