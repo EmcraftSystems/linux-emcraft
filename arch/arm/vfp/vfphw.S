@@ -14,6 +14,8 @@
  * r10 points at the start of the private FP workspace in the thread structure
  * sp points to a struct pt_regs (as defined in include/asm/proc/ptrace.h)
  */
+#include <asm/unified.h>
+	
 #include <asm/thread_info.h>
 #include <asm/vfpmacros.h>
 #include "../kernel/entry-header.S"
@@ -69,6 +71,7 @@
 @  lr  = failure return
 
 	.globl	vfp_support_entry
+	.type	vfp_support_entry, %function
 vfp_support_entry:
 	DBGSTR3	"instr %08x pc %08x state %p", r0, r2, r10
 
@@ -194,6 +197,7 @@ last_VFP_context_address:
 	.word	last_VFP_context
 
 	.globl	vfp_get_float
+	.type	vfp_get_float, %function
 vfp_get_float:
 	add	pc, pc, r0, lsl #3
 	mov	r0, r0
@@ -205,6 +209,7 @@ vfp_get_float:
 	.endr
 
 	.globl	vfp_put_float
+	.type	vfp_put_float, %function
 vfp_put_float:
 	add	pc, pc, r1, lsl #3
 	mov	r0, r0
@@ -216,6 +221,7 @@ vfp_put_float:
 	.endr
 
 	.globl	vfp_get_double
+	.type	vfp_get_double, %function
 vfp_get_double:
 	add	pc, pc, r0, lsl #3
 	mov	r0, r0
@@ -237,6 +243,7 @@ vfp_get_double:
 	mov	pc, lr
 
 	.globl	vfp_put_double
+	.type	vfp_put_double, %function
 vfp_put_double:
 	add	pc, pc, r2, lsl #3
 	mov	r0, r0

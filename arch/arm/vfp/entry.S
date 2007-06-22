@@ -15,6 +15,8 @@
  *  r10 = thread_info structure
  *  lr  = failure return
  */
+#include <asm/unified.h>
+	
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/asm-offsets.h>
@@ -22,6 +24,7 @@
 #include <asm/vfpmacros.h>
 
 	.globl	do_vfp
+	.type	do_vfp, %function
 do_vfp:
 	enable_irq
  	ldr	r4, .LCvfp
@@ -37,6 +40,7 @@ do_vfp:
 
 	__INIT
 	.globl	vfp_testing_entry
+	.type	vfp_testing_entry, %function
 vfp_testing_entry:
 	ldr	r0, VFP_arch_address
 	str	r5, [r0]		@ known non-zero value

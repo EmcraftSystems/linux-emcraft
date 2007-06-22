@@ -8,6 +8,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/unified.h>
 
 static inline u32 vfp_shiftright32jamming(u32 val, unsigned int shift)
 {
@@ -37,6 +38,7 @@ static inline u32 vfp_hi64to32jamming(u64 val)
 
 	asm(
 	"cmp	%Q1, #1		@ vfp_hi64to32jamming\n\t"
+	"ite	cc\n\t"
 	"movcc	%0, %R1\n\t"
 	"orrcs	%0, %R1, #1"
 	: "=r" (v) : "r" (val) : "cc");
