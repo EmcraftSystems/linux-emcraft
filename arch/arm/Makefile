@@ -84,6 +84,13 @@ else
 CFLAGS_ABI	:=$(call cc-option,-mapcs-32,-mabi=apcs-gnu) $(call cc-option,-mno-thumb-interwork,)
 endif
 
+ifeq ($(CONFIG_THUMB2_KERNEL),y)
+# We currently suppress all the gas warnings but finer-grained option
+# will be provided for the unified assembly syntax
+CFLAGS		+=-mthumb -Wa$(comma)-W
+AFLAGS		+=-Wa$(comma)-mthumb -Wa$(comma)-W
+endif
+
 # Need -Uarm for gcc < 3.x
 CFLAGS		+=$(CFLAGS_ABI) $(arch-y) $(tune-y) $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,)) -msoft-float -Uarm
 AFLAGS		+=$(CFLAGS_ABI) $(arch-y) $(tune-y) -msoft-float
