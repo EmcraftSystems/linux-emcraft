@@ -9,11 +9,14 @@
  *
  *  ASM optimised string functions
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
 	.text
 	.align	5
+	.type	memchr, %function
 ENTRY(memchr)
 1:	subs	r2, r2, #1
 	bmi	2f
@@ -21,5 +24,6 @@ ENTRY(memchr)
 	teq	r3, r1
 	bne	1b
 	sub	r0, r0, #1
-2:	movne	r0, #0
+2:	it	ne
+	movne	r0, #0
 	mov	pc, lr

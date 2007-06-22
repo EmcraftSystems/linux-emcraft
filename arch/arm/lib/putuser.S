@@ -26,42 +26,58 @@
  * Note that ADDR_LIMIT is either 0 or 0xc0000000
  * Note also that it is intended that __put_user_bad is not global.
  */
+#include <asm/unified.h>
+
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/errno.h>
 
 	.global	__put_user_1
+	.type	__put_user_1, %function
 __put_user_1:
 1:	strbt	r2, [r0]
 	mov	r0, #0
 	mov	pc, lr
 
 	.global	__put_user_2
+	.type	__put_user_2, %function
 __put_user_2:
 	mov	ip, r2, lsr #8
 #ifndef __ARMEB__
-2:	strbt	r2, [r0], #1
+2:
+ ARM(	strbt	r2, [r0], #1	)
+ THUMB(	strbt	r2, [r0]	)
+ THUMB(	add	r0, #1		)
 3:	strbt	ip, [r0]
 #else
-2:	strbt	ip, [r0], #1
+2:
+ ARM(	strbt	ip, [r0], #1	)
+ THUMB(	strbt	ip, [r0]	)
+ THUMB(	add	r0, #1		)
 3:	strbt	r2, [r0]
 #endif
 	mov	r0, #0
 	mov	pc, lr
 
 	.global	__put_user_4
+	.type	__put_user_4, %function
 __put_user_4:
 4:	strt	r2, [r0]
 	mov	r0, #0
 	mov	pc, lr
 
 	.global	__put_user_8
+	.type	__put_user_8, %function
 __put_user_8:
-5:	strt	r2, [r0], #4
+5:
+ ARM(	strt	r2, [r0], #4	)
+ THUMB(	strt	r2, [r0]	)
+ THUMB(	add	r0, #4		)
 6:	strt	r3, [r0]
 	mov	r0, #0
 	mov	pc, lr
 
+	.type	__put_user_bad, %function
 __put_user_bad:
 	mov	r0, #-EFAULT
 	mov	pc, lr

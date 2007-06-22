@@ -7,6 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include "bitops.h"
@@ -16,7 +18,9 @@
  * Purpose  : Function to clear a bit
  * Prototype: int clear_bit(int bit, void *addr)
  */
+	.type	_clear_bit_be, %function
 ENTRY(_clear_bit_be)
 		eor	r0, r0, #0x18		@ big endian byte ordering
+	.type	_clear_bit_le, %function
 ENTRY(_clear_bit_le)
 	bitop	bic

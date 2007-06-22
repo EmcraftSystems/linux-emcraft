@@ -39,6 +39,7 @@ USER(		strgtbt	r3, [r0], #1)			@ May fault
 		sub	r2, r2, ip
 		b	.Lc2u_dest_aligned
 
+		.type	__copy_to_user, %function
 ENTRY(__copy_to_user)
 		stmfd	sp!, {r2, r4 - r7, lr}
 		cmp	r2, #4
@@ -302,6 +303,7 @@ USER(		ldrgtbt	r3, [r1], #1)			@ May fault
 		sub	r2, r2, ip
 		b	.Lcfu_dest_aligned
 
+		.type	__copy_from_user, %function
 ENTRY(__copy_from_user)
 		stmfd	sp!, {r0, r2, r4 - r7, lr}
 		cmp	r2, #4

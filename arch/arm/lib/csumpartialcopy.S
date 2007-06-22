@@ -7,6 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
@@ -18,13 +20,15 @@
  */
 
 		.macro	save_regs
-		mov	ip, sp
-		stmfd	sp!, {r1, r4 - r8, fp, ip, lr, pc}
-		sub	fp, ip, #4
+ ARM(		mov	ip, sp					)
+ ARM(		stmfd	sp!, {r1, r4 - r8, fp, ip, lr, pc}	)
+ ARM(		sub	fp, ip, #4				)
+ THUMB(		stmfd	sp!, {r1, r4 - r8, lr}			)
 		.endm
 
 		.macro	load_regs
-		ldmfd	sp, {r1, r4 - r8, fp, sp, pc}
+ ARM(		ldmfd	sp, {r1, r4 - r8, fp, sp, pc}		)
+ THUMB(		ldmfd	sp!, {r1, r4 - r8, pc}			)
 		.endm
 
 		.macro	load1b, reg1

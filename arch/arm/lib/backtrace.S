@@ -10,6 +10,8 @@
  * 27/03/03 Ian Molton Clean up CONFIG_CPU
  *
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 		.text
@@ -22,10 +24,12 @@
 #define mask	r7
 #define offset	r8
 
+		.type	__backtrace, %function
 ENTRY(__backtrace)
 		mov	r1, #0x10
 		mov	r0, fp
 
+		.type	c_backtrace, %function
 ENTRY(c_backtrace)
 
 #if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)
@@ -34,11 +38,16 @@ ENTRY(c_backtrace)
 
 		stmfd	sp!, {r4 - r8, lr}	@ Save an extra register so we have a location...
 		tst	r1, #0x10		@ 26 or 32-bit?
-		moveq	mask, #0xfc000003
+		itte	eq
+ ARM(		moveq	mask, #0xfc000003	)
+ THUMB(		moveq	mask, #0xfc000000	)
+ THUMB(		orreq	mask, #0x03		)
 		movne	mask, #0
 		tst	mask, r0
+		it	ne
 		movne	r0, #0
 		movs	frame, r0
+		itt	eq
 1:		moveq	r0, #-2
 		ldmeqfd	sp!, {r4 - r8, pc}
 
@@ -59,6 +68,7 @@ ENTRY(c_backtrace)
 		mov	r1, r1, lsr #10
 		ldr	r3, .Ldsi+4
 		teq	r1, r3
+		it	eq
 		subeq	save, save, #4
 		mov	r0, save
 		bic	r1, r2, mask
@@ -70,6 +80,7 @@ ENTRY(c_backtrace)
 		mov	r3, r1, lsr #10
 		ldr	r2, .Ldsi+4
 		teq	r3, r2			@ Check for stmia sp!, {args}
+		itt	eq
 		addeq	save, save, #4		@ next instruction
 		bleq	.Ldumpstm
 
@@ -78,12 +89,14 @@ ENTRY(c_backtrace)
 		mov	r3, r1, lsr #10
 		ldr	r2, .Ldsi
 		teq	r3, r2
+		it	eq
 		bleq	.Ldumpstm
 
 		/*
 		 * A zero next framepointer means we're done.
 		 */
 		teq	next, #0
+		it	eq
 		ldmeqfd	sp!, {r4 - r8, pc}
 
 		/*
@@ -124,10 +137,13 @@ ENTRY(c_backtrace)
 		mov	reg, #9
 		mov	r7, #0
 1:		mov	r3, #1
-		tst	instr, r3, lsl reg
+ ARM(		tst	instr, r3, lsl reg	)
+ THUMB(		lsl	r3, reg			)
+ THUMB(		tst	instr, r3		)
 		beq	2f
 		add	r7, r7, #1
 		teq	r7, #4
+		itte	eq
 		moveq	r7, #0
 		moveq	r3, #'\n'
 		movne	r3, #' '
@@ -138,6 +154,7 @@ ENTRY(c_backtrace)
 2:		subs	reg, reg, #1
 		bpl	1b
 		teq	r7, #0
+		itt	ne
 		adrne	r0, .Lcr
 		blne	printk
 		mov	r0, stack

@@ -9,6 +9,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 
@@ -24,23 +25,33 @@
 #define yh r3
 #endif
 
+	.type	__ucmpdi2, %function
 ENTRY(__ucmpdi2)
 
 	cmp	xh, yh
+	it	eq
 	cmpeq	xl, yl
+	it	lo
 	movlo	r0, #0
+	it	eq
 	moveq	r0, #1
+	it	hi
 	movhi	r0, #2
 	mov	pc, lr
 
 #ifdef CONFIG_AEABI
 
+	.type	__aeabi_ulcmp, %function
 ENTRY(__aeabi_ulcmp)
 
 	cmp	xh, yh
+	it	eq
 	cmpeq	xl, yl
+	it	lo
 	movlo	r0, #-1
+	it	eq
 	moveq	r0, #0
+	it	hi
 	movhi	r0, #1
 	mov	pc, lr
 

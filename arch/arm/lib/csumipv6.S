@@ -7,11 +7,14 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
 		.text
 
+		.type	__csum_ipv6_magic, %function
 ENTRY(__csum_ipv6_magic)
 		str	lr, [sp, #-4]!
 		adds	ip, r2, r3

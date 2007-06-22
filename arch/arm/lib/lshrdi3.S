@@ -24,6 +24,7 @@ You should have received a copy of the GNU General Public License
 along with this program; see the file COPYING.  If not, write to
 the Free Software Foundation, 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.  */
+#include <asm/unified.h>
 
 
 #include <linux/linkage.h>
@@ -36,14 +37,19 @@ Boston, MA 02110-1301, USA.  */
 #define ah r1
 #endif
 
+	.type	__lshrdi3, %function
 ENTRY(__lshrdi3)
+	.type	__aeabi_llsr, %function
 ENTRY(__aeabi_llsr)
 
 	subs	r3, r2, #32
 	rsb	ip, r2, #32
+	itett	mi
 	movmi	al, al, lsr r2
 	movpl	al, ah, lsr r3
-	orrmi	al, al, ah, lsl ip
+ ARM(	orrmi	al, al, ah, lsl ip	)
+ THUMB(	lslmi	r3, ah, ip		)
+ THUMB(	orrmi	al, al, r3		)
 	mov	ah, ah, lsr r2
 	mov	pc, lr
 

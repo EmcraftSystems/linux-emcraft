@@ -9,6 +9,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 
@@ -24,7 +25,9 @@
 #define yh r3
 #endif
 
+	.type	__muldi3, %function
 ENTRY(__muldi3)
+	.type	__aeabi_lmul, %function
 ENTRY(__aeabi_lmul)
 
 	mul	xh, yl, xh
