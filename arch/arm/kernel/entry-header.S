@@ -37,7 +37,9 @@
 	.endm
 
 	.macro	get_thread_info, rd
-	mov	\rd, sp, lsr #13
+ ARM(	mov	\rd, sp, lsr #13	)
+ THUMB(	mov	\rd, sp			)
+ THUMB(	lsr	\rd, \rd, #13		)
 	mov	\rd, \rd, lsl #13
 	.endm
 
@@ -49,6 +51,54 @@
 #endif
 	.endm
 
+	@
+	@ Store/load the USER SP and LR registers by switching to the SYS
+	@ mode. Useful in Thumb-2 more where "stm/ldm rd, {sp, lr}^" is not
+	@ available. Should only be called from SVC mode
+	@
+	.macro	store_user_sp_lr, rd, rtemp, offset = 0
+	mrs	\rtemp, cpsr
+	eor	\rtemp, \rtemp, #(SVC_MODE ^ SYSTEM_MODE)
+	msr	cpsr_c, \rtemp			@ switch to the SYS mode
+
+	str	sp, [\rd, #\offset]		@ save sp_usr
+	str	lr, [\rd, #\offset + 4]		@ save lr_usr
+
+	eor	\rtemp, \rtemp, #(SVC_MODE ^ SYSTEM_MODE)
+	msr	cpsr_c, \rtemp			@ switch back to the SVC mode
+	.endm
+
+	.macro	load_user_sp_lr, rd, rtemp, offset = 0
+	mrs	\rtemp, cpsr
+	eor	\rtemp, \rtemp, #(SVC_MODE ^ SYSTEM_MODE)
+	msr	cpsr_c, \rtemp			@ switch to the SYS mode
+
+	ldr	sp, [\rd, #\offset]		@ load sp_usr
+	ldr	lr, [\rd, #\offset + 4]		@ load lr_usr
+
+	eor	\rtemp, \rtemp, #(SVC_MODE ^ SYSTEM_MODE)
+	msr	cpsr_c, \rtemp			@ switch back to the SVC mode
+	.endm
+
+	.macro	arm_rfe, rpsr
+	ldr	\rpsr, [sp, #S_PSR]
+	msr	spsr_cxsf, \rpsr
+	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
+	.endm
+
+	.macro	thumb_rfe, rsp, rpc, rpsr
+	ldr	\rsp, [sp, #S_SP]		@ top of the stack
+	ldr	\rpc, [sp, #S_PC]		@ return address
+	ldr	\rpsr, [sp, #S_PSR]		@ return cpsr
+	tst	\rsp, #4			@ orig stack 8-byte aligned?
+	stmdb	\rsp, {\rpc, \rpsr}		@ rfe context
+	ldmia	sp, {r0 - r12}
+	ldr	lr, [sp, #S_LR]
+	ite	eq
+	addeq	sp, sp, #S_FRAME_SIZE - 8	@ aligned
+	addne	sp, sp, #S_FRAME_SIZE - 4	@ not aligned
+	rfeia	sp!
+	.endm
 
 /*
  * These are the registers used in the syscall handler, and allow us to
