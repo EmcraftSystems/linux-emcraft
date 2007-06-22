@@ -26,6 +26,7 @@
 		ldr	\irqstat, [\base, #IRQ_STATUS]		@ get masked status
 		ldr	\base, =IO_ADDRESS(INTEGRATOR_HDR_BASE)
 		teq	\irqstat, #0
+		itt	eq
 		ldreq	\irqstat, [\base, #(INTEGRATOR_HDR_IC_OFFSET+IRQ_STATUS)]
 		moveq	\irqnr, #IRQ_CIC_START
 
