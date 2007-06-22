@@ -9,6 +9,8 @@
  *
  *  This is the "shell" of the ARMv7 processor support.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -23,9 +25,11 @@
 #define TTB_RGN_OC_WT	(2 << 3)
 #define TTB_RGN_OC_WB	(3 << 3)
 
+	.type	cpu_v7_proc_init, %function
 ENTRY(cpu_v7_proc_init)
 	mov	pc, lr
 
+	.type	cpu_v7_proc_fin, %function
 ENTRY(cpu_v7_proc_fin)
 	mov	pc, lr
 
@@ -41,6 +45,7 @@ ENTRY(cpu_v7_proc_fin)
  *	It is assumed that:
  */
 	.align	5
+	.type	cpu_v7_reset, %function
 ENTRY(cpu_v7_reset)
 	mov	pc, r0
 
@@ -51,10 +56,12 @@ ENTRY(cpu_v7_reset)
  *
  *	IRQs are already disabled.
  */
+	.type	cpu_v7_do_idle, %function
 ENTRY(cpu_v7_do_idle)
-	.long	0xe320f003			@ ARM V7 WFI instruction
+	wfi
 	mov	pc, lr
 
+	.type	cpu_v7_dcache_clean_area, %function
 ENTRY(cpu_v7_dcache_clean_area)
 #ifndef TLB_CAN_READ_FROM_L1_CACHE
 	dcache_line_size r2, r3
@@ -76,6 +83,7 @@ ENTRY(cpu_v7_dcache_clean_area)
  *	It is assumed that:
  *	- we are not using split page tables
  */
+	.type	cpu_v7_switch_mm, %function
 ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
@@ -110,9 +118,12 @@ ENTRY(cpu_v7_switch_mm)
  *	  11x0   0   1   0	r/w	r/o
  *	  1111   0   1   1	r/w	r/w
  */
+	.type	cpu_v7_set_pte_ext, %function
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	str	r1, [r0], #-2048		@ linux version
+ ARM(	str	r1, [r0], #-2048	)	@ linux version
+ THUMB(	str	r1, [r0]		)	@ linux version
+ THUMB(	sub	r0, r0, #2048		)
 
 	bic	r3, r1, #0x000003f0
 	bic	r3, r3, #0x00000003
@@ -120,21 +131,26 @@ ENTRY(cpu_v7_set_pte_ext)
 	orr	r3, r3, #PTE_EXT_AP0 | 2
 
 	tst	r1, #L_PTE_WRITE
+	ite	ne
 	tstne	r1, #L_PTE_DIRTY
 	orreq	r3, r3, #PTE_EXT_APX
 
 	tst	r1, #L_PTE_USER
+	ittt	ne
 	orrne	r3, r3, #PTE_EXT_AP1
 	tstne	r3, #PTE_EXT_APX
 	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
 
 	tst	r1, #L_PTE_YOUNG
+	it	eq
 	biceq	r3, r3, #PTE_EXT_APX | PTE_EXT_AP_MASK
 
 	tst	r1, #L_PTE_EXEC
+	it	eq
 	orreq	r3, r3, #PTE_EXT_XN
 
 	tst	r1, #L_PTE_PRESENT
+	it	eq
 	moveq	r3, #0
 
 	str	r3, [r0]
@@ -163,6 +179,7 @@ cpu_v7_name:
  *	It is assumed that:
  *	- cache type register is implemented
  */
+	.type	__v7_setup, #function
 __v7_setup:
 	adr	r12, __v7_setup_stack		@ the local stack
 	stmia	r12, {r0-r5, r7, r9, r11, lr}
@@ -189,15 +206,17 @@ __v7_setup:
 	orr	r0, r0, r6			@ set them
 	mov	pc, lr				@ return to head.S:__ret
 
+	.align	2
 	/*
-	 *         V X F   I D LR
-	 * .... ...E PUI. .T.T 4RVI ZFRS BLDP WCAM
+	 *  T      V X F   I D LR
+	 * .E.. ...E PUI. .T.T 4RVI ZFRS BLDP WCAM
 	 * rrrr rrrx xxx0 0101 xxxx xxxx x111 xxxx < forced
 	 *         0 110       0011 1.00 .111 1101 < we want
 	 */
 	.type	v7_crval, #object
 v7_crval:
-	crval	clear=0x0120c302, mmuset=0x00c0387d, ucset=0x00c0187c
+ ARM(	crval	clear=0x0120c302, mmuset=0x00c0387d, ucset=0x00c0187c	)
+ THUMB(	crval	clear=0x0120c302, mmuset=0x40c0387d, ucset=0x00c0187c	)
 
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers

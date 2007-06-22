@@ -11,6 +11,8 @@
  *  ARM architecture version 6 TLB handling functions.
  *  These assume a split I/D TLB.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
@@ -30,6 +32,7 @@
  *	- the "Invalidate single entry" instruction will invalidate
  *	  both the I and the D TLBs on Harvard-style TLBs
  */
+	.type	v7wbi_flush_user_tlb_range, %function
 ENTRY(v7wbi_flush_user_tlb_range)
 	vma_vm_mm r3, r2			@ get vma->vm_mm
 	mmid	r3, r3				@ get vm_mm->context.id
@@ -43,6 +46,7 @@ ENTRY(v7wbi_flush_user_tlb_range)
 1:
 	mcr	p15, 0, r0, c8, c6, 1		@ TLB invalidate D MVA (was 1)
 	tst	r2, #VM_EXEC			@ Executable area ?
+	it	ne
 	mcrne	p15, 0, r0, c8, c5, 1		@ TLB invalidate I MVA (was 1)
 	add	r0, r0, #PAGE_SZ
 	cmp	r0, r1
@@ -60,6 +64,7 @@ ENTRY(v7wbi_flush_user_tlb_range)
  *	- start - start address (may not be aligned)
  *	- end   - end address (exclusive, may not be aligned)
  */
+	.type	v7wbi_flush_kern_tlb_range, %function
 ENTRY(v7wbi_flush_kern_tlb_range)
 	dsb
 	mov	r0, r0, lsr #PAGE_SHIFT		@ align address

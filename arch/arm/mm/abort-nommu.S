@@ -13,6 +13,7 @@
  *       Just fill zero into the registers.
  */
 	.align	5
+	.type	nommu_early_abort, %function
 ENTRY(nommu_early_abort)
 	mov	r0, #0				@ clear r0, r1 (no FSR/FAR)
 	mov	r1, #0

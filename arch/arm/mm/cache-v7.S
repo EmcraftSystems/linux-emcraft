@@ -10,6 +10,8 @@
  *
  *  This is the "shell" of the ARMv7 processor support.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
@@ -21,10 +23,11 @@
  *
  *	Flush the whole D-cache.
  *
- *	Corrupted registers: r0-r5, r7, r9-r11
+ *	Corrupted registers: r0-r7, r9-r11 (r6 only in Thumb mode)
  *
  *	- mm    - mm_struct describing address space
  */
+	.type	v7_flush_dcache_all, %function
 ENTRY(v7_flush_dcache_all)
 	mrc	p15, 1, r0, c0, c0, 1		@ read clidr
 	ands	r3, r0, #0x7000000		@ extract loc from clidr
@@ -50,8 +53,12 @@ loop1:
 loop2:
 	mov	r9, r4				@ create working copy of max way size
 loop3:
-	orr	r11, r10, r9, lsl r5		@ factor way and cache number into r11
-	orr	r11, r11, r7, lsl r2		@ factor index number into r11
+ ARM(	orr	r11, r10, r9, lsl r5	)	@ factor way and cache number into r11
+ THUMB(	lsl	r6, r9, r5		)
+ THUMB(	orr	r11, r10, r6		)	@ factor way and cache number into r11
+ ARM(	orr	r11, r11, r7, lsl r2	)	@ factor index number into r11
+ THUMB(	lsl	r6, r7, r2		)
+ THUMB(	orr	r11, r11, r6		)	@ factor index number into r11
 	mcr	p15, 0, r11, c7, c14, 2		@ clean & invalidate by set/way
 	subs	r9, r9, #1			@ decrement the way
 	bge	loop3
@@ -78,12 +85,15 @@ finished:
  *  unification in a single instruction.
  *
  */
+	.type	v7_flush_kern_cache_all, %function
 ENTRY(v7_flush_kern_cache_all)
-	stmfd	sp!, {r4-r5, r7, r9-r11, lr}
+ ARM(	stmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
+ THUMB(	stmfd	sp!, {r4-r7, r9-r11, lr}	)
 	bl	v7_flush_dcache_all
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
-	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}
+ ARM(	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
+ THUMB(	ldmfd	sp!, {r4-r7, r9-r11, lr}	)
 	mov	pc, lr
 
 /*
@@ -93,6 +103,7 @@ ENTRY(v7_flush_kern_cache_all)
  *
  *	- mm    - mm_struct describing address space
  */
+	.type	v7_flush_user_cache_all, %function
 ENTRY(v7_flush_user_cache_all)
 	/*FALLTHROUGH*/
 
@@ -108,6 +119,7 @@ ENTRY(v7_flush_user_cache_all)
  *	It is assumed that:
  *	- we have a VIPT cache.
  */
+	.type	v7_flush_user_cache_range, %function
 ENTRY(v7_flush_user_cache_range)
 	mov	pc, lr
 
@@ -124,6 +136,7 @@ ENTRY(v7_flush_user_cache_range)
  *	It is assumed that:
  *	- the Icache does not read data from the write buffer
  */
+	.type	v7_coherent_kern_range, %function
 ENTRY(v7_coherent_kern_range)
 	/* FALLTHROUGH */
 
@@ -140,6 +153,7 @@ ENTRY(v7_coherent_kern_range)
  *	It is assumed that:
  *	- the Icache does not read data from the write buffer
  */
+	.type	v7_coherent_user_range, %function
 ENTRY(v7_coherent_user_range)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
@@ -164,6 +178,7 @@ ENTRY(v7_coherent_user_range)
  *
  *	- kaddr   - kernel address (guaranteed to be page aligned)
  */
+	.type	v7_flush_kern_dcache_page, %function
 ENTRY(v7_flush_kern_dcache_page)
 	dcache_line_size r2, r3
 	add	r1, r0, #PAGE_SZ
@@ -185,15 +200,18 @@ ENTRY(v7_flush_kern_dcache_page)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
+	.type	v7_dma_inv_range, %function
 ENTRY(v7_dma_inv_range)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	tst	r0, r3
 	bic	r0, r0, r3
+	it	ne
 	mcrne	p15, 0, r0, c7, c14, 1		@ clean & invalidate D / U line
 
 	tst	r1, r3
 	bic	r1, r1, r3
+	it	ne
 	mcrne	p15, 0, r1, c7, c14, 1		@ clean & invalidate D / U line
 1:
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D / U line
@@ -208,6 +226,7 @@ ENTRY(v7_dma_inv_range)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
+	.type	v7_dma_clean_range, %function
 ENTRY(v7_dma_clean_range)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
@@ -225,6 +244,7 @@ ENTRY(v7_dma_clean_range)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
+	.type	v7_dma_flush_range, %function
 ENTRY(v7_dma_flush_range)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1

@@ -15,6 +15,7 @@
  * Purpose : obtain information about current aborted instruction.
  */
 	.align	5
+	.type	v7_early_abort, %function
 ENTRY(v7_early_abort)
 	/*
 	 * The effect of data aborts on on the exclusive access monitor are
