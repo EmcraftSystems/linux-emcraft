@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/unified.h>
+
 #include <asm/unistd.h>
 #include <asm/arch/entry-macro.S>
 
@@ -30,12 +32,18 @@ ret_fast_syscall:
 	arch_ret_to_user r1, lr
 
 	@ fast_restore_user_regs
+ THUMB(	mov	r2, sp			     )
+ THUMB(	load_user_sp_lr r2, r3, S_OFF + S_SP )	@ calling sp, lr
 	ldr	r1, [sp, #S_OFF + S_PSR]	@ get calling cpsr
-	ldr	lr, [sp, #S_OFF + S_PC]!	@ get pc
+ ARM(	ldr	lr, [sp, #S_OFF + S_PC]!     )	@ get pc
+ THUMB(	ldr	lr, [sp, #S_OFF + S_PC]	     )	@ get pc
+ THUMB(	add	sp, sp, #S_OFF + S_R1	     )
 	msr	spsr_cxsf, r1			@ save in spsr_svc
-	ldmdb	sp, {r1 - lr}^			@ get calling r1 - lr
+ ARM(	ldmdb	sp, {r1 - lr}^		     )	@ get calling r1 - lr
+ THUMB(	ldmia	sp, {r1 - r12}		     )	@ get calling r1 - r12
 	mov	r0, r0
-	add	sp, sp, #S_FRAME_SIZE - S_PC
+ ARM(	add	sp, sp, #S_FRAME_SIZE - S_PC )
+ THUMB(	add	sp, sp, #S_FRAME_SIZE - S_R1 )
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 
 /*
@@ -58,6 +66,7 @@ work_resched:
 /*
  * "slow" syscall return path.  "why" tells us if this was a real syscall.
  */
+	.type	ret_to_user, %function
 ENTRY(ret_to_user)
 ret_slow_syscall:
 	disable_irq				@ disable interrupts
@@ -69,17 +78,23 @@ no_work_pending:
 	arch_ret_to_user r1, lr
 
 	@ slow_restore_user_regs
+ THUMB(	mov	r2, sp			     )
+ THUMB(	load_user_sp_lr r2, r3, S_SP	     )	@ calling sp, lr
 	ldr	r1, [sp, #S_PSR]		@ get calling cpsr
-	ldr	lr, [sp, #S_PC]!		@ get pc
+ ARM(	ldr	lr, [sp, #S_PC]!	     )	@ get pc
+ THUMB(	ldr	lr, [sp, #S_PC]		     )	@ get pc
 	msr	spsr_cxsf, r1			@ save in spsr_svc
-	ldmdb	sp, {r0 - lr}^			@ get calling r1 - lr
+ ARM(	ldmdb	sp, {r0 - lr}^		     )	@ get calling r1 - lr
+ THUMB(	ldmia	sp, {r0 - r12}		     )	@ get calling r0 - r12
 	mov	r0, r0
-	add	sp, sp, #S_FRAME_SIZE - S_PC
+ ARM(	add	sp, sp, #S_FRAME_SIZE - S_PC )
+ THUMB(	add	sp, sp, #S_FRAME_SIZE	     )
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 
 /*
  * This is how we return from a fork.
  */
+	.type	ret_from_fork, %function
 ENTRY(ret_from_fork)
 	bl	schedule_tail
 	get_thread_info tsk
@@ -119,11 +134,14 @@ ENTRY(ret_from_fork)
 #endif
 
 	.align	5
+	.type	vector_swi, %function
 ENTRY(vector_swi)
 	sub	sp, sp, #S_FRAME_SIZE
 	stmia	sp, {r0 - r12}			@ Calling r0 - r12
-	add	r8, sp, #S_PC
-	stmdb	r8, {sp, lr}^			@ Calling sp, lr
+ ARM(	add	r8, sp, #S_PC		)
+ ARM(	stmdb	r8, {sp, lr}^		)	@ Calling sp, lr
+ THUMB(	mov	r8, sp			)
+ THUMB(	store_user_sp_lr r8, r10, S_SP	)	@ calling sp, lr
 	mrs	r8, spsr			@ called from non-FIQ mode, so ok.
 	str	lr, [sp, #S_PC]			@ Save calling PC
 	str	r8, [sp, #S_PSR]		@ Save CPSR
@@ -142,6 +160,7 @@ ENTRY(vector_swi)
 	 */
 #ifdef CONFIG_ARM_THUMB
 	tst	r8, #PSR_T_BIT
+	ite	ne
 	movne	r10, #0				@ no thumb OABI emulation
 	ldreq	r10, [lr, #-4]			@ get SWI instruction
 #else
@@ -197,6 +216,7 @@ ENTRY(vector_swi)
 	 * get the old ABI syscall table address.
 	 */
 	bics	r10, r10, #0xff000000
+	itt	ne
 	eorne	scno, r10, #__NR_OABI_SYSCALL_BASE
 	ldrne	tbl, =sys_oabi_call_table
 #elif !defined(CONFIG_AEABI)
@@ -209,7 +229,8 @@ ENTRY(vector_swi)
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
-	adr	lr, ret_fast_syscall		@ return address
+	badr	lr, ret_fast_syscall		@ return address
+	it	cc
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 
 	add	r1, sp, #S_OFF
@@ -229,10 +250,11 @@ __sys_trace:
 	mov	r0, #0				@ trace entry [IP = 0]
 	bl	syscall_trace
 
-	adr	lr, __sys_trace_return		@ return address
+	badr	lr, __sys_trace_return		@ return address
 	mov	scno, r0			@ syscall number (possibly new)
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
+	itt	cc
 	ldmccia	r1, {r0 - r3}			@ have to reload r0 - r3
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 	b	2b
@@ -279,59 +301,75 @@ ENTRY(sys_call_table)
 sys_syscall:
 		bic	scno, r0, #__NR_OABI_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
+		it	ne
 		cmpne	scno, #NR_syscalls	@ check range
+		itttt	lo
 		stmloia	sp, {r5, r6}		@ shuffle args
 		movlo	r0, r1
 		movlo	r1, r2
 		movlo	r2, r3
+		itt	lo
 		movlo	r3, r4
 		ldrlo	pc, [tbl, scno, lsl #2]
 		b	sys_ni_syscall
 
+                .type   sys_fork_wrapper, %function
 sys_fork_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_fork
 
+                .type   sys_vfork_wrapper, %function
 sys_vfork_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_vfork
 
+                .type   sys_execve_wrapper, %function
 sys_execve_wrapper:
 		add	r3, sp, #S_OFF
 		b	sys_execve
 
+                .type   sys_clone_wrapper, %function
 sys_clone_wrapper:
 		add	ip, sp, #S_OFF
 		str	ip, [sp, #4]
 		b	sys_clone
 
+                .type   sys_sigsuspend_wrapper, %function
 sys_sigsuspend_wrapper:
 		add	r3, sp, #S_OFF
 		b	sys_sigsuspend
 
+                .type   sys_rt_sigsuspend_wrapper, %function
 sys_rt_sigsuspend_wrapper:
 		add	r2, sp, #S_OFF
 		b	sys_rt_sigsuspend
 
+                .type   sys_sigreturn_wrapper, %function
 sys_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_sigreturn
 
+                .type   sys_rt_sigreturn_wrapper, %function
 sys_rt_sigreturn_wrapper:
 		add	r0, sp, #S_OFF
 		b	sys_rt_sigreturn
 
+                .type   sys_sigaltstack_wrapper, %function
 sys_sigaltstack_wrapper:
 		ldr	r2, [sp, #S_OFF + S_SP]
 		b	do_sigaltstack
 
+                .type   sys_statfs64_wrapper, %function
 sys_statfs64_wrapper:
 		teq	r1, #88
+		it	eq
 		moveq	r1, #84
 		b	sys_statfs64
 
+                .type   sys_fstatfs64_wrapper, %function
 sys_fstatfs64_wrapper:
 		teq	r1, #88
+		it	eq
 		moveq	r1, #84
 		b	sys_fstatfs64
 
@@ -339,9 +377,11 @@ sys_fstatfs64_wrapper:
  * Note: off_4k (r5) is always units of 4K.  If we can't do the requested
  * offset, we return EINVAL.
  */
+                .type   sys_mmap2, %function
 sys_mmap2:
 #if PAGE_SHIFT > 12
 		tst	r5, #PGOFF_MASK
+		ittt	eq
 		moveq	r5, r5, lsr #PAGE_SHIFT - 12
 		streq	r5, [sp, #4]
 		beq	do_mmap2
@@ -352,8 +392,10 @@ sys_mmap2:
 		b	do_mmap2
 #endif
 
+	.type	pabort_ifar, %function
 ENTRY(pabort_ifar)
 		mrc	p15, 0, r0, cr6, cr0, 2
+	.type	pabort_noifar, %function
 ENTRY(pabort_noifar)
 		mov	pc, lr
 
@@ -363,24 +405,29 @@ ENTRY(pabort_noifar)
  * These are syscalls with argument register differences
  */
 
+                .type   sys_oabi_pread64, %function
 sys_oabi_pread64:
 		stmia	sp, {r3, r4}
 		b	sys_pread64
 
+                .type   sys_oabi_pwrite64, %function
 sys_oabi_pwrite64:
 		stmia	sp, {r3, r4}
 		b	sys_pwrite64
 
+                .type   sys_oabi_truncate64, %function
 sys_oabi_truncate64:
 		mov	r3, r2
 		mov	r2, r1
 		b	sys_truncate64
 
+                .type   sys_oabi_ftruncate64, %function
 sys_oabi_ftruncate64:
 		mov	r3, r2
 		mov	r2, r1
 		b	sys_ftruncate64
 
+                .type   sys_oabi_readahead, %function
 sys_oabi_readahead:
 		str	r3, [sp]
 		mov	r3, r2

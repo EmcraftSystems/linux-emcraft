@@ -11,6 +11,8 @@
  *  Common kernel startup code (non-paged MM)
  *
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <linux/init.h>
 
@@ -52,7 +54,7 @@ ENTRY(stext)
 
 	ldr	r13, __switch_data		@ address to jump to after
 						@ the initialization is done
-	adr	lr, __after_proc_init		@ return (PIC) address
+	badr	lr, __after_proc_init		@ return (PIC) address
 	add	pc, r10, #PROCINFO_INITFUNC
 
 /*

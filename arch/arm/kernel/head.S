@@ -11,6 +11,8 @@
  *
  *  Kernel startup code for all 32-bit CPUs
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <linux/init.h>
 
@@ -76,7 +78,9 @@
 	__INIT
 	.type	stext, %function
 ENTRY(stext)
-	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE @ ensure svc mode
+ ARM(	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE ) @ ensure svc mode
+ THUMB(	mov	r9, #PSR_F_BIT | PSR_I_BIT | SVC_MODE )
+ THUMB(	msr	cpsr_c, r9 )			@ ensure svc mode
 						@ and irqs disabled
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
@@ -96,8 +100,10 @@ ENTRY(stext)
 	 */
 	ldr	r13, __switch_data		@ address to jump to after
 						@ mmu has been enabled
-	adr	lr, __enable_mmu		@ return (PIC) address
-	add	pc, r10, #PROCINFO_INITFUNC
+	badr	lr, __enable_mmu		@ return (PIC) address
+ ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
+ THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+ THUMB(	mov	pc, r12				)
 
 #if defined(CONFIG_SMP)
 	.type   secondary_startup, #function
@@ -123,13 +129,16 @@ ENTRY(secondary_startup)
 	ldmia	r4, {r5, r7, r13}		@ address to jump to after
 	sub	r4, r4, r5			@ mmu has been enabled
 	ldr	r4, [r7, r4]			@ get secondary_data.pgdir
-	adr	lr, __enable_mmu		@ return address
-	add	pc, r10, #PROCINFO_INITFUNC	@ initialise processor
-						@ (return control reg)
+	badr	lr, __enable_mmu		@ return address
+ ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
+						  @ (return control reg)
+ THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+ THUMB(	mov	pc, r12				)
 
 	/*
 	 * r6  = &secondary_data
 	 */
+	.type	__secondary_switched, %function
 ENTRY(__secondary_switched)
 	ldr	sp, [r7, #4]			@ get secondary_data.stack
 	mov	fp, #0
@@ -249,6 +258,7 @@ __create_page_tables:
 	add	r6, r4, r6, lsr #18
 1:	cmp	r0, r6
 	add	r3, r3, #1 << 20
+	it	ls
 	strls	r3, [r0], #4
 	bls	1b
 
@@ -288,6 +298,7 @@ __create_page_tables:
 	add	r0, r4, r3
 	rsb	r3, r3, #0x4000			@ PTRS_PER_PGD*sizeof(long)
 	cmp	r3, #0x0800			@ limit to 512MB
+	it	hi
 	movhi	r3, #0x0800
 	add	r6, r0, r3
 	ldr	r3, [r8, #MACHINFO_PHYSIO]
