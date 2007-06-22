@@ -15,6 +15,8 @@
  *  r10 = thread_info structure
  *  lr  = failure return
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/asm-offsets.h>
@@ -33,6 +35,7 @@ ENTRY(vfp_null_entry)
 	mov	pc, lr
 ENDPROC(vfp_null_entry)
 
+	.align	2
 .LCvfp:
 	.word	vfp_vector
 
@@ -46,6 +49,7 @@ ENTRY(vfp_testing_entry)
 	mov	pc, r9			@ we have handled the fault
 ENDPROC(vfp_testing_entry)
 
+	.align	2
 VFP_arch_address:
 	.word	VFP_arch
 
