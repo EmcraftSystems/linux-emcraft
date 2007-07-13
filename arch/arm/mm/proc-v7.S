@@ -79,7 +79,7 @@ ENTRY(cpu_v7_dcache_clean_area)
 ENTRY(cpu_v7_switch_mm)
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
-	orr	r0, r0, #TTB_RGN_OC_WB		@ mark PTWs outer cacheable, WB
+	orr	r0, r0, #TTB_C | TTB_RGN_OC_WB	@ mark PTWs cacheable, WB
 	mcr	p15, 0, r2, c13, c0, 1		@ set reserved context ID
 	isb
 1:	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
@@ -171,7 +171,7 @@ __v7_setup:
 	dsb
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r10, c2, c0, 2		@ TTB control register
-	orr	r4, r4, #TTB_RGN_OC_WB		@ mark PTWs outer cacheable, WB
+	orr	r4, r4, #TTB_C | TTB_RGN_OC_WB	@ mark PTWs cacheable, WB
 	mcr	p15, 0, r4, c2, c0, 0		@ load TTB0
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
