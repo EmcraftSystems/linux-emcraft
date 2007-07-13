@@ -92,6 +92,13 @@ extern unsigned int kobjsize(const void *objp);
 
 #define FIRST_USER_ADDRESS      (0)
 
+#define arch_enter_lazy_mmu_mode()	do {} while (0)
+#define arch_leave_lazy_mmu_mode()	do {} while (0)
+#define arch_flush_lazy_mmu_mode()	do {} while (0)
+#define arch_enter_lazy_cpu_mode()	do {} while (0)
+#define arch_leave_lazy_cpu_mode()	do {} while (0)
+#define arch_flush_lazy_cpu_mode()	do {} while (0)
+
 #else 
 
 /*
