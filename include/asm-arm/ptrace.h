@@ -10,6 +10,7 @@
 #ifndef __ASM_ARM_PTRACE_H
 #define __ASM_ARM_PTRACE_H
 
+#include <asm/hwcap.h>
 
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13
@@ -49,6 +50,7 @@
 #define PSR_T_BIT	0x00000020
 #define PSR_F_BIT	0x00000040
 #define PSR_I_BIT	0x00000080
+#define PSR_A_BIT	0x00000100
 #define PSR_J_BIT	0x01000000
 #define PSR_Q_BIT	0x08000000
 #define PSR_V_BIT	0x10000000
@@ -130,14 +132,17 @@ struct pt_regs {
  */
 static inline int valid_user_regs(struct pt_regs *regs)
 {
-	if (user_mode(regs) &&
-	    (regs->ARM_cpsr & (PSR_F_BIT|PSR_I_BIT)) == 0)
+	if (user_mode(regs) && (regs->ARM_cpsr & PSR_I_BIT) == 0) {
+		regs->ARM_cpsr &= ~(PSR_F_BIT | PSR_A_BIT);
 		return 1;
+	}
 
 	/*
 	 * Force CPSR to something logical...
 	 */
-	regs->ARM_cpsr &= PSR_f | PSR_s | PSR_x | PSR_T_BIT | MODE32_BIT;
+	regs->ARM_cpsr &= PSR_f | PSR_s | (PSR_x & ~PSR_A_BIT) | PSR_T_BIT | MODE32_BIT;
+	if (!(elf_hwcap & HWCAP_26BIT))
+		regs->ARM_cpsr |= USR_MODE;
 
 	return 0;
 }
