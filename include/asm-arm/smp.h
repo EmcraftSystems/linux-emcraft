@@ -83,6 +83,11 @@ asmlinkage void secondary_start_kernel(void);
 extern void platform_secondary_init(unsigned int cpu);
 
 /*
+ * Set up the CPU for SMP mode.
+ */
+extern void cpu_smp_enable(unsigned int cpu);
+
+/*
  * Initial data for bringing up a secondary CPU.
  */
 struct secondary_data {

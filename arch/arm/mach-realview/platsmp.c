@@ -15,10 +15,12 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware/arm_scu.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
+
+#include <asm/arch/board-eb.h>
+#include <asm/arch/scu.h>
 
 extern void realview_secondary_startup(void);
 
@@ -41,6 +43,38 @@ static unsigned int __init get_core_count(void)
 	return ncores;
 }
 
+/*
+ * Setup the SCU
+ */
+static void scu_enable(void)
+{
+	u32 scu_ctrl;
+
+	scu_ctrl = readl(__io_address(REALVIEW_EB11MP_SCU_BASE) + SCU_CTRL);
+	scu_ctrl |= 1;
+	writel(scu_ctrl, __io_address(REALVIEW_EB11MP_SCU_BASE) + SCU_CTRL);
+}
+
+/*
+ * Enable the SMP/nAMP mode for the CPU
+ */
+void cpu_smp_enable(unsigned int cpu)
+{
+	register u32 aux_ctrl;
+	unsigned long flags;
+
+	if (machine_is_realview_eb() && core_tile_eb11mp()) {
+		local_irq_save(flags);
+		flush_cache_all();
+		asm __volatile__(
+			"mrc	p15, 0, %0, c1, c0, 1\n"
+			"orr	%0, %0, #0x20\n"
+			"mcr	p15, 0, %0, c1, c0, 1\n"
+			: "=r" (aux_ctrl));
+		local_irq_restore(flags);
+	}
+}
+
 static DEFINE_SPINLOCK(boot_lock);
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
@@ -51,6 +85,11 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * sure that we are no longer being sent this soft interrupt
 	 */
 	smp_cross_call_done(cpumask_of_cpu(cpu));
+
+	/*
+	 * Enable the SMP/nAMP mode
+	 */
+	cpu_smp_enable(cpu);
 
 	/*
 	 * if any interrupts are already enabled for the primary
@@ -210,11 +249,14 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		cpu_set(i, cpu_present_map);
 
 	/*
-	 * Do we need any more CPUs? If so, then let them know where
-	 * to start. Note that, on modern versions of MILO, the "poke"
-	 * doesn't actually do anything until each individual core is
-	 * sent a soft interrupt to get it out of WFI
+	 * Initialise the SCU if there are more than one CPU and let
+	 * them know where to start. Note that, on modern versions of
+	 * MILO, the "poke" doesn't actually do anything until each
+	 * individual core is sent a soft interrupt to get it out of
+	 * WFI
 	 */
-	if (max_cpus > 1)
+	if (max_cpus > 1) {
+		scu_enable();
 		poke_milo();
+	}
 }
