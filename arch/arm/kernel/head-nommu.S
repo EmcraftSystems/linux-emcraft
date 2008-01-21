@@ -21,6 +21,9 @@
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
+#define ATAG_CORE	0x54410001
+#define ATAG_CORE_SIZE	((2*4 + 3*4) >> 2)
+
 /*
  * Kernel startup entry point.
  * ---------------------------
