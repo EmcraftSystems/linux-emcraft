@@ -37,7 +37,6 @@
  *
  */
 	.section ".text.head", "ax"
-	.type	stext, %function
 ENTRY(stext)
 	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE @ ensure svc mode
 						@ and irqs disabled
@@ -57,11 +56,11 @@ ENTRY(stext)
 						@ the initialization is done
 	adr	lr, __after_proc_init		@ return (PIC) address
 	add	pc, r10, #PROCINFO_INITFUNC
+ENDPROC(stext)
 
 /*
  * Set the Control Register and Read the process ID.
  */
-	.type	__after_proc_init, %function
 __after_proc_init:
 #ifdef CONFIG_CPU_CP15
 	/*
@@ -92,6 +91,7 @@ __after_proc_init:
 
 	mov	pc, r13				@ clear the BSS and jump
 						@ to start_kernel
+ENDPROC(__after_proc_init)
 	.ltorg
 
 #include "head-common.S"

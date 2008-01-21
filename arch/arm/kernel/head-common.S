@@ -33,7 +33,6 @@ __switch_data:
  *  r2  = atags pointer
  *  r9  = processor ID
  */
-	.type	__mmap_switched, %function
 __mmap_switched:
 	adr	r3, __switch_data + 4
 
@@ -56,6 +55,7 @@ __mmap_switched:
 	bic	r4, r0, #CR_A			@ Clear 'A' bit
 	stmia	r7, {r0, r4}			@ Save control register values
 	b	start_kernel
+ENDPROC(__mmap_switched)
 
 /*
  * Exception handling.  Something went wrong and we can't proceed.  We
@@ -66,8 +66,6 @@ __mmap_switched:
  * and hope for the best (useful if bootloader fails to pass a proper
  * machine ID for example).
  */
-
-	.type	__error_p, %function
 __error_p:
 #ifdef CONFIG_DEBUG_LL
 	adr	r0, str_p1
@@ -76,8 +74,8 @@ __error_p:
 str_p1:	.asciz	"\nError: unrecognized/unsupported processor variant.\n"
 	.align
 #endif
+ENDPROC(__error_p)
 
-	.type	__error_a, %function
 __error_a:
 #ifdef CONFIG_DEBUG_LL
 	mov	r4, r1				@ preserve machine ID
@@ -107,13 +105,14 @@ __error_a:
 	adr	r0, str_a3
 	bl	printascii
 	b	__error
+ENDPROC(__error_a)
+
 str_a1:	.asciz	"\nError: unrecognized/unsupported machine ID (r1 = 0x"
 str_a2:	.asciz	").\n\nAvailable machine support:\n\nID (hex)\tNAME\n"
 str_a3:	.asciz	"\nPlease check your kernel config and/or bootloader.\n"
 	.align
 #endif
 
-	.type	__error, %function
 __error:
 #ifdef CONFIG_ARCH_RPC
 /*
@@ -130,6 +129,7 @@ __error:
 #endif
 1:	mov	r0, r0
 	b	1b
+ENDPROC(__error)
 
 
 /*
@@ -145,7 +145,6 @@ __error:
  *	r5 = proc_info pointer in physical address space
  *	r9 = cpuid (preserved)
  */
-	.type	__lookup_processor_type, %function
 __lookup_processor_type:
 	adr	r3, 3f
 	ldmda	r3, {r5 - r7}
@@ -161,6 +160,7 @@ __lookup_processor_type:
 	blo	1b
 	mov	r5, #0				@ unknown processor
 2:	mov	pc, lr
+ENDPROC(__lookup_processor_type)
 
 /*
  * This provides a C-API version of the above function.
@@ -171,6 +171,7 @@ ENTRY(lookup_processor_type)
 	bl	__lookup_processor_type
 	mov	r0, r5
 	ldmfd	sp!, {r4 - r7, r9, pc}
+ENDPROC(lookup_processor_type)
 
 /*
  * Look in include/asm-arm/procinfo.h and arch/arm/kernel/arch.[ch] for
@@ -193,7 +194,6 @@ ENTRY(lookup_processor_type)
  *  r3, r4, r6 corrupted
  *  r5 = mach_info pointer in physical address space
  */
-	.type	__lookup_machine_type, %function
 __lookup_machine_type:
 	adr	r3, 3b
 	ldmia	r3, {r4, r5, r6}
@@ -208,6 +208,7 @@ __lookup_machine_type:
 	blo	1b
 	mov	r5, #0				@ unknown machine
 2:	mov	pc, lr
+ENDPROC(__lookup_machine_type)
 
 /*
  * This provides a C-API version of the above function.
@@ -218,6 +219,7 @@ ENTRY(lookup_machine_type)
 	bl	__lookup_machine_type
 	mov	r0, r5
 	ldmfd	sp!, {r4 - r6, pc}
+ENDPROC(lookup_machine_type)
 
 /* Determine validity of the r2 atags pointer.  The heuristic requires
  * that the pointer be aligned, in the first 16k of physical RAM and
@@ -231,8 +233,6 @@ ENTRY(lookup_machine_type)
  *  r2 either valid atags pointer, or zero
  *  r5, r6 corrupted
  */
-
-	.type	__vet_atags, %function
 __vet_atags:
 	tst	r2, #0x3			@ aligned?
 	bne	1f
@@ -249,3 +249,4 @@ __vet_atags:
 
 1:	mov	r2, #0
 	mov	pc, lr
+ENDPROC(__vet_atags)
