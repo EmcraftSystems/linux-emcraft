@@ -66,6 +66,7 @@ struct thread_info {
 	unsigned long		xenonstate;	/* Jazelle-X handler base register */
 #endif
 	struct restart_block	restart_block;
+	__u32			jabort_addr;
 };
 
 #define INIT_THREAD_INFO(tsk)						\
