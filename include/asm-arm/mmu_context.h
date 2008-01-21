@@ -99,6 +99,13 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 #ifdef CONFIG_MMU
 	unsigned int cpu = smp_processor_id();
 
+	/* check for possible thread migration */
+	if (!cpus_empty(next->cpu_vm_mask) && !cpu_isset(cpu, next->cpu_vm_mask))
+		asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
+		    "mcr	p15, 0, %0, c7, c5, 6	@ flush BTAC/BTB\n"
+		    :
+		    : "r" (0));
+
 	if (!cpu_test_and_set(cpu, next->cpu_vm_mask) || prev != next) {
 		check_context(next);
 		cpu_switch_mm(next->pgd, next);

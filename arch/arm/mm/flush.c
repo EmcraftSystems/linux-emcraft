@@ -199,6 +199,11 @@ void flush_dcache_page(struct page *page)
 		__flush_dcache_page(mapping, page);
 		if (mapping && cache_is_vivt())
 			__flush_dcache_aliases(mapping, page);
+		else if (mapping)
+			asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
+			    "mcr	p15, 0, %0, c7, c5, 6	@ flush BTAC/BTB\n"
+			    :
+			    : "r" (0));
 	}
 }
 EXPORT_SYMBOL(flush_dcache_page);
