@@ -34,6 +34,7 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include <asm/mach/arch.h>
+#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/mmc.h>
 #include <asm/mach/time.h>
@@ -246,6 +247,29 @@ static struct amba_device *amba_devs[] __initdata = {
 /*
  * RealView EB platform devices
  */
+static struct flash_platform_data realview_eb_flash_data = {
+	.map_name		= "cfi_probe",
+	.width			= 4,
+	.init			= realview_flash_init,
+	.exit			= realview_flash_exit,
+	.set_vpp		= realview_flash_set_vpp,
+};
+
+static struct resource realview_eb_flash_resource = {
+	.start			= REALVIEW_EB_FLASH_BASE,
+	.end			= REALVIEW_EB_FLASH_BASE + REALVIEW_EB_FLASH_SIZE,
+	.flags			= IORESOURCE_MEM,
+};
+
+static struct platform_device realview_eb_flash_device = {
+	.name			= "armflash",
+	.id			= 0,
+	.dev			= {
+		.platform_data	= &realview_eb_flash_data,
+	},
+	.num_resources		= 1,
+	.resource		= &realview_eb_flash_resource,
+};
 
 static struct resource realview_eb_smc91x_resources[] = {
 	[0] = {
@@ -385,7 +409,7 @@ static void __init realview_eb_init(void)
 
 	clk_register(&realview_clcd_clk);
 
-	platform_device_register(&realview_flash_device);
+	platform_device_register(&realview_eb_flash_device);
 	platform_device_register(&realview_i2c_device);
 
 	/* RealView/EB rev D platforms use the newer SMSC LAN9118

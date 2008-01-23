@@ -69,7 +69,7 @@ unsigned long long sched_clock(void)
 
 #define REALVIEW_FLASHCTRL    (__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_FLASH_OFFSET)
 
-static int realview_flash_init(void)
+int realview_flash_init(void)
 {
 	u32 val;
 
@@ -80,7 +80,7 @@ static int realview_flash_init(void)
 	return 0;
 }
 
-static void realview_flash_exit(void)
+void realview_flash_exit(void)
 {
 	u32 val;
 
@@ -89,7 +89,7 @@ static void realview_flash_exit(void)
 	__raw_writel(val, REALVIEW_FLASHCTRL);
 }
 
-static void realview_flash_set_vpp(int on)
+void realview_flash_set_vpp(int on)
 {
 	u32 val;
 
@@ -100,30 +100,6 @@ static void realview_flash_set_vpp(int on)
 		val &= ~REALVIEW_FLASHPROG_FLVPPEN;
 	__raw_writel(val, REALVIEW_FLASHCTRL);
 }
-
-static struct flash_platform_data realview_flash_data = {
-	.map_name		= "cfi_probe",
-	.width			= 4,
-	.init			= realview_flash_init,
-	.exit			= realview_flash_exit,
-	.set_vpp		= realview_flash_set_vpp,
-};
-
-static struct resource realview_flash_resource = {
-	.start			= REALVIEW_FLASH_BASE,
-	.end			= REALVIEW_FLASH_BASE + REALVIEW_FLASH_SIZE,
-	.flags			= IORESOURCE_MEM,
-};
-
-struct platform_device realview_flash_device = {
-	.name			= "armflash",
-	.id			= 0,
-	.dev			= {
-		.platform_data	= &realview_flash_data,
-	},
-	.num_resources		= 1,
-	.resource		= &realview_flash_resource,
-};
 
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,

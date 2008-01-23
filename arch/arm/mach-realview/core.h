@@ -44,7 +44,10 @@ static struct amba_device name##_device = {			\
 	/* .dma		= base##_DMA,*/				\
 }
 
-extern struct platform_device realview_flash_device;
+int realview_flash_init(void);
+void realview_flash_exit(void);
+void realview_flash_set_vpp(int on);
+
 extern struct platform_device realview_i2c_device;
 extern struct mmc_platform_data realview_mmc0_plat_data;
 extern struct mmc_platform_data realview_mmc1_plat_data;
