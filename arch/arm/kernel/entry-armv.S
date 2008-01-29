@@ -709,13 +709,6 @@ ENTRY(__switch_to)
 #ifdef CONFIG_MMU
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
-#if __LINUX_ARM_ARCH__ >= 6
-#ifdef CONFIG_CPU_32v6K
-	clrex
-#else
-	strex	r5, r4, [ip]			@ Clear exclusive monitor
-#endif
-#endif
 #if defined(CONFIG_HAS_TLS_REG)
 	mcr	p15, 0, r3, c13, c0, 3		@ set TLS register
 #elif !defined(CONFIG_TLS_REG_EMUL)
@@ -1050,6 +1043,13 @@ vector_\name:
 	@ (parent CPSR)
 	@
 	stmia	sp, {r0, lr}		@ save r0, lr
+#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_32v6K
+	clrex				@ clear the exclusive monitor
+#else
+	strex	lr, r0, [sp]		@ clear the exclusive monitor
+#endif
+#endif
 	mrs	lr, spsr
 	str	lr, [sp, #8]		@ save spsr
 
