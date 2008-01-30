@@ -310,6 +310,13 @@ config BLK_DEV_UB
 
 	  If unsure, say N.
 
+config BLK_DEV_CF_REALVIEW
+ 	tristate "Realview PB11MPCore CompactFlash support"
+ 	depends on MACH_REALVIEW_PB11MP
+ 	help
+ 	  If you would like to have compact flash interface support for
+ 	  Realview PB11MPCore platform say Y.
+ 
 config BLK_DEV_RAM
 	tristate "RAM disk support"
 	---help---
