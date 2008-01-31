@@ -216,7 +216,7 @@ ENDPROC(__v7_setup)
 	.type	v7_crval, #object
 v7_crval:
  ARM(	crval	clear=0x0120c302, mmuset=0x00c0387d, ucset=0x00c0187c	)
- THUMB(	crval	clear=0x0120c302, mmuset=0x40c0387d, ucset=0x00c0187c	)
+ THUMB(	crval	clear=0x0120c302, mmuset=0x40c0387d, ucset=0x40c0187c	)
 
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers
