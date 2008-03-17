@@ -20,11 +20,20 @@
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H
 
+#include <asm/arch/hardware.h>
+#include <asm/arch/board-eb.h>
+
 #define IO_SPACE_LIMIT 0xffffffff
+
+#if defined(CONFIG_MMU) && defined(CONFIG_MACH_REALVIEW_EB)
+#define __pci_io	(REALVIEW_EB_PCI_IO_VIRT_BASE - REALVIEW_EB_PCI_IO_BASE0)
+#else
+#define __pci_io	0
+#endif
 
 static inline void __iomem *__io(unsigned long addr)
 {
-	return (void __iomem *)addr;
+	return (void __iomem *)(addr + __pci_io);
 }
 
 #define __io(a)			__io(a)
