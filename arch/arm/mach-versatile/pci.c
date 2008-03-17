@@ -35,7 +35,7 @@
  *
  * Mem   50000000 - 5FFFFFFF      LB_BASE0/LB_MAP0,  non prefetch
  * Mem   60000000 - 6FFFFFFF      LB_BASE1/LB_MAP1,  prefetch
- * IO    44000000 - 4FFFFFFF      LB_BASE2/LB_MAP2,  IO
+ * IO    43000000 - 4FFFFFFF      LB_BASE2/LB_MAP2,  IO
  * Cfg   42000000 - 42FFFFFF	  PCI config
  *
  */
@@ -251,6 +251,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 
 	if (nr == 0) {
 		sys->mem_offset = 0;
+		sys->io_offset = VERSATILE_PCI_MEM_BASE0;
 		ret = pci_versatile_setup_resources(sys->resource);
 		if (ret < 0) {
 			printk("pci_versatile_setup: resources... oops?\n");

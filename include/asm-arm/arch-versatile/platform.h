@@ -231,7 +231,7 @@
 /* PCI space */
 #define VERSATILE_PCI_BASE             0x41000000	/* PCI Interface */
 #define VERSATILE_PCI_CFG_BASE	       0x42000000
-#define VERSATILE_PCI_MEM_BASE0        0x44000000
+#define VERSATILE_PCI_MEM_BASE0        0x43000000
 #define VERSATILE_PCI_MEM_BASE1        0x50000000
 #define VERSATILE_PCI_MEM_BASE2        0x60000000
 /* Sizes of above maps */
