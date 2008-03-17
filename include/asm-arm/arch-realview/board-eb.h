@@ -44,6 +44,28 @@
 #define REALVIEW_EB11MP_SYS_PLD_CTRL1	0x74		/* Register offset for MPCore sysctl */
 #endif
 
+#define REALVIEW_EB_PCI_CORE_BASE	0x10019000	/* PCI configuration */
+
+/*
+ * RealView/EB PCI regions
+ */
+#define REALVIEW_EB_PCI_BASE		0x60000000	/* PCI self config */
+#define REALVIEW_EB_PCI_CFG_BASE	0x61000000	/* PCI config */
+#define REALVIEW_EB_PCI_IO_BASE0	0x62000000	/* PCI IO region */
+#define REALVIEW_EB_PCI_MEM_BASE0	0x63000000	/* Memory region 1 */
+#define REALVIEW_EB_PCI_MEM_BASE1	0x64000000	/* Memory region 2 */
+#define REALVIEW_EB_PCI_MEM_BASE2	0x68000000	/* Memory region 3 */
+
+/*
+ * RealView/EB PCI region sizes
+ */
+#define REALVIEW_EB_PCI_BASE_SIZE	0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_CFG_BASE_SIZE	0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_IO_BASE0_SIZE	0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_MEM_BASE0_SIZE	0x01000000	/* 16MB */
+#define REALVIEW_EB_PCI_MEM_BASE1_SIZE	0x04000000	/* 64MB */
+#define REALVIEW_EB_PCI_MEM_BASE2_SIZE	0x08000000	/* 128MB */
+
 #define IRQ_EB_GIC_START	32
 
 /*
