@@ -271,6 +271,13 @@ static void __init build_mem_type_table(void)
 		ecc_mask = 0;
 	}
 
+#ifdef CONFIG_SMP
+	/* To ensure the cache coherency between multiple ARMv6 cores,
+	 * the cache policy has to be write-allocate */
+	if (cpu_arch == CPU_ARCH_ARMv6 && cachepolicy >= CPOLICY_WRITEBACK)
+		cachepolicy = CPOLICY_WRITEALLOC;
+#endif
+
 	/*
 	 * ARMv5 and lower, bit 4 must be set for page tables.
 	 * (was: cache "update-able on write" bit on ARM610)
