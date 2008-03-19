@@ -49,8 +49,11 @@
 		bic     \irqnr, \irqstat, #0x1c00
 
 		cmp     \irqnr, #29
+		it	cc
 		cmpcc	\irqnr, \irqnr
+		it	ne
 		cmpne	\irqnr, \tmp
+		it	cs
 		cmpcs	\irqnr, \irqnr
 
 		.endm
@@ -65,7 +68,9 @@
 		.macro test_for_ipi, irqnr, irqstat, base, tmp
 		bic	\irqnr, \irqstat, #0x1c00
 		cmp	\irqnr, #16
+		it	cc
 		strcc	\irqstat, [\base, #GIC_CPU_EOI]
+		it	cs
 		cmpcs	\irqnr, \irqnr
 		.endm
 
@@ -75,6 +80,7 @@
 		bic	\irqnr, \irqstat, #0x1c00
 		mov 	\tmp, #0
 		cmp	\irqnr, #29
+		itt	eq
 		moveq	\tmp, #1
 		streq	\irqstat, [\base, #GIC_CPU_EOI]
 		cmp	\tmp, #0

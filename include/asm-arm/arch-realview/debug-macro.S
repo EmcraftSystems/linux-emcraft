@@ -19,6 +19,7 @@
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
+		ite	eq
 		moveq	\rx,      #0x10000000
 		movne	\rx,      #0xf0000000	@ virtual base
 #if defined(CONFIG_MACH_REALVIEW_EB) || defined(CONFIG_MACH_REALVIEW_PB11MP)
