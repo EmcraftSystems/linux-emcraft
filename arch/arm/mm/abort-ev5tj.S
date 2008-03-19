@@ -1,5 +1,6 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/asm-offsets.h>
 #include "abort-macro.S"
 /*
  * Function: v5tj_early_abort
@@ -24,7 +25,7 @@ ENTRY(v5tj_early_abort)
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
 	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
 	tst	r3, #PSR_J_BIT			@ Java?
-	movne	pc, lr
+	bne	jazelle_abort
 	do_thumb_abort
 	ldreq	r3, [r2]			@ read aborted ARM instruction
 	do_ldrd_abort
@@ -32,4 +33,12 @@ ENTRY(v5tj_early_abort)
 	orreq	r1, r1, #1 << 11		@ yes.
 	mov	pc, lr
 
+jazelle_abort:
+	mov	r2, sp, lsr #13			@ get the top of the stack
+	mov	r2, r2, lsl #13			@ containing the thread_info structure
+	ldr	r3, [r2, #TI_JABORT_ADDR]	@ get the last Jazelle abort address
+	cmp	r0, r3				@ is it the same address
+	orreq	r1, r1, #1 << 11		@ mark it as a write
+	str	r0, [r2, #TI_JABORT_ADDR]	@ always store the last Jazelle abort
+	mov	pc, lr
 
