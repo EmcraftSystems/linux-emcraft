@@ -586,6 +586,17 @@ config ARM_ERRATA_460075
 	  the L2 cache are lost and overwritten with stale memory
 	  contents from external memory.
 
+config ARM_ERRATA_484863
+	bool "The Cache Sync operation does not guarantee that the the Eviction Buffer is empty"
+	depends on CACHE_L2X0
+	default n
+	help
+	  According to the L220 Erratum 484863, the actual behaviour of
+	  the L220 cache controller is that the Cache Sync operation
+	  only ensures that the Write Buffer and the Write Allocate
+	  Buffer are empty but not the Eviction Buffer. This option
+	  enables the first workaround from the Errata document.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
