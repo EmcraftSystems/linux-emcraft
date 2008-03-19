@@ -563,6 +563,18 @@ config ARM_ERRATA_430973
 	  prediction. This results in Cortex-A8 executing the new code
 	  sequence in the incorrect ARM or Thumb state.
 
+config ARM_ERRATA_458693
+	bool "Processor deadlock when a false hazard is created on Cortex-A8"
+	depends on CPU_V7
+	default n
+	help
+	  This option enables the workaround for the 458692 Cortex-A8
+	  (r2p0) erratum. For very specific sequences of memory
+	  operations, it is possible for a hazard condition intended
+	  for a cache line to instead be incorrectly associated with a
+	  different cache line. This false hazard might then cause a
+	  processor deadlock.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
