@@ -26,6 +26,7 @@
 #include <linux/fs.h>
 #include <linux/kexec.h>
 
+#include <asm/unified.h>
 #include <asm/cpu.h>
 #include <asm/elf.h>
 #include <asm/procinfo.h>
@@ -410,13 +411,17 @@ void cpu_init(void)
 	"msr	cpsr_c, %7"
 	    :
 	    : "r" (stk),
-	      "I" (PSR_F_BIT | PSR_I_BIT | IRQ_MODE),
+	ARM(  "I" (PSR_F_BIT | PSR_I_BIT | IRQ_MODE),	)
+	THUMB("r" (PSR_F_BIT | PSR_I_BIT | IRQ_MODE),	)
 	      "I" (offsetof(struct stack, irq[0])),
-	      "I" (PSR_F_BIT | PSR_I_BIT | ABT_MODE),
+	ARM(  "I" (PSR_F_BIT | PSR_I_BIT | ABT_MODE),	)
+	THUMB("r" (PSR_F_BIT | PSR_I_BIT | ABT_MODE),	)
 	      "I" (offsetof(struct stack, abt[0])),
-	      "I" (PSR_F_BIT | PSR_I_BIT | UND_MODE),
+	ARM(  "I" (PSR_F_BIT | PSR_I_BIT | UND_MODE),	)
+	THUMB("r" (PSR_F_BIT | PSR_I_BIT | UND_MODE),	)
 	      "I" (offsetof(struct stack, und[0])),
-	      "I" (PSR_F_BIT | PSR_I_BIT | SVC_MODE)
+	ARM(  "I" (PSR_F_BIT | PSR_I_BIT | SVC_MODE)	)
+	THUMB("r" (PSR_F_BIT | PSR_I_BIT | SVC_MODE)	)
 	    : "r14");
 }
 

@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  *
  */
+#include <asm/unified.h>
 
 	.type	__switch_data, %object
 __switch_data:
@@ -38,6 +39,7 @@ __mmap_switched:
 
 	ldmia	r3!, {r4, r5, r6, r7}
 	cmp	r4, r5				@ Copy data segment if needed
+	itttt	ne
 1:	cmpne	r5, r6
 	ldrne	fp, [r4], #4
 	strne	fp, [r5], #4
@@ -45,10 +47,13 @@ __mmap_switched:
 
 	mov	fp, #0				@ Clear BSS (and zero fp)
 1:	cmp	r6, r7
+	itt	cc
 	strcc	fp, [r6],#4
 	bcc	1b
 
-	ldmia	r3, {r4, r5, r6, r7, sp}
+ ARM(	ldmia	r3, {r4, r5, r6, r7, sp})
+ THUMB(	ldmia	r3, {r4, r5, r6, r7}	)
+ THUMB(	ldr	sp, [r3, #16]		)
 	str	r9, [r4]			@ Save processor ID
 	str	r1, [r5]			@ Save machine type
 	str	r2, [r6]			@ Save atags pointer
@@ -146,8 +151,11 @@ ENDPROC(__error)
  *	r9 = cpuid (preserved)
  */
 __lookup_processor_type:
-	adr	r3, 3f
-	ldmda	r3, {r5 - r7}
+ ARM(	adr	r3, 3f		)
+ ARM(	ldmda	r3, {r5 - r7}	)
+ THUMB(	adr	r3, 3f+4	)
+ THUMB(	ldmdb	r3, {r5 - r7}	)
+ THUMB(	sub	r3, r3, #4	)
 	sub	r3, r3, r7			@ get offset between virt&phys
 	add	r5, r5, r3			@ convert virt addresses to
 	add	r6, r6, r3			@ physical address space

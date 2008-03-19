@@ -11,6 +11,8 @@
  *  Common kernel startup code (non-paged MM)
  *
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <linux/init.h>
 
@@ -38,8 +40,9 @@
  */
 	.section ".text.head", "ax"
 ENTRY(stext)
-	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE @ ensure svc mode
-						@ and irqs disabled
+ ARM(	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE ) @ ensure svc mode
+ THUMB(	mov	r9, #PSR_F_BIT | PSR_I_BIT | SVC_MODE )
+ THUMB(	msr	cpsr_c, r9 )			@ ensure svc mode
 #ifndef CONFIG_CPU_CP15
 	ldr	r9, =CONFIG_PROCESSOR_ID
 #else
@@ -54,8 +57,10 @@ ENTRY(stext)
 
 	ldr	r13, __switch_data		@ address to jump to after
 						@ the initialization is done
-	adr	lr, __after_proc_init		@ return (PIC) address
-	add	pc, r10, #PROCINFO_INITFUNC
+	badr	lr, __after_proc_init		@ return (PIC) address
+ ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
+ THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+ THUMB(	mov	pc, r12				)
 ENDPROC(stext)
 
 /*
