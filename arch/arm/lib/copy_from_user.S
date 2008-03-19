@@ -9,6 +9,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
@@ -33,8 +34,18 @@
  *	Number of bytes NOT copied.
  */
 
+#ifndef CONFIG_THUMB2_KERNEL
+#define LDR1W_SHIFT	0
+#else
+#define LDR1W_SHIFT	1
+#endif
+#define STR1W_SHIFT	0
+
 	.macro ldr1w ptr reg abort
-100:	ldrt \reg, [\ptr], #4
+100:
+ ARM(	ldrt \reg, [\ptr], #4		)
+ THUMB(	ldrt \reg, [\ptr]		)
+ THUMB(	add.w \ptr, \ptr, #4		)
 	.section __ex_table, "a"
 	.long 100b, \abort
 	.previous
@@ -53,14 +64,20 @@
 	.endm
 
 	.macro ldr1b ptr reg cond=al abort
-100:	ldr\cond\()bt \reg, [\ptr], #1
+	.ifnc \cond,al
+	itt \cond
+	.endif
+100:
+ ARM(	ldr\cond\()bt \reg, [\ptr], #1	)
+ THUMB(	ldr\cond\()bt \reg, [\ptr]	)
+ THUMB(	add\cond \ptr, \ptr, #1		)
 	.section __ex_table, "a"
 	.long 100b, \abort
 	.previous
 	.endm
 
 	.macro str1w ptr reg abort
-	str \reg, [\ptr], #4
+	W(str) \reg, [\ptr], #4
 	.endm
 
 	.macro str8w ptr reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
@@ -68,6 +85,9 @@
 	.endm
 
 	.macro str1b ptr reg cond=al abort
+	.ifnc \cond,al
+	it \cond
+	.endif
 	str\cond\()b \reg, [\ptr], #1
 	.endm
 

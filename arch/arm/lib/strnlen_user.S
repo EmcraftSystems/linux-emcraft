@@ -7,6 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/errno.h>
@@ -23,7 +25,9 @@
 ENTRY(__strnlen_user)
 	mov	r2, r0
 1:
-USER(	ldrbt	r3, [r0], #1)
+ARM(USER(	ldrbt	r3, [r0], #1	))
+THUMB(USER(	ldrbt	r3, [r0]	))
+THUMB(		add	r0, #1		)
 	teq	r3, #0
 	beq	2f
 	subs	r1, r1, #1

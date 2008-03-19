@@ -11,6 +11,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 
@@ -84,8 +85,10 @@ ENTRY(__do_div64)
 	@ The division loop for needed upper bit positions.
  	@ Break out early if dividend reaches 0.
 2:	cmp	xh, yl
+	itt	cs
 	orrcs	yh, yh, ip
 	subcss	xh, xh, yl
+	it	ne
 	movnes	ip, ip, lsr #1
 	mov	yl, yl, lsr #1
 	bne	2b
@@ -93,7 +96,9 @@ ENTRY(__do_div64)
 	@ See if we need to handle lower 32-bit result.
 3:	cmp	xh, #0
 	mov	yl, #0
+	it	eq
 	cmpeq	xl, r4
+	itt	lo
 	movlo	xh, xl
 	movlo	pc, lr
 
@@ -104,7 +109,9 @@ ENTRY(__do_div64)
 4:	movs	xl, xl, lsl #1
 	adcs	xh, xh, xh
 	beq	6f
+	it	cc
 	cmpcc	xh, r4
+	itt	cs
 5:	orrcs	yl, yl, ip
 	subcs	xh, xh, r4
 	movs	ip, ip, lsr #1
@@ -116,6 +123,7 @@ ENTRY(__do_div64)
 	@ Otherwise, if lower part is also null then we are done.
 6:	bcs	5b
 	cmp	xl, #0
+	it	eq
 	moveq	pc, lr
 
 	@ We still have remainer bits in the low part.  Bring them up.
@@ -177,13 +185,16 @@ ENTRY(__do_div64)
 	mov	yh, xh, lsr ip
 	mov	yl, xl, lsr ip
 	rsb	ip, ip, #32
-	orr	yl, yl, xh, lsl ip
+ ARM(	orr	yl, yl, xh, lsl ip	)
+ THUMB(	lsl	xh, xh, ip		)
+ THUMB(	orr	yl, yl, xh		)
 	mov	xh, xl, lsl ip
 	mov	xh, xh, lsr ip
 	mov	pc, lr
 
 	@ eq -> division by 1: obvious enough...
-9:	moveq	yl, xl
+9:	itttt	eq
+	moveq	yl, xl
 	moveq	yh, xh
 	moveq	xh, #0
 	moveq	pc, lr

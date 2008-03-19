@@ -9,6 +9,8 @@
  *
  *  ASM optimised string functions
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
@@ -18,6 +20,7 @@ ENTRY(strrchr)
 		mov	r3, #0
 1:		ldrb	r2, [r0], #1
 		teq	r2, r1
+		it	eq
 		subeq	r3, r0, #1
 		teq	r2, #0
 		bne	1b

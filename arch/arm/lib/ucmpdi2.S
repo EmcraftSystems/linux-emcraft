@@ -9,6 +9,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 
@@ -27,9 +28,13 @@
 ENTRY(__ucmpdi2)
 
 	cmp	xh, yh
+	it	eq
 	cmpeq	xl, yl
+	it	lo
 	movlo	r0, #0
+	it	eq
 	moveq	r0, #1
+	it	hi
 	movhi	r0, #2
 	mov	pc, lr
 
@@ -40,9 +45,13 @@ ENDPROC(__ucmpdi2)
 ENTRY(__aeabi_ulcmp)
 
 	cmp	xh, yh
+	it	eq
 	cmpeq	xl, yl
+	it	lo
 	movlo	r0, #-1
+	it	eq
 	moveq	r0, #0
+	it	hi
 	movhi	r0, #1
 	mov	pc, lr
 
