@@ -182,6 +182,7 @@ int __down_trylock(struct semaphore * sem)
 asm("	.section .sched.text,\"ax\",%progbits	\n\
 	.align	5				\n\
 	.globl	__down_failed			\n\
+	.type	__down_failed, %function	\n\
 __down_failed:					\n\
 	stmfd	sp!, {r0 - r4, lr}		\n\
 	mov	r0, ip				\n\
@@ -190,6 +191,7 @@ __down_failed:					\n\
 						\n\
 	.align	5				\n\
 	.globl	__down_interruptible_failed	\n\
+	.type	__down_interruptible_failed, %function	\n\
 __down_interruptible_failed:			\n\
 	stmfd	sp!, {r0 - r4, lr}		\n\
 	mov	r0, ip				\n\
@@ -199,6 +201,7 @@ __down_interruptible_failed:			\n\
 						\n\
 	.align	5				\n\
 	.globl	__down_trylock_failed		\n\
+	.type	__down_trylock_failed, %function\n\
 __down_trylock_failed:				\n\
 	stmfd	sp!, {r0 - r4, lr}		\n\
 	mov	r0, ip				\n\
@@ -208,6 +211,7 @@ __down_trylock_failed:				\n\
 						\n\
 	.align	5				\n\
 	.globl	__up_wakeup			\n\
+	.type	__up_wakeup, %function		\n\
 __up_wakeup:					\n\
 	stmfd	sp!, {r0 - r4, lr}		\n\
 	mov	r0, ip				\n\
