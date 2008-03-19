@@ -5,6 +5,13 @@
 	and	r3, r0, #7		@ Get bit offset
 	add	r1, r1, r0, lsr #3	@ Get byte offset
 	mov	r3, r2, lsl r3
+#ifdef CONFIG_ARM_ERRATA_351422
+	mrc     p15, 0, r0, c0, c0, 5
+	and	r0, r0, #0xf
+	mov	r0, r0, lsl #8
+3:	subs	r0, r0, #1
+	bpl	3b
+#endif
 1:	ldrexb	r2, [r1]
 	\instr	r2, r2, r3
 	strexb	r0, r2, [r1]
@@ -18,6 +25,13 @@
 	mov	r2, #1
 	add	r1, r1, r0, lsr #3	@ Get byte offset
 	mov	r3, r2, lsl r3		@ create mask
+#ifdef CONFIG_ARM_ERRATA_351422
+	mrc     p15, 0, r0, c0, c0, 5
+	and	r0, r0, #0xf
+	mov	r0, r0, lsl #8
+3:	subs	r0, r0, #1
+	bpl	3b
+#endif
 1:	ldrexb	r2, [r1]
 	ands	r0, r2, r3		@ save old value of bit
 	.ifnc	\cond,al
