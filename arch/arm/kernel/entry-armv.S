@@ -30,13 +30,17 @@
 	.macro	irq_handler
 	get_irqnr_preamble r5, lr
 1:	get_irqnr_and_base r0, r6, r5, lr
-	ittt	ne
+	itt	ne
 	movne	r1, sp
 	@
 	@ routine called with r0 = irq number, r1 = struct pt_regs *
 	@
+#ifndef CONFIG_MACH_REALVIEW_EB
 	badr	lr, 1b, ne
 	bne	asm_do_IRQ
+#else
+	blne	asm_do_IRQ
+#endif
 
 #ifdef CONFIG_SMP
 	/*
