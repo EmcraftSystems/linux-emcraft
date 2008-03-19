@@ -575,6 +575,17 @@ config ARM_ERRATA_458693
 	  different cache line. This false hazard might then cause a
 	  processor deadlock.
 
+config ARM_ERRATA_460075
+	bool "Data written to the L2 cache can be overwritten with stale data on Cortex-A8"
+	depends on CPU_V7
+	default n
+	help
+	  This option enables the workaround for the 458692 Cortex-A8
+	  (r2p0) erratum. Any asynchronous access to the L2 cache may
+	  encounter a situation in which recent store transactions to
+	  the L2 cache are lost and overwritten with stale memory
+	  contents from external memory.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
