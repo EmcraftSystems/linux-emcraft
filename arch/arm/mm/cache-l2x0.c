@@ -34,7 +34,11 @@ static inline void sync_writel(unsigned long val, unsigned long reg,
 	unsigned long flags;
 
 	spin_lock_irqsave(&l2x0_lock, flags);
+#ifdef CONFIG_ARM_ERRATA_484863
+	asm volatile("swp %0, %0, [%1]\n" : "+r" (val) : "r" (l2x0_base + reg));
+#else
 	writel(val, l2x0_base + reg);
+#endif
 	/* wait for the operation to complete */
 	while (readl(l2x0_base + reg) & complete_mask)
 		;
