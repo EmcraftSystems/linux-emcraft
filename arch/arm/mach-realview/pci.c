@@ -264,6 +264,7 @@ int __init pci_realview_eb_setup(int nr, struct pci_sys_data *sys)
 
 	if (nr == 0) {
 		sys->mem_offset = 0;
+		sys->io_offset = REALVIEW_EB_PCI_IO_BASE0;
 		ret = pci_realview_eb_setup_resources(sys->resource);
 		if (ret < 0) {
 			printk("pci_versatile_setup: resources... oops?\n");
