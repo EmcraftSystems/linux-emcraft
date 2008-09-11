@@ -24,6 +24,7 @@
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
 "	teq	lr, #0\n"			\
+"	itt	mi\n"				\
 "	movmi	ip, %0\n"			\
 "	blmi	" #fail				\
 	:					\
@@ -43,6 +44,7 @@
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
 "	teq	lr, #0\n"			\
+"	itet	mi\n"				\
 "	movmi	ip, %1\n"			\
 "	movpl	ip, #0\n"			\
 "	blmi	" #fail "\n"			\
@@ -65,6 +67,7 @@
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
 "	cmp	lr, #0\n"			\
+"	itt	le\n"				\
 "	movle	ip, %0\n"			\
 "	blle	" #wake				\
 	:					\
@@ -91,6 +94,7 @@
 "	teq	ip, #0\n"			\
 "	bne	1b\n"				\
 "	teq	lr, #0\n"			\
+"	itt	ne\n"				\
 "	movne	ip, %0\n"			\
 "	blne	" #fail				\
 	:					\
@@ -150,6 +154,7 @@
 "	subs	lr, lr, %1\n"			\
 "	str	lr, [%0]\n"			\
 "	msr	cpsr_c, ip\n"			\
+"	itt	mi\n"				\
 "	movmi	ip, %0\n"			\
 "	blmi	" #fail				\
 	:					\
@@ -170,6 +175,7 @@
 "	subs	lr, lr, %2\n"			\
 "	str	lr, [%1]\n"			\
 "	msr	cpsr_c, ip\n"			\
+"	itet	mi\n"				\
 "	movmi	ip, %1\n"			\
 "	movpl	ip, #0\n"			\
 "	blmi	" #fail "\n"			\
@@ -193,6 +199,7 @@
 "	adds	lr, lr, %1\n"			\
 "	str	lr, [%0]\n"			\
 "	msr	cpsr_c, ip\n"			\
+"	itt	le\n"				\
 "	movle	ip, %0\n"			\
 "	blle	" #wake				\
 	:					\
@@ -220,6 +227,7 @@
 "	subs	lr, lr, %1\n"			\
 "	str	lr, [%0]\n"			\
 "	msr	cpsr_c, ip\n"			\
+"	itt	ne\n"				\
 "	movne	ip, %0\n"			\
 "	blne	" #fail				\
 	:					\
@@ -239,6 +247,7 @@
 "	adds	lr, lr, %1\n"			\
 "	str	lr, [%0]\n"			\
 "	msr	cpsr_c, ip\n"			\
+"	itt	cs\n"				\
 "	movcs	ip, %0\n"			\
 "	blcs	" #wake				\
 	:					\
@@ -262,6 +271,7 @@
 "	adds	lr, lr, %1\n"			\
 "	str	lr, [%0]\n"			\
 "	msr	cpsr_c, ip\n"			\
+"	itt	eq\n"				\
 "	moveq	ip, %0\n"			\
 "	bleq	" #wake				\
 	:					\
