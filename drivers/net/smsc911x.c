@@ -76,7 +76,7 @@
 #include <asm/io.h>
 #include "smsc911x.h"
 
-#define SMSC_CHIPNAME		"smsc911x"
+#define SMSC_CHIPNAME		"smc911x"
 #define SMSC_DRV_VERSION	"2007-07-08"
 
 MODULE_LICENSE("GPL");
@@ -98,7 +98,6 @@ struct smsc911x_data {
 	spinlock_t phy_lock;
 	spinlock_t dev_lock;
 
-	struct net_device_stats stats;
 	struct mii_if_info mii;
 	unsigned int using_extphy;
 	u32 msg_enable;
@@ -106,6 +105,8 @@ struct smsc911x_data {
 	unsigned int gpio_setting;
 	unsigned int gpio_orig_setting;
 #endif
+	struct net_device *netdev;
+	struct napi_struct napi;
 	struct timer_list link_poll_timer;
 	unsigned int stop_link_poll;
 
@@ -903,6 +904,7 @@ static unsigned int smsc911x_tx_get_txstatcount(struct smsc911x_data *pdata)
 /* Reads tx statuses and increments counters where necessary */
 static void smsc911x_tx_update_txcounters(struct smsc911x_data *pdata)
 {
+	struct net_device *netdev = pdata->netdev;
 	unsigned int tx_stat;
 
 	while ((tx_stat = smsc911x_tx_get_txstatus(pdata)) != 0) {
@@ -917,24 +919,24 @@ static void smsc911x_tx_update_txcounters(struct smsc911x_data *pdata)
 			SMSC_WARNING("Packet tag reserved bit is high");
 		} else {
 			if (unlikely(tx_stat & 0x00008000)) {
-				pdata->stats.tx_errors++;
+				netdev->stats.tx_errors++;
 			} else {
-				pdata->stats.tx_packets++;
-				pdata->stats.tx_bytes += (tx_stat >> 16);
+				netdev->stats.tx_packets++;
+				netdev->stats.tx_bytes += (tx_stat >> 16);
 			}
 			if (unlikely(tx_stat & 0x00000100)) {
-				pdata->stats.collisions += 16;
-				pdata->stats.tx_aborted_errors += 1;
+				netdev->stats.collisions += 16;
+				netdev->stats.tx_aborted_errors += 1;
 			} else {
-				pdata->stats.collisions +=
+				netdev->stats.collisions +=
 				    ((tx_stat >> 3) & 0xF);
 			}
 			if (unlikely(tx_stat & 0x00000800)) {
-				pdata->stats.tx_carrier_errors += 1;
+				netdev->stats.tx_carrier_errors += 1;
 			}
 			if (unlikely(tx_stat & 0x00000200)) {
-				pdata->stats.collisions++;
-				pdata->stats.tx_aborted_errors++;
+				netdev->stats.collisions++;
+				netdev->stats.tx_aborted_errors++;
 			}
 		}
 	}
@@ -944,12 +946,13 @@ static void smsc911x_tx_update_txcounters(struct smsc911x_data *pdata)
 static void
 smsc911x_rx_counterrors(struct smsc911x_data *pdata, unsigned int rxstat)
 {
+	struct net_device *netdev = pdata->netdev;
 	int crc_err = 0;
 
 	if (unlikely(rxstat & 0x00008000)) {
-		pdata->stats.rx_errors++;
+		netdev->stats.rx_errors++;
 		if (unlikely(rxstat & 0x00000002)) {
-			pdata->stats.rx_crc_errors++;
+			netdev->stats.rx_crc_errors++;
 			crc_err = 1;
 		}
 	}
@@ -957,10 +960,10 @@ smsc911x_rx_counterrors(struct smsc911x_data *pdata, unsigned int rxstat)
 		if (unlikely((rxstat & 0x00001020) == 0x00001020)) {
 			/* Frame type indicates length,
 			 * and length error is set */
-			pdata->stats.rx_length_errors++;
+			netdev->stats.rx_length_errors++;
 		}
 		if (rxstat & RX_STS_MCAST_)
-			pdata->stats.multicast++;
+			netdev->stats.multicast++;
 	}
 }
 
@@ -990,13 +993,13 @@ smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktbytes)
 }
 
 /* NAPI poll function */
-static int smsc911x_poll(struct net_device *dev, int *budget)
+static int smsc911x_poll(struct napi_struct *napi, int budget)
 {
-	struct smsc911x_data *pdata = netdev_priv(dev);
+	struct smsc911x_data *pdata = container_of(napi, struct smsc911x_data, napi);
+	struct net_device *dev = pdata->netdev;
 	int npackets = 0;
-	int quota = min(dev->quota, *budget);
 
-	while (npackets < quota) {
+	while (npackets < budget) {
 		unsigned int pktlength;
 		unsigned int pktwords;
 		unsigned int rxstat = smsc911x_rx_get_rxstatus(pdata);
@@ -1027,15 +1030,15 @@ static int smsc911x_poll(struct net_device *dev, int *budget)
 				netif_receive_skb(skb);
 
 				/* Update counters */
-				pdata->stats.rx_packets++;
-				pdata->stats.rx_bytes += (pktlength - 4);
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += (pktlength - 4);
 				dev->last_rx = jiffies;
 				npackets++;
 				continue;
 			} else {
 				SMSC_WARNING("Unable to allocate sk_buff "
 					     "for rx packet, in PIO path");
-				pdata->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 			}
 		}
 		/* At this point, the packet is to be read out
@@ -1043,25 +1046,21 @@ static int smsc911x_poll(struct net_device *dev, int *budget)
 		smsc911x_rx_fastforward(pdata, pktlength);
 	}
 
-	pdata->stats.rx_dropped += smsc911x_reg_read(pdata, RX_DROP);
+	dev->stats.rx_dropped += smsc911x_reg_read(pdata, RX_DROP);
 	smsc911x_reg_write(INT_STS_RSFL_, pdata, INT_STS);
 
-	*budget -= npackets;
-	dev->quota -= npackets;
-
-	if (npackets < quota) {
+	if (npackets < budget) {
 		unsigned int temp;
 		/* We processed all packets available.  Tell NAPI it can
 		 * stop polling then re-enable rx interrupts */
-		netif_rx_complete(dev);
+		netif_rx_complete(dev, napi);
 		temp = smsc911x_reg_read(pdata, INT_EN);
 		temp |= INT_EN_RSFL_EN_;
 		smsc911x_reg_write(temp, pdata, INT_EN);
-		return 0;
 	}
 
-	/* There are still packets waiting */
-	return 1;
+	/* Return total received packets */
+	return npackets;
 }
 
 /* Returns hash bit number for given MAC address
@@ -1141,8 +1140,6 @@ static int smsc911x_open(struct net_device *dev)
 	unsigned int temp;
 	unsigned int intcfg;
 
-	spin_lock_init(&pdata->phy_lock);
-
 	/* Reset the LAN911x */
 	smsc911x_reg_write(HW_CFG_SRST_, pdata, HW_CFG);
 	timeout = 10;
@@ -1175,6 +1172,12 @@ static int smsc911x_open(struct net_device *dev)
 #else
 	smsc911x_reg_write(0x70070000, pdata, GPIO_CFG);
 #endif
+
+	/* The soft reset above cleared the device's MAC address,
+	 * restore it from local copy (set in probe) */
+	if (!is_valid_ether_addr(dev->dev_addr))
+		SMSC_WARNING("dev_addr is an invalid MAC address");
+	smsc911x_set_mac_address(pdata, dev->dev_addr);
 
 	/* Initialise irqs, but leave all sources disabled */
 	smsc911x_reg_write(0, pdata, INT_EN);
@@ -1225,42 +1228,6 @@ static int smsc911x_open(struct net_device *dev)
 	printk(KERN_INFO "%s: SMSC911x/921x identified at %#08lx, IRQ: %d\n",
 	       dev->name, (unsigned long)pdata->ioaddr, dev->irq);
 
-	spin_lock_irq(&pdata->phy_lock);
-
-	/* Check if mac address has been specified when bringing interface up */
-	if (is_valid_ether_addr(dev->dev_addr)) {
-		smsc911x_set_mac_address(pdata, dev->dev_addr);
-		SMSC_TRACE("MAC Address is specified by configuration");	
-	} else {
-		/* Try reading mac address from device. if EEPROM is present
-		 * it will already have been set */
-		u32 mac_high16 = smsc911x_mac_read(pdata, ADDRH);
-		u32 mac_low32 = smsc911x_mac_read(pdata, ADDRL);
-		dev->dev_addr[0] = (u8)(mac_low32);
-		dev->dev_addr[1] = (u8)(mac_low32 >> 8);
-		dev->dev_addr[2] = (u8)(mac_low32 >> 16);
-		dev->dev_addr[3] = (u8)(mac_low32 >> 24);
-		dev->dev_addr[4] = (u8)(mac_high16);
-		dev->dev_addr[5] = (u8)(mac_high16 >> 8);
-
-		if (is_valid_ether_addr(dev->dev_addr)) {
-			/* eeprom values are valid  so use them */
-			SMSC_TRACE("Mac Address is read from LAN911x EEPROM");
-		} else {
-			/* eeprom values are invalid, generate random MAC */
-			random_ether_addr(dev->dev_addr);
-			smsc911x_set_mac_address(pdata, dev->dev_addr);
-			SMSC_TRACE("MAC Address is set to random_ether_addr");
-		}
-	}
-
-	spin_unlock_irq(&pdata->phy_lock);
-
-	printk(KERN_INFO
-	       "%s: SMSC911x MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       dev->name, dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
-
 	netif_carrier_off(dev);
 	
 	if (!smsc911x_phy_initialise(dev)) {
@@ -1280,6 +1247,9 @@ static int smsc911x_open(struct net_device *dev)
 
 	/* set RX Data offset to 2 bytes for alignment */
 	smsc911x_reg_write((2 << 8), pdata, RX_CFG);
+
+	/* enable the polling before enabling the interrupts */
+	napi_enable(&pdata->napi);
 
 	temp = smsc911x_reg_read(pdata, INT_EN);
 	temp |= (INT_EN_TDFA_EN_ | INT_EN_RSFL_EN_ | INT_EN_PHY_INT_EN_);
@@ -1302,6 +1272,8 @@ static int smsc911x_stop(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
 
+	napi_disable(&pdata->napi);
+
 	pdata->stop_link_poll = 1;
 	del_timer_sync(&pdata->link_poll_timer);
 
@@ -1310,7 +1282,7 @@ static int smsc911x_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* At this point all Rx and Tx activity is stopped */
-	pdata->stats.rx_dropped += smsc911x_reg_read(pdata, RX_DROP);
+	dev->stats.rx_dropped += smsc911x_reg_read(pdata, RX_DROP);
 	smsc911x_tx_update_txcounters(pdata);
 
 	SMSC_TRACE("Interface stopped");
@@ -1374,8 +1346,8 @@ static struct net_device_stats *smsc911x_get_stats(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	smsc911x_tx_update_txcounters(pdata);
-	pdata->stats.rx_dropped += smsc911x_reg_read(pdata, RX_DROP);
-	return &pdata->stats;
+	dev->stats.rx_dropped += smsc911x_reg_read(pdata, RX_DROP);
+	return &dev->stats;
 }
 
 /* Entry point for setting addressing modes */
@@ -1516,11 +1488,13 @@ static irqreturn_t smsc911x_irqhandler(int irq, void *dev_id)
 	}
 
 	if (likely(intsts & inten & INT_STS_RSFL_)) {
-		/* Disable Rx interrupts and schedule NAPI poll */
-		temp = smsc911x_reg_read(pdata, INT_EN);
-		temp &= (~INT_EN_RSFL_EN_);
-		smsc911x_reg_write(temp, pdata, INT_EN);
-		netif_rx_schedule(dev);
+		if(likely(netif_rx_schedule_prep(dev, &pdata->napi))) {
+			/* Disable Rx interrupts and schedule NAPI poll */
+			temp = smsc911x_reg_read(pdata, INT_EN);
+			temp &= (~INT_EN_RSFL_EN_);
+			smsc911x_reg_write(temp, pdata, INT_EN);
+			__netif_rx_schedule(dev, &pdata->napi);
+		}
 		serviced = IRQ_HANDLED;
 	}
 
@@ -2005,8 +1979,7 @@ static int smsc911x_init(struct net_device *dev)
 	dev->set_multicast_list = smsc911x_set_multicast_list;
 	dev->flags |= IFF_MULTICAST;
 	dev->do_ioctl = smsc911x_do_ioctl;
-	dev->poll = smsc911x_poll;
-	dev->weight = 64;
+	netif_napi_add(dev, &pdata->napi, smsc911x_poll, 64);
 	dev->ethtool_ops = &smsc911x_ethtool_ops;
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2092,12 +2065,12 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 		retval = -ENOMEM;
 		goto out_release_io_1;
 	}
-	
-	SET_MODULE_OWNER(dev);
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	pdata = netdev_priv(dev);
-	
+	pdata->netdev = dev;
+
 	dev->irq = platform_get_irq(pdev, 0);
 	pdata->ioaddr = ioremap_nocache(res->start, res_size);
 
@@ -2108,6 +2081,10 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 		pdata->irq_polarity = config->irq_polarity;
 		pdata->irq_type  = config->irq_type;
 	}
+#if 1
+	pdata->irq_polarity = 1;
+	pdata->irq_type  = 1;
+#endif
 
 	if (pdata->ioaddr == NULL) {
 		SMSC_WARNING("Error smsc911x base address invalid");
@@ -2144,6 +2121,44 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	} else {
 		SMSC_TRACE("Network interface: \"%s\"", dev->name);
 	}
+
+	spin_lock_init(&pdata->phy_lock);
+
+	spin_lock_irq(&pdata->phy_lock);
+
+	/* Check if mac address has been specified when bringing interface up */
+	if (is_valid_ether_addr(dev->dev_addr)) {
+		smsc911x_set_mac_address(pdata, dev->dev_addr);
+		SMSC_TRACE("MAC Address is specified by configuration");	
+	} else {
+		/* Try reading mac address from device. if EEPROM is present
+		 * it will already have been set */
+		u32 mac_high16 = smsc911x_mac_read(pdata, ADDRH);
+		u32 mac_low32 = smsc911x_mac_read(pdata, ADDRL);
+		dev->dev_addr[0] = (u8)(mac_low32);
+		dev->dev_addr[1] = (u8)(mac_low32 >> 8);
+		dev->dev_addr[2] = (u8)(mac_low32 >> 16);
+		dev->dev_addr[3] = (u8)(mac_low32 >> 24);
+		dev->dev_addr[4] = (u8)(mac_high16);
+		dev->dev_addr[5] = (u8)(mac_high16 >> 8);
+
+		if (is_valid_ether_addr(dev->dev_addr)) {
+			/* eeprom values are valid  so use them */
+			SMSC_TRACE("Mac Address is read from LAN911x EEPROM");
+		} else {
+			/* eeprom values are invalid, generate random MAC */
+			random_ether_addr(dev->dev_addr);
+			smsc911x_set_mac_address(pdata, dev->dev_addr);
+			SMSC_TRACE("MAC Address is set to random_ether_addr");
+		}
+	}
+
+	spin_unlock_irq(&pdata->phy_lock);
+
+	printk(KERN_INFO
+	       "%s: SMSC911x MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+	       dev->name, dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
+	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 
 	return 0;
 
