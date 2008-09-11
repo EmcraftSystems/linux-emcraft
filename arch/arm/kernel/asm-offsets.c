@@ -67,6 +67,7 @@ int main(void)
 #ifdef CONFIG_CRUNCH
   DEFINE(TI_CRUNCH_STATE,	offsetof(struct thread_info, crunchstate));
 #endif
+  DEFINE(TI_JABORT_ADDR,	offsetof(struct thread_info, jabort_addr));
   BLANK();
   DEFINE(S_R0,			offsetof(struct pt_regs, ARM_r0));
   DEFINE(S_R1,			offsetof(struct pt_regs, ARM_r1));
