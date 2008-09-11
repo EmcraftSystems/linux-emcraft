@@ -537,6 +537,18 @@ config ARM_ERRATA_411920
 	  does not affect the MPCore. This option enables the ARM Ltd.
 	  recommended workaround.
 
+config ARM_ERRATA_351422
+	bool "Spinlocks using LDREX and STREX instructions can livelock"
+	depends on CPU_V6 && SMP
+	default n
+	help
+	  According to the ARM11MPCore Erratum 351422 (r0p0), under
+	  extremely rare conditions, in an MPCore node consisting of
+	  at least 3 CPUs, two CPUs trying to perform a STREX to data
+	  on the same shared cache line can enter a livelock
+	  situation. This option adds variable spinning time to the
+	  locking routines.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
