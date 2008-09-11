@@ -21,6 +21,7 @@ typedef struct { volatile int counter; } atomic_t;
 #ifdef __KERNEL__
 
 #define atomic_read(v)	((v)->counter)
+#define atomic_set(v,i)	(((v)->counter) = (i))
 
 #if __LINUX_ARM_ARCH__ >= 6
 
@@ -31,20 +32,6 @@ typedef struct { volatile int counter; } atomic_t;
  * without using the following operations WILL break the atomic
  * nature of these ops.
  */
-static inline void atomic_set(atomic_t *v, int i)
-{
-	unsigned long tmp;
-
-	__asm__ __volatile__("@ atomic_set\n"
-"1:	ldrex	%0, [%1]\n"
-"	strex	%0, %2, [%1]\n"
-"	teq	%0, #0\n"
-"	bne	1b"
-	: "=&r" (tmp)
-	: "r" (&v->counter), "r" (i)
-	: "cc");
-}
-
 static inline int atomic_add_return(int i, atomic_t *v)
 {
 	unsigned long tmp;
@@ -122,8 +109,6 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 #ifdef CONFIG_SMP
 #error SMP not supported on pre-ARMv6 CPUs
 #endif
-
-#define atomic_set(v,i)	(((v)->counter) = (i))
 
 static inline int atomic_add_return(int i, atomic_t *v)
 {
