@@ -284,7 +284,9 @@ not_relocated:	mov	r0, #0
 		add	sp, r1, #128		@ relocate the stack
 
 		bl	cache_clean_flush
-		add	pc, r5, r0		@ call relocation code
+ ARM(		add	pc, r5, r0		) @ call relocation code
+ THUMB(		add	r12, r5, r0		)
+ THUMB(		mov	pc, r12			) @ call relocation code
 
 /*
  * We're not in danger of overwriting ourselves.  Do this the simple way.
@@ -567,8 +569,10 @@ call_cache_fn:	adr	r12, proc_types
 		ldr	r2, [r12, #4]		@ get mask
 		eor	r1, r1, r6		@ (real ^ match)
 		tst	r1, r2			@       & mask
-		it	eq
-		addeq	pc, r12, r3		@ call cache function
+		itt	eq
+ ARM(		addeq	pc, r12, r3		) @ call cache function
+ THUMB(		addeq	r12, r3			)
+ THUMB(		moveq	pc, r12			) @ call cache function
 		add	r12, r12, #4*5
 		b	1b
 

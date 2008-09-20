@@ -194,9 +194,17 @@ ENDPROC(vfp_save_state)
 last_VFP_context_address:
 	.word	last_VFP_context
 
+	.macro	tbl_branch, base, tmp, shift
+ ARM(	add	pc, pc, \base, lsl \shift	)
+ ARM(	mov	r0, r0				)
+ THUMB(	adr	\tmp, 1f			)
+ THUMB(	add	\tmp, \tmp, \base, lsl \shift	)
+ THUMB(	mov	pc, \tmp			)
+1:
+	.endm
+
 ENTRY(vfp_get_float)
-	add	pc, pc, r0, lsl #3
-	mov	r0, r0
+	tbl_branch r0, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 	mrc	p10, 0, r0, c\dr, c0, 0	@ fmrs	r0, s0
 	mov	pc, lr
@@ -206,8 +214,7 @@ ENTRY(vfp_get_float)
 ENDPROC(vfp_get_float)
 
 ENTRY(vfp_put_float)
-	add	pc, pc, r1, lsl #3
-	mov	r0, r0
+	tbl_branch r1, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 	mcr	p10, 0, r0, c\dr, c0, 0	@ fmsr	r0, s0
 	mov	pc, lr
@@ -217,8 +224,7 @@ ENTRY(vfp_put_float)
 ENDPROC(vfp_put_float)
 
 ENTRY(vfp_get_double)
-	add	pc, pc, r0, lsl #3
-	mov	r0, r0
+	tbl_branch r0, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 	fmrrd	r0, r1, d\dr
 	mov	pc, lr
@@ -238,8 +244,7 @@ ENTRY(vfp_get_double)
 ENDPROC(vfp_get_double)
 
 ENTRY(vfp_put_double)
-	add	pc, pc, r2, lsl #3
-	mov	r0, r0
+	tbl_branch r2, r3, #3
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 	fmdrr	d\dr, r0, r1
 	mov	pc, lr
