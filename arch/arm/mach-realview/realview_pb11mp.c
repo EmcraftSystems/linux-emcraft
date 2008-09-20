@@ -207,12 +207,12 @@ static struct amba_device *amba_devs[] __initdata = {
 static struct resource realview_pb11mp_flash_resource[] = {
 	[0] = {
 		.start		= REALVIEW_PB11MP_FLASH0_BASE,
-		.end		= REALVIEW_PB11MP_FLASH0_BASE + REALVIEW_PB11MP_FLASH0_SIZE,
+		.end		= REALVIEW_PB11MP_FLASH0_BASE + REALVIEW_PB11MP_FLASH0_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
 		.start		= REALVIEW_PB11MP_FLASH1_BASE,
-		.end		= REALVIEW_PB11MP_FLASH1_BASE + REALVIEW_PB11MP_FLASH1_SIZE,
+		.end		= REALVIEW_PB11MP_FLASH1_BASE + REALVIEW_PB11MP_FLASH1_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };
