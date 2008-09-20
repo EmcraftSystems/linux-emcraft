@@ -371,6 +371,10 @@ static int __init vfp_init(void)
 		 * in place; report VFP support to userspace.
 		 */
 		elf_hwcap |= HWCAP_VFP;
+#ifdef CONFIG_NEON
+		if ((fmrx(MVFR0) & MVFR0_A_SIMD_MASK) == 2)
+			elf_hwcap |= HWCAP_NEON;
+#endif
 	}
 	return 0;
 }
