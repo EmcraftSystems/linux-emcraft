@@ -102,7 +102,7 @@ config CPU_ARM9TDMI
 	bool "Support ARM9TDMI processor"
 	depends on !MMU
 	select CPU_32v4T
-	select CPU_ABRT_NOMMU
+	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_V4
 	help
@@ -199,10 +199,10 @@ config CPU_ARM926T
 
 # ARM940T
 config CPU_ARM940T
-	bool "Support ARM940T processor" if ARCH_INTEGRATOR
+	bool "Support ARM940T processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	depends on !MMU
 	select CPU_32v4T
-	select CPU_ABRT_NOMMU
+	select CPU_ABRT_EV4T
 	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
@@ -217,10 +217,10 @@ config CPU_ARM940T
 
 # ARM946E-S
 config CPU_ARM946E
-	bool "Support ARM946E-S processor" if ARCH_INTEGRATOR
+	bool "Support ARM946E-S processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	depends on !MMU
 	select CPU_32v5
-	select CPU_ABRT_NOMMU
+	select CPU_ABRT_EV5T
 	select CPU_PABRT_NOIFAR
 	select CPU_CACHE_VIVT
 	select CPU_CP15_MPU
@@ -434,9 +434,6 @@ config CPU_32v7
 	bool
 
 # The abort model
-config CPU_ABRT_NOMMU
-	bool
-
 config CPU_ABRT_EV4
 	bool
 

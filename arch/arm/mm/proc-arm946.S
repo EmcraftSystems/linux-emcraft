@@ -16,7 +16,9 @@
 #include <asm/elf.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
+#include <asm/page.h>
 #include <asm/ptrace.h>
+#include "proc-macros.S"
 
 /*
  * ARM946E-S is synthesizable to have 0KB to 1MB sized D-Cache,
@@ -37,6 +39,7 @@
  */
 ENTRY(cpu_arm946_proc_init)
 ENTRY(cpu_arm946_switch_mm)
+ENTRY(cpu_arm946_set_pte_ext)
 	mov	pc, lr
 
 /*
@@ -375,7 +378,7 @@ __arm946_setup:
  */
 	.type	arm946_processor_functions, #object
 ENTRY(arm946_processor_functions)
-	.word	nommu_early_abort
+	.word	v5t_early_abort
 	.word	pabort_noifar
 	.word	cpu_arm946_proc_init
 	.word	cpu_arm946_proc_fin
@@ -384,7 +387,7 @@ ENTRY(arm946_processor_functions)
 
 	.word	cpu_arm946_dcache_clean_area
 	.word	cpu_arm946_switch_mm
-	.word	0		@ cpu_*_set_pte
+	.word	cpu_arm946_set_pte_ext
 	.size	arm946_processor_functions, . - arm946_processor_functions
 
 	.section ".rodata"
@@ -420,6 +423,6 @@ __arm946_proc_info:
 	.long	arm946_processor_functions
 	.long	0
 	.long	0
-	.long	arm940_cache_fns
+	.long	arm946_cache_fns
 	.size	__arm946_proc_info, . - __arm946_proc_info
 
