@@ -27,9 +27,9 @@
 /*
  * PCI space virtual addresses
  */
-#define REALVIEW_EB_PCI_VIRT_BASE	0xe8000000
-#define REALVIEW_EB_PCI_CFG_VIRT_BASE	0xe9000000
-#define REALVIEW_EB_PCI_IO_VIRT_BASE	0xea000000
+#define REALVIEW_EB_PCI_VIRT_BASE	0xf8000000
+#define REALVIEW_EB_PCI_CFG_VIRT_BASE	0xf9000000
+#define REALVIEW_EB_PCI_IO_VIRT_BASE	0xfa000000
 
 /* CIK guesswork */
 #define PCIBIOS_MIN_IO			0x62000000
@@ -39,7 +39,14 @@
 
 /* macro to get at IO space when running virtually */
 #ifdef CONFIG_MMU
-#define IO_ADDRESS(x)		(((x) & 0x0fffffff) + 0xf0000000)
+/*
+ * Statically mapped addresses:
+ *
+ * 10xx xxxx -> fbxx xxxx
+ * 1exx xxxx -> fdxx xxxx
+ * 1fxx xxxx -> fexx xxxx
+ */
+#define IO_ADDRESS(x)		(((x) & 0x03ffffff) + 0xfb000000)
 #else
 #define IO_ADDRESS(x)		(x)
 #endif
