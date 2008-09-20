@@ -405,7 +405,6 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
 static inline void __flush_icache_all(void)
 {
 	asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
-	    "mcr	p15, 0, %0, c7, c5, 6	@ flush BTAC/BTB\n"
 	    :
 	    : "r" (0));
 }
