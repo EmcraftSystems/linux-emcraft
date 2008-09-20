@@ -23,7 +23,8 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET		UL(0x00000000)
+#define XUL(x)			UL(x)
+#define PHYS_OFFSET		XUL(CONFIG_REALVIEW_PHYS_OFFSET)
 
 /*
  * Virtual view <-> DMA view memory address translations
@@ -32,7 +33,7 @@
  * bus_to_virt: Used to convert an address for DMA operations
  *              to an address that the kernel can use.
  */
-#define __virt_to_bus(x)	((x) - PAGE_OFFSET)
-#define __bus_to_virt(x)	((x) + PAGE_OFFSET)
+#define __virt_to_bus(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __bus_to_virt(x)	((x) + PAGE_OFFSET - PHYS_OFFSET)
 
 #endif

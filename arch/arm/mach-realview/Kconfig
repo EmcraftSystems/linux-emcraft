@@ -37,4 +37,14 @@ config MACH_REALVIEW_PB1176
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
 
+config REALVIEW_PHYS_OFFSET
+	hex "Physical base address for the RealView platform"
+	default "0x00000000"
+	help
+	  RealView boards like PB11MPCore have 512MB of RAM available
+	  contiguously at 0x70000000. Half of the memory is mirrored
+	  at 0x00000000 for backwards compatibility. Use this option
+	  to change the physical base address so that the full amount
+	  of RAM is available to Linux.
+
 endmenu
