@@ -179,7 +179,7 @@ __dabt_svc:
 	@ The abort handler must return the aborted address in r0, and
 	@ the fault status register in r1.  r9 must be preserved.
 	@
-#ifdef MULTI_ABORT
+#ifdef MULTI_DABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_DABT_FUNC]
@@ -339,7 +339,7 @@ ENDPROC(__pabt_svc)
 	.align	5
 .LCcralign:
 	.word	cr_alignment
-#ifdef MULTI_ABORT
+#ifdef MULTI_DABORT
 .LCprocfns:
 	.word	processor
 #endif
@@ -425,7 +425,7 @@ __dabt_usr:
 	@ The abort handler must return the aborted address in r0, and
 	@ the fault status register in r1.
 	@
-#ifdef MULTI_ABORT
+#ifdef MULTI_DABORT
 	ldr	r4, .LCprocfns
 	mov	lr, pc
 	ldr	pc, [r4, #PROCESSOR_DABT_FUNC]
