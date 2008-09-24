@@ -12,6 +12,7 @@
  *
  *  The reference implementation for this code is linux/lib/sha1.c
  */
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 
@@ -187,6 +188,7 @@ ENTRY(sha_transform)
 
 ENDPROC(sha_transform)
 
+	.align	2
 .L_sha_K:
 	.word	0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
 
@@ -195,6 +197,7 @@ ENDPROC(sha_transform)
  * void sha_init(__u32 *buf)
  */
 
+	.align	2
 .L_sha_initial_digest:
 	.word	0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0
 

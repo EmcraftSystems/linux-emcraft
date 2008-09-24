@@ -73,6 +73,7 @@ ip_fast_csum(const void *iph, unsigned int ihl)
 1:	adcs	%0, %0, %3					\n\
 	ldr	%3, [%1], #4					\n\
 	tst	%2, #15			@ do this carefully	\n\
+	it	ne						\n\
 	subne	%2, %2, #1		@ without destroying	\n\
 	bne	1b			@ the carry flag	\n\
 	adcs	%0, %0, %3					\n\

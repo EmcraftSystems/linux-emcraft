@@ -9,6 +9,8 @@
  *
  *  ASM optimised string functions
  */
+#include <asm/unified.h>
+
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -39,8 +41,10 @@ ENTRY(copy_page)
 		ldmia	r1!, {r3, r4, ip, lr}		@	4
 		subs	r2, r2, #1			@	1
 		stmia	r0!, {r3, r4, ip, lr}		@	4
+		itt	gt
 		ldmgtia	r1!, {r3, r4, ip, lr}		@	4
 		bgt	1b				@	1
+	PLD(	itt	eq			)
 	PLD(	ldmeqia r1!, {r3, r4, ip, lr}	)
 	PLD(	beq	2b			)
 		ldmfd	sp!, {r4, pc}			@	3

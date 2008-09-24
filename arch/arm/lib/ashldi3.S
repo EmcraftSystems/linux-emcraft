@@ -25,6 +25,7 @@ along with this program; see the file COPYING.  If not, write to
 the Free Software Foundation, 51 Franklin Street, Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 
+#include <asm/unified.h>
 
 #include <linux/linkage.h>
 
@@ -41,9 +42,12 @@ ENTRY(__aeabi_llsl)
 
 	subs	r3, r2, #32
 	rsb	ip, r2, #32
+	itett	mi
 	movmi	ah, ah, lsl r2
 	movpl	ah, al, lsl r3
-	orrmi	ah, ah, al, lsr ip
+ ARM(	orrmi	ah, ah, al, lsr ip	)
+ THUMB(	lsrmi	r3, al, ip		)
+ THUMB(	orrmi	ah, ah, r3		)
 	mov	al, al, lsl r2
 	mov	pc, lr
 
