@@ -59,9 +59,16 @@ $(obj)/zImage:	$(obj)/compressed/vmlinux FORCE
 
 endif
 
+ifeq ($(CONFIG_THUMB2_KERNEL),y)
+# Set bit 0 to 1 so that "mov pc, lr" switches to Thumb-2 mode
+UIMAGE_ENTRY := $(shell echo $(ZRELADDR) | sed -e "s/.$$/1/")
+else
+UIMAGE_ENTRY := $(ZRELADDR)
+endif
+
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A arm -O linux -T kernel \
-		   -C none -a $(ZRELADDR) -e $(ZRELADDR) \
+		   -C none -a $(ZRELADDR) -e $(UIMAGE_ENTRY) \
 		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
 
 $(obj)/uImage:	$(obj)/zImage FORCE
