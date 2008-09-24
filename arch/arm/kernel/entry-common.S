@@ -76,6 +76,9 @@ no_work_pending:
 	/* perform architecture specific actions before user return */
 	arch_ret_to_user r1, lr
 
+#ifdef CONFIG_ARM_ERRATUM_451034
+	dmb
+#endif
 	@ slow_restore_user_regs
  THUMB(	mov	r2, sp			     )
  THUMB(	load_user_sp_lr r2, r3, S_SP	     )	@ calling sp, lr

@@ -1083,6 +1083,22 @@ config NEON
 	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
 	  Extension.
 
+config ARM_ERRATUM_451034
+	bool "Enable workaround for ARM erratum 451034"
+	depends on VFPv3
+	help
+	  On Cortex-A8 r1p0 and r1p1, executing a NEON store with an integer
+	  store in the store buffer, can cause a processor deadlock under
+	  certain conditions.
+
+	  See ARM Cortex-A8 Errata Notice (PR120-PRDC-008070) for full details.
+
+	  Say Y to include a partial workaround.
+
+	  WARNING: Even with this option enabled, userspace code can trigger
+	  the deadlock.	 To safely run untrusted code, a different fix is
+	  required.
+
 endmenu
 
 menu "Userspace binary formats"
