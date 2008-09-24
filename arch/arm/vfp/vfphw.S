@@ -14,6 +14,8 @@
  * r10 points at the start of the private FP workspace in the thread structure
  * sp points to a struct pt_regs (as defined in include/asm/proc/ptrace.h)
  */
+#include <asm/unified.h>
+
 #include <asm/thread_info.h>
 #include <asm/vfpmacros.h>
 #include "../kernel/entry-header.S"
@@ -101,8 +103,10 @@ ENTRY(vfp_support_entry)
 	VFPFSTMIA r4, r5		@ save the working registers
 	VFPFMRX	r5, FPSCR		@ current status
 	tst	r1, #FPEXC_EX		@ is there additional state to save?
+	itt	ne
 	VFPFMRX	r6, FPINST, NE		@ FPINST (only if FPEXC.EX is set)
 	tstne	r1, #FPEXC_FP2V		@ is there an FPINST2 to read?
+	it	ne
 	VFPFMRX	r8, FPINST2, NE		@ FPINST2 if needed (and present)
 	stmia	r4, {r1, r5, r6, r8}	@ save FPEXC, FPSCR, FPINST, FPINST2
 					@ and point r4 at the word at the
@@ -117,8 +121,10 @@ no_old_VFP_process:
 					@ FPEXC is in a safe state
 	ldmia	r10, {r1, r5, r6, r8}	@ load FPEXC, FPSCR, FPINST, FPINST2
 	tst	r1, #FPEXC_EX		@ is there additional state to restore?
+	itt	ne
 	VFPFMXR	FPINST, r6, NE		@ restore FPINST (only if FPEXC.EX is set)
 	tstne	r1, #FPEXC_FP2V		@ is there an FPINST2 to write?
+	it	ne
 	VFPFMXR	FPINST2, r8, NE		@ FPINST2 if needed (and present)
 	VFPFMXR	FPSCR, r5		@ restore status
 
@@ -175,8 +181,10 @@ ENTRY(vfp_save_state)
 	VFPFSTMIA r0, r2		@ save the working registers
 	VFPFMRX	r2, FPSCR		@ current status
 	tst	r1, #FPEXC_EX		@ is there additional state to save?
+	itt	ne
 	VFPFMRX	r3, FPINST, NE		@ FPINST (only if FPEXC.EX is set)
 	tstne	r1, #FPEXC_FP2V		@ is there an FPINST2 to read?
+	it	ne
 	VFPFMRX	r12, FPINST2, NE	@ FPINST2 if needed (and present)
 	stmia	r0, {r1, r2, r3, r12}	@ save FPEXC, FPSCR, FPINST, FPINST2
 	mov	pc, lr
@@ -235,12 +243,14 @@ ENTRY(vfp_put_double)
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 	fmdrr	d\dr, r0, r1
 	mov	pc, lr
+ THUMB(	nop					)
 	.endr
 #ifdef CONFIG_VFPv3
 	@ d16 - d31 registers
 	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
 	mcrr	p11, 3, r1, r2, c\dr	@ fmdrr	r1, r2, d\dr
 	mov	pc, lr
+ THUMB(	nop					)
 	.endr
 #endif
 ENDPROC(vfp_put_double)
