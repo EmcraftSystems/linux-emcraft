@@ -52,6 +52,7 @@
  *	  v4wb  - ARMv4 with write buffer without I TLB flush entry instruction
  *	  v4wbi - ARMv4 with write buffer with I TLB flush entry instruction
  *	  v6wbi - ARMv6 with write buffer with I TLB flush entry instruction
+ *	  v7wbi - identical to v6wbi
  */
 #undef _TLB
 #undef MULTI_TLB
@@ -246,13 +247,15 @@ extern struct cpu_tlb_fns cpu_tlb;
 				 v4_possible_flags | \
 				 v4wbi_possible_flags | \
 				 v4wb_possible_flags | \
-				 v6wbi_possible_flags)
+				 v6wbi_possible_flags | \
+				 v7wbi_possible_flags)
 
 #define always_tlb_flags	(v3_always_flags & \
 				 v4_always_flags & \
 				 v4wbi_always_flags & \
 				 v4wb_always_flags & \
-				 v6wbi_always_flags)
+				 v6wbi_always_flags & \
+				 v7wbi_always_flags)
 
 #define tlb_flag(f)	((always_tlb_flags & (f)) || (__tlb_flag & possible_tlb_flags & (f)))
 
