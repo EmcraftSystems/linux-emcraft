@@ -46,6 +46,13 @@ ENDPROC(__const_udelay)				@ 0 <= r0 <= 0x7fffff06
 
 @ Delay routine
 ENTRY(__delay)
+#if __LINUX_ARM_ARCH__ == 6
+		mov	r12, #0
+		mcr	p15, 0, r12, c7, c10, 4		@ Drain the write buffer
+#elif __LINUX_ARM_ARCH__ >= 7
+		dsb					@ Drain the write buffer
+#endif
+1:
 		subs	r0, r0, #1
 #if 0
 		movls	pc, lr
@@ -64,6 +71,6 @@ ENTRY(__delay)
 		subs	r0, r0, #1
 #endif
 		it	hi
-		bhi	__delay
+		bhi	1b
 		mov	pc, lr
 ENDPROC(__delay)
