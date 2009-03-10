@@ -230,6 +230,7 @@ int cpu_architecture(void)
 
 	return cpu_arch;
 }
+EXPORT_SYMBOL(cpu_architecture);
 
 static void __init cacheid_init(void)
 {

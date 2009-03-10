@@ -139,11 +139,11 @@
 #define IRQ_PBX_WATCHDOG1       (IRQ_PBX_GIC_START + 40)        /* Watchdog1 timer */
 #define IRQ_PBX_TIMER4_5        (IRQ_PBX_GIC_START + 41)        /* Timer 0/1 (default timer) */
 #define IRQ_PBX_TIMER6_7        (IRQ_PBX_GIC_START + 42)        /* Timer 2/3 */
-/* ... */
-#define IRQ_PBX_PMU_CPU3        (IRQ_PBX_GIC_START + 44)        /* CPU PMU Interrupts */
-#define IRQ_PBX_PMU_CPU2        (IRQ_PBX_GIC_START + 45)
-#define IRQ_PBX_PMU_CPU1        (IRQ_PBX_GIC_START + 46)
-#define IRQ_PBX_PMU_CPU0        (IRQ_PBX_GIC_START + 47)
+#define IRQ_PBX_L220_EVENT      (IRQ_PBX_GIC_START + 43)
+#define IRQ_PBX_PMU_CPU0	(IRQ_PBX_GIC_START + 44)        /* CPU PMU Interrupts */
+#define IRQ_PBX_PMU_CPU1	(IRQ_PBX_GIC_START + 45)
+#define IRQ_PBX_PMU_CPU2	(IRQ_PBX_GIC_START + 46)
+#define IRQ_PBX_PMU_CPU3	(IRQ_PBX_GIC_START + 47)
 
 /* ... */
 #define IRQ_PBX_PCI0		(IRQ_PBX_GIC_START + 50)
