@@ -166,7 +166,6 @@ process_exception:
 					@ retry the faulted instruction
 ENDPROC(vfp_support_entry)
 
-#ifdef CONFIG_SMP
 ENTRY(vfp_save_state)
 	@ Save the current VFP state
 	@ r0 - save location
@@ -181,7 +180,6 @@ ENTRY(vfp_save_state)
 	stmia	r0, {r1, r2, r3, r12}	@ save FPEXC, FPSCR, FPINST, FPINST2
 	mov	pc, lr
 ENDPROC(vfp_save_state)
-#endif
 
 last_VFP_context_address:
 	.word	last_VFP_context

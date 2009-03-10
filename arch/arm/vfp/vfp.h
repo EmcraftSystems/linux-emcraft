@@ -377,6 +377,4 @@ struct op {
 	u32 flags;
 };
 
-#ifdef CONFIG_SMP
 extern void vfp_save_state(void *location, u32 fpexc);
-#endif
