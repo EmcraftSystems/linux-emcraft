@@ -58,6 +58,7 @@ config MACH_REALVIEW_PBX
 	bool "Support RealView/PBX platform"
 	select ARM_GIC
 	select HAVE_PATA_PLATFORM
+	select ARCH_SPARSEMEM_ENABLE if REALVIEW_HIGH_PHYS_OFFSET
 	help
 	  Include support for the ARM(R) RealView PBX platform.
 
@@ -71,5 +72,9 @@ config REALVIEW_HIGH_PHYS_OFFSET
 	  the board supports 512MB of RAM, this option allows the
 	  memory to be accessed contiguously at the high physical
 	  offset.
+
+config ARCH_FLATMEM_ENABLE
+	bool
+	default y if ARCH_SPARSEMEM_ENABLE
 
 endmenu

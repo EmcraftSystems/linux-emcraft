@@ -30,6 +30,53 @@
 #endif
 
 /*
+ * Sparsemem definitions, only valid for high PHYS_OFFSET.
+ *
+ * Most RealView boards (except PB1176) have 512MB of RAM at 0x70000000. The
+ * PBX board has another block of 512MB of RAM at 0x20000000, however only the
+ * block at 0x70000000 may be used for DMA.
+ *
+ * The macros below define a section size of 256MB and a non-linear virtual to
+ * physical mapping:
+ *
+ * 0x70000000 -> PAGE_OFFSET
+ * 0x20000000 -> PAGE_OFFSET + 0x20000000
+ * 0x90000000 -> PAGE_OFFSET + 0x40000000 (required for high_memory)
+ */
+#ifdef CONFIG_SPARSEMEM
+
+#ifndef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
+#error "SPARSEMEM only available with REALVIEW_HIGH_PHYS_OFFSET"
+#endif
+
+#define MAX_PHYSMEM_BITS	32
+#define SECTION_SIZE_BITS	28
+
+#define __phys_to_virt(phys) ({					\
+	unsigned long virt = 0;					\
+	if ((phys) >= 0x90000000UL)				\
+		virt = (phys) - 0x50000000UL + PAGE_OFFSET;	\
+	else if ((phys) >= 0x70000000UL)			\
+		virt = (phys) - 0x70000000UL + PAGE_OFFSET;	\
+	else if ((phys) >= 0x20000000UL)			\
+		virt = (phys) + PAGE_OFFSET;			\
+	virt;							\
+})
+
+#define __virt_to_phys(virt) ({					\
+	unsigned long phys = 0;					\
+	if ((virt) >= PAGE_OFFSET + 0x40000000UL)		\
+		phys = (virt) - PAGE_OFFSET + 0x50000000UL;	\
+	else if ((virt) >= PAGE_OFFSET + 0x20000000UL)		\
+		phys = (virt) - PAGE_OFFSET;			\
+	else if ((virt) >= PAGE_OFFSET)				\
+		phys = (virt) - PAGE_OFFSET + 0x70000000UL;	\
+	phys;							\
+})
+
+#endif
+
+/*
  * Virtual view <-> DMA view memory address translations
  * virt_to_bus: Used to translate the virtual address to an
  *              address suitable to be passed to set_dma_addr
