@@ -70,6 +70,9 @@ enum ipi_msg_type {
 	IPI_CALL_FUNC,
 	IPI_CALL_FUNC_SINGLE,
 	IPI_CPU_STOP,
+#ifdef CONFIG_CPU_NO_CACHE_BCAST
+	IPI_DMA_CACHE,
+#endif
 };
 
 int __cpuinit __cpu_up(unsigned int cpu)
@@ -434,6 +437,10 @@ static void ipi_cpu_stop(unsigned int cpu)
 		cpu_relax();
 }
 
+#ifdef CONFIG_CPU_NO_CACHE_BCAST
+static void ipi_dma_cache_op(unsigned int cpu);
+#endif
+
 /*
  * Main handler for inter-processor interrupts
  *
@@ -492,6 +499,12 @@ asmlinkage void __exception do_IPI(struct pt_regs *regs)
 			case IPI_CPU_STOP:
 				ipi_cpu_stop(cpu);
 				break;
+
+#ifdef CONFIG_CPU_NO_CACHE_BCAST
+			case IPI_DMA_CACHE:
+				ipi_dma_cache_op(cpu);
+				break;
+#endif
 
 			default:
 				printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%x\n",
@@ -657,3 +670,123 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1);
 }
+
+#ifdef CONFIG_CPU_NO_CACHE_BCAST
+/*
+ * DMA cache maintenance operations on SMP if the automatic hardware
+ * broadcasting is not available
+ */
+struct smp_dma_cache_struct {
+	int type;
+	const void *start;
+	const void *end;
+	cpumask_t unfinished;
+};
+
+static struct smp_dma_cache_struct *smp_dma_cache_data;
+static DEFINE_RWLOCK(smp_dma_cache_data_lock);
+static DEFINE_SPINLOCK(smp_dma_cache_lock);
+
+static void local_dma_cache_op(int type, const void *start, const void *end)
+{
+	switch (type) {
+	case SMP_DMA_CACHE_INV:
+		dmac_inv_range(start, end);
+		break;
+	case SMP_DMA_CACHE_CLEAN:
+		dmac_clean_range(start, end);
+		break;
+	case SMP_DMA_CACHE_FLUSH:
+		dmac_flush_range(start, end);
+		break;
+	default:
+		printk(KERN_CRIT "CPU%u: Unknown SMP DMA cache type %d\n",
+		       smp_processor_id(), type);
+	}
+}
+
+/*
+ * This function must be executed with interrupts disabled.
+ */
+static void ipi_dma_cache_op(unsigned int cpu)
+{
+	read_lock(&smp_dma_cache_data_lock);
+
+	/* check for spurious IPI */
+	if ((smp_dma_cache_data == NULL) ||
+	    (!cpu_isset(cpu, smp_dma_cache_data->unfinished)))
+		goto out;
+	local_dma_cache_op(smp_dma_cache_data->type,
+			   smp_dma_cache_data->start, smp_dma_cache_data->end);
+	cpu_clear(cpu, smp_dma_cache_data->unfinished);
+ out:
+	read_unlock(&smp_dma_cache_data_lock);
+}
+
+/*
+ * Execute the DMA cache operations on all online CPUs. This function
+ * can be called with interrupts disabled or from interrupt context.
+ */
+static void __smp_dma_cache_op(int type, const void *start, const void *end)
+{
+	struct smp_dma_cache_struct data;
+	cpumask_t callmap = cpu_online_map;
+	unsigned int cpu = get_cpu();
+	unsigned long flags;
+
+	cpu_clear(cpu, callmap);
+	data.type = type;
+	data.start = start;
+	data.end = end;
+	data.unfinished = callmap;
+
+	/*
+	 * If the spinlock cannot be acquired, other CPU is trying to
+	 * send an IPI. If the interrupts are disabled, we have to
+	 * poll for an incoming IPI.
+	 */
+	while (!spin_trylock_irqsave(&smp_dma_cache_lock, flags)) {
+		if (irqs_disabled())
+			ipi_dma_cache_op(cpu);
+	}
+
+	write_lock(&smp_dma_cache_data_lock);
+	smp_dma_cache_data = &data;
+	write_unlock(&smp_dma_cache_data_lock);
+
+	if (!cpus_empty(callmap))
+		send_ipi_message(callmap, IPI_DMA_CACHE);
+	/* run the local operation in parallel with the other CPUs */
+	local_dma_cache_op(type, start, end);
+
+	while (!cpus_empty(data.unfinished))
+		barrier();
+
+	write_lock(&smp_dma_cache_data_lock);
+	smp_dma_cache_data = NULL;
+	write_unlock(&smp_dma_cache_data_lock);
+
+	spin_unlock_irqrestore(&smp_dma_cache_lock, flags);
+	put_cpu();
+}
+
+#define DMA_MAX_RANGE		SZ_4K
+
+/*
+ * Split the cache range in smaller pieces if interrupts are enabled
+ * to reduce the latency caused by disabling the interrupts during the
+ * broadcast.
+ */
+void smp_dma_cache_op(int type, const void *start, const void *end)
+{
+	if (irqs_disabled() || (end - start <= DMA_MAX_RANGE))
+		__smp_dma_cache_op(type, start, end);
+	else {
+		const void *ptr;
+		for (ptr = start; ptr < end - DMA_MAX_RANGE;
+		     ptr += DMA_MAX_RANGE)
+			__smp_dma_cache_op(type, ptr, ptr + DMA_MAX_RANGE);
+		__smp_dma_cache_op(type, ptr, end);
+	}
+}
+#endif
