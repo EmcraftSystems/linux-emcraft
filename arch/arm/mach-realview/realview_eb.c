@@ -364,19 +364,27 @@ static struct sys_timer realview_eb_timer = {
 	.init		= realview_eb_timer_init,
 };
 
+#ifdef CONFIG_CACHE_L2X0
+static int __init realview_eb_l2x0_init(void)
+{
+	if (machine_is_realview_eb_mp())
+		/*
+		 * 1MB (128KB/way), 8-way associativity, evmon/parity/share
+		 * Bits:  .... ...0 0111 1001 0000 .... .... ....
+		 */
+		l2x0_init(__io_address(REALVIEW_EB11MP_L220_BASE),
+			  0x00790000, 0xfe000fff);
+	return 0;
+}
+early_initcall(realview_eb_l2x0_init);
+#endif
+
 static void __init realview_eb_init(void)
 {
 	int i;
 
-	if (core_tile_eb11mp() || core_tile_a9mp()) {
+	if (core_tile_eb11mp() || core_tile_a9mp())
 		realview_eb11mp_fixup();
-
-#ifdef CONFIG_CACHE_L2X0
-		/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
-		 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
-		l2x0_init(__io_address(REALVIEW_EB11MP_L220_BASE), 0x00790000, 0xfe000fff);
-#endif
-	}
 
 	clk_register(&realview_clcd_clk);
 
