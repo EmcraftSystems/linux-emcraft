@@ -616,19 +616,19 @@ static inline void ipi_flush_tlb_kernel_range(void *arg)
 	local_flush_tlb_kernel_range(ta->ta_start, ta->ta_end);
 }
 
-void flush_tlb_all(void)
+void smp_flush_tlb_all(void)
 {
 	on_each_cpu(ipi_flush_tlb_all, NULL, 1);
 }
 
-void flush_tlb_mm(struct mm_struct *mm)
+void smp_flush_tlb_mm(struct mm_struct *mm)
 {
 	cpumask_t mask = mm->cpu_vm_mask;
 
 	on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, mask);
 }
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
+void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 {
 	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
 	struct tlb_args ta;
@@ -639,7 +639,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 	on_each_cpu_mask(ipi_flush_tlb_page, &ta, 1, mask);
 }
 
-void flush_tlb_kernel_page(unsigned long kaddr)
+void smp_flush_tlb_kernel_page(unsigned long kaddr)
 {
 	struct tlb_args ta;
 
@@ -648,7 +648,7 @@ void flush_tlb_kernel_page(unsigned long kaddr)
 	on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1);
 }
 
-void flush_tlb_range(struct vm_area_struct *vma,
+void smp_flush_tlb_range(struct vm_area_struct *vma,
                      unsigned long start, unsigned long end)
 {
 	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
@@ -661,7 +661,7 @@ void flush_tlb_range(struct vm_area_struct *vma,
 	on_each_cpu_mask(ipi_flush_tlb_range, &ta, 1, mask);
 }
 
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+void smp_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	struct tlb_args ta;
 

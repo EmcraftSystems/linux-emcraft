@@ -39,6 +39,11 @@
 #define TLB_V6_D_ASID	(1 << 17)
 #define TLB_V6_I_ASID	(1 << 18)
 
+/* Unified Inner Shareable TLB operations (ARMv7 MP extensions) */
+#define TLB_V7_UIS_PAGE	(1 << 19)
+#define TLB_V7_UIS_FULL (1 << 20)
+#define TLB_V7_UIS_ASID (1 << 21)
+
 #define TLB_L2CLEAN_FR	(1 << 29)		/* Feroceon */
 #define TLB_DCLEAN	(1 << 30)
 #define TLB_WB		(1 << 31)
@@ -158,9 +163,17 @@
 # define v6wbi_always_flags	(-1UL)
 #endif
 
+#ifdef CONFIG_SMP
+#define v7wbi_tlb_flags (TLB_WB | TLB_DCLEAN | \
+			 TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | TLB_V7_UIS_ASID)
+#else
+#define v7wbi_tlb_flags (TLB_WB | TLB_DCLEAN | \
+			 TLB_V6_U_FULL | TLB_V6_U_PAGE | TLB_V6_U_ASID)
+#endif
+
 #ifdef CONFIG_CPU_TLB_V7
-# define v7wbi_possible_flags	v6wbi_tlb_flags
-# define v7wbi_always_flags	v6wbi_tlb_flags
+# define v7wbi_possible_flags	v7wbi_tlb_flags
+# define v7wbi_always_flags	v7wbi_tlb_flags
 # ifdef _TLB
 #  define MULTI_TLB 1
 # else
@@ -178,6 +191,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/sched.h>
+#include <asm/cputype.h>
 
 struct cpu_tlb_fns {
 	void (*flush_user_range)(unsigned long, unsigned long, struct vm_area_struct *);
@@ -296,10 +310,11 @@ static inline void local_flush_tlb_all(void)
 		asm("mcr p15, 0, %0, c8, c6, 0" : : "r" (zero) : "cc");
 	if (tlb_flag(TLB_V4_I_FULL | TLB_V6_I_FULL))
 		asm("mcr p15, 0, %0, c8, c5, 0" : : "r" (zero) : "cc");
+	if (tlb_flag(TLB_V7_UIS_FULL))
+		asm("mcr p15, 0, %0, c8, c3, 0" : : "r" (zero) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL | TLB_V6_U_FULL |
+		     TLB_V7_UIS_FULL)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
@@ -333,10 +348,11 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 		asm("mcr p15, 0, %0, c8, c6, 2" : : "r" (asid) : "cc");
 	if (tlb_flag(TLB_V6_I_ASID))
 		asm("mcr p15, 0, %0, c8, c5, 2" : : "r" (asid) : "cc");
+	if (tlb_flag(TLB_V7_UIS_ASID))
+		asm("mcr p15, 0, %0, c8, c3, 2" : : "r" (asid) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_V6_I_ASID | TLB_V6_D_ASID | TLB_V6_U_ASID |
+		     TLB_V7_UIS_ASID)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
@@ -373,10 +389,11 @@ local_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 		asm("mcr p15, 0, %0, c8, c6, 1" : : "r" (uaddr) : "cc");
 	if (tlb_flag(TLB_V6_I_PAGE))
 		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (uaddr) : "cc");
+	if (tlb_flag(TLB_V7_UIS_PAGE))
+		asm("mcr p15, 0, %0, c8, c3, 1" : : "r" (uaddr) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_V6_I_PAGE | TLB_V6_D_PAGE | TLB_V6_U_PAGE |
+		     TLB_V7_UIS_PAGE)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
@@ -410,10 +427,11 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
 		asm("mcr p15, 0, %0, c8, c6, 1" : : "r" (kaddr) : "cc");
 	if (tlb_flag(TLB_V6_I_PAGE))
 		asm("mcr p15, 0, %0, c8, c5, 1" : : "r" (kaddr) : "cc");
+	if (tlb_flag(TLB_V7_UIS_PAGE))
+		asm("mcr p15, 0, %0, c8, c3, 1" : : "r" (kaddr) : "cc");
 
-	if (tlb_flag(TLB_V6_I_FULL | TLB_V6_D_FULL |
-		     TLB_V6_I_PAGE | TLB_V6_D_PAGE |
-		     TLB_V6_I_ASID | TLB_V6_D_ASID)) {
+	if (tlb_flag(TLB_V6_I_PAGE | TLB_V6_D_PAGE | TLB_V6_U_PAGE |
+		     TLB_V7_UIS_PAGE)) {
 		/* flush the branch target cache */
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero) : "cc");
 		dsb();
@@ -474,20 +492,69 @@ static inline void clean_pmd_entry(pmd_t *pmd)
 #define local_flush_tlb_kernel_range(s,e)	__cpu_flush_kern_tlb_range(s,e)
 
 #ifndef CONFIG_SMP
-#define flush_tlb_all		local_flush_tlb_all
-#define flush_tlb_mm		local_flush_tlb_mm
-#define flush_tlb_page		local_flush_tlb_page
-#define flush_tlb_kernel_page	local_flush_tlb_kernel_page
-#define flush_tlb_range		local_flush_tlb_range
-#define flush_tlb_kernel_range	local_flush_tlb_kernel_range
+#define tlb_ops_need_broadcast()	0
 #else
-extern void flush_tlb_all(void);
-extern void flush_tlb_mm(struct mm_struct *mm);
-extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr);
-extern void flush_tlb_kernel_page(unsigned long kaddr);
-extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
-extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+/* all SMP configurations have the extended CPUID registers */
+static inline int tlb_ops_need_broadcast(void)
+{
+	return ((read_cpuid_ext(CPUID_EXT_MMFR3) >> 12) & 0xf) < 2;
+}
 #endif
+
+extern void smp_flush_tlb_all(void);
+extern void smp_flush_tlb_mm(struct mm_struct *mm);
+extern void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr);
+extern void smp_flush_tlb_kernel_page(unsigned long kaddr);
+extern void smp_flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
+extern void smp_flush_tlb_kernel_range(unsigned long start, unsigned long end);
+
+static inline void flush_tlb_all(void)
+{
+	if (tlb_ops_need_broadcast())
+		smp_flush_tlb_all();
+	else
+		local_flush_tlb_all();
+}
+
+static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+	if (tlb_ops_need_broadcast())
+		smp_flush_tlb_mm(mm);
+	else
+		local_flush_tlb_mm(mm);
+}
+
+static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
+{
+	if (tlb_ops_need_broadcast())
+		smp_flush_tlb_page(vma, uaddr);
+	else
+		local_flush_tlb_page(vma, uaddr);
+}
+
+static inline void flush_tlb_kernel_page(unsigned long kaddr)
+{
+	if (tlb_ops_need_broadcast())
+		smp_flush_tlb_kernel_page(kaddr);
+	else
+		local_flush_tlb_kernel_page(kaddr);
+}
+
+static inline void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+	if (tlb_ops_need_broadcast())
+		smp_flush_tlb_range(vma, start, end);
+	else
+		local_flush_tlb_range(vma, start, end);
+}
+
+static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	if (tlb_ops_need_broadcast())
+		smp_flush_tlb_kernel_range(start, end);
+	else
+		local_flush_tlb_kernel_range(start, end);
+}
 
 /*
  * if PG_dcache_dirty is set for the page, we need to ensure that any
