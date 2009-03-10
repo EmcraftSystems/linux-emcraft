@@ -323,6 +323,54 @@ extern void enable_hlt(void);
 
 #ifndef CONFIG_SMP
 #include <asm-generic/cmpxchg.h>
+#elif __LINUX_ARM_ARCH__ >= 6
+extern void __bad_cmpxchg(volatile void *ptr, int size);
+
+static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
+				      unsigned long new, int size)
+{
+	unsigned long oldval, res;
+
+	switch (size) {
+	case 1:
+		do {
+			asm volatile("@ __cmpxchg1\n"
+			"	ldrexb	%1, [%2]\n"
+			"	mov	%0, #0\n"
+			"	teq	%1, %3\n"
+			"	strexeqb %0, %4, [%2]\n"
+				: "=&r" (res), "=&r" (oldval)
+				: "r" (ptr), "Ir" (old), "r" (new)
+				: "cc");
+		} while (res);
+		break;
+
+	case 4:
+		do {
+			asm volatile("@ __cmpxchg4\n"
+			"	ldrex	%1, [%2]\n"
+			"	mov	%0, #0\n"
+			"	teq	%1, %3\n"
+			"	strexeq %0, %4, [%2]\n"
+				: "=&r" (res), "=&r" (oldval)
+				: "r" (ptr), "Ir" (old), "r" (new)
+				: "cc");
+		} while (res);
+		break;
+
+	default:
+		__bad_cmpxchg(ptr, size);
+		oldval = 0;
+	}
+
+	return oldval;
+}
+
+#define cmpxchg(ptr,o,n)					\
+	((__typeof__(*(ptr)))__cmpxchg((ptr),			\
+				       (unsigned long)(o),	\
+				       (unsigned long)(n),	\
+				       sizeof(*(ptr))))
 #endif
 
 #endif /* __ASSEMBLY__ */
