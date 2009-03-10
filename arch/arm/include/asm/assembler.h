@@ -114,3 +114,14 @@
 	.align	3;				\
 	.long	9999b,9001f;			\
 	.previous
+
+#ifdef CONFIG_THUMB2_KERNEL
+	.macro	setmode, mode, reg
+	mov	\reg, #\mode
+	msr	cpsr_c, \reg
+	.endm
+#else
+	.macro	setmode, mode, reg
+	msr	cpsr_c, #\mode
+	.endm
+#endif
