@@ -61,6 +61,57 @@ config DEBUG_STACK_USAGE
 	  Enables the display of the minimum amount of free stack which each
 	  task has ever had available in the sysrq-T output.
 
+config DEBUG_RVIDCC
+	bool "Include the RealView ICE DCC channel device driver"
+	depends on !DEBUG_ICEDCC
+	help
+	  Say Y here if you want a serial channel connected through ARM's
+	  RealView ICE emulator through to your debugging host.
+
+	  IMPORTANT: if you are not using one of the pre-configured platforms
+	  (notably ARM's Integrator or Versatile Platform) then you will need to
+	  configure interrupts for DCC and pass the IRQ numbers in the module
+	  parameters 'txirq' and 'rxirq', assuming they have been wired into your
+	  interrupt controller.
+
+	  If interrupts are not used then a timed polling scheme is used. This
+	  introduces poorer performance, using more CPU bandwidth and reducing
+	  communication throughput on DCC.
+
+	  This feature requires at least the RealView ICE 1.5 firmware version.
+
+config DEBUG_DCC_KGDB
+	bool "Use the RealView ICE DCC serial channel for KGDB debugging"
+	depends on DEBUG_RVIDCC && KGDB
+	help
+	  Say Y here if you want to remotely debug the kernel using gdb and the
+	  KGDB kernel debugging patches. Refer to the KGDB documentation for more
+	  details.
+
+	  Note that only one device can be enabled as the KGDB communications
+	  device, so if this is selected, then KGDB on serial devices or Ethernet
+	  must be deselected, or the kernel won't link.
+
+config DEBUG_DCC_RAW
+	bool "Disable virtual Ethernet on the RealView ICE DCC channel"
+	depends on DEBUG_RVIDCC
+	help
+	  Say Y here if you want to disable the virtual Ethernet facility
+	  of the RealView ICE.
+
+	  The virtual Ethernet facility provides both a serial channel and an
+	  Ethernet channel, and can be used for its serial channel even if
+	  Ethernet is not required. Using this has the advantage over raw
+	  DCC communications in that serial channel writes that do not have
+	  an integral multiple of 4 bytes are not stuffed with nulls to make
+	  the packet size.
+
+	  DCC communicates in 32-bit words and, in raw mode, data is packed in
+	  4 bytes per word. Individual write calls pack the data provided, padding
+	  any remainder with nulls. Any protocol using this channel must tolerate
+	  the embedded nulls. GDB is such a protocol, provided the driver is fed with
+	  complete packets, and not one byte at a time.
+
 # These options are only for real kernel hackers who want to get their hands dirty.
 config DEBUG_LL
 	bool "Kernel low-level debugging functions"

@@ -19,55 +19,13 @@
 unsigned int __machine_arch_type;
 
 #include <linux/string.h>
+#include <mach/uncompress.h>
 
 #ifdef STANDALONE_DEBUG
 #define putstr printf
+#elif defined(CONFIG_DEBUG_ICEDCC) || defined(CONFIG_DEBUG_RVIDCC)
+#define putstr icedcc_putstr
 #else
-
-static void putstr(const char *ptr);
-
-#include <linux/compiler.h>
-#include <mach/uncompress.h>
-
-#ifdef CONFIG_DEBUG_ICEDCC
-
-#ifdef CONFIG_CPU_V6
-
-static void icedcc_putc(int ch)
-{
-	int status, i = 0x4000000;
-
-	do {
-		if (--i < 0)
-			return;
-
-		asm volatile ("mrc p14, 0, %0, c0, c1, 0" : "=r" (status));
-	} while (status & (1 << 29));
-
-	asm("mcr p14, 0, %0, c0, c5, 0" : : "r" (ch));
-}
-
-#else
-
-static void icedcc_putc(int ch)
-{
-	int status, i = 0x4000000;
-
-	do {
-		if (--i < 0)
-			return;
-
-		asm volatile ("mrc p14, 0, %0, c0, c0, 0" : "=r" (status));
-	} while (status & 2);
-
-	asm("mcr p14, 0, %0, c1, c0, 0" : : "r" (ch));
-}
-
-#endif
-
-#define putc(ch)	icedcc_putc(ch)
-#define flush()	do { } while (0)
-#endif
 
 static void putstr(const char *ptr)
 {
@@ -330,3 +288,149 @@ int main()
 }
 #endif
 	
+#if defined(CONFIG_DEBUG_ICEDCC) || defined(CONFIG_DEBUG_RVIDCC)
+
+#define _DCC_ARM9_RBIT  (1 << 0)
+#define _DCC_ARM9_WBIT  (1 << 1)
+#define _DCC_ARM10_RBIT (1 << 7)
+#define _DCC_ARM10_WBIT (1 << 6)
+#define _DCC_ARM11_RBIT (1 << 30)
+#define _DCC_ARM11_WBIT (1 << 29)
+
+#define _READ_CORE_ID(x) { __asm__ ("mrc p15, 0, %0, c0, c0, 0\n" : "=r" (x)); \
+                           x = (x >> 4) & 0xFFF; }
+
+#define _WRITE_ARM9_DCC(x) __asm__ volatile ("mcr p14, 0, %0, c1, c0, 0\n" : : "r" (x))
+#define _READ_ARM9_DCC(x) __asm__ volatile ("mrc p14, 0, %0, c1, c0, 0\n" : "=r" (x))
+#define _STATUS_ARM9_DCC(x) __asm__ volatile ("mrc p14, 0, %0, c0, c0, 0\n" : "=r" (x))
+#define _CAN_READ_ARM9_DCC(x) {_STATUS_ARM9_DCC(x); x &= _DCC_ARM9_RBIT;}
+#define _CAN_WRITE_ARM9_DCC(x) {_STATUS_ARM9_DCC(x); x &= _DCC_ARM9_WBIT; x = (x==0);}
+
+#define _WRITE_ARM10_DCC(x) __asm__ volatile ("mcr p14, 0, %0, c0, c5, 0\n" : : "r" (x))
+#define _READ_ARM10_DCC(x) __asm__ volatile ("mrc p14, 0, %0, c0, c5, 0\n" : "=r" (x))
+#define _STATUS_ARM10_DCC(x) __asm__ volatile ("mrc p14, 0, %0, c0, c1, 0\n" : "=r" (x))
+#define _CAN_READ_ARM10_DCC(x) {_STATUS_ARM10_DCC(x); x &= _DCC_ARM10_RBIT;}
+#define _CAN_WRITE_ARM10_DCC(x) {_STATUS_ARM10_DCC(x); x &= _DCC_ARM10_WBIT; x = (x==0);}
+
+#define _WRITE_ARM11_DCC(x) __asm__ volatile ("mcr p14, 0, %0, c0, c5, 0\n" : : "r" (x))
+#define _READ_ARM11_DCC(x) __asm__ volatile ("mrc p14, 0, %0, c0, c5, 0\n" : "=r" (x))
+#define _STATUS_ARM11_DCC(x) __asm__ volatile ("mrc p14, 0, %0, c0, c1, 0\n" : "=r" (x))
+#define _CAN_READ_ARM11_DCC(x) {_STATUS_ARM11_DCC(x); x &= _DCC_ARM11_RBIT;}
+#define _CAN_WRITE_ARM11_DCC(x) {_STATUS_ARM11_DCC(x); x &= _DCC_ARM11_WBIT; x = (x==0);}
+
+#define TIMEOUT_COUNT 0x4000000
+
+void icedcc_putc(unsigned int ch)
+{
+    static enum {unknown, arm9_and_earlier, arm10, arm11_and_later} _arm_type = unknown;
+    static int has_timed_out = 0;
+
+    if (has_timed_out)
+        return;
+
+    if (_arm_type == unknown)
+    {
+        register unsigned int id;
+        _READ_CORE_ID(id);
+
+        if ((id & 0xF00) == 0xA00)
+            _arm_type = arm10;
+        else if (id >= 0xb00)
+            _arm_type = arm11_and_later;
+        else
+            _arm_type = arm9_and_earlier;
+    }
+
+    if (_arm_type == arm9_and_earlier)
+    {
+        register unsigned int reg;
+        unsigned int timeout_count = TIMEOUT_COUNT;
+        while (--timeout_count)
+        {
+            _CAN_WRITE_ARM9_DCC(reg);
+            if (reg)
+                break;
+        }
+        if (timeout_count == 0)
+            has_timed_out = 1;
+        else
+            _WRITE_ARM9_DCC(ch);
+    }
+    else if (_arm_type == arm10)
+    {
+        register unsigned int reg;
+        unsigned int timeout_count = TIMEOUT_COUNT;
+        while (--timeout_count)
+        {
+            _CAN_WRITE_ARM10_DCC(reg);
+            if (reg)
+                break;
+        }
+        if (timeout_count == 0)
+            has_timed_out = 1;
+        else
+            _WRITE_ARM10_DCC(ch);
+    }
+    else
+    {
+        register unsigned int reg;
+        unsigned int timeout_count = TIMEOUT_COUNT;
+        while (--timeout_count)
+        {
+            _CAN_WRITE_ARM11_DCC(reg);
+            if (reg)
+                break;
+        }
+        if (timeout_count == 0)
+            has_timed_out = 1;
+        else
+            _WRITE_ARM11_DCC(ch);
+    }
+}
+
+static void icedcc_putstr(const char *ptr)
+{
+#if defined(CONFIG_DEBUG_ICEDCC)
+	for (; *ptr != '\0'; ptr++)
+		icedcc_putc(*ptr);
+#else
+    unsigned int sendbuf[16];
+    unsigned short cnt;
+    char *ptr1 = (char*)&sendbuf[1];
+    unsigned int *wordptr;
+
+    for (cnt=0; *ptr != '\0'; ptr++)
+    {
+        if (*ptr == '\n')
+        {
+            *ptr1++ = '\r';
+            cnt++;
+        }
+        *ptr1++ = *ptr;
+        cnt++;
+    }
+
+    *sendbuf = 0xa5580000 | cnt;
+
+    while(cnt % 4)
+    {
+        *ptr1++ = '\0';
+        cnt++;
+    }
+
+    cnt /= 4;
+
+#ifdef CONFIG_DEBUG_DCC_RAW
+    wordptr = &sendbuf[1];
+#else
+    wordptr = &sendbuf[0];
+    cnt++;
+#endif
+
+    while(cnt--)
+        icedcc_putc(*wordptr++);
+
+#endif
+}
+
+#endif
