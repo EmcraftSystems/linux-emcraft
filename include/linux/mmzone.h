@@ -212,7 +212,11 @@ enum zone_type {
 	 * i386, x86_64 and multiple other arches
 	 * 			<16M.
 	 */
+#ifdef CONFIG_ZONE_DMA_IDX
+	ZONE_DMA = CONFIG_ZONE_DMA_IDX,
+#else
 	ZONE_DMA,
+#endif
 #endif
 #ifdef CONFIG_ZONE_DMA32
 	/*
@@ -220,14 +224,22 @@ enum zone_type {
 	 * only able to do DMA to the lower 16M but also 32 bit devices that
 	 * can only do DMA areas below 4G.
 	 */
+#ifdef CONFIG_ZONE_DMA32_IDX
+	ZONE_DMA32 = CONFIG_ZONE_DMA32_IDX,
+#else
 	ZONE_DMA32,
+#endif
 #endif
 	/*
 	 * Normal addressable memory is in ZONE_NORMAL. DMA operations can be
 	 * performed on pages in ZONE_NORMAL if the DMA devices support
 	 * transfers to all addressable memory.
 	 */
+#ifdef CONFIG_ZONE_NORMAL_IDX
+	ZONE_NORMAL = CONFIG_ZONE_NORMAL_IDX,
+#else
 	ZONE_NORMAL,
+#endif
 #ifdef CONFIG_HIGHMEM
 	/*
 	 * A memory area that is only addressable by the kernel through
@@ -237,9 +249,17 @@ enum zone_type {
 	 * table entries on i386) for each page that the kernel needs to
 	 * access.
 	 */
+#ifdef CONFIG_ZONE_HIGHMEM_IDX
+	ZONE_HIGHMEM = CONFIG_ZONE_HIGHMEM_IDX,
+#else
 	ZONE_HIGHMEM,
 #endif
+#endif
+#ifdef CONFIG_ZONE_MOVABLE_IDX
+	ZONE_MOVABLE = CONFIG_ZONE_MOVABLE_IDX,
+#else
 	ZONE_MOVABLE,
+#endif
 	__MAX_NR_ZONES
 };
 
