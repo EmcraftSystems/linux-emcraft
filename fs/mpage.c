@@ -51,6 +51,7 @@ static void mpage_end_io_read(struct bio *bio, int err)
 			prefetchw(&bvec->bv_page->flags);
 
 		if (uptodate) {
+			flush_dcache_page(page);
 			SetPageUptodate(page);
 		} else {
 			ClearPageUptodate(page);
