@@ -14,6 +14,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/init.h>
+#include <linux/rcupdate.h>
 
 #include <asm/thread_notify.h>
 #include <asm/vfp.h>
@@ -49,14 +50,21 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 
 #ifdef CONFIG_SMP
 		/*
+		 * RCU locking is needed in case last_VFP_context[cpu] is
+		 * released on a different CPU.
+		 */
+		rcu_read_lock();
+		vfp = last_VFP_context[cpu];
+		/*
 		 * On SMP, if VFP is enabled, save the old state in
 		 * case the thread migrates to a different CPU. The
 		 * restoring is done lazily.
 		 */
-		if ((fpexc & FPEXC_EN) && last_VFP_context[cpu]) {
-			vfp_save_state(last_VFP_context[cpu], fpexc);
-			last_VFP_context[cpu]->hard.cpu = cpu;
+		if ((fpexc & FPEXC_EN) && vfp) {
+			vfp_save_state(vfp, fpexc);
+			vfp->hard.cpu = cpu;
 		}
+		rcu_read_unlock();
 		/*
 		 * Thread migration, just force the reloading of the
 		 * state on the new CPU in case the VFP registers
@@ -91,8 +99,19 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 	}
 
 	/* flush and release case: Per-thread VFP cleanup. */
+#ifndef CONFIG_SMP
 	if (last_VFP_context[cpu] == vfp)
 		last_VFP_context[cpu] = NULL;
+#else
+	/*
+	 * Since release_thread() may be called from a different CPU, we use
+	 * cmpxchg() here to avoid a race with the vfp_support_entry() code
+	 * which modifies last_VFP_context[cpu]. Note that on SMP systems, a
+	 * STR instruction on a different CPU clears the global exclusive
+	 * monitor state.
+	 */
+	(void)cmpxchg(&last_VFP_context[cpu], vfp, NULL);
+#endif
 
 	return NOTIFY_DONE;
 }
