@@ -197,11 +197,11 @@ __v7_setup:
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
-#endif
 	ldr	r5, =0xff0aa1a8
 	ldr	r6, =0x40e040e0
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
+#endif
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
 #if !defined(CONFIG_AEABI) || defined(CONFIG_OABI_COMPAT)
