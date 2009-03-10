@@ -33,6 +33,7 @@ config REALVIEW_EB_ARM11MP_REVB
 config MACH_REALVIEW_PB11MP
 	bool "Support RealView/PB11MPCore platform"
 	select ARM_GIC
+	select HAVE_PATA_PLATFORM
 	help
 	  Include support for the ARM(R) RealView MPCore Platform Baseboard.
 	  PB11MPCore is a platform with an on-board ARM11MPCore and has
@@ -47,6 +48,7 @@ config MACH_REALVIEW_PB1176
 config MACH_REALVIEW_PBA8
 	bool "Support RealView/PB-A8 platform"
 	select ARM_GIC
+	select HAVE_PATA_PLATFORM
 	help
 	  Include support for the ARM(R) RealView Cortex-A8 Platform Baseboard.
 	  PB-A8 is a platform with an on-board Cortex-A8 and has support for
