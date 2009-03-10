@@ -30,6 +30,7 @@
 #include <linux/io.h>
 #include <linux/smc911x.h>
 #include <linux/ata_platform.h>
+#include <linux/delay.h>
 
 #include <asm/system.h>
 #include <mach/hardware.h>
@@ -505,6 +506,10 @@ static int realview_clcd_setup(struct clcd_fb *fb)
 {
 	unsigned long framesize;
 	dma_addr_t dma;
+
+	if (machine_is_realview_pb1176())
+		/* delay required on PB1176 */
+		mdelay(100);
 
 	if (machine_is_realview_eb())
 		/* VGA, 16bpp */
