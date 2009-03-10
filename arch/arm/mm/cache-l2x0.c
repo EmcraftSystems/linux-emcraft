@@ -99,18 +99,18 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 
 	l2x0_base = base;
 
-	/* disable L2X0 */
-	writel(0, l2x0_base + L2X0_CTRL);
+	if (!(readl(l2x0_base + L2X0_CTRL) & 1)) {
+		/* L2X0 cache controller disabled */
+		aux = readl(l2x0_base + L2X0_AUX_CTRL);
+		aux &= aux_mask;
+		aux |= aux_val;
+		writel(aux, l2x0_base + L2X0_AUX_CTRL);
 
-	aux = readl(l2x0_base + L2X0_AUX_CTRL);
-	aux &= aux_mask;
-	aux |= aux_val;
-	writel(aux, l2x0_base + L2X0_AUX_CTRL);
+		l2x0_inv_all();
 
-	l2x0_inv_all();
-
-	/* enable L2X0 */
-	writel(1, l2x0_base + L2X0_CTRL);
+		/* enable L2X0 */
+		writel(1, l2x0_base + L2X0_CTRL);
+	}
 
 	outer_cache.inv_range = l2x0_inv_range;
 	outer_cache.clean_range = l2x0_clean_range;
