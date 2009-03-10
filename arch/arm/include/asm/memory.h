@@ -45,7 +45,12 @@
  * and PAGE_OFFSET - it must be within 32MB of the kernel text.
  */
 #define MODULES_END		(PAGE_OFFSET)
+#ifndef CONFIG_THUMB2_KERNEL
 #define MODULES_VADDR		(MODULES_END - 16*1048576)
+#else
+/* smaller range for Thumb-2 symbols relocation (2^24)*/
+#define MODULES_VADDR		(MODULES_END - 8*1048576)
+#endif
 
 #if TASK_SIZE > MODULES_VADDR
 #error Top of user space clashes with start of module space
