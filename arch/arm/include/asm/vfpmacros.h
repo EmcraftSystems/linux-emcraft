@@ -33,6 +33,9 @@
 
 	@ write all the working registers out of the VFP
 	.macro	VFPFSTMIA, base, tmp
+#ifdef CONFIG_ARM_ERRATUM_451034
+	dmb
+#endif
 #if __LINUX_ARM_ARCH__ < 6
 	STC	p11, cr0, [\base],#33*4		    @ FSTMIAX \base!, {d0-d15}
 #else

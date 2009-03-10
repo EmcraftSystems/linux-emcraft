@@ -66,6 +66,10 @@ no_work_pending:
 	/* perform architecture specific actions before user return */
 	arch_ret_to_user r1, lr
 
+#ifdef CONFIG_ARM_ERRATUM_451034
+	dmb
+#endif
+
 	restore_user_regs fast = 0, offset = 0
 ENDPROC(ret_to_user)
 
