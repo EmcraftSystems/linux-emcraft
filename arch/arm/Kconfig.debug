@@ -8,7 +8,7 @@ source "lib/Kconfig.debug"
 # n, but then RMK will have to kill you ;).
 config FRAME_POINTER
 	bool
-	default y if !ARM_UNWIND
+	default y if !ARM_UNWIND && !THUMB2_KERNEL
 	help
 	  If you say N here, the resulting kernel will be slightly smaller and
 	  faster. However, if neither FRAME_POINTER nor ARM_UNWIND are enabled,
