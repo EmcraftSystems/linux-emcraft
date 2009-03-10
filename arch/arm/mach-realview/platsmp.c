@@ -254,6 +254,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	if (max_cpus > 1) {
 		scu_enable();
+		/*
+		 * Ensure that the data accessed by CPU0 before the SCU was
+		 * initialised is visible to the other CPUs.
+		 */
+		flush_cache_all();
 		poke_milo();
 	}
 }
