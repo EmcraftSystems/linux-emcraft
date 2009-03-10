@@ -29,6 +29,13 @@
 #define PHYS_OFFSET		UL(0x00000000)
 #endif
 
+#if !defined(__ASSEMBLY__) && defined(CONFIG_ZONE_DMA)
+extern void realview_adjust_zones(int node, unsigned long *size,
+				  unsigned long *hole);
+#define arch_adjust_zones(node, size, hole) \
+	realview_adjust_zones(node, size, hole)
+#endif
+
 /*
  * Sparsemem definitions, only valid for high PHYS_OFFSET.
  *

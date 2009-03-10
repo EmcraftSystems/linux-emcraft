@@ -55,6 +55,27 @@
 /* used by entry-macro.S and platsmp.c */
 void __iomem *gic_cpu_base_addr;
 
+#ifdef CONFIG_ZONE_DMA
+/*
+ * Adjust the zones if there are restrictions for DMA access.
+ */
+void __init realview_adjust_zones(int node, unsigned long *size,
+				  unsigned long *hole)
+{
+	if (machine_is_realview_pbx()) {
+		/*
+		 * Allow at least 16MB for ZONE_NORMAL. Note that ZONE_DMA is
+		 * after ZONE_NORMAL in this configuration.
+		 */
+		unsigned long dma_size = min(UL(SZ_512M) >> PAGE_SHIFT,
+					     size[0] - hole[0] -
+					     (UL(SZ_16M) >> PAGE_SHIFT));
+		size[ZONE_NORMAL] -= dma_size;
+		size[ZONE_DMA] = dma_size;
+	}
+}
+#endif
+
 /*
  * This is the RealView sched_clock implementation.  This has
  * a resolution of 41.7ns, and a maximum value of about 179s.
@@ -495,7 +516,7 @@ static int realview_clcd_setup(struct clcd_fb *fb)
 	fb->panel		= realview_clcd_panel();
 
 	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-						    &dma, GFP_KERNEL);
+						    &dma, GFP_KERNEL | GFP_DMA);
 	if (!fb->fb.screen_base) {
 		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
 		return -ENOMEM;
