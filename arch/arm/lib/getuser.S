@@ -36,7 +36,10 @@ ENTRY(__get_user_1)
 ENDPROC(__get_user_1)
 
 ENTRY(__get_user_2)
-2:	ldrbt	r2, [r0], #1
+2:
+ ARM(	ldrbt	r2, [r0], #1	)
+ THUMB(	ldrbt	r2, [r0]	)
+ THUMB(	add	r0, #1		)
 3:	ldrbt	r3, [r0]
 #ifndef __ARMEB__
 	orr	r2, r2, r3, lsl #8
