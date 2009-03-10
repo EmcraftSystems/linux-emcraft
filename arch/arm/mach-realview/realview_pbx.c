@@ -293,6 +293,21 @@ static void __init realview_pbx_init(void)
 {
 	int i;
 
+#ifdef CONFIG_CACHE_L2X0
+	if (core_tile_pbxa9mp()) {
+		void __iomem *l2x0_base =
+			__io_address(REALVIEW_PBX_TILE_L220_BASE);
+
+		/* set RAM latencies to 1 cycle for eASIC */
+		writel(0, l2x0_base + L2X0_TAG_LATENCY_CTRL);
+		writel(0, l2x0_base + L2X0_DATA_LATENCY_CTRL);
+
+		/* 16KB way size, 8-way associativity, parity disabled
+		 * Bits:  .. 0 0 0 0 1 00 1 0 1 001 0 000 0 .... .... .... */
+		l2x0_init(l2x0_base, 0x02520000, 0xc0000fff);
+	}
+#endif
+
 	clk_register(&realview_clcd_clk);
 
 	realview_flash_register(realview_pbx_flash_resources,
