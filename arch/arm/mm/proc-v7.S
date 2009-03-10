@@ -173,8 +173,10 @@ cpu_v7_name:
 __v7_setup:
 #ifdef CONFIG_SMP
 	mrc	p15, 0, r0, c1, c0, 1		@ Enable SMP/nAMP mode
-	orr	r0, r0, #(0x1 << 6)
-	mcr	p15, 0, r0, c1, c0, 1
+	tst	r0, #(0x1 << 6)			@ already enabled?
+	itt	eq
+	orreq	r0, r0, #(0x1 << 6)
+	mcreq	p15, 0, r0, c1, c0, 1
 #endif
 	adr	r12, __v7_setup_stack		@ the local stack
 	stmia	r12, {r0-r5, r7, r9, r11, lr}
