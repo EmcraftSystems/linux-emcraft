@@ -35,7 +35,13 @@
 #define CONSISTENT_PTE_INDEX(x) (((unsigned long)(x) - CONSISTENT_BASE) >> PGDIR_SHIFT)
 #define NUM_CONSISTENT_PTES (CONSISTENT_DMA_SIZE >> PGDIR_SHIFT)
 
+#ifdef CONFIG_MMU
+#define arch_is_nommu()		0
+#else
+#define arch_is_nommu()		1
+#endif
 
+#ifdef CONFIG_MMU
 /*
  * These are the page tables (2MB each) covering uncached, DMA consistent allocations
  */
@@ -67,8 +73,7 @@ static DEFINE_SPINLOCK(consistent_lock);
  *	.vm_end		= VMALLOC_END,
  *  };
  *
- * However, vmalloc_head.vm_start is variable (typically, it is dependent on
- * the amount of RAM found at boot time.)  I would imagine that get_vm_area()
+ * However, vmalloc_head.vm_start is variable (typically, it is depen* the amount of RAM found at boot time.)  I would imagine that get_vm_area()
  * would have to initialise this each time prior to calling vm_region_alloc().
  */
 struct vm_region {
@@ -139,6 +144,7 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
  out:
 	return c;
 }
+#endif	/* CONFIG_MMU */
 
 #ifdef CONFIG_HUGETLB_PAGE
 #error ARM Coherent DMA allocator does not (yet) support huge TLB
@@ -148,6 +154,7 @@ static void *
 __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	    pgprot_t prot)
 {
+#ifdef CONFIG_MMU
 	struct page *page;
 	struct vm_region *c;
 	unsigned long order;
@@ -264,6 +271,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		__free_pages(page, order);
  no_page:
 	*handle = ~0;
+#endif	/* CONFIG_MMU */
 	return NULL;
 }
 
@@ -279,7 +287,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gf
 	if (dma_alloc_from_coherent(dev, size, handle, &memory))
 		return memory;
 
-	if (arch_is_coherent()) {
+	if (arch_is_coherent() || arch_is_nommu()) {
 		void *virt;
 
 		virt = kmalloc(size, gfp);
@@ -302,6 +310,9 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void *
 dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
+	if (arch_is_nommu())
+		return dma_alloc_coherent(dev, size, handle, gfp);
+
 	return __dma_alloc(dev, size, handle, gfp,
 			   pgprot_writecombine(pgprot_kernel));
 }
@@ -310,9 +321,10 @@ EXPORT_SYMBOL(dma_alloc_writecombine);
 static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
+	int ret = -ENXIO;
+#ifdef CONFIG_MMU
 	unsigned long flags, user_size, kern_size;
 	struct vm_region *c;
-	int ret = -ENXIO;
 
 	user_size = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
@@ -333,6 +345,7 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
 					      vma->vm_page_prot);
 		}
 	}
+#endif	/* CONFIG_MMU */
 
 	return ret;
 }
@@ -359,22 +372,25 @@ EXPORT_SYMBOL(dma_mmap_writecombine);
  */
 void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
 {
+#ifdef CONFIG_MMU
 	struct vm_region *c;
 	unsigned long flags, addr;
 	pte_t *ptep;
 	int idx;
 	u32 off;
+#endif
 
 	WARN_ON(irqs_disabled());
 
 	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
 		return;
 
-	if (arch_is_coherent()) {
+	if (arch_is_coherent() || arch_is_nommu()) {
 		kfree(cpu_addr);
 		return;
 	}
 
+#ifdef CONFIG_MMU
 	size = PAGE_ALIGN(size);
 
 	spin_lock_irqsave(&consistent_lock, flags);
@@ -442,6 +458,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	printk(KERN_ERR "%s: trying to free invalid coherent area: %p\n",
 	       __func__, cpu_addr);
 	dump_stack();
+#endif	/* CONFIG_MMU */
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
@@ -450,10 +467,12 @@ EXPORT_SYMBOL(dma_free_coherent);
  */
 static int __init consistent_init(void)
 {
+	int ret = 0;
+#ifdef CONFIG_MMU
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
-	int ret = 0, i = 0;
+	int i = 0;
 	u32 base = CONSISTENT_BASE;
 
 	do {
@@ -476,6 +495,7 @@ static int __init consistent_init(void)
 		consistent_pte[i++] = pte;
 		base += (1 << PGDIR_SHIFT);
 	} while (base < CONSISTENT_END);
+#endif	/* !CONFIG_MMU */
 
 	return ret;
 }
