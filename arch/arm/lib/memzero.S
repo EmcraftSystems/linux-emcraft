@@ -21,7 +21,9 @@
 1:	subs	r1, r1, #4		@ 1 do we have enough
 	blt	5f			@ 1 bytes to align with?
 	cmp	r3, #2			@ 1
+	it	lt
 	strltb	r2, [r0], #1		@ 1
+	it	le
 	strleb	r2, [r0], #1		@ 1
 	strb	r2, [r0], #1		@ 1
 	add	r1, r1, r3		@ 1 (r1 = r1 - (4 - r3))
@@ -51,19 +53,23 @@ ENTRY(__memzero)
 	mov	lr, r2			@ 1
 
 3:	subs	r1, r1, #64		@ 1 write 32 bytes out per loop
+	itttt	ge
 	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
 	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
 	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
 	stmgeia	r0!, {r2, r3, ip, lr}	@ 4
 	bgt	3b			@ 1
+	it	eq
 	ldmeqfd	sp!, {pc}		@ 1/2 quick exit
 /*
  * No need to correct the count; we're only testing bits from now on
  */
 	tst	r1, #32			@ 1
+	itt	ne
 	stmneia	r0!, {r2, r3, ip, lr}	@ 4
 	stmneia	r0!, {r2, r3, ip, lr}	@ 4
 	tst	r1, #16			@ 1 16 bytes or more?
+	it	ne
 	stmneia	r0!, {r2, r3, ip, lr}	@ 4
 	ldr	lr, [sp], #4		@ 1
 
@@ -109,17 +115,21 @@ ENTRY(__memzero)
 #endif
 
 4:	tst	r1, #8			@ 1 8 bytes or more?
+	it	ne
 	stmneia	r0!, {r2, r3}		@ 2
 	tst	r1, #4			@ 1 4 bytes or more?
+	it	ne
 	strne	r2, [r0], #4		@ 1
 /*
  * When we get here, we've got less than 4 bytes to zero.  We
  * may have an unaligned pointer as well.
  */
 5:	tst	r1, #2			@ 1 2 bytes or more?
+	itt	ne
 	strneb	r2, [r0], #1		@ 1
 	strneb	r2, [r0], #1		@ 1
 	tst	r1, #1			@ 1 a byte left over
+	it	ne
 	strneb	r2, [r0], #1		@ 1
 	mov	pc, lr			@ 1
 ENDPROC(__memzero)

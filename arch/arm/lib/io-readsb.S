@@ -12,12 +12,15 @@
 
 .Linsb_align:	rsb	ip, ip, #4
 		cmp	ip, r2
+		it	gt
 		movgt	ip, r2
 		cmp	ip, #2
 		ldrb	r3, [r0]
 		strb	r3, [r1], #1
+		itt	ge
 		ldrgeb	r3, [r0]
 		strgeb	r3, [r1], #1
+		itt	gt
 		ldrgtb	r3, [r0]
 		strgtb	r3, [r1], #1
 		subs	r2, r2, ip
@@ -25,6 +28,7 @@
 
 ENTRY(__raw_readsb)
 		teq	r2, #0		@ do we have to check for the zero len?
+		it	eq
 		moveq	pc, lr
 		ands	ip, r1, #3
 		bne	.Linsb_align
@@ -72,6 +76,7 @@ ENTRY(__raw_readsb)
 		bpl	.Linsb_16_lp
 
 		tst	r2, #15
+		it	eq
 		ldmeqfd	sp!, {r4 - r6, pc}
 
 .Linsb_no_16:	tst	r2, #8
@@ -109,13 +114,16 @@ ENTRY(__raw_readsb)
 		str	r3, [r1], #4
 
 .Linsb_no_4:	ands	r2, r2, #3
+		it	eq
 		ldmeqfd	sp!, {r4 - r6, pc}
 
 		cmp	r2, #2
 		ldrb	r3, [r0]
 		strb	r3, [r1], #1
+		itt	ge
 		ldrgeb	r3, [r0]
 		strgeb	r3, [r1], #1
+		itt	gt
 		ldrgtb	r3, [r0]
 		strgtb	r3, [r1]
 

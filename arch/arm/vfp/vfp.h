@@ -37,6 +37,7 @@ static inline u32 vfp_hi64to32jamming(u64 val)
 
 	asm(
 	"cmp	%Q1, #1		@ vfp_hi64to32jamming\n\t"
+	"ite	cc\n\t"
 	"movcc	%0, %R1\n\t"
 	"orrcs	%0, %R1, #1"
 	: "=r" (v) : "r" (val) : "cc");

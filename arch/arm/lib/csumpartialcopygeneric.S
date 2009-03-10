@@ -40,6 +40,7 @@ sum	.req	r3
 		adcs	sum, sum, ip, put_byte_1	@ update checksum
 		strb	ip, [dst], #1
 		tst	dst, #2
+		it	eq
 		moveq	pc, lr			@ dst is now 32bit aligned
 
 .Ldst_16bit:	load2b	r8, ip
@@ -94,6 +95,7 @@ FN_ENTRY
 
 		adds	sum, sum, #0		@ C = 0
 		tst	dst, #3			@ Test destination alignment
+		it	ne
 		blne	.Ldst_unaligned		@ align destination, return here
 
 		/*
@@ -147,6 +149,7 @@ FN_ENTRY
 		strb	r5, [dst], #1
 		mov	r5, r4, get_byte_2
 .Lexit:		tst	len, #1
+		ittt	ne
 		strneb	r5, [dst], #1
 		andne	r5, r5, #255
 		adcnes	sum, sum, r5, put_byte_0
@@ -160,6 +163,7 @@ FN_ENTRY
 .Ldone:		adc	r0, sum, #0
 		ldr	sum, [sp, #0]		@ dst
 		tst	sum, #1
+		it	ne
 		movne	r0, r0, ror #8
 		load_regs
 

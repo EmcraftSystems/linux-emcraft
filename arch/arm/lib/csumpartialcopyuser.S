@@ -77,6 +77,7 @@
 		add	r2, r2, r1
 		mov	r0, #0			@ zero the buffer
 9002:		teq	r2, r1
+		it	ne
 		strneb	r0, [r1], #1
 		bne	9002b
 		load_regs

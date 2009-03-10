@@ -29,7 +29,9 @@
 ENTRY(memmove)
 
 		subs	ip, r0, r1
+		it	hi
 		cmphi	r2, ip
+		it	ls
 		bls	memcpy
 
 		stmfd	sp!, {r0, r4, lr}
@@ -72,6 +74,7 @@ ENTRY(memmove)
 
 5:		ands	ip, r2, #28
 		rsb	ip, ip, #32
+		it	ne
 		addne	pc, pc, ip		@ C is always clear here
 		b	7f
 6:		nop
@@ -99,19 +102,27 @@ ENTRY(memmove)
 7:		ldmfd	sp!, {r5 - r8}
 
 8:		movs	r2, r2, lsl #31
+		it	ne
 		ldrneb	r3, [r1, #-1]!
+		itt	cs
 		ldrcsb	r4, [r1, #-1]!
 		ldrcsb	ip, [r1, #-1]
+		it	ne
 		strneb	r3, [r0, #-1]!
+		itt	cs
 		strcsb	r4, [r0, #-1]!
 		strcsb	ip, [r0, #-1]
 		ldmfd	sp!, {r0, r4, pc}
 
 9:		cmp	ip, #2
+		it	gt
 		ldrgtb	r3, [r1, #-1]!
+		it	ge
 		ldrgeb	r4, [r1, #-1]!
 		ldrb	lr, [r1, #-1]!
+		it	gt
 		strgtb	r3, [r0, #-1]!
+		it	ge
 		strgeb	r4, [r0, #-1]!
 		subs	r2, r2, ip
 		strb	lr, [r0, #-1]!

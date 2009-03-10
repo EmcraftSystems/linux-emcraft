@@ -69,6 +69,9 @@
 	.endm
 
 	.macro str1b ptr reg cond=al abort
+	.ifnc \cond,al
+	it \cond
+	.endif
 	str\cond\()b \reg, [\ptr], #1
 	.endm
 

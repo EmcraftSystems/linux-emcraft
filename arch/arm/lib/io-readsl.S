@@ -12,6 +12,7 @@
 
 ENTRY(__raw_readsl)
 		teq	r2, #0		@ do we have to check for the zero len?
+		it	eq
 		moveq	pc, lr
 		ands	ip, r1, #3
 		bne	3f
@@ -28,9 +29,11 @@ ENTRY(__raw_readsl)
 		bpl	1b
 		ldmfd	sp!, {r4, lr}
 2:		movs	r2, r2, lsl #31
+		ittt	cs
 		ldrcs	r3, [r0, #0]
 		ldrcs	ip, [r0, #0]
 		stmcsia	r1!, {r3, ip}
+		itt	ne
 		ldrne	r3, [r0, #0]
 		strne	r3, [r1, #0]
 		mov	pc, lr
@@ -48,6 +51,7 @@ ENTRY(__raw_readsl)
 
 4:		subs	r2, r2, #1
 		mov	ip, r3, pull #24
+		itttt	ne
 		ldrne	r3, [r0]
 		orrne	ip, ip, r3, push #8
 		strne	ip, [r1], #4
@@ -56,6 +60,7 @@ ENTRY(__raw_readsl)
 
 5:		subs	r2, r2, #1
 		mov	ip, r3, pull #16
+		itttt	ne
 		ldrne	r3, [r0]
 		orrne	ip, ip, r3, push #16
 		strne	ip, [r1], #4
@@ -64,6 +69,7 @@ ENTRY(__raw_readsl)
 
 6:		subs	r2, r2, #1
 		mov	ip, r3, pull #8
+		itttt	ne
 		ldrne	r3, [r0]
 		orrne	ip, ip, r3, push #24
 		strne	ip, [r1], #4

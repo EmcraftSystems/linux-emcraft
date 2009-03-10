@@ -39,6 +39,7 @@ td3	.req	lr
 
 		/* we must have at least one byte. */
 		tst	buf, #1			@ odd address?
+		itttt	ne
 		movne	sum, sum, ror #8
 		ldrneb	td0, [buf], #1
 		subne	len, len, #1
@@ -68,25 +69,30 @@ td3	.req	lr
 		bne	.Lless8_wordlp
 
 .Lless8_byte:	tst	len, #1			@ odd number of bytes
+		itt	ne
 		ldrneb	td0, [buf], #1		@ include last byte
 		adcnes	sum, sum, td0, put_byte_0	@ update checksum
 
 .Ldone:		adc	r0, sum, #0		@ collect up the last carry
 		ldr	td0, [sp], #4
 		tst	td0, #1			@ check buffer alignment
+		it	ne
 		movne	r0, r0, ror #8		@ rotate checksum by 8 bits
 		ldr	pc, [sp], #4		@ return
 
 .Lnot_aligned:	tst	buf, #1			@ odd address
+		ittt	ne
 		ldrneb	td0, [buf], #1		@ make even
 		subne	len, len, #1
 		adcnes	sum, sum, td0, put_byte_1	@ update checksum
 
 		tst	buf, #2			@ 32-bit aligned?
 #if __LINUX_ARM_ARCH__ >= 4
+		itt	ne
 		ldrneh	td0, [buf], #2		@ make 32-bit aligned
 		subne	len, len, #2
 #else
+		itttt	ne
 		ldrneb	td0, [buf], #1
 		ldrneb	ip, [buf], #1
 		subne	len, len, #2
@@ -96,6 +102,7 @@ td3	.req	lr
 		orrne	td0, ip, td0, lsl #8
 #endif
 #endif
+		it	ne
 		adcnes	sum, sum, td0		@ update checksum
 		mov	pc, lr
 
@@ -105,10 +112,12 @@ ENTRY(csum_partial)
 		blo	.Lless8			@ 8 bytes to copy.
 
 		tst	buf, #1
+		it	ne
 		movne	sum, sum, ror #8
 
 		adds	sum, sum, #0		@ C = 0
 		tst	buf, #3			@ Test destination alignment
+		it	ne
 		blne	.Lnot_aligned		@ align destination, return here
 
 1:		bics	ip, len, #31

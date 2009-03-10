@@ -186,6 +186,7 @@ ENTRY(vector_swi)
 	 */
 #ifdef CONFIG_ARM_THUMB
 	tst	r8, #PSR_T_BIT
+	ite	ne
 	movne	r10, #0				@ no thumb OABI emulation
 	ldreq	r10, [lr, #-4]			@ get SWI instruction
 #else
@@ -244,6 +245,7 @@ ENTRY(vector_swi)
 	 * get the old ABI syscall table address.
 	 */
 	bics	r10, r10, #0xff000000
+	itt	ne
 	eorne	scno, r10, #__NR_OABI_SYSCALL_BASE
 	ldrne	tbl, =sys_oabi_call_table
 #elif !defined(CONFIG_AEABI)
@@ -257,6 +259,7 @@ ENTRY(vector_swi)
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
 	adr	lr, BSYM(ret_fast_syscall)	@ return address
+	it	cc
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 
 	add	r1, sp, #S_OFF
@@ -281,6 +284,7 @@ __sys_trace:
 	mov	scno, r0			@ syscall number (possibly new)
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
+	itt	cc
 	ldmccia	r1, {r0 - r3}			@ have to reload r0 - r3
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 	b	2b
@@ -326,11 +330,14 @@ ENTRY(sys_call_table)
 sys_syscall:
 		bic	scno, r0, #__NR_OABI_SYSCALL_BASE
 		cmp	scno, #__NR_syscall - __NR_SYSCALL_BASE
+		it	ne
 		cmpne	scno, #NR_syscalls	@ check range
+		itttt	lo
 		stmloia	sp, {r5, r6}		@ shuffle args
 		movlo	r0, r1
 		movlo	r1, r2
 		movlo	r2, r3
+		itt	lo
 		movlo	r3, r4
 		ldrlo	pc, [tbl, scno, lsl #2]
 		b	sys_ni_syscall
@@ -384,12 +391,14 @@ ENDPROC(sys_sigaltstack_wrapper)
 
 sys_statfs64_wrapper:
 		teq	r1, #88
+		it	eq
 		moveq	r1, #84
 		b	sys_statfs64
 ENDPROC(sys_statfs64_wrapper)
 
 sys_fstatfs64_wrapper:
 		teq	r1, #88
+		it	eq
 		moveq	r1, #84
 		b	sys_fstatfs64
 ENDPROC(sys_fstatfs64_wrapper)
@@ -401,6 +410,7 @@ ENDPROC(sys_fstatfs64_wrapper)
 sys_mmap2:
 #if PAGE_SHIFT > 12
 		tst	r5, #PGOFF_MASK
+		ittt	eq
 		moveq	r5, r5, lsr #PAGE_SHIFT - 12
 		streq	r5, [sp, #4]
 		beq	do_mmap2

@@ -104,6 +104,7 @@
 	stmdb	r0, {r1, \rpsr}			@ rfe context
 	ldmia	sp, {r0 - r12}
 	ldr	lr, [sp, #S_LR]
+	ite	eq
 	addeq	sp, sp, #S_FRAME_SIZE - 8	@ aligned
 	addne	sp, sp, #S_FRAME_SIZE - 4	@ not aligned
 	rfeia	sp!

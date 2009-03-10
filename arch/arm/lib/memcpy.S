@@ -29,7 +29,12 @@
 	.endm
 
 	.macro ldr1b ptr reg cond=al abort
+	.ifnc \cond,al
+	it \cond
 	ldr\cond\()b \reg, [\ptr], #1
+	.else
+	ldrb \reg, [\ptr], #1
+	.endif
 	.endm
 
 	.macro str1w ptr reg abort
@@ -41,7 +46,12 @@
 	.endm
 
 	.macro str1b ptr reg cond=al abort
+	.ifnc \cond,al
+	it \cond
 	str\cond\()b \reg, [\ptr], #1
+	.else
+	strb \reg, [\ptr], #1
+	.endif
 	.endm
 
 	.macro enter reg1 reg2

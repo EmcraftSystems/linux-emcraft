@@ -109,6 +109,7 @@
 #if LDR1W_SHIFT > 0
 		lsl	ip, ip, #LDR1W_SHIFT
 #endif
+		it	ne
 		addne	pc, pc, ip		@ C is always clear here
 		b	7f
 6:

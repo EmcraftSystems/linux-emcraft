@@ -36,6 +36,7 @@
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
+		ite	eq
 		moveq	\rx,      #0x10000000
 		movne	\rx,      #0xfb000000	@ virtual base
 		orr	\rx, \rx, #DEBUG_LL_UART_OFFSET

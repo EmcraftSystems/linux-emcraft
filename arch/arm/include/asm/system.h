@@ -338,6 +338,7 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 			"	ldrexb	%1, [%2]\n"
 			"	mov	%0, #0\n"
 			"	teq	%1, %3\n"
+			"	it	eq\n"
 			"	strexeqb %0, %4, [%2]\n"
 				: "=&r" (res), "=&r" (oldval)
 				: "r" (ptr), "Ir" (old), "r" (new)
@@ -351,6 +352,7 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 			"	ldrex	%1, [%2]\n"
 			"	mov	%0, #0\n"
 			"	teq	%1, %3\n"
+			"	it	eq\n"
 			"	strexeq %0, %4, [%2]\n"
 				: "=&r" (res), "=&r" (oldval)
 				: "r" (ptr), "Ir" (old), "r" (new)

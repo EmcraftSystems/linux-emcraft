@@ -69,7 +69,7 @@ static inline void set_fs(mm_segment_t fs)
 
 #define __addr_ok(addr) ({ \
 	unsigned long flag; \
-	__asm__("cmp %2, %0; movlo %0, #0" \
+	__asm__("cmp %2, %0; it lo; movlo %0, #0" \
 		: "=&r" (flag) \
 		: "0" (current_thread_info()->addr_limit), "r" (addr) \
 		: "cc"); \
@@ -79,7 +79,7 @@ static inline void set_fs(mm_segment_t fs)
 #define __range_ok(addr,size) ({ \
 	unsigned long flag, roksum; \
 	__chk_user_ptr(addr);	\
-	__asm__("adds %1, %2, %3; sbcccs %1, %1, %0; movcc %0, #0" \
+	__asm__("adds %1, %2, %3; it cc; sbcccs %1, %1, %0; it cc; movcc %0, #0" \
 		: "=&r" (flag), "=&r" (roksum) \
 		: "r" (addr), "Ir" (size), "0" (current_thread_info()->addr_limit) \
 		: "cc"); \

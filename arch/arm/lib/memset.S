@@ -19,7 +19,9 @@
 1:	subs	r2, r2, #4		@ 1 do we have enough
 	blt	5f			@ 1 bytes to align with?
 	cmp	r3, #2			@ 1
+	it	lt
 	strltb	r1, [r0], #1		@ 1
+	it	le
 	strleb	r1, [r0], #1		@ 1
 	strb	r1, [r0], #1		@ 1
 	add	r2, r2, r3		@ 1 (r2 = r2 - (4 - r3))
@@ -51,19 +53,23 @@ ENTRY(memset)
 	mov	lr, r1
 
 2:	subs	r2, r2, #64
+	itttt	ge
 	stmgeia	r0!, {r1, r3, ip, lr}	@ 64 bytes at a time.
 	stmgeia	r0!, {r1, r3, ip, lr}
 	stmgeia	r0!, {r1, r3, ip, lr}
 	stmgeia	r0!, {r1, r3, ip, lr}
 	bgt	2b
+	it	eq
 	ldmeqfd	sp!, {pc}		@ Now <64 bytes to go.
 /*
  * No need to correct the count; we're only testing bits from now on
  */
 	tst	r2, #32
+	itt	ne
 	stmneia	r0!, {r1, r3, ip, lr}
 	stmneia	r0!, {r1, r3, ip, lr}
 	tst	r2, #16
+	it	ne
 	stmneia	r0!, {r1, r3, ip, lr}
 	ldr	lr, [sp], #4
 
@@ -111,17 +117,21 @@ ENTRY(memset)
 #endif
 
 4:	tst	r2, #8
+	it	ne
 	stmneia	r0!, {r1, r3}
 	tst	r2, #4
+	it	ne
 	strne	r1, [r0], #4
 /*
  * When we get here, we've got less than 4 bytes to zero.  We
  * may have an unaligned pointer as well.
  */
 5:	tst	r2, #2
+	itt	ne
 	strneb	r1, [r0], #1
 	strneb	r1, [r0], #1
 	tst	r2, #1
+	it	ne
 	strneb	r1, [r0], #1
 	mov	pc, lr
 ENDPROC(memset)

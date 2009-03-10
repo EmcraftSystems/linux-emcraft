@@ -116,6 +116,7 @@ ENTRY(secondary_startup)
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type
 	movs	r10, r5				@ invalid processor?
+	it	eq
 	moveq	r0, #'p'			@ yes, error 'p'
 	beq	__error
 
@@ -255,6 +256,7 @@ __create_page_tables:
 	add	r6, r4, r6, lsr #18
 1:	cmp	r0, r6
 	add	r3, r3, #1 << 20
+	it	ls
 	strls	r3, [r0], #4
 	bls	1b
 
@@ -298,6 +300,7 @@ __create_page_tables:
 	add	r0, r4, r3
 	rsb	r3, r3, #0x4000			@ PTRS_PER_PGD*sizeof(long)
 	cmp	r3, #0x0800			@ limit to 512MB
+	it	hi
 	movhi	r3, #0x0800
 	add	r6, r0, r3
 	ldr	r3, [r8, #MACHINFO_PHYSIO]

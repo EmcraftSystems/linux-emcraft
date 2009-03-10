@@ -53,6 +53,9 @@
 	.endm
 
 	.macro ldr1b ptr reg cond=al abort
+	.ifnc \cond,al
+	it \cond
+	.endif
 	ldr\cond\()b \reg, [\ptr], #1
 	.endm
 

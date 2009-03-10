@@ -38,6 +38,7 @@ ENDPROC(c_backtrace)
 		beq	no_frame		@ we have no stack frames
 
 		tst	r1, #0x10		@ 26 or 32-bit mode?
+		itte	eq
  ARM(		moveq	mask, #0xfc000003	)
  THUMB(		moveq	mask, #0xfc000000	)
  THUMB(		orreq	mask, #0x03		)
@@ -75,6 +76,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 1003:		ldr	r2, [sv_pc, #-4]	@ if stmfd sp!, {args} exists,
 		ldr	r3, .Ldsi+4		@ adjust saved 'pc' back one
 		teq	r3, r2, lsr #10		@ instruction
+		ite	ne
 		subne	r0, sv_pc, #4		@ allow for mov
 		subeq	r0, sv_pc, #8		@ allow for mov + stmia
 
@@ -86,6 +88,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 		ldr	r1, [sv_pc, #-4]	@ if stmfd sp!, {args} exists,
 		ldr	r3, .Ldsi+4
 		teq	r3, r1, lsr #10
+		ittt	eq
 		ldreq	r0, [frame, #-8]	@ get sp
 		subeq	r0, r0, #4		@ point at the last arg
 		bleq	.Ldumpstm		@ dump saved registers
@@ -93,6 +96,7 @@ for_each_frame:	tst	frame, mask		@ Check for address exceptions
 1004:		ldr	r1, [sv_pc, #0]		@ if stmfd sp!, {..., fp, ip, lr, pc}
 		ldr	r3, .Ldsi		@ instruction exists,
 		teq	r3, r1, lsr #10
+		itt	eq
 		subeq	r0, frame, #16
 		bleq	.Ldumpstm		@ dump saved registers
 
@@ -134,6 +138,7 @@ ENDPROC(c_backtrace)
 		beq	2f
 		add	r7, r7, #1
 		teq	r7, #6
+		itte	eq
 		moveq	r7, #1
 		moveq	r1, #'\n'
 		movne	r1, #' '
@@ -144,6 +149,7 @@ ENDPROC(c_backtrace)
 2:		subs	reg, reg, #1
 		bpl	1b
 		teq	r7, #0
+		itt	ne
 		adrne	r0, .Lcr
 		blne	printk
 		ldmfd	sp!, {instr, reg, stack, r7, pc}

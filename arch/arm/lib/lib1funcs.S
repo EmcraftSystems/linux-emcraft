@@ -56,6 +56,7 @@ Boston, MA 02111-1307, USA.  */
 	@ at the left end of each 4 bit nibbles in the division loop
 	@ to save one loop in most cases.
 	tst	\divisor, #0xe0000000
+	itte	eq
 	moveq	\divisor, \divisor, lsl #3
 	moveq	\curbit, #8
 	movne	\curbit, #1
@@ -65,6 +66,7 @@ Boston, MA 02111-1307, USA.  */
 	@ division loop.  Continue shifting until the divisor is 
 	@ larger than the dividend.
 1:	cmp	\divisor, #0x10000000
+	ittt	lo
 	cmplo	\divisor, \dividend
 	movlo	\divisor, \divisor, lsl #4
 	movlo	\curbit, \curbit, lsl #4
@@ -73,6 +75,7 @@ Boston, MA 02111-1307, USA.  */
 	@ For very big divisors, we must shift it a bit at a time, or
 	@ we will be in danger of overflowing.
 1:	cmp	\divisor, #0x80000000
+	ittt	lo
 	cmplo	\divisor, \dividend
 	movlo	\divisor, \divisor, lsl #1
 	movlo	\curbit, \curbit, lsl #1
@@ -84,19 +87,25 @@ Boston, MA 02111-1307, USA.  */
 
 	@ Division loop
 1:	cmp	\dividend, \divisor
+	itt	hs
 	subhs	\dividend, \dividend, \divisor
 	orrhs	\result,   \result,   \curbit
 	cmp	\dividend, \divisor,  lsr #1
+	itt	hs
 	subhs	\dividend, \dividend, \divisor, lsr #1
 	orrhs	\result,   \result,   \curbit,  lsr #1
 	cmp	\dividend, \divisor,  lsr #2
+	itt	hs
 	subhs	\dividend, \dividend, \divisor, lsr #2
 	orrhs	\result,   \result,   \curbit,  lsr #2
 	cmp	\dividend, \divisor,  lsr #3
+	itt	hs
 	subhs	\dividend, \dividend, \divisor, lsr #3
 	orrhs	\result,   \result,   \curbit,  lsr #3
 	cmp	\dividend, #0			@ Early termination?
+	it	ne
 	movnes	\curbit,   \curbit,  lsr #4	@ No, any more bits to do?
+	it	ne
 	movne	\divisor,  \divisor, lsr #4
 	bne	1b
 
@@ -113,19 +122,24 @@ Boston, MA 02111-1307, USA.  */
 #else
 
 	cmp	\divisor, #(1 << 16)
+	itt	hs
 	movhs	\divisor, \divisor, lsr #16
 	movhs	\order, #16
+	it	lo
 	movlo	\order, #0
 
 	cmp	\divisor, #(1 << 8)
+	itt	hs
 	movhs	\divisor, \divisor, lsr #8
 	addhs	\order, \order, #8
 
 	cmp	\divisor, #(1 << 4)
+	itt	hs
 	movhs	\divisor, \divisor, lsr #4
 	addhs	\order, \order, #4
 
 	cmp	\divisor, #(1 << 2)
+	ite	hi
 	addhi	\order, \order, #3
 	addls	\order, \order, \divisor, lsr #1
 
@@ -152,6 +166,7 @@ Boston, MA 02111-1307, USA.  */
 	@ division loop.  Continue shifting until the divisor is 
 	@ larger than the dividend.
 1:	cmp	\divisor, #0x10000000
+	ittt	lo
 	cmplo	\divisor, \dividend
 	movlo	\divisor, \divisor, lsl #4
 	addlo	\order, \order, #4
@@ -160,6 +175,7 @@ Boston, MA 02111-1307, USA.  */
 	@ For very big divisors, we must shift it a bit at a time, or
 	@ we will be in danger of overflowing.
 1:	cmp	\divisor, #0x80000000
+	ittt	lo
 	cmplo	\divisor, \dividend
 	movlo	\divisor, \divisor, lsl #1
 	addlo	\order, \order, #1
@@ -173,19 +189,25 @@ Boston, MA 02111-1307, USA.  */
 	blt	2f
 
 1:	cmp	\dividend, \divisor
+	it	hs
 	subhs	\dividend, \dividend, \divisor
 	cmp	\dividend, \divisor,  lsr #1
+	it	hs
 	subhs	\dividend, \dividend, \divisor, lsr #1
 	cmp	\dividend, \divisor,  lsr #2
+	it	hs
 	subhs	\dividend, \dividend, \divisor, lsr #2
 	cmp	\dividend, \divisor,  lsr #3
+	it	hs
 	subhs	\dividend, \dividend, \divisor, lsr #3
 	cmp	\dividend, #1
 	mov	\divisor, \divisor, lsr #4
+	it	ge
 	subges	\order, \order, #4
 	bge	1b
 
 	tst	\order, #3
+	it	ne
 	teqne	\dividend, #0
 	beq	5f
 
@@ -194,12 +216,15 @@ Boston, MA 02111-1307, USA.  */
 	blt	4f
 	beq	3f
 	cmp	\dividend, \divisor
+	it	hs
 	subhs	\dividend, \dividend, \divisor
 	mov	\divisor,  \divisor,  lsr #1
 3:	cmp	\dividend, \divisor
+	it	hs
 	subhs	\dividend, \dividend, \divisor
 	mov	\divisor,  \divisor,  lsr #1
 4:	cmp	\dividend, \divisor
+	it	hs
 	subhs	\dividend, \dividend, \divisor
 5:
 .endm
@@ -209,6 +234,7 @@ ENTRY(__udivsi3)
 ENTRY(__aeabi_uidiv)
 
 	subs	r2, r1, #1
+	it	eq
 	moveq	pc, lr
 	bcc	Ldiv0
 	cmp	r0, r1
@@ -221,7 +247,8 @@ ENTRY(__aeabi_uidiv)
 	mov	r0, r2
 	mov	pc, lr
 
-11:	moveq	r0, #1
+11:	ite	eq
+	moveq	r0, #1
 	movne	r0, #0
 	mov	pc, lr
 
@@ -237,10 +264,14 @@ ENTRY(__umodsi3)
 
 	subs	r2, r1, #1			@ compare divisor with 1
 	bcc	Ldiv0
+	ite	ne
 	cmpne	r0, r1				@ compare dividend with divisor
 	moveq   r0, #0
+	it	hi
 	tsthi	r1, r2				@ see if divisor is power of 2
+	it	eq
 	andeq	r0, r0, r2
+	it	ls
 	movls	pc, lr
 
 	ARM_MOD_BODY r0, r1, r2, r3
@@ -255,10 +286,12 @@ ENTRY(__aeabi_idiv)
 	cmp	r1, #0
 	eor	ip, r0, r1			@ save the sign of the result.
 	beq	Ldiv0
+	it	mi
 	rsbmi	r1, r1, #0			@ loops below use unsigned.
 	subs	r2, r1, #1			@ division by 1 or -1 ?
 	beq	10f
 	movs	r3, r0
+	it	mi
 	rsbmi	r3, r0, #0			@ positive dividend value
 	cmp	r3, r1
 	bls	11f
@@ -268,14 +301,18 @@ ENTRY(__aeabi_idiv)
 	ARM_DIV_BODY r3, r1, r0, r2
 
 	cmp	ip, #0
+	it	mi
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
 10:	teq	ip, r0				@ same sign ?
+	it	mi
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
-11:	movlo	r0, #0
+11:	it	lo
+	movlo	r0, #0
+	itt	eq
 	moveq	r0, ip, asr #31
 	orreq	r0, r0, #1
 	mov	pc, lr
@@ -284,6 +321,7 @@ ENTRY(__aeabi_idiv)
 
 	cmp	ip, #0
 	mov	r0, r3, lsr r2
+	it	mi
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
@@ -294,19 +332,25 @@ ENTRY(__modsi3)
 
 	cmp	r1, #0
 	beq	Ldiv0
+	it	mi
 	rsbmi	r1, r1, #0			@ loops below use unsigned.
 	movs	ip, r0				@ preserve sign of dividend
+	it	mi
 	rsbmi	r0, r0, #0			@ if negative make positive
 	subs	r2, r1, #1			@ compare divisor with 1
+	ite	ne
 	cmpne	r0, r1				@ compare dividend with divisor
 	moveq	r0, #0
+	it	hi
 	tsthi	r1, r2				@ see if divisor is power of 2
+	it	eq
 	andeq	r0, r0, r2
 	bls	10f
 
 	ARM_MOD_BODY r0, r1, r2, r3
 
 10:	cmp	ip, #0
+	it	mi
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 

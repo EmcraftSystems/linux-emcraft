@@ -130,21 +130,26 @@ ENTRY(cpu_v7_set_pte_ext)
 	orr	r3, r3, #PTE_EXT_AP0 | 2
 
 	tst	r1, #1 << 4
+	it	ne
 	orrne	r3, r3, #PTE_EXT_TEX(1)
 
 	tst	r1, #L_PTE_WRITE
+	ite	ne
 	tstne	r1, #L_PTE_DIRTY
 	orreq	r3, r3, #PTE_EXT_APX
 
 	tst	r1, #L_PTE_USER
+	ittt	ne
 	orrne	r3, r3, #PTE_EXT_AP1
 	tstne	r3, #PTE_EXT_APX
 	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
 
 	tst	r1, #L_PTE_EXEC
+	it	eq
 	orreq	r3, r3, #PTE_EXT_XN
 
 	tst	r1, #L_PTE_YOUNG
+	ite	ne
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
 

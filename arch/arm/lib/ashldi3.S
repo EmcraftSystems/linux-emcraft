@@ -41,6 +41,7 @@ ENTRY(__aeabi_llsl)
 
 	subs	r3, r2, #32
 	rsb	ip, r2, #32
+	itett	mi
 	movmi	ah, ah, lsl r2
 	movpl	ah, al, lsl r3
  ARM(	orrmi	ah, ah, al, lsr ip	)

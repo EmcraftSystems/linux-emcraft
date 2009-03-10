@@ -42,6 +42,7 @@ __mmap_switched:
 
 	ldmia	r3!, {r4, r5, r6, r7}
 	cmp	r4, r5				@ Copy data segment if needed
+	itttt	ne
 1:	cmpne	r5, r6
 	ldrne	fp, [r4], #4
 	strne	fp, [r5], #4
@@ -49,6 +50,7 @@ __mmap_switched:
 
 	mov	fp, #0				@ Clear BSS (and zero fp)
 1:	cmp	r6, r7
+	itt	cc
 	strcc	fp, [r6],#4
 	bcc	1b
 

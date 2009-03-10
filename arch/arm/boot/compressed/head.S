@@ -406,8 +406,10 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		orr	r1, r1, #3 << 10
 		add	r2, r3, #16384
 1:		cmp	r1, r9			@ if virt > start of RAM
+		it	hs
 		orrhs	r1, r1, #0x0c		@ set cacheable, bufferable
 		cmp	r1, r10			@ if virt > end of RAM
+		it	hs
 		bichs	r1, r1, #0x0c		@ clear cacheable, bufferable
 		str	r1, [r0], #4		@ 1:1 mapping
 		add	r1, r1, #1048576
@@ -454,10 +456,12 @@ __armv7_mmu_cache_on:
 #ifdef CONFIG_MMU
 		mrc	p15, 0, r11, c0, c1, 4	@ read ID_MMFR0
 		tst	r11, #0xf		@ VMSA
+		it	ne
 		blne	__setup_mmu
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
 		tst	r11, #0xf		@ VMSA
+		it	ne
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 #endif
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
@@ -467,6 +471,7 @@ __armv7_mmu_cache_on:
 		orr	r0, r0, #1 << 25	@ big-endian page tables
 #endif
 #ifdef CONFIG_MMU
+		itttt	ne
 		orrne	r0, r0, #1		@ MMU enabled
 		movne	r1, #-1
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
@@ -567,6 +572,7 @@ call_cache_fn:	adr	r12, proc_types
 		ldr	r2, [r12, #4]		@ get mask
 		eor	r1, r1, r6		@ (real ^ match)
 		tst	r1, r2			@       & mask
+		itt	eq
  ARM(		addeq	pc, r12, r3		) @ call cache function
  THUMB(		addeq	r12, r3			)
  THUMB(		moveq	pc, r12			) @ call cache function
@@ -810,6 +816,7 @@ __armv4_mpu_cache_flush:
 		bcs	1b			@ segments 7 to 0
 
 		teq	r2, #0
+		it	ne
 		mcrne	p15, 0, ip, c7, c5, 0	@ invalidate I cache
 		mcr	p15, 0, ip, c7, c10, 4	@ drain WB
 		mov	pc, lr
@@ -901,6 +908,7 @@ __armv4_mmu_cache_flush:
 		mov	r2, #1024
 		mov	r2, r2, lsl r1		@ base dcache size *2
 		tst	r3, #1 << 14		@ test M bit
+		it	ne
 		addne	r2, r2, r2, lsr #1	@ +1/2 size if M == 1
 		mov	r3, r3, lsr #12
 		and	r3, r3, #3

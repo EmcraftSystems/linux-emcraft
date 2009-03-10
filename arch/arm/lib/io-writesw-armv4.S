@@ -31,6 +31,7 @@
 
 ENTRY(__raw_writesw)
 		teq	r2, #0
+		it	eq
 		moveq	pc, lr
 		ands	r3, r1, #3
 		bne	.Loutsw_align
@@ -61,7 +62,8 @@ ENTRY(__raw_writesw)
 		ldr	r3, [r1], #4
 		outword	r3
 
-.Lno_outsw_2:	ldrneh	r3, [r1]
+.Lno_outsw_2:	itt	ne
+		ldrneh	r3, [r1]
 		strneh	r3, [r0]
 
 		ldmfd	sp!, {r4, r5, pc}
@@ -79,6 +81,7 @@ ENTRY(__raw_writesw)
  THUMB(		rsb	r3, r3, #0	)
  THUMB(		ldr	r3, [r1, r3]	)
  THUMB(		sub	r1, r3		)
+		it	cs
 		subcs	r2, r2, #1
 		bcs	2f
 		subs	r2, r2, #2
@@ -94,7 +97,8 @@ ENTRY(__raw_writesw)
 		bpl	1b
 
 		tst	r2, #1
-3:		movne	ip, r3, lsr #8
+3:		itt	ne
+		movne	ip, r3, lsr #8
 		strneh	ip, [r0]
 		mov	pc, lr
 ENDPROC(__raw_writesw)

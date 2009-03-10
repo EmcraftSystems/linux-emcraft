@@ -30,6 +30,7 @@
 	.macro	irq_handler
 	get_irqnr_preamble r5, lr
 1:	get_irqnr_and_base r0, r6, r5, lr
+	ittt	ne
 	movne	r1, sp
 	@
 	@ routine called with r0 = irq number, r1 = struct pt_regs *
@@ -51,12 +52,14 @@
 	 * preserved from get_irqnr_and_base above
 	 */
 	test_for_ipi r0, r6, r5, lr
+	ittt	ne
 	movne	r0, sp
 	adrne	lr, BSYM(1b)
 	bne	do_IPI
 
 #ifdef CONFIG_LOCAL_TIMERS
 	test_for_ltirq r0, r6, r5, lr
+	ittt	ne
 	movne	r0, sp
 	adrne	lr, BSYM(1b)
 	bne	do_local_timer
@@ -144,6 +147,7 @@ ENDPROC(__und_invalid)
 #else
  SPFIX(	tst	sp, #4		)
 #endif
+ SPFIX(	it	eq		)
  SPFIX(	subeq	sp, sp, #4	)
  	stmia	sp, {r1 - r12}
 
@@ -151,6 +155,7 @@ ENDPROC(__und_invalid)
 	add	r5, sp, #S_SP - 4	@ here for interlock avoidance
 	mov	r4, #-1			@  ""  ""      ""       ""
 	add	r0, sp, #(S_FRAME_SIZE + \stack_hole - 4)
+ SPFIX(	it	eq		)
  SPFIX(	addeq	r0, r0, #4	)
 	str	r1, [sp, #-4]!		@ save the "real" r0 copied
 					@ from the exception stack
@@ -178,6 +183,7 @@ __dabt_svc:
 	@
 	mrs	r9, cpsr
 	tst	r3, #PSR_I_BIT
+	it	eq
 	biceq	r9, r9, #PSR_I_BIT
 
 	@
@@ -236,8 +242,10 @@ __irq_svc:
 	str	r8, [tsk, #TI_PREEMPT]		@ restore preempt count
 	ldr	r0, [tsk, #TI_FLAGS]		@ get flags
 	teq	r8, #0				@ if preempt count != 0
+	it	ne
 	movne	r0, #0				@ force flags to 0
 	tst	r0, #_TIF_NEED_RESCHED
+	it	ne
 	blne	svc_preempt
 #endif
 	ldr	r2, [sp, #S_PSR]		@ irqs are already disabled
@@ -257,6 +265,7 @@ svc_preempt:
 1:	bl	preempt_schedule_irq		@ irq en/disable is done inside
 	ldr	r0, [tsk, #TI_FLAGS]		@ get new tasks TI_FLAGS
 	tst	r0, #_TIF_NEED_RESCHED
+	it	eq
 	moveq	pc, r8				@ go again
 	b	1b
 #endif
@@ -308,6 +317,7 @@ __pabt_svc:
 	@
 	mrs	r9, cpsr
 	tst	r3, #PSR_I_BIT
+	it	eq
 	biceq	r9, r9, #PSR_I_BIT
 
 	@
@@ -466,6 +476,7 @@ __irq_usr:
 	ldr	r0, [tsk, #TI_PREEMPT]
 	str	r8, [tsk, #TI_PREEMPT]
 	teq	r0, r7
+	itt	ne
  ARM(	strne	r0, [r0, -r0]	)
  THUMB(	movne	r0, #0		)
  THUMB(	strne	r0, [r0]	)
@@ -495,9 +506,9 @@ __und_usr:
 	adr	r9, BSYM(ret_from_exception)
 	adr	lr, BSYM(__und_usr_unknown)
 	tst	r3, #PSR_T_BIT			@ Thumb mode?
+	itet	eq
 	subeq	r4, r2, #4			@ ARM instr at LR - 4
 	subne	r4, r2, #2			@ Thumb instr at LR - 2
-	it	eq				@ explicit IT needed for the label
 1:	ldreqt	r0, [r4]
 #ifdef CONFIG_CPU_ENDIAN_BE8
 	rev	r0, r0				@ little endian instruction
@@ -589,6 +600,7 @@ call_fpe:
 1:
 #endif
 	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
+	ite	ne
 	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
 #if defined(CONFIG_CPU_ARM610) || defined(CONFIG_CPU_ARM710)
 	and	r8, r0, #0x0f000000		@ mask out op-code bits
@@ -974,6 +986,7 @@ kuser_cmpxchg_fixup:
 #endif
 1:	ldrex	r3, [r2]
 	subs	r3, r3, r0
+	it	eq
 	strexeq	r3, r1, [r2]
 	teqeq	r3, #1
 	beq	1b
