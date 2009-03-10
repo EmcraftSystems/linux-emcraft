@@ -176,19 +176,29 @@ static int __init realview_i2c_init(void)
 }
 arch_initcall(realview_i2c_init);
 
-#define REALVIEW_SYSMCI	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_MCI_OFFSET)
-
+/*
+ * All boards except RealView/PB1176 use MCI for the MMC/SD card detect.
+ * PB1176 has to use GPIO.
+ */
 static unsigned int realview_mmc_status(struct device *dev)
 {
 	struct amba_device *adev = container_of(dev, struct amba_device, dev);
 	u32 mask;
+	void __iomem *mmc_detect;
 
-	if (adev->res.start == REALVIEW_MMCI0_BASE)
+	if (machine_is_realview_pb1176()) {
+		mmc_detect = __io_address(REALVIEW_GPIO2_BASE + 0x04);
 		mask = 1;
-	else
-		mask = 2;
+	} else {
+		mmc_detect =__io_address(REALVIEW_SYS_BASE) +
+			REALVIEW_SYS_MCI_OFFSET;
+		if (adev->res.start == REALVIEW_MMCI0_BASE)
+			mask = 1;
+		else
+			mask = 2;
+	}
 
-	return readl(REALVIEW_SYSMCI) & mask;
+	return readl(mmc_detect) & mask;
 }
 
 struct mmc_platform_data realview_mmc0_plat_data = {

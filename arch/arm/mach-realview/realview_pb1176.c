@@ -91,6 +91,12 @@ static struct map_desc realview_pb1176_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(REALVIEW_PB1176_L220_BASE),
 		.length		= SZ_8K,
 		.type		= MT_DEVICE,
+	}, {
+		/* needed for SD/MMC detection */
+		.virtual	= IO_ADDRESS(REALVIEW_GPIO2_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_GPIO2_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
 	},
 #ifdef CONFIG_DEBUG_LL
 	{
