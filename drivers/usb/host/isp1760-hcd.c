@@ -820,6 +820,8 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 atl_regs, payload;
 	u32 buffstatus;
 
+	/* wait for the SKIPMAP register to be updated */
+	udelay(1);
 	skip_map = isp1760_readl(hcd->regs + HC_ATL_PTD_SKIPMAP_REG);
 
 	BUG_ON(!skip_map);
@@ -854,6 +856,8 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	u32 int_regs, payload;
 	u32 buffstatus;
 
+	/* wait for the SKIPMAP register to be updated */
+	udelay(1);
 	skip_map = isp1760_readl(hcd->regs + HC_INT_PTD_SKIPMAP_REG);
 
 	BUG_ON(!skip_map);
