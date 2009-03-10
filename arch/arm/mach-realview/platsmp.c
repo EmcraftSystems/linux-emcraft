@@ -66,8 +66,11 @@ static void scu_enable(void)
 		BUG();
 
 	scu_ctrl = __raw_readl(scu_base + SCU_CTRL);
-	scu_ctrl |= 1;
-	__raw_writel(scu_ctrl, scu_base + SCU_CTRL);
+	if (!(scu_ctrl & 1)) {
+		/* not enabled yet */
+		scu_ctrl |= 1;
+		__raw_writel(scu_ctrl, scu_base + SCU_CTRL);
+	}
 }
 
 static DEFINE_SPINLOCK(boot_lock);
