@@ -120,7 +120,9 @@ ENDPROC(cpu_v7_switch_mm)
  */
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	str	r1, [r0], #-2048		@ linux version
+ ARM(	str	r1, [r0], #-2048	)	@ linux version
+ THUMB(	str	r1, [r0]		)	@ linux version
+ THUMB(	sub	r0, r0, #2048		)
 
 	bic	r3, r1, #0x000003f0
 	bic	r3, r3, #PTE_TYPE_MASK
@@ -224,7 +226,8 @@ ENDPROC(__v7_setup)
 	 */
 	.type	v7_crval, #object
 v7_crval:
-	crval	clear=0x0120c302, mmuset=0x10c0387d, ucset=0x00c0187c
+ ARM(	crval	clear=0x0120c302, mmuset=0x10c0387d, ucset=0x00c0187c	)
+ THUMB(	crval	clear=0x0120c302, mmuset=0x50c0387d, ucset=0x40c0187c	)
 
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers
