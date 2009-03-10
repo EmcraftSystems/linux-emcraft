@@ -18,17 +18,20 @@
 
 #include "proc-macros.S"
 
-#define TTB_C		(1 << 0)
 #define TTB_S		(1 << 1)
 #define TTB_RGN_NC	(0 << 3)
 #define TTB_RGN_OC_WBWA	(1 << 3)
 #define TTB_RGN_OC_WT	(2 << 3)
 #define TTB_RGN_OC_WB	(3 << 3)
+#define TTB_IRGN_NC	((0 << 0) | (0 << 6))
+#define TTB_IRGN_WBWA	((0 << 0) | (1 << 6))
+#define TTB_IRGN_WT	((1 << 0) | (0 << 6))
+#define TTB_IRGN_WB	((1 << 0) | (1 << 6))
 
 #ifndef CONFIG_SMP
-#define TTB_FLAGS	TTB_C|TTB_RGN_OC_WB		@ mark PTWs cacheable, outer WB
+#define TTB_FLAGS	TTB_IRGN_WB|TTB_RGN_OC_WB		@ mark PTWs cacheable, outer WB
 #else
-#define TTB_FLAGS	TTB_C|TTB_S|TTB_RGN_OC_WBWA	@ mark PTWs cacheable and shared, outer WBWA
+#define TTB_FLAGS	TTB_IRGN_WBWA|TTB_S|TTB_RGN_OC_WBWA	@ mark PTWs cacheable and shared, outer WBWA
 #endif
 
 ENTRY(cpu_v7_proc_init)
