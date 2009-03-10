@@ -272,6 +272,8 @@ static void __init realview_pba8_init(void)
 {
 	int i;
 
+	clk_register(&realview_clcd_clk);
+
 	realview_flash_register(realview_pba8_flash_resource,
 				ARRAY_SIZE(realview_pba8_flash_resource));
 	realview_eth_register(NULL, realview_pba8_smsc911x_resources);
