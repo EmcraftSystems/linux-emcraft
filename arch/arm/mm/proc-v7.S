@@ -207,6 +207,9 @@ __v7_setup:
 #if !defined(CONFIG_AEABI) || defined(CONFIG_OABI_COMPAT)
 	orr	r6, r6, #1 << 10		@ enable the SWP instruction
 #endif
+#ifdef CONFIG_CPU_ENDIAN_BE8
+	orr	r6, r6, #1 << 25		@ big-endian page tables
+#endif
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
 	bic	r0, r0, r5			@ clear bits them
 	orr	r0, r0, r6			@ set them

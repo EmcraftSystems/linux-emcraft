@@ -82,6 +82,9 @@ EXTRA_AFLAGS  := -Wa,-march=all
 # linker symbols.  We only define initrd_phys and params_phys if the
 # machine class defined the corresponding makefile variable.
 LDFLAGS_vmlinux := --defsym zreladdr=$(ZRELADDR)
+ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
+LDFLAGS_vmlinux += --be8
+endif
 ifneq ($(INITRD_PHYS),)
 LDFLAGS_vmlinux += --defsym initrd_phys=$(INITRD_PHYS)
 endif
