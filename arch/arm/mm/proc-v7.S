@@ -188,7 +188,7 @@ __v7_setup:
 	mrc	p15, 0, r0, c1, c0, 1		@ Enable SMP/nAMP mode
 	tst	r0, #(0x1 << 6)			@ already enabled?
 	itt	eq
-	orreq	r0, r0, #(0x1 << 6)
+	orreq	r0, r0, #(1 << 6) | (1 << 0)
 	mcreq	p15, 0, r0, c1, c0, 1
 #endif
 	adr	r12, __v7_setup_stack		@ the local stack
