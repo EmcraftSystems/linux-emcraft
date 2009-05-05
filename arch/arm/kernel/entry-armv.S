@@ -248,12 +248,12 @@ __irq_svc:
 	it	ne
 	blne	svc_preempt
 #endif
-	ldr	r2, [sp, #S_PSR]		@ irqs are already disabled
+	ldr	r4, [sp, #S_PSR]		@ irqs are already disabled
 #ifdef CONFIG_TRACE_IRQFLAGS
-	tst	r2, #PSR_I_BIT
+	tst	r4, #PSR_I_BIT
 	bleq	trace_hardirqs_on
 #endif
-	svc_exit r2				@ return from exception
+	svc_exit r4				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__irq_svc)
 
