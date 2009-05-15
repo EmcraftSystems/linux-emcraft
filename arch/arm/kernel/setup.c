@@ -705,10 +705,12 @@ void __init setup_arch(char **cmdline_p)
 	if (mdesc->soft_reboot)
 		reboot_setup("s");
 
+#ifndef CONFIG_NAKED_BOOT
 	if (__atags_pointer)
 		tags = phys_to_virt(__atags_pointer);
 	else if (mdesc->boot_params)
 		tags = phys_to_virt(mdesc->boot_params);
+#endif
 
 	/*
 	 * If we have the old style parameters, convert them to

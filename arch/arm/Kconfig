@@ -1152,6 +1152,38 @@ config ATAGS_PROC
 	  Should the atags used to boot the kernel be exported in an "atags"
 	  file in procfs. Useful with kexec.
 
+config NAKED_BOOT
+	bool "Kernel image for naked booting environments"
+	depends on CMDLINE != ""
+	default n
+	help
+	  This produces a kernel binary that can simply be moved onto
+	  the target machine and jumped to without any sort of boot
+	  protocol from the bootloader.  This should only be used in
+	  cases where the bootloader fails to implement the required
+	  calling convention for executing the kernel as described in
+	  the file Documentation/arm/Booting.
+
+	  The use of this option imposes many restrictions on the kernel
+	  as it may not support more than one target machine, and all
+	  boot parameters such as memory size and root filesystem device
+	  have to be hardcoded in the default kernel command string (see
+	  CONFIG_CMDLINE).
+
+	  If dynamic ram configuration, multi-machine support or the
+	  ability for the user to specify a kernel command string at
+	  boot without the need for recompiling the kernel each time
+	  is required, then the bootloader must implement the boot
+	  protocol as described in Documentation/arm/Booting and this
+	  config option not be used.
+
+	  Please consider fixing your bootloader according to the
+	  documented boot protocol in all cases, or choose one
+	  from the many excellent open source bootloaders available
+	  on the net which already support the required boot protocol.
+
+	  If you're not sure what this is all about then say N.
+
 endmenu
 
 menu "CPU Power Management"

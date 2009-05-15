@@ -215,6 +215,7 @@ __lookup_machine_type:
 	sub	r3, r3, r4			@ get offset between virt&phys
 	add	r5, r5, r3			@ convert virt addresses to
 	add	r6, r6, r3			@ physical address space
+#ifndef CONFIG_NAKED_BOOT
 1:	ldr	r3, [r5, #MACHINFO_TYPE]	@ get machine type
 	teq	r3, r1				@ matches loader number?
 	beq	2f				@ found
@@ -223,6 +224,10 @@ __lookup_machine_type:
 	blo	1b
 	mov	r5, #0				@ unknown machine
 2:	mov	pc, lr
+#else
+	ldr	r1, [r5, #MACHINFO_TYPE]	@ force our only machine type
+	mov	pc, lr				@ and we're done
+#endif
 ENDPROC(__lookup_machine_type)
 
 /*

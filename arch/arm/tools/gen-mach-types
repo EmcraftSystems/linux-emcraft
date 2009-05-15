@@ -68,5 +68,11 @@ END	{
 	  printf("\n#ifndef machine_arch_type\n");
 	  printf("#define machine_arch_type\t__machine_arch_type\n");
 	  printf("#endif\n\n");
+
+	  printf("#define __machine_arch_type\t-1\n");
+	  printf("#if defined(CONFIG_NAKED_BOOT) && (machine_arch_type < 0)\n");
+	  printf("#error \"CONFIG_NAKED_BOOT may be used with a single-machine config only\"\n");
+	  printf("#endif\n");
+	  printf("#undef __machine_arch_type\n\n");
 	  printf("#endif\n");
 	}
