@@ -117,6 +117,12 @@ start:
 		mov	r0, r0
 		.endr
 
+#ifdef CONFIG_NAKED_BOOT
+#include <mach/debug-macro.S>
+		addruart r7
+		inituart r8, r7
+#endif
+
 		b	1f
 		.word	0x016f2818		@ Magic numbers to help the loader
 		.word	start			@ absolute load/run zImage address

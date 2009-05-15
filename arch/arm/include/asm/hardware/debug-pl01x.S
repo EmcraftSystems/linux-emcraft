@@ -12,6 +12,14 @@
 */
 #include <linux/amba/serial.h>
 
+		.macro	inituart,rd,rx
+		mov	\rd, #0x10
+		str	\rd, [\rx, #UART011_IBRD]
+		mov	\rd, #0xc300
+		orr	\rd, #0x0001
+		str	\rd, [\rx, #UART011_CR]
+		.endm
+
 		.macro	senduart,rd,rx
 		strb	\rd, [\rx, #UART01x_DR]
 		.endm
