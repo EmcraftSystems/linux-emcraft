@@ -538,7 +538,9 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 
 static inline void restart_syscall(struct pt_regs *regs)
 {
+#ifndef CONFIG_CPU_V7M
 	regs->ARM_r0 = regs->ARM_ORIG_r0;
+#endif
 	regs->ARM_pc -= thumb_mode(regs) ? 2 : 4;
 }
 

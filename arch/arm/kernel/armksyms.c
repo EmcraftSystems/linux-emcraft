@@ -46,8 +46,10 @@ extern void __aeabi_uidiv(void);
 extern void __aeabi_uidivmod(void);
 extern void __aeabi_ulcmp(void);
 
+#ifndef CONFIG_CPU_V7M
 extern void fpundefinstr(void);
 extern void fp_enter(void);
+#endif
 
 /*
  * This has a special calling convention; it doesn't
@@ -65,7 +67,9 @@ extern void fp_enter(void);
  * floating point math emulator support.
  * These symbols will never change their calling convention...
  */
+#ifndef CONFIG_CPU_V7M
 EXPORT_SYMBOL_ALIAS(kern_fp_enter,fp_enter);
+#endif
 EXPORT_SYMBOL_ALIAS(fp_printk,printk);
 EXPORT_SYMBOL_ALIAS(fp_send_sig,send_sig);
 

@@ -28,7 +28,7 @@ ENTRY(__backtrace)
 
 ENTRY(c_backtrace)
 
-#if !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)
+#if defined(CONFIG_THUMB2_KERNEL) || !defined(CONFIG_FRAME_POINTER) || !defined(CONFIG_PRINTK)
 		mov	pc, lr
 ENDPROC(__backtrace)
 ENDPROC(c_backtrace)

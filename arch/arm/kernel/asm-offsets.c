@@ -79,7 +79,11 @@ int main(void)
   DEFINE(S_LR,			offsetof(struct pt_regs, ARM_lr));
   DEFINE(S_PC,			offsetof(struct pt_regs, ARM_pc));
   DEFINE(S_PSR,			offsetof(struct pt_regs, ARM_cpsr));
+#ifdef CONFIG_CPU_V7M
+  DEFINE(S_EXC_LR,		offsetof(struct pt_regs, ARM_EXC_lr));
+#else
   DEFINE(S_OLD_R0,		offsetof(struct pt_regs, ARM_ORIG_r0));
+#endif
   DEFINE(S_FRAME_SIZE,		sizeof(struct pt_regs));
   BLANK();
 #ifdef CONFIG_CPU_HAS_ASID

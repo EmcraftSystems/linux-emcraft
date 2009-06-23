@@ -10,6 +10,15 @@
  */
 #if __LINUX_ARM_ARCH__ >= 6
 
+#ifdef CONFIG_CPU_V7M
+#define raw_local_irq_save(x)					\
+	({							\
+	__asm__ __volatile__(					\
+	"mrs	%0, primask		@ local_irq_save\n"	\
+	"cpsid	i"						\
+	: "=r" (x) : : "memory", "cc");				\
+	})
+#else
 #define raw_local_irq_save(x)					\
 	({							\
 	__asm__ __volatile__(					\
@@ -17,6 +26,7 @@
 	"cpsid	i"						\
 	: "=r" (x) : : "memory", "cc");				\
 	})
+#endif
 
 #define raw_local_irq_enable()  __asm__("cpsie i	@ __sti" : : : "memory", "cc")
 #define raw_local_irq_disable() __asm__("cpsid i	@ __cli" : : : "memory", "cc")
@@ -103,6 +113,35 @@
 
 #endif
 
+#ifdef CONFIG_CPU_V7M
+
+/*
+ * Save the current interrupt enable state.
+ */
+#define raw_local_save_flags(x)					\
+	({							\
+	__asm__ __volatile__(					\
+	"mrs	%0, primask		@ local_save_flags"	\
+	: "=r" (x) : : "memory", "cc");				\
+	})
+
+/*
+ * restore saved IRQ & FIQ state
+ */
+#define raw_local_irq_restore(x)				\
+	__asm__ __volatile__(					\
+	"msr	primask, %0		@ local_irq_restore\n"	\
+	:							\
+	: "r" (x)						\
+	: "memory", "cc")
+
+#define raw_irqs_disabled_flags(flags)	\
+({					\
+	(int)((flags) & 1);		\
+})
+
+#else
+
 /*
  * Save the current interrupt enable state.
  */
@@ -127,6 +166,8 @@
 ({					\
 	(int)((flags) & PSR_I_BIT);	\
 })
+
+#endif	/* CONFIG_CPU_V7M */
 
 #endif
 #endif

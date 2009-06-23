@@ -33,6 +33,7 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 			BOOTMEM_DEFAULT);
 #endif
 
+#ifndef CONFIG_CPU_V7M
 	/*
 	 * Register the exception vector page.
 	 * some architectures which the DRAM is the exception vector to trap,
@@ -40,6 +41,7 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 */
 	reserve_bootmem_node(pgdat, CONFIG_VECTORS_BASE, PAGE_SIZE,
 			BOOTMEM_DEFAULT);
+#endif
 }
 
 static void __init sanity_check_meminfo(struct meminfo *mi)

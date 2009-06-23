@@ -115,6 +115,14 @@
 # endif
 #endif
 
+#ifdef CONFIG_CPU_ABRT_EV7M
+# ifdef CPU_DABORT_HANDLER
+#  define MULTI_DABORT 1
+# else
+#  define CPU_DABORT_HANDLER v7m_early_abort
+# endif
+#endif
+
 #ifndef CPU_DABORT_HANDLER
 #error Unknown data abort handler type
 #endif

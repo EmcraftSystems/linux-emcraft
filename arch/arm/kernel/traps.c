@@ -729,6 +729,7 @@ void __init trap_init(void)
 
 void __init early_trap_init(void)
 {
+#ifndef CONFIG_CPU_V7M
 	unsigned long vectors = CONFIG_VECTORS_BASE;
 	extern char __stubs_start[], __stubs_end[];
 	extern char __vectors_start[], __vectors_end[];
@@ -753,4 +754,5 @@ void __init early_trap_init(void)
 
 	flush_icache_range(vectors, vectors + PAGE_SIZE);
 	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
+#endif
 }
