@@ -166,6 +166,9 @@ ftrace_stub:
 
 	.align	5
 ENTRY(vector_swi)
+#ifdef CONFIG_CPU_V7M
+	v7m_exception_entry
+#else
 	sub	sp, sp, #S_FRAME_SIZE
 	stmia	sp, {r0 - r12}			@ Calling r0 - r12
  ARM(	add	r8, sp, #S_PC		)
@@ -176,6 +179,7 @@ ENTRY(vector_swi)
 	str	lr, [sp, #S_PC]			@ Save calling PC
 	str	r8, [sp, #S_PSR]		@ Save CPSR
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
+#endif
 	zero_fp
 
 	/*
@@ -286,7 +290,7 @@ __sys_trace:
 
 	adr	lr, BSYM(__sys_trace_return)	@ return address
 	mov	scno, r0			@ syscall number (possibly new)
-	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
+	add	r1, sp, #S_OFF			@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
 	itt	cc
 	ldmccia	r1, {r0 - r3}			@ have to reload r0 - r3
@@ -294,7 +298,13 @@ __sys_trace:
 	b	2b
 
 __sys_trace_return:
+#ifdef CONFIG_CPU_V7M
+	@ S_R0 not at the beginning of struct pt_regs
+	add	sp, #S_OFF
+	str	r0, [sp, #S_R0]			@ save returned r0
+#else
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
+#endif
 	mov	r2, scno
 	mov	r1, sp
 	mov	r0, #1				@ trace exit [IP = 1]
@@ -427,7 +437,9 @@ sys_mmap2:
 ENDPROC(sys_mmap2)
 
 ENTRY(pabort_ifar)
+#ifndef CONFIG_CPU_V7M
 		mrc	p15, 0, r0, cr6, cr0, 2
+#endif
 ENTRY(pabort_noifar)
 		mov	pc, lr
 ENDPROC(pabort_ifar)
