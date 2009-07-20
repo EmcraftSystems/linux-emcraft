@@ -4,6 +4,9 @@ config ARM_GIC
 config ARM_VIC
 	bool
 
+config ARM_NVIC
+	bool
+
 config ICST525
 	bool
 

@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_ARM_GIC)		+= gic.o
 obj-$(CONFIG_ARM_VIC)		+= vic.o
+obj-$(CONFIG_ARM_NVIC)		+= nvic.o
 obj-$(CONFIG_ICST525)		+= icst525.o
 obj-$(CONFIG_ICST307)		+= icst307.o
 obj-$(CONFIG_SA1111)		+= sa1111.o
