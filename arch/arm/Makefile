@@ -94,7 +94,7 @@ endif
 ifeq ($(CONFIG_THUMB2_KERNEL),y)
 AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
 CFLAGS_THUMB2	:=-mthumb $(AFLAGS_NOWARN)
-AFLAGS_THUMB2	:=-Wa$(comma)-mthumb $(AFLAGS_NOWARN)
+AFLAGS_THUMB2	:=$(CFLAGS_THUMB2) -Wa$(comma)-mthumb
 endif
 
 # Need -Uarm for gcc < 3.x
