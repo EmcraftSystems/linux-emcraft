@@ -552,6 +552,19 @@ config ARCH_MSM
 	  interface to the ARM9 modem processor which runs the baseband stack
 	  and controls some vital subsystems (clock and power control, etc).
 
+config ARCH_MPS
+	bool "ARM Ltd. Microcontroller Prototyping System"
+	depends on !MMU
+	select ARM_AMBA
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select ICST307
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for ARM Ltd. Microcontroller Prototyping
+	  System platform.
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
@@ -629,6 +642,8 @@ source "arch/arm/mach-davinci/Kconfig"
 source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
+
+source "arch/arm/mach-mps/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
