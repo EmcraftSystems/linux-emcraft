@@ -12,8 +12,13 @@
  */
 
 	.macro	addruart,rx
+#if 0
 	mov	\rx,      #0x40000000
 	orr	\rx, \rx, #0x00006000
+#else
+	mov	\rx, #0x1f000000
+	orr	\rx, \rx, #0x00005000
+#endif
 	.endm
 
 #include <asm/hardware/debug-pl01x.S>

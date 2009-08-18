@@ -31,7 +31,7 @@
  */
 static inline unsigned long get_uart_base(void)
 {
-	return MPS_UART0_BASE;
+	return MPS_UART3_BASE;
 }
 
 /*
