@@ -69,7 +69,7 @@
 /*
  * ARMv7 groups of APSR bits
  */
-#define PSR_ISET_MASK	0x01000010	/* Instruction Set state (J, T) mask */
+#define PSR_ISET_MASK	0x01000010	/* ISA state (J, T) mask */
 #define PSR_IT_MASK	0x0600fc00	/* If-Then execution state mask */
 #define PSR_ENDIAN_MASK	0x00000200	/* Endianness state mask */
 

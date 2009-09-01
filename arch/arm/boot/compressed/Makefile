@@ -44,7 +44,7 @@ ifeq ($(CONFIG_PXA_SHARPSL),y)
 OBJS		+= head-sharpsl.o
 endif
 
-ifeq ($(CONFIG_CPU_BIG_ENDIAN),y)
+ifeq ($(CONFIG_CPU_ENDIAN_BE32),y)
 ifeq ($(CONFIG_CPU_CP15),y)
 OBJS		+= big-endian.o
 else

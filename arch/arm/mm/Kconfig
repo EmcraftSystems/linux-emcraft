@@ -645,10 +645,17 @@ config CPU_BIG_ENDIAN
 
 config CPU_ENDIAN_BE8
 	bool
-	depends on CPU_V6 || CPU_V7
-	default y if CPU_BIG_ENDIAN
+	depends on CPU_BIG_ENDIAN
+	default CPU_V6 || CPU_V7
 	help
-	  Support for the BE-8 (big-endian) mode on ARMv6 and ARMv7 CPUs.
+	  Support for the BE-8 (big-endian) mode on ARMv6 and ARMv7 processors.
+
+config CPU_ENDIAN_BE32
+	bool
+	depends on CPU_BIG_ENDIAN
+	default !CPU_ENDIAN_BE8
+	help
+	  Support for the BE-32 (big-endian) mode on pre-ARMv6 processors.
 
 config CPU_HIGH_VECTOR
 	depends on !MMU && CPU_CP15 && !CPU_ARM740T

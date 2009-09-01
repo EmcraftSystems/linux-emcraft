@@ -511,7 +511,7 @@ __und_usr:
 	subne	r4, r2, #2			@ Thumb instr at LR - 2
 1:	ldreqt	r0, [r4]
 #ifdef CONFIG_CPU_ENDIAN_BE8
-	rev	r0, r0				@ little endian instruction
+	reveq	r0, r0				@ little endian instruction
 #endif
 	beq	call_fpe
 	@ Thumb instruction
