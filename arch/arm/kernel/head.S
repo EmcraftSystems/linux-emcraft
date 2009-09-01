@@ -241,7 +241,8 @@ __create_page_tables:
 	 * will be removed by paging_init().  We use our current program
 	 * counter to determine corresponding section base address.
 	 */
-	mov	r6, pc, lsr #20			@ start of kernel section
+	mov	r6, pc
+	mov	r6, r6, lsr #20			@ start of kernel section
 	orr	r3, r7, r6, lsl #20		@ flags + kernel base
 	str	r3, [r4, r6, lsl #2]		@ identity mapping
 
