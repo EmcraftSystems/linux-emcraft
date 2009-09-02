@@ -233,9 +233,6 @@ __v7_setup:
 #endif
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
-#if !defined(CONFIG_AEABI) || defined(CONFIG_OABI_COMPAT)
-	orr	r6, r6, #1 << 10		@ enable the SWP instruction
-#endif
 #ifdef CONFIG_CPU_ENDIAN_BE8
 	orr	r6, r6, #1 << 25		@ big-endian page tables
 #endif
@@ -246,15 +243,15 @@ __v7_setup:
 ENDPROC(__v7_setup)
 
 	/*   AT
-	 *  TFR   EV X F   I D LR
-	 * .EEE ..EE PUI. .T.T 4RVI ZFRS BLDP WCAM
+	 *  TFR   EV X F   I D LR    S
+	 * .EEE ..EE PUI. .T.T 4RVI ZWRS BLDP WCAM
 	 * rxxx rrxx xxx0 0101 xxxx xxxx x111 xxxx < forced
-	 *    1    0 110       0011 1.00 .111 1101 < we want
+	 *    1    0 110       0011 1100 .111 1101 < we want
 	 */
 	.type	v7_crval, #object
 v7_crval:
- ARM(	crval	clear=0x0120c302, mmuset=0x10c0387d, ucset=0x00c0187c	)
- THUMB(	crval	clear=0x0120c302, mmuset=0x50c0387d, ucset=0x40c0187c	)
+ ARM(	crval	clear=0x0120c302, mmuset=0x10c03c7d, ucset=0x00c01c7c	)
+ THUMB(	crval	clear=0x0120c302, mmuset=0x50c03c7d, ucset=0x40c01c7c	)
 
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers
