@@ -36,52 +36,44 @@ extern void realview_adjust_zones(int node, unsigned long *size,
 	realview_adjust_zones(node, size, hole)
 #endif
 
+#ifdef CONFIG_SPARSEMEM
+
 /*
- * Sparsemem definitions, only valid for high PHYS_OFFSET.
+ * Sparsemem definitions for RealView PBX.
  *
- * Most RealView boards (except PB1176) have 512MB of RAM at 0x70000000. The
- * PBX board has another block of 512MB of RAM at 0x20000000, however only the
- * block at 0x70000000 may be used for DMA.
+ * The RealView PBX board has another block of 512MB of RAM at 0x20000000,
+ * however only the block at 0x70000000 (or the 256MB mirror at 0x00000000)
+ * may be used for DMA.
  *
  * The macros below define a section size of 256MB and a non-linear virtual to
  * physical mapping:
  *
- * 0x70000000 -> PAGE_OFFSET
- * 0x20000000 -> PAGE_OFFSET + 0x20000000
- * 0x90000000 -> PAGE_OFFSET + 0x40000000 (required for high_memory)
+ * 256MB @ 0x00000000 -> PAGE_OFFSET
+ * 512MB @ 0x20000000 -> PAGE_OFFSET + 0x10000000
+ * 256MB @ 0x80000000 -> PAGE_OFFSET + 0x30000000
  */
-#ifdef CONFIG_SPARSEMEM
-
-#ifndef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
-#error "SPARSEMEM only available with REALVIEW_HIGH_PHYS_OFFSET"
+#ifdef CONFIG_REALVIEW_HIGH_PHYS_OFFSET
+#error "SPARSEMEM not available with REALVIEW_HIGH_PHYS_OFFSET"
 #endif
 
 #define MAX_PHYSMEM_BITS	32
 #define SECTION_SIZE_BITS	28
 
-#define __phys_to_virt(phys) ({					\
-	unsigned long virt = 0;					\
-	if ((phys) >= 0x90000000UL)				\
-		virt = (phys) - 0x50000000UL + PAGE_OFFSET;	\
-	else if ((phys) >= 0x70000000UL)			\
-		virt = (phys) - 0x70000000UL + PAGE_OFFSET;	\
-	else if ((phys) >= 0x20000000UL)			\
-		virt = (phys) + PAGE_OFFSET;			\
-	virt;							\
-})
+/* bank page offsets */
+#define PAGE_OFFSET1	(PAGE_OFFSET + 0x10000000)
+#define PAGE_OFFSET2	(PAGE_OFFSET + 0x30000000)
 
-#define __virt_to_phys(virt) ({					\
-	unsigned long phys = 0;					\
-	if ((virt) >= PAGE_OFFSET + 0x40000000UL)		\
-		phys = (virt) - PAGE_OFFSET + 0x50000000UL;	\
-	else if ((virt) >= PAGE_OFFSET + 0x20000000UL)		\
-		phys = (virt) - PAGE_OFFSET;			\
-	else if ((virt) >= PAGE_OFFSET)				\
-		phys = (virt) - PAGE_OFFSET + 0x70000000UL;	\
-	phys;							\
-})
+#define __phys_to_virt(phys)						\
+	((phys) >= 0x80000000 ?	(phys) - 0x80000000 + PAGE_OFFSET2 :	\
+	 (phys) >= 0x20000000 ?	(phys) - 0x20000000 + PAGE_OFFSET1 :	\
+	 (phys) + PAGE_OFFSET)
 
-#endif
+#define __virt_to_phys(virt)						\
+	 ((virt) >= PAGE_OFFSET2 ? (virt) - PAGE_OFFSET2 + 0x80000000 :	\
+	  (virt) >= PAGE_OFFSET1 ? (virt) - PAGE_OFFSET1 + 0x20000000 :	\
+	  (virt) - PAGE_OFFSET)
+
+#endif	/* CONFIG_SPARSEMEM */
 
 /*
  * Virtual view <-> DMA view memory address translations

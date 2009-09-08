@@ -106,16 +106,16 @@ EXPORT_SYMBOL(totalram_pages);
 
 static char * const zone_names[MAX_NR_ZONES] = {
 #ifdef CONFIG_ZONE_DMA
-	[ZONE_DMA]	= "DMA",
+	 "DMA",
 #endif
 #ifdef CONFIG_ZONE_DMA32
-	[ZONE_DMA32]	= "DMA32",
+	 "DMA32",
 #endif
-	[ZONE_NORMAL]	= "Normal",
+	 "Normal",
 #ifdef CONFIG_HIGHMEM
-	[ZONE_HIGHMEN]	= "HighMem",
+	 "HighMem",
 #endif
-	[ZONE_MOVABLE]	= "Movable",
+	 "Movable",
 };
 
 int min_free_kbytes = 1024;

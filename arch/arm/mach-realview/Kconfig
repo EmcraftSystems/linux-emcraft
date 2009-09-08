@@ -67,7 +67,7 @@ config MACH_REALVIEW_PBX
 	bool "Support RealView/PBX platform"
 	select ARM_GIC
 	select HAVE_PATA_PLATFORM
-	select ARCH_SPARSEMEM_ENABLE if REALVIEW_HIGH_PHYS_OFFSET
+	select ARCH_SPARSEMEM_ENABLE if !REALVIEW_HIGH_PHYS_OFFSET && CPU_V7
 	select ZONE_DMA if SPARSEMEM
 	help
 	  Include support for the ARM(R) RealView PBX platform.
@@ -86,20 +86,5 @@ config REALVIEW_HIGH_PHYS_OFFSET
 config ARCH_FLATMEM_ENABLE
 	bool
 	default y if ARCH_SPARSEMEM_ENABLE
-
-config ZONE_DMA_IDX
-	int
-	default 1
-	depends on MACH_REALVIEW_PBX && ZONE_DMA
-
-config ZONE_NORMAL_IDX
-	int
-	default 0
-	depends on MACH_REALVIEW_PBX && ZONE_DMA
-
-config ZONE_MOVABLE_IDX
-	int
-	default 2
-	depends on MACH_REALVIEW_PBX && ZONE_DMA
 
 endmenu
