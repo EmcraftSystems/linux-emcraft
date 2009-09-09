@@ -292,6 +292,9 @@ static struct sys_timer realview_pbx_timer = {
 #ifdef CONFIG_CACHE_L2X0
 static int __init realview_pbx_l2x0_init(void)
 {
+	if (l2x0_disabled)
+		return 0;
+
 	if (machine_is_realview_pbx() && core_tile_pbxa9mp()) {
 		void __iomem *l2x0_base =
 			__io_address(REALVIEW_PBX_TILE_L220_BASE);
