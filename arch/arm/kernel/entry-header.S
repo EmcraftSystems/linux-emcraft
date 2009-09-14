@@ -88,6 +88,7 @@
 	.endm
 
 	.macro	v7m_exception_fast_exit
+	clrex				@ clear the exclusive monitor
 	ldmia	sp!, {r4-r12, lr}	@ restore previously saved state
 	cmp	lr, #0xfffffffd		@ check the return stack
 	it	eq
@@ -97,6 +98,7 @@
 	.endm
 
 	.macro	v7m_exception_slow_exit ret_r0
+	clrex				@ clear the exclusive monitor
 	cpsid	i
 	ldr	lr, [sp, #S_EXC_LR]	@ read exception LR
 	cmp	lr, #0xfffffffd		@ check the return stack
@@ -160,13 +162,25 @@
 #ifndef CONFIG_THUMB2_KERNEL
 	.macro	svc_exit, rpsr
 	msr	spsr_cxsf, \rpsr
+#if defined(CONFIG_CPU_32v6K)
+	clrex					@ clear the exclusive monitor
 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
+#elif defined (CONFIG_CPU_V6)
+	ldr	r0, [sp]
+	strex	r1, r2, [sp]			@ clear the exclusive monitor
+	ldmib	sp, {r1 - pc}^			@ load r1 - pc, cpsr
+#endif
 	.endm
 	
 	.macro	restore_user_regs, fast = 0, offset = 0
 	ldr	r1, [sp, #\offset + S_PSR]	@ get calling cpsr
 	ldr	lr, [sp, #\offset + S_PC]!	@ get pc
 	msr	spsr_cxsf, r1			@ save in spsr_svc
+#if defined(CONFIG_CPU_32v6K)
+	clrex					@ clear the exclusive monitor
+#elif defined (CONFIG_CPU_V6)
+	strex	r1, r2, [sp]			@ clear the exclusive monitor
+#endif
 	.if	\fast
 	ldmdb	sp, {r1 - lr}^			@ get calling r1 - lr
 	.else
@@ -182,6 +196,7 @@
 	.endm
 #else	/* CONFIG_THUMB2_KERNEL */
 	.macro	svc_exit, rpsr
+	clrex					@ clear the exclusive monitor
 	ldr	r0, [sp, #S_SP]			@ top of the stack
 	ldr	r1, [sp, #S_PC]			@ return address
 	tst	r0, #4				@ orig stack 8-byte aligned?
@@ -203,6 +218,7 @@
 	.endm
 #else	/* !CONFIG_CPU_V7M */
 	.macro	restore_user_regs, fast = 0, offset = 0
+	clrex					@ clear the exclusive monitor
 	mov	r2, sp
 	load_user_sp_lr r2, r3, \offset + S_SP	@ calling sp, lr
 	ldr	r1, [sp, #\offset + S_PSR]	@ get calling cpsr
