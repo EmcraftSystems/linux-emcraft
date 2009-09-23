@@ -84,18 +84,6 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned
 		    :
 		    : "r" (0)
 		    : "r0", "r1", "lr", "cc");
-		return;
-	}
-
-	if (vma->vm_flags & VM_EXEC) {
-		/*
-		 * Increment the task's preempt_count so that in_atomic() is
-		 * true and do_page_fault() does not try to map pages in. If a
-		 * page isn't mapped yet, it will be ignored.
-		 */
-		inc_preempt_count();
-		flush_cache_user_range(vma, start, end);
-		dec_preempt_count();
 	}
 }
 
