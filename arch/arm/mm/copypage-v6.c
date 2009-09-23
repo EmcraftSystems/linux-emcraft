@@ -36,6 +36,7 @@ static DEFINE_SPINLOCK(v6_lock);
 static void v6_copy_user_page_nonaliasing(void *kto, const void *kfrom, unsigned long vaddr)
 {
 	copy_page(kto, kfrom);
+	__cpuc_flush_dcache_page(kto);
 }
 
 /*
