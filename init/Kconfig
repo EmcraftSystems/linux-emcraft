@@ -535,6 +535,14 @@ config CC_OPTIMIZE_FOR_SIZE
 
 	  If unsure, say Y.
 
+config CC_OPTIMIZE_FOR_DEBUG
+	bool "Optimize for debug"
+	depends on !CC_OPTIMIZE_FOR_SIZE
+	help
+	  Enabling this option will pass "-O1" instead of "-O2" to gcc
+	  resulting in a better debug illusion, but also a larger and
+	  slower kernel.
+
 config SYSCTL
 	bool
 
