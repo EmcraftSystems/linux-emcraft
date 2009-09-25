@@ -13,6 +13,7 @@
 #include <asm/io.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/platform.h>
+#include <mach/hardware.h>
 #include <mach/irqs.h>
 
 #include "op_counter.h"
@@ -31,7 +32,7 @@ void l2x0_ec_setup(void)
 	l2x0_irq = IRQ_EB11MP_L220_EVENT;
 #elif defined(CONFIG_MACH_REALVIEW_PB11MP)
 	l2x0_base = IO_ADDRESS(REALVIEW_TC11MP_L220_BASE);
-	l2x0_irq = IRQ_PB11MP_L220_EVENT;
+	l2x0_irq = IRQ_TC11MP_L220_EVENT;
 #elif defined(CONFIG_MACH_REALVIEW_PBX)
 	l2x0_base = IO_ADDRESS(REALVIEW_PBX_TILE_L220_BASE);
 	l2x0_irq = IRQ_PBX_L220_EVENT;
