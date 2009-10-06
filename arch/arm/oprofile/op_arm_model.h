@@ -110,7 +110,7 @@ extern void op_arm_exit(void);
 #elif defined(CONFIG_ARCH_OMAP2)
 #define IRQ_PMU_CPU0   3
 #else
-#error PMU/SCU Event Counter interrupt sources not defined!
+#define IRQ_PMU_CPU0	NO_IRQ
 #endif
 
 #endif /* OP_ARM_MODEL_H */
