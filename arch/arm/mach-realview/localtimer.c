@@ -162,6 +162,7 @@ void __cpuinit local_timer_setup(void)
 
 	/* Make sure our local interrupt controller has this enabled */
 	local_irq_save(flags);
+	irq_to_desc(IRQ_LOCALTIMER)->status |= IRQ_NOPROBE;
 	get_irq_chip(IRQ_LOCALTIMER)->unmask(IRQ_LOCALTIMER);
 	local_irq_restore(flags);
 
