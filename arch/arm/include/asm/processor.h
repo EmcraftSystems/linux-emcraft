@@ -91,7 +91,16 @@ extern void release_thread(struct task_struct *);
 
 unsigned long get_wchan(struct task_struct *p);
 
+#if __LINUX_ARM_ARCH__ == 6
+/*
+ * The store buffer on ARM11MPCore is not guaranteed to drain when the CPU
+ * is performing aggresive loads. This is usually the case in a polling loop,
+ * so we add a memory barrier to allow any pending stores to complete.
+ */
+#define cpu_relax()			smp_mb()
+#else
 #define cpu_relax()			barrier()
+#endif
 
 /*
  * Create a new kernel thread
