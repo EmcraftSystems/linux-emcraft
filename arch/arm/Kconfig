@@ -235,6 +235,7 @@ config ARCH_REALVIEW
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select GPIO_PL061 if GPIOLIB
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -920,6 +921,16 @@ config ARM_ERRATA_460075
 	  workaround disables the write-allocate mode for the L2 cache via the
 	  ACTLR register. Note that setting specific bits in the ACTLR register
 	  may not be available in non-secure mode.
+
+config ARM_ERRATA_484863
+	bool "ARM errata: Eviction Buffer not empty after Cache Sync on L220"
+	depends on CACHE_L2X0
+	help
+	  According to the L220 Erratum 484863, the actual behaviour of
+	  the L220 cache controller is that the Cache Sync operation
+	  only ensures that the Write Buffer and the Write Allocate
+	  Buffer are empty but not the Eviction Buffer. This option
+	  enables the first workaround from the Errata document.
 
 endmenu
 
