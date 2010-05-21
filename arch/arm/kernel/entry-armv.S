@@ -35,8 +35,14 @@
 	@
 	@ routine called with r0 = irq number, r1 = struct pt_regs *
 	@
+#if defined(CONFIG_MACH_REALVIEW_EB) && \
+		defined(CONFIG_CPU_V6) && !defined(CONFIG_SMP)
+	@ GIC bug on RealView EB not allowing register polling
+	blne	asm_do_IRQ
+#else
 	adrne	lr, BSYM(1b)
 	bne	asm_do_IRQ
+#endif
 
 #ifdef CONFIG_SMP
 	/*
