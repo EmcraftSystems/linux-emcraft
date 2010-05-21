@@ -88,6 +88,9 @@ struct user{
 struct user_vfp {
 	unsigned long long fpregs[32];
 	unsigned long fpscr;
+	unsigned long fpexc;
+	unsigned long fpinst;
+	unsigned long fpinst2;
 };
 
 #endif /* _ARM_USER_H */
