@@ -76,7 +76,9 @@ KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
 endif
 
 EXTRA_CFLAGS  := -fpic -fno-builtin
+ifneq ($(CONFIG_CPU_V7M),y)
 EXTRA_AFLAGS  := -Wa,-march=all
+endif
 
 # Supply ZRELADDR, INITRD_PHYS and PARAMS_PHYS to the decompressor via
 # linker symbols.  We only define initrd_phys and params_phys if the
