@@ -26,7 +26,11 @@ __switch_data:
 	.long	processor_id			@ r4
 	.long	__machine_arch_type		@ r5
 	.long	__atags_pointer			@ r6
+#ifdef CONFIG_CPU_CP15
 	.long	cr_alignment			@ r7
+#else
+	.long	0				@ r7
+#endif
 	.long	init_thread_union + THREAD_START_SP @ sp
 
 /*

@@ -132,6 +132,14 @@
 //# endif
 #endif
 
+#if defined(CONFIG_CPU_V7M)
+# ifdef _CACHE
+#  error "Multi-cache not supported on ARMv7-M"
+# else
+#  define _CACHE v7m
+# endif
+#endif
+
 #if !defined(_CACHE) && !defined(MULTI_CACHE)
 #error Unknown cache maintainence model
 #endif
@@ -264,6 +272,26 @@ extern struct cpu_cache_fns cpu_cache;
 #define dmac_flush_range		cpu_cache.dma_flush_range
 
 #else
+
+#ifdef CONFIG_CPU_V7M
+
+static inline void v7m_flush_kern_all(void) { }
+static inline void v7m_flush_user_all(void) { }
+static inline void v7m_flush_user_range(unsigned long a, unsigned long b, unsigned int c) { }
+
+static inline void v7m_coherent_kern_range(unsigned long a, unsigned long b) { }
+static inline void v7m_coherent_user_range(unsigned long a, unsigned long b) { }
+static inline void v7m_flush_kern_dcache_page(void *a) { }
+static inline void v7m_flush_kern_dcache_area(void *a, size_t s) { }
+
+static inline void v7m_dma_inv_range(const void *a, const void *b) { }
+static inline void v7m_dma_clean_range(const void *a, const void *b) { }
+static inline void v7m_dma_flush_range(const void *a, const void *b) { }
+
+static inline void v7m_dma_map_area(const void *s, size_t l, int f) { }
+static inline void v7m_dma_unmap_area(const void *s, size_t l, int f) { }
+
+#endif
 
 #define __cpuc_flush_kern_all		__glue(_CACHE,_flush_kern_cache_all)
 #define __cpuc_flush_user_all		__glue(_CACHE,_flush_user_cache_all)

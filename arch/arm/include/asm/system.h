@@ -13,6 +13,7 @@
 #define CPU_ARCH_ARMv5TEJ	7
 #define CPU_ARCH_ARMv6		8
 #define CPU_ARCH_ARMv7		9
+#define CPU_ARCH_ARMv7M		10
 
 /*
  * CR1 bits (CP#15 CR1)
@@ -213,7 +214,9 @@ static inline void set_copro_access(unsigned int val)
  * so enable interrupts over the context switch to avoid high
  * latency.
  */
+#ifndef CONFIG_CPU_V7M
 #define __ARCH_WANT_INTERRUPTS_ON_CTXSW
+#endif
 
 /*
  * switch_to(prev, next) should switch from task `prev' to `next'

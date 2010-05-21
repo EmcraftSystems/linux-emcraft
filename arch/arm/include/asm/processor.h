@@ -57,7 +57,15 @@ struct thread_struct {
 #ifdef CONFIG_MMU
 #define nommu_start_thread(regs) do { } while (0)
 #else
+#ifndef CONFIG_CPU_V7M
 #define nommu_start_thread(regs) regs->ARM_r10 = current->mm->start_data
+#else
+#define nommu_start_thread(regs) do {					\
+	regs->ARM_r10 = current->mm->start_data;			\
+	regs->ARM_sp -= 32;		/* exception return state */	\
+	regs->ARM_EXC_lr = 0xfffffffdL;	/* exception lr */		\
+} while (0)
+#endif
 #endif
 
 #define start_thread(regs,pc,sp)					\
@@ -72,7 +80,7 @@ struct thread_struct {
 	if (elf_hwcap & HWCAP_THUMB && pc & 1)				\
 		regs->ARM_cpsr |= PSR_T_BIT;				\
 	regs->ARM_cpsr |= PSR_ENDSTATE;					\
-	regs->ARM_pc = pc & ~1;		/* pc */			\
+	regs->ARM_pc = pc /*& ~1*/;	/* pc */			\
 	regs->ARM_sp = sp;		/* sp */			\
 	regs->ARM_r2 = stack[2];	/* r2 (envp) */			\
 	regs->ARM_r1 = stack[1];	/* r1 (argv) */			\

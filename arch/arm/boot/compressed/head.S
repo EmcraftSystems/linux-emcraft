@@ -138,6 +138,7 @@ start:
 1:		mov	r7, r1			@ save architecture ID
 		mov	r8, r2			@ save atags pointer
 
+#ifndef CONFIG_CPU_V7M
 #ifndef __ARM_ARCH_2__
 		/*
 		 * Booting from Angel - need to enter SVC mode and disable
@@ -156,6 +157,7 @@ not_angel:
 		msr	cpsr_c, r2
 #else
 		teqp	pc, #0x0c000003		@ turn off interrupts
+#endif
 #endif
 
 		/*
@@ -588,6 +590,9 @@ call_kernel:	bl	cache_clean_flush
 call_cache_fn:	adr	r12, proc_types
 #ifdef CONFIG_CPU_CP15
 		mrc	p15, 0, r6, c0, c0	@ get processor ID
+#elif defined(CONFIG_CPU_V7M)
+		ldr	r6, =0xe000ed00		@ CPUID register address
+		ldr	r6, [r6]
 #else
 		ldr	r6, =CONFIG_PROCESSOR_ID
 #endif
@@ -757,11 +762,13 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv6_mmu_cache_flush
 
+#ifndef CONFIG_CPU_V7M
 		.word	0x000f0000		@ new CPU Id
 		.word	0x000f0000
 		W(b)	__armv7_mmu_cache_on
 		W(b)	__armv7_mmu_cache_off
 		W(b)	__armv7_mmu_cache_flush
+#endif
 
 		.word	0			@ unrecognised type
 		.word	0
