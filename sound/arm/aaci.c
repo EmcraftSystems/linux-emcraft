@@ -387,7 +387,7 @@ static int __aaci_pcm_open(struct aaci *aaci,
 	 */
 	runtime->hw.fifo_size = aaci->fifosize * 2;
 
-	ret = request_irq(aaci->dev->irq[0], aaci_irq, IRQF_SHARED|IRQF_DISABLED,
+	ret = request_irq(aaci->dev->irq[0], aaci_irq, IRQF_DISABLED,
 			  DRIVER_NAME, aaci);
 	if (ret)
 		goto out;
