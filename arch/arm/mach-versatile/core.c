@@ -366,7 +366,7 @@ unsigned int mmc_status(struct device *dev)
 	else
 		mask = 2;
 
-	return readl(VERSATILE_SYSMCI) & mask;
+	return !(readl(VERSATILE_SYSMCI) & mask);
 }
 
 static struct mmci_platform_data mmc0_plat_data = {
