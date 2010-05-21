@@ -37,15 +37,6 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	_sri_info_t sri_info;
-	unsigned int status;
-
-	/* initialise transfer info */
-	sri_info.function = SRI_CFG_REBOOT;
-
-	do {
-		status = vexpress_sri_transfer(&sri_info);
-	} while (status == 1);
 }
 
 #endif

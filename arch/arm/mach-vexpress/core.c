@@ -173,6 +173,41 @@ void vexpress_SetOsc(u32 freq)
 		printk(KERN_ERR "CLCD: unable to set Oscillator, status %d\n", status);
 }
 
+static void vexpress_reboot(char str, const char *cmd)
+{
+	_sri_info_t sri_info;
+	unsigned int status;
+
+	/* initialise transfer info */
+	sri_info.function = SRI_CFG_REBOOT;
+
+	do {
+		status = vexpress_sri_transfer(&sri_info);
+	} while (status == 1);
+}
+
+static void vexpress_power_off(void)
+{
+	_sri_info_t sri_info;
+	unsigned int status;
+
+	/* initialise transfer info */
+	sri_info.function = SRI_CFG_SHUTDOWN;
+
+	do {
+		status = vexpress_sri_transfer(&sri_info);
+	} while (status == 1);
+}
+
+static int __init vexpress_shutdown_fns_init(void)
+{
+	pm_power_off = vexpress_power_off;
+	arm_pm_restart = vexpress_reboot;
+
+	return 0;
+}
+arch_initcall(vexpress_shutdown_fns_init);
+
 /*
  * This is the Realview and Versatile sched_clock implementation.  This
  * has a resolution of 41.7ns, and a maximum value of about 35583 days.
