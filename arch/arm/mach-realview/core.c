@@ -27,6 +27,7 @@
 #include <linux/amba/clcd.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/cnt32_to_63.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
@@ -79,15 +80,20 @@ void __init realview_adjust_zones(int node, unsigned long *size,
 #endif
 
 /*
- * This is the RealView sched_clock implementation.  This has
- * a resolution of 41.7ns, and a maximum value of about 179s.
+ * This is the Realview and Versatile sched_clock implementation.  This
+ * has a resolution of 41.7ns, and a maximum value of about 35583 days.
+ *
+ * The return value is guaranteed to be monotonic in that range as
+ * long as there is always less than 89 seconds between successive
+ * calls to this function.
  */
 unsigned long long sched_clock(void)
 {
-	unsigned long long v;
+	unsigned long long v = cnt32_to_63(readl(REALVIEW_REFCOUNTER));
 
-	v = (unsigned long long)readl(REALVIEW_REFCOUNTER) * 125;
-	do_div(v, 3);
+	/* the <<1 gets rid of the cnt_32_to_63 top bit saving on a bic insn */
+	v *= 125<<1;
+	do_div(v, 3<<1);
 
 	return v;
 }
