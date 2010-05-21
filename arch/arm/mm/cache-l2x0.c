@@ -25,6 +25,12 @@
 
 #define CACHE_LINE_SIZE		32
 
+#ifdef CONFIG_PL310_ASSOC_16_WAY
+#define CACHE_ASSOC		16
+#else
+#define CACHE_ASSOC		8
+#endif
+
 static void __iomem *l2x0_base;
 
 #ifdef CONFIG_CACHE_PL310
@@ -87,12 +93,12 @@ static void l2x0_cache_sync(void)
 
 static inline void l2x0_inv_all(void)
 {
-	unsigned long flags;
+	unsigned long flags, ways = (1 << CACHE_ASSOC) - 1;
 
 	/* invalidate all ways */
 	_l2x0_lock(&l2x0_lock, flags);
-	writel(0xff, l2x0_base + L2X0_INV_WAY);
-	cache_wait_always(l2x0_base + L2X0_INV_WAY, 0xff);
+	writel(ways, l2x0_base + L2X0_INV_WAY);
+	cache_wait_always(l2x0_base + L2X0_INV_WAY, ways);
 	cache_sync();
 	_l2x0_unlock(&l2x0_lock, flags);
 }
