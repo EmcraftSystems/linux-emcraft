@@ -12,7 +12,11 @@
  */
 
 	.macro	addruart,rx
+#ifdef CONFIG_MACH_MPS_MODEL
 	mov	\rx, #0x1f000000
+#else
+	ldr	\rx, =0xdfff0000
+#endif
 	orr	\rx, \rx, #0x00005000
 	.endm
 

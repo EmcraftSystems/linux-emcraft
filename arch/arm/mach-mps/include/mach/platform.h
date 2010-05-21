@@ -39,8 +39,13 @@
 #define MPS_FLASH_BASE		0x18000000
 #define MPS_FLASH_SIZE		SZ_64M
 
+#ifdef CONFIG_MACH_MPS_MODEL
 #define MPS_SPI_BASE		0x1F004000	/* Touchscreen */
 #define MPS_UART3_BASE		0x1F005000	/* UART 3 */
+#else
+#define MPS_SPI_BASE		0xdfff4000	/* Touchscreen */
+#define MPS_UART3_BASE		0xdfff5000	/* UART 3 */
+#endif
 
 #define MPS_WATCHDOG_BASE	0x40000000	/* watchdog interface */
 #define MPS_RTC_BASE		0x40001000	/* Real Time Clock */

@@ -8,4 +8,12 @@ config MACH_MPS
 	  Include support for the ARM Ltd. Microcontroller Prototyping
 	  System platform.
 
+config MACH_MPS_MODEL
+	bool "Software model variant of the MPS platform"
+	depends on MACH_MPS
+	help
+	  Enable this option if the platform you are running Linux on is
+	  a software model rather than the real MPS hardware. There are
+	  some minor differences in the memory map.
+
 endif
