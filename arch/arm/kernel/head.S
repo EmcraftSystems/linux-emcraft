@@ -302,6 +302,8 @@ __create_page_tables:
 	movhi	r3, #0x0800
 	add	r6, r0, r3
 	ldr	r3, [r8, #MACHINFO_PHYSIO]
+	mov	r3, r3, lsr #20			@ 1MB-aligned address
+	mov	r3, r3, lsl #20
 	orr	r3, r3, r7
 1:	str	r3, [r0], #4
 	add	r3, r3, #1 << 20
