@@ -1,0 +1,11 @@
+if ARCH_MPS
+
+config MACH_MPS
+	bool
+	default y
+	select ARM_NVIC if CPU_V7M
+	help
+	  Include support for the ARM Ltd. Microcontroller Prototyping
+	  System platform.
+
+endif

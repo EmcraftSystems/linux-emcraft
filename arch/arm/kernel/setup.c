@@ -112,7 +112,9 @@ struct stack {
 	u32 und[3];
 } ____cacheline_aligned;
 
+#ifndef CONFIG_CPU_V7M
 static struct stack stacks[NR_CPUS];
+#endif
 
 char elf_platform[ELF_PLATFORM_SIZE];
 EXPORT_SYMBOL(elf_platform);
@@ -335,6 +337,7 @@ static void __init setup_processor(void)
  */
 void cpu_init(void)
 {
+#ifndef CONFIG_CPU_V7M
 	unsigned int cpu = smp_processor_id();
 	struct stack *stk = &stacks[cpu];
 
@@ -353,7 +356,6 @@ void cpu_init(void)
 #define PLC	"I"
 #endif
 
-#ifndef CONFIG_CPU_V7M
 	/*
 	 * setup stacks for re-entrant exception handlers
 	 */

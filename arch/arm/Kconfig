@@ -724,6 +724,19 @@ config ARCH_U8500
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
+config ARCH_MPS
+	bool "ARM Ltd. Microcontroller Prototyping System"
+	depends on !MMU
+	select ARM_AMBA
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select ICST307
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for ARM Ltd. Microcontroller Prototyping
+	  System platform.
+
 endchoice
 
 source "arch/arm/mach-aaec2000/Kconfig"
@@ -833,6 +846,8 @@ source "arch/arm/mach-ux500/Kconfig"
 source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
+
+source "arch/arm/mach-mps/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
