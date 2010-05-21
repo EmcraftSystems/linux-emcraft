@@ -26,7 +26,7 @@
  * The SWI code relies on the fact that R0 is at the bottom of the stack
  * (due to slow/fast restore user regs).
  */
-#if S_R0 != 0
+#if S_R0 != 0 && !defined(CONFIG_CPU_V7M)
 #error "Please fix"
 #endif
 
@@ -43,6 +43,89 @@
 	mcr	p15, 0, \rtemp, c1, c0
 #endif
 	.endm
+
+#ifdef CONFIG_CPU_V7M
+/*
+ * ARMv7-M exception entry/exit macros.
+ *
+ * xPSR, ReturnAddress(), LR (R14), R12, R3, R2, R1, and R0 are
+ * automatically saved on the current stack (32 words) before
+ * switching to the exception stack (SP_main). The order of struct
+ * pt_regs members was changed to take advantage of the automatic
+ * state saving.
+ *
+ * If exception is taken while in user mode, SP_main is
+ * empty. Otherwise, SP_main is aligned to 64 bit automatically
+ * (CCR.STKALIGN set).
+ *
+ * Linux assumes that the interrupts are disabled when entering an
+ * exception handler and it may BUG if this is not the case. Interrupts
+ * are disabled during entry and reenabled in the exit macro.
+ *
+ * The v7m_exception_entry macro preserves the original r0-r5, r7 for
+ * the system call arguments.
+ *
+ * v7_exception_fast_exit is used when returning from interrupts.
+ *
+ * v7_exception_slow_exit is used when returning from SVC or PendSV.
+ * When returning to kernel mode, we don't return from exception.
+ */
+	.macro	v7m_exception_entry
+	cpsid	i
+	cmp	lr, #0xfffffffd		@ check the return stack
+	beq	1f			@ exception on process stack
+	add	r12, sp, #32		@ MSP before exception
+	stmdb	sp!, {r4-r12, lr}	@ push unsaved registers
+	b	2f
+1:
+	mrs	r12, psp		@ get the process stack
+	sub	sp, #S_FRAME_SIZE
+	stmia	sp, {r4-r12, lr}	@ push unsaved registers
+	ldmia	r12, {r0-r3, r6, r8-r10} @ load automatically saved registers
+	add	r12, sp, #S_R0
+	stmia	r12, {r0-r3, r6, r8-r10} @ fill in the rest of struct pt_regs
+2:
+	.endm
+
+	.macro	v7m_exception_fast_exit
+	ldmia	sp!, {r4-r12, lr}	@ restore previously saved state
+	cmp	lr, #0xfffffffd		@ check the return stack
+	addeq	sp, #32			@ returning to PSP, just restore MSP
+	cpsie	i
+	bx	lr
+	.endm
+
+	.macro	v7m_exception_slow_exit ret_r0
+	cpsid	i
+	ldr	lr, [sp, #S_EXC_LR]	@ read exception LR
+	cmp	lr, #0xfffffffd		@ check the return stack
+	beq	1f			@ returning to PSP
+	@ Prepare the MSP stack
+	ldmia	sp, {r4-r11}		@ restore previously saved state
+	ldr	lr, [sp, #S_PC]
+	add	sp, #S_R0
+	ldmia	sp, {r0-r3, r12}	@ restore the rest of registers
+	add	sp, #S_FRAME_SIZE-S_R0	@ restore the stack pointer
+	cpsie	i
+	bx	lr
+1:
+	@ Prepare the PSP stack
+	ldr	r12, [sp, #S_SP]	@ read original PSP
+	.if	\ret_r0
+	add	r11, sp, #S_R1
+	ldmia	r11, {r1-r7}		@ read state saved on MSP (r0 preserved)
+	.else
+	add	r11, sp, #S_R0
+	ldmia	r11, {r0-r7}		@ read state saved on MSP
+	.endif
+	msr	psp, r12		@ restore PSP
+	stmia	r12, {r0-r7}		@ restore saved state to PSP
+	ldmia	sp, {r4-r11}		@ restore previously saved state
+	add	sp, #S_FRAME_SIZE	@ restore the original MSP
+	cpsie	i
+	bx	lr
+	.endm
+#endif	/* CONFIG_CPU_V7M */
 
 	@
 	@ Store/load the USER SP and LR registers by switching to the SYS
@@ -135,6 +218,14 @@
 	rfeia	sp!
 	.endm
 
+#ifdef CONFIG_CPU_V7M
+	.macro	restore_user_regs, fast = 0, offset = 0
+	.if	\offset
+	add	sp, #\offset
+	.endif
+	v7m_exception_slow_exit ret_r0 = \fast
+	.endm
+#else	/* !CONFIG_CPU_V7M */
 	.macro	restore_user_regs, fast = 0, offset = 0
 	clrex					@ clear the exclusive monitor
 	mov	r2, sp
@@ -151,6 +242,7 @@
 	add	sp, sp, #S_FRAME_SIZE - S_SP
 	movs	pc, lr				@ return & move spsr_svc into cpsr
 	.endm
+#endif	/* CONFIG_CPU_V7M */
 
 	.macro	get_thread_info, rd
 	mov	\rd, sp

@@ -40,7 +40,13 @@ ret_fast_syscall:
  * Ok, we need to do extra processing, enter the slow path.
  */
 fast_work_pending:
+#ifdef CONFIG_CPU_V7M
+	@ S_R0 not at the beginning of struct pt_regs
+	add	sp, #S_OFF
+	str	r0, [sp, #S_R0]			@ returned r0
+#else
 	str	r0, [sp, #S_R0+S_OFF]!		@ returned r0
+#endif
 work_pending:
 	tst	r1, #_TIF_NEED_RESCHED
 	bne	work_resched
@@ -185,6 +191,9 @@ ftrace_stub:
 
 	.align	5
 ENTRY(vector_swi)
+#ifdef CONFIG_CPU_V7M
+	v7m_exception_entry
+#else
 	sub	sp, sp, #S_FRAME_SIZE
 	stmia	sp, {r0 - r12}			@ Calling r0 - r12
  ARM(	add	r8, sp, #S_PC		)
@@ -194,6 +203,7 @@ ENTRY(vector_swi)
 	mrs	r8, spsr			@ called from non-FIQ mode, so ok.
 	str	lr, [sp, #S_PC]			@ Save calling PC
 	str	r8, [sp, #S_PSR]		@ Save CPSR
+#endif
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
 	zero_fp
 
@@ -302,14 +312,20 @@ __sys_trace:
 
 	adr	lr, BSYM(__sys_trace_return)	@ return address
 	mov	scno, r0			@ syscall number (possibly new)
-	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
+	add	r1, sp, #S_OFF			@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
 	ldmccia	r1, {r0 - r3}			@ have to reload r0 - r3
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 	b	2b
 
 __sys_trace_return:
+#ifdef CONFIG_CPU_V7M
+	@ S_R0 not at the beginning of struct pt_regs
+	add	sp, #S_OFF
+	str	r0, [sp, #S_R0]			@ save returned r0
+#else
 	str	r0, [sp, #S_R0 + S_OFF]!	@ save returned r0
+#endif
 	mov	r2, scno
 	mov	r1, sp
 	mov	r0, #1				@ trace exit [IP = 1]
