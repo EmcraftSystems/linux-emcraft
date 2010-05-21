@@ -1555,6 +1555,13 @@ config NEON
 	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
 	  Extension.
 
+config VFPM
+	bool "ARMv7-M VFP Extension support"
+	depends on CPU_V7M
+	help
+	  Say Y to include support for the ARMv7-M VFP Extension
+	  (single-precision floating point hardware).
+
 endmenu
 
 menu "Userspace binary formats"

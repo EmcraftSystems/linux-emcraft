@@ -72,7 +72,15 @@
  */
 	.macro	v7m_exception_entry
 	cpsid	i
+#ifdef CONFIG_VFPM
+	get_thread_info r0
+	and	r1, lr, #1 << 4		@ VFP clean state
+	str	r1, [r0, #TI_VFPSTATE_CLEAN]
+#endif
 	cmp	lr, #0xfffffffd		@ check the return stack
+#ifdef CONFIG_VFPM
+	cmpne	lr, #0xffffffed
+#endif
 	beq	1f			@ exception on process stack
 	add	r12, sp, #32		@ MSP before exception
 	stmdb	sp!, {r4-r12, lr}	@ push unsaved registers
@@ -90,6 +98,9 @@
 	.macro	v7m_exception_fast_exit
 	ldmia	sp!, {r4-r12, lr}	@ restore previously saved state
 	cmp	lr, #0xfffffffd		@ check the return stack
+#ifdef CONFIG_VFPM
+	cmpne	lr, #0xffffffed
+#endif
 	addeq	sp, #32			@ returning to PSP, just restore MSP
 	cpsie	i
 	bx	lr
@@ -99,6 +110,9 @@
 	cpsid	i
 	ldr	lr, [sp, #S_EXC_LR]	@ read exception LR
 	cmp	lr, #0xfffffffd		@ check the return stack
+#ifdef CONFIG_VFPM
+	cmpne	lr, #0xffffffed
+#endif
 	beq	1f			@ returning to PSP
 	@ Prepare the MSP stack
 	ldmia	sp, {r4-r11}		@ restore previously saved state
