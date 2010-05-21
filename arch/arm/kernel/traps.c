@@ -28,6 +28,7 @@
 #include <asm/unistd.h>
 #include <asm/traps.h>
 #include <asm/unwind.h>
+#include <asm/tlbflush.h>
 
 #include "ptrace.h"
 #include "signal.h"
@@ -735,6 +736,16 @@ void __init early_trap_init(void)
 	extern char __vectors_start[], __vectors_end[];
 	extern char __kuser_helper_start[], __kuser_helper_end[];
 	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
+#if !defined(CONFIG_CPU_USE_DOMAINS) && defined(CONFIG_MMU)
+	pgd_t *pgd = pgd_offset_k(vectors);
+	pmd_t *pmd = pmd_offset(pgd, vectors);
+	pte_t *pte = pte_offset_kernel(pmd, vectors);
+	pte_t entry = *pte;
+
+	/* allow writing to the vectors page */
+	set_pte_ext(pte, pte_mkwrite(entry), 0);
+	local_flush_tlb_kernel_page(vectors);
+#endif
 
 	/*
 	 * Copy the vectors, stubs and kuser helpers (in entry-armv.S)
@@ -753,6 +764,12 @@ void __init early_trap_init(void)
 	       sizeof(sigreturn_codes));
 	memcpy((void *)KERN_RESTART_CODE, syscall_restart_code,
 	       sizeof(syscall_restart_code));
+
+#if !defined(CONFIG_CPU_USE_DOMAINS) && defined(CONFIG_MMU)
+	/* restore the vectors page permissions */
+	set_pte_ext(pte, entry, 0);
+	local_flush_tlb_kernel_page(vectors);
+#endif
 
 	flush_icache_range(vectors, vectors + PAGE_SIZE);
 	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
