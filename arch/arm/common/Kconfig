@@ -12,6 +12,9 @@ config ARM_VIC_NR
 	  The maximum number of VICs available in the system, for
 	  power management.
 
+config ARM_NVIC
+	bool
+
 config ICST525
 	bool
 
