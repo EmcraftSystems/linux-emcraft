@@ -20,9 +20,25 @@
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H
 
+#include <asm/mach-types.h>
+#include <mach/hardware.h>
+
 #define IO_SPACE_LIMIT 0xffffffff
 
-#define __io(a)		__typesafe_io(a)
+static inline void __iomem *__io(unsigned long addr)
+{
+#ifdef CONFIG_PCI
+	/* check for PCI I/O space */
+	if (addr >= REALVIEW_PB_PCI_IO_BASE && addr <= REALVIEW_PB_PCI_IO_LIMIT)
+		return (void __iomem *)((addr - REALVIEW_PB_PCI_IO_BASE) + REALVIEW_PCI_IO_VBASE);
+	else
+		return (void __iomem *)addr;
+#else
+	return (void __iomem *)addr;
+#endif
+}
+
+#define __io(a)		__io(a)
 #define __mem_pci(a)	(a)
 
 #endif

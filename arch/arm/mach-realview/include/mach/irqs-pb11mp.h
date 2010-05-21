@@ -95,6 +95,17 @@
 #define IRQ_PB11MP_TSPEN	(IRQ_PB11MP_GIC_START + 30)	/* Touchscreen pen */
 #define IRQ_PB11MP_TSKPAD	(IRQ_PB11MP_GIC_START + 31)	/* Touchscreen keypad */
 
+/* These PCI/PCIe IRQ definitions are here as placeholders
+ * The PCI code actually calculates the irq used at runtime */
+#define IRQ_PB11MP_PCI0		(IRQ_PB11MP_GIC_START + 50)
+#define IRQ_PB11MP_PCI1		(IRQ_PB11MP_GIC_START + 51)
+#define IRQ_PB11MP_PCI2		(IRQ_PB11MP_GIC_START + 52)
+#define IRQ_PB11MP_PCI3		(IRQ_PB11MP_GIC_START + 53)
+#define IRQ_PB11MP_PCIE0	(IRQ_PB11MP_GIC_START + 54)
+#define IRQ_PB11MP_PCIE1	(IRQ_PB11MP_GIC_START + 55)
+#define IRQ_PB11MP_PCIE2	(IRQ_PB11MP_GIC_START + 56)
+#define IRQ_PB11MP_PCIE3	(IRQ_PB11MP_GIC_START + 57)
+
 #define IRQ_PB11MP_SMC		-1
 #define IRQ_PB11MP_SCTL		-1
 

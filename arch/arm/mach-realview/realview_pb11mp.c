@@ -95,6 +95,24 @@ static struct map_desc realview_pb11mp_io_desc[] __initdata = {
 		.length		= SZ_8K,
 		.type		= MT_DEVICE,
 	},
+#ifdef CONFIG_PCI
+	{
+		.virtual	= PCIX_UNIT_BASE,
+		.pfn		= __phys_to_pfn(REALVIEW_PB_PCI_BASE),
+		.length		= REALVIEW_PB_PCI_BASE_SIZE,
+		.type		= MT_DEVICE,
+	 }, {
+		.virtual	= REALVIEW_PCI_IO_VBASE,
+		.pfn		= __phys_to_pfn(REALVIEW_PB_PCI_IO_BASE),
+		.length		= REALVIEW_PB_PCI_IO_SIZE,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual        = IO_ADDRESS(REALVIEW_ISSP_REG_BASE),
+		.pfn            = __phys_to_pfn(REALVIEW_ISSP_REG_BASE),
+		.length         = SZ_4K,
+		.type           = MT_DEVICE,
+	},
+#endif
 #ifdef CONFIG_DEBUG_LL
 	{
 		.virtual	= IO_ADDRESS(REALVIEW_PB11MP_UART0_BASE),

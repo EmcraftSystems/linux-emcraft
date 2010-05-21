@@ -62,17 +62,6 @@
 #define REALVIEW_PB11MP_SYS_PLD_CTRL1		0x74
 
 /*
- * PB11MPCore PCI regions
- */
-#define REALVIEW_PB11MP_PCI_BASE		0x90040000	/* PCI-X Unit base */
-#define REALVIEW_PB11MP_PCI_IO_BASE		0x90050000	/* IO Region on AHB */
-#define REALVIEW_PB11MP_PCI_MEM_BASE		0xA0000000	/* MEM Region on AHB */
-
-#define REALVIEW_PB11MP_PCI_BASE_SIZE		0x10000		/* 16 Kb */
-#define REALVIEW_PB11MP_PCI_IO_SIZE		0x1000		/* 4 Kb */
-#define REALVIEW_PB11MP_PCI_MEM_SIZE		0x20000000	/* 512 MB */
-
-/*
  * Testchip peripheral and fpga gic regions
  */
 #define REALVIEW_TC11MP_SCU_BASE		0x1F000000	/* IRQ, Test chip */

@@ -23,6 +23,59 @@
 #define __ASM_ARCH_HARDWARE_H
 
 #include <asm/sizes.h>
+#include <asm/mach-types.h>
+
+/*
+ * PCI space virtual addresses
+ */
+#define REALVIEW_PCI_VIRT_BASE		0xF8000000
+#define REALVIEW_PCI_CFG_VIRT_BASE	0xF9000000
+#define PCIX_UNIT_BASE			0xF8000000
+#define REALVIEW_PCI_IO_VBASE		0xFA000000
+/*
+ * PCI space physical addresses and sizes
+ */
+#define REALVIEW_PB_PCI_BASE		0x90040000	/* PCI-X Unit base */
+#define REALVIEW_PB_PCI_BASE_SIZE	0x00010000	/* 4 Kb + 60Kb reserved */
+#define REALVIEW_PB_PCI_IO_BASE		0x90050000	/* IO Region on AHB */
+#define REALVIEW_PB_PCI_IO_SIZE		0x00010000	/* 64 Kb */
+#define REALVIEW_PB_PCI_IO_LIMIT       (REALVIEW_PB_PCI_IO_BASE + REALVIEW_PB_PCI_IO_SIZE - 1)
+#define REALVIEW_PB_PCI_MEM_BASE	0xA0000000	/* MEM Region on AHB */
+#define REALVIEW_PB_PCI_MEM_SIZE	0x20000000	/* 512 MB */
+
+#define REALVIEW_ISSP_REG_BASE		0x100E3000
+
+#ifdef CONFIG_PCI
+#if !defined(__ASSEMBLY__)
+static inline unsigned int pcibios_min_io(void)
+{
+	if (machine_is_realview_pb11mp() || machine_is_realview_pba8() ||
+	    machine_is_realview_pbx())
+		return REALVIEW_PB_PCI_IO_BASE;
+	else
+		return 0;
+}
+
+static inline unsigned int pcibios_min_mem(void)
+{
+	if (machine_is_realview_pb11mp() || machine_is_realview_pba8() ||
+	    machine_is_realview_pbx())
+		return REALVIEW_PB_PCI_MEM_BASE;
+	else
+		return 0;
+}
+#endif
+
+/*
+ * These are needed so that generic pci code doesn't know about our
+ * machine specific details.
+ */
+#define PCIBIOS_MIN_IO		pcibios_min_io()
+#define PCIBIOS_MIN_MEM		pcibios_min_mem()
+
+#define pcibios_assign_all_busses()     1
+
+#endif
 
 /* macro to get at IO space when running virtually */
 #ifdef CONFIG_MMU

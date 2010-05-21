@@ -59,15 +59,4 @@
 
 #define REALVIEW_PBA8_SYS_PLD_CTRL1		0x74
 
-/*
- * PBA8 PCI regions
- */
-#define REALVIEW_PBA8_PCI_BASE			0x90040000	/* PCI-X Unit base */
-#define REALVIEW_PBA8_PCI_IO_BASE		0x90050000	/* IO Region on AHB */
-#define REALVIEW_PBA8_PCI_MEM_BASE		0xA0000000	/* MEM Region on AHB */
-
-#define REALVIEW_PBA8_PCI_BASE_SIZE		0x10000		/* 16 Kb */
-#define REALVIEW_PBA8_PCI_IO_SIZE		0x1000		/* 4 Kb */
-#define REALVIEW_PBA8_PCI_MEM_SIZE		0x20000000	/* 512 MB */
-
 #endif	/* __ASM_ARCH_BOARD_PBA8_H */

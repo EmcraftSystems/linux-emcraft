@@ -76,11 +76,16 @@
 #define IRQ_PBX_PMU_CPU2        (IRQ_PBX_GIC_START + 46)
 #define IRQ_PBX_PMU_CPU3        (IRQ_PBX_GIC_START + 47)
 
-/* ... */
+/* These PCI/PCIe IRQ definitions are here as placeholders
+ * The PCI code actually calculates the irq used at runtime */
 #define IRQ_PBX_PCI0		(IRQ_PBX_GIC_START + 50)
 #define IRQ_PBX_PCI1		(IRQ_PBX_GIC_START + 51)
 #define IRQ_PBX_PCI2		(IRQ_PBX_GIC_START + 52)
 #define IRQ_PBX_PCI3		(IRQ_PBX_GIC_START + 53)
+#define IRQ_PBX_PCIE0		(IRQ_PBX_GIC_START + 54)
+#define IRQ_PBX_PCIE1		(IRQ_PBX_GIC_START + 55)
+#define IRQ_PBX_PCIE2		(IRQ_PBX_GIC_START + 56)
+#define IRQ_PBX_PCIE3		(IRQ_PBX_GIC_START + 57)
 
 #define IRQ_PBX_SMC		-1
 #define IRQ_PBX_SCTL		-1

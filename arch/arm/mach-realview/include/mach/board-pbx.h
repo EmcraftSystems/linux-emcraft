@@ -70,17 +70,6 @@
 #define REALVIEW_PBX_SYS_PLD_CTRL1		0x74
 
 /*
- * PBX PCI regions
- */
-#define REALVIEW_PBX_PCI_BASE			0x90040000	/* PCI-X Unit base */
-#define REALVIEW_PBX_PCI_IO_BASE		0x90050000	/* IO Region on AHB */
-#define REALVIEW_PBX_PCI_MEM_BASE		0xA0000000	/* MEM Region on AHB */
-
-#define REALVIEW_PBX_PCI_BASE_SIZE		0x10000		/* 16 Kb */
-#define REALVIEW_PBX_PCI_IO_SIZE		0x1000		/* 4 Kb */
-#define REALVIEW_PBX_PCI_MEM_SIZE		0x20000000	/* 512 MB */
-
-/*
  * Core tile identification (REALVIEW_SYS_PROCID)
  */
 #define REALVIEW_PBX_PROC_MASK          0xFF000000
