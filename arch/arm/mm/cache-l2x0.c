@@ -212,5 +212,6 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 	outer_cache.flush_range = l2x0_flush_range;
 	outer_cache.sync = l2x0_cache_sync;
 
-	pr_info(L2CC_TYPE " cache controller enabled\n");
+	pr_info(L2CC_TYPE " cache controller enabled (%08x)\n",
+		readl(l2x0_base + L2X0_CACHE_ID));
 }
