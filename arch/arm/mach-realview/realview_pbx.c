@@ -338,12 +338,10 @@ static void realview_pbx_reset(char mode)
 	__raw_writel(0x00F4, reset_ctrl);
 }
 
-static void __init realview_pbx_init(void)
-{
-	int i;
-
 #ifdef CONFIG_CACHE_L2X0
-	if (core_tile_pbxa9mp()) {
+static int __init realview_pbx_l2x0_init(void)
+{
+	if (machine_is_realview_pbx() && core_tile_pbxa9mp()) {
 		void __iomem *l2x0_base =
 			__io_address(REALVIEW_PBX_TILE_L220_BASE);
 
@@ -355,7 +353,14 @@ static void __init realview_pbx_init(void)
 		 * Bits:  .. 0 0 0 0 1 00 1 0 1 001 0 000 0 .... .... .... */
 		l2x0_init(l2x0_base, 0x02520000, 0xc0000fff);
 	}
+	return 0;
+}
+early_initcall(realview_pbx_l2x0_init);
 #endif
+
+static void __init realview_pbx_init(void)
+{
+	int i;
 
 	realview_flash_register(realview_pbx_flash_resources,
 				ARRAY_SIZE(realview_pbx_flash_resources));

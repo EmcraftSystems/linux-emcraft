@@ -313,15 +313,25 @@ static void realview_pb11mp_reset(char mode)
 	__raw_writel(0x0004, reset_ctrl);
 }
 
+#ifdef CONFIG_CACHE_L2X0
+static int __init realview_pb11mp_l2x0_init(void)
+{
+	if (machine_is_realview_pb11mp()) {
+		/*
+		 * 1MB (128KB/way), 8-way associativity, evmon/parity/share
+		 * Bits:  .... ...0 0111 1001 0000 .... .... ....
+		 */
+		l2x0_init(__io_address(REALVIEW_TC11MP_L220_BASE),
+			  0x00790000, 0xfe000fff);
+	}
+	return 0;
+}
+early_initcall(realview_pb11mp_l2x0_init);
+#endif
+
 static void __init realview_pb11mp_init(void)
 {
 	int i;
-
-#ifdef CONFIG_CACHE_L2X0
-	/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
-	 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
-	l2x0_init(__io_address(REALVIEW_TC11MP_L220_BASE), 0x00790000, 0xfe000fff);
-#endif
 
 	realview_flash_register(realview_pb11mp_flash_resource,
 				ARRAY_SIZE(realview_pb11mp_flash_resource));
