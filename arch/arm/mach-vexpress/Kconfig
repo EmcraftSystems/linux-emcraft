@@ -1,0 +1,32 @@
+menu "ARM Versatile Express platform type"
+	depends on ARCH_VEXPRESS
+
+config MACH_VEXPRESS
+	bool "Support ARM Versatile Express platform"
+	select ARM_GIC
+	select HAVE_PATA_PLATFORM
+	select ARCH_SPARSEMEM_ENABLE if CPU_V7 && \
+		!VEXPRESS_HIGH_PHYS_OFFSET && MMU
+	select ZONE_DMA if SPARSEMEM
+	help
+	  Include support for the ARM(R) Versatile Express platform.
+
+config VEXPRESS_HIGH_PHYS_OFFSET
+	bool "High physical base address for the Versatile Express platform"
+	depends on MMU
+	default n
+	help
+	  Versatile Express boards have the RAM available at
+	  0x60000000, 256MB of which being mirrored at 0x00000000.
+	  This option allows the memory to be accessed contiguously
+	  at the high physical offset.
+
+config VEXPRESS_USE_TILE_CLCD
+	bool "Use the CLCD Controller on the daughterboard"
+	default y
+	help
+	  There are two CLCD controllers available on many Versatile
+	  Express systems, one on the motherboard and one on the daughterboard.
+	  This option controls which of these the kernel uses.
+
+endmenu

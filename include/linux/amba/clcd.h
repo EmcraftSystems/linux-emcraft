@@ -1,5 +1,6 @@
 /*
  * linux/include/asm-arm/hardware/amba_clcd.h -- Integrator LCD panel.
+ * PL110 and PL111
  *
  * David A Rusling
  *
@@ -21,13 +22,16 @@
 #define CLCD_UBAS 		0x00000010
 #define CLCD_LBAS 		0x00000014
 
-#if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW)
+#if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW) && !defined(CONFIG_ARCH_VEXPRESS)
+/*
+ * PL110
+ */
 #define CLCD_IENB 		0x00000018
 #define CLCD_CNTL 		0x0000001c
 #else
 /*
- * Someone rearranged these two registers on the Versatile
- * platform...
+ * Someone rearranged these two registers on the PL111
+ * for Versatile and later platforms...
  */
 #define CLCD_IENB 		0x0000001c
 #define CLCD_CNTL 		0x00000018

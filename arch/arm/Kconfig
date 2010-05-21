@@ -239,6 +239,17 @@ config ARCH_REALVIEW
 	help
 	  This enables support for ARM Ltd RealView boards.
 
+config ARCH_VEXPRESS
+	bool "ARM Ltd. Versatile Express family"
+	select ARM_AMBA
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select ICST307
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for ARM Ltd Versatile Express boards.
+
 config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
 	select ARM_AMBA
@@ -801,6 +812,8 @@ source "arch/arm/mach-mmp/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
 
+source "arch/arm/mach-vexpress/Kconfig"
+
 source "arch/arm/mach-sa1100/Kconfig"
 
 source "arch/arm/plat-samsung/Kconfig"
@@ -1000,10 +1013,11 @@ source "kernel/time/Kconfig"
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP ||\
-		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || ARCH_U8500)
+		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || MACH_VEXPRESS ||\
+		 ARCH_OMAP4 || ARCH_U8500)
 	depends on GENERIC_CLOCKEVENTS
 	select USE_GENERIC_SMP_HELPERS
-	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500)
+	select HAVE_ARM_SCU if (ARCH_REALVIEW || ARCH_VEXPRESS || ARCH_OMAP4 || ARCH_U8500)
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -1072,9 +1086,9 @@ config HOTPLUG_CPU
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
-		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || ARCH_U8500)
+		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || MACH_VEXPRESS || ARCH_OMAP4 || ARCH_U8500)
 	default y
-	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_OMAP4 || ARCH_U8500)
+	select HAVE_ARM_TWD if (ARCH_REALVIEW || ARCH_VEXPRESS || ARCH_OMAP4 || ARCH_U8500)
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
@@ -1192,7 +1206,7 @@ config LEDS
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
 		   ARCH_AT91 || ARCH_DAVINCI || \
-		   ARCH_KS8695 || MACH_RD88F5182 || ARCH_REALVIEW
+		   ARCH_KS8695 || MACH_RD88F5182 || ARCH_REALVIEW || ARCH_VEXPRESS
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.

@@ -37,6 +37,10 @@
 #include <asm/stacktrace.h>
 #include <asm/mach/time.h>
 
+#ifdef CONFIG_ARCH_VEXPRESS
+#include <mach/sri.h>
+#endif
+
 static const char *processor_modes[] = {
   "USER_26", "FIQ_26" , "IRQ_26" , "SVC_26" , "UK4_26" , "UK5_26" , "UK6_26" , "UK7_26" ,
   "UK8_26" , "UK9_26" , "UK10_26", "UK11_26", "UK12_26", "UK13_26", "UK14_26", "UK15_26",
@@ -192,8 +196,18 @@ __setup("reboot=", reboot_setup);
 
 void machine_halt(void)
 {
-}
+#ifdef CONFIG_ARCH_VEXPRESS
+	_sri_info_t sri_info;
+	unsigned int status;
 
+	/* initialise transfer info */
+	sri_info.function = SRI_CFG_SHUTDOWN;
+
+	do {
+		status = vexpress_sri_transfer(&sri_info);
+	} while (status == 1);
+#endif
+}
 
 void machine_power_off(void)
 {
