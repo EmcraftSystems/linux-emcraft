@@ -263,13 +263,6 @@ struct mmci_platform_data realview_mmc0_plat_data = {
 	.gpio_cd	= 16,
 };
 
-struct mmci_platform_data realview_mmc1_plat_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.status		= realview_mmc_status,
-	.gpio_wp	= 19,
-	.gpio_cd	= 18,
-};
-
 /*
  * Clock handling
  */
