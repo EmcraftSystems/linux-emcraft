@@ -435,10 +435,15 @@ static inline void vfp_pm_init(void) { }
 void vfp_sync_state(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
-	u32 fpexc = fmrx(FPEXC);
+	u32 fpexc;
 	int vfp_enabled;
 	int self;
 
+	/* VFP present? */
+	if (vfp_vector == vfp_null_entry)
+		return;
+
+	fpexc = fmrx(FPEXC);
 	vfp_enabled = fpexc & FPEXC_EN;
 	self = thread == current_thread_info();
 #ifdef CONFIG_SMP
