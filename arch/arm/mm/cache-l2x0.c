@@ -66,7 +66,13 @@ static inline void cache_wait_always(void __iomem *reg, unsigned long mask)
 static inline void cache_sync(void)
 {
 	void __iomem *base = l2x0_base;
+#ifdef CONFIG_ARM_ERRATA_484863
+	unsigned long val = 0;
+	asm volatile("swp %0, %0, [%1]\n"
+		     : "+r" (val) : "r" (base + L2X0_CACHE_SYNC));
+#else
 	writel(0, base + L2X0_CACHE_SYNC);
+#endif
 	cache_wait(base + L2X0_CACHE_SYNC, 1);
 }
 

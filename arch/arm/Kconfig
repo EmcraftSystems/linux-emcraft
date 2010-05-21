@@ -927,6 +927,7 @@ config ARM_ERRATA_460075
 config ARM_ERRATA_484863
 	bool "ARM errata: Eviction Buffer not empty after Cache Sync on L220"
 	depends on CACHE_L2X0
+	default y if MACH_REALVIEW_PB1176 || MACH_REALVIEW_PB11MP
 	help
 	  According to the L220 Erratum 484863, the actual behaviour of
 	  the L220 cache controller is that the Cache Sync operation
