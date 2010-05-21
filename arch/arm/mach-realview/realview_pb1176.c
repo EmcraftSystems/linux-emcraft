@@ -168,6 +168,8 @@ static struct pl061_platform_data gpio2_plat_data = {
 #define PB1176_UART3_DMA	{ 0x86, 0x87 }
 #define PB1176_SSP_IRQ		{ IRQ_PB1176_SSP, NO_IRQ }
 #define PB1176_SSP_DMA		{ 9, 8 }
+#define PB1176_IEC_IRQ		{ IRQ_DC1176_IEC, NO_IRQ }
+#define PB1176_IEC_DMA		{ 0, 0 }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
@@ -189,6 +191,7 @@ AMBA_DEVICE(uart0,	"dev:uart0",	PB1176_UART0,	NULL);
 AMBA_DEVICE(uart1,	"dev:uart1",	PB1176_UART1,	NULL);
 AMBA_DEVICE(uart2,	"dev:uart2",	PB1176_UART2,	NULL);
 AMBA_DEVICE(ssp0,	"dev:ssp0",	PB1176_SSP,	NULL);
+AMBA_DEVICE(iec,	"dev:iec",	PB1176_IEC,	NULL);
 
 /* Primecells on the NEC ISSP chip */
 AMBA_DEVICE(clcd,	"issp:clcd",	PB1176_CLCD,	&clcd_plat_data);
@@ -214,6 +217,7 @@ static struct amba_device *amba_devs[] __initdata = {
 	&mmc0_device,
 	&kmi0_device,
 	&kmi1_device,
+	&iec_device,
 };
 
 /*

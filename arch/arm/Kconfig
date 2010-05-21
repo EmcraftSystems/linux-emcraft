@@ -1435,6 +1435,15 @@ config CPU_FREQ_S3C24XX_DEBUGFS
 	help
 	  Export status information via debugfs.
 
+config CPU_FREQ_REALVIEW
+	tristate "CPUfreq driver for ARM RealView platform"
+	depends on CPU_FREQ && MACH_REALVIEW_PB1176
+	default y
+	help
+	  This enables the CPUfreq driver for ARM RealView platform.
+
+	  If in doubt, say Y.
+
 endif
 
 source "drivers/cpuidle/Kconfig"
