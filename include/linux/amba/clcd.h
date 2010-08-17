@@ -153,6 +153,7 @@ struct clcd_fb {
 	void __iomem		*regs;
 	u32			clcd_cntl;
 	u32			cmap[16];
+	bool			clk_enabled;
 };
 
 static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
