@@ -1,0 +1,23 @@
+if ARCH_A2F
+
+config MACH_A2F
+	bool
+	default y
+	select ARM_NVIC if CPU_V7M
+	help
+	  Include support for the Actel A2F (SmartFusion) SoC
+
+config A2F_MSS_UART0
+	bool
+	depends on MACH_A2F
+	default y
+	help
+	  Enable MSS UART_0 of SmartFusion
+
+config A2F_MSS_UART1
+	bool
+	depends on MACH_A2F
+	default n
+	help
+	  Enable MSS UART_1 of SmartFusion
+endif
