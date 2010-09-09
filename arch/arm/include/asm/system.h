@@ -253,7 +253,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 {
 	extern void __bad_xchg(volatile void *, int);
 	unsigned long ret;
-#ifdef swp_is_buggy
+#if defined(swp_is_buggy) || defined(CONFIG_ARCH_A2F)
 	unsigned long flags;
 #endif
 #if __LINUX_ARM_ARCH__ >= 6
@@ -265,6 +265,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	switch (size) {
 #if __LINUX_ARM_ARCH__ >= 6
 	case 1:
+#if !defined(CONFIG_ARCH_A2F)
 		asm volatile("@	__xchg1\n"
 		"1:	ldrexb	%0, [%3]\n"
 		"	strexb	%1, %2, [%3]\n"
@@ -273,8 +274,19 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 			: "=&r" (ret), "=&r" (tmp)
 			: "r" (x), "r" (ptr)
 			: "memory", "cc");
+#else
+		raw_local_irq_save(flags);
+		asm volatile("\n"
+		"	ldr	%0, [%3]\n"
+		"	str	%2, [%3]"
+			: "=&r" (ret), "=&r" (tmp)
+			: "r" (x), "r" (ptr)
+			: "memory", "cc");
+		raw_local_irq_restore(flags);
+#endif
 		break;
 	case 4:
+#if !defined(CONFIG_ARCH_A2F)
 		asm volatile("@	__xchg4\n"
 		"1:	ldrex	%0, [%3]\n"
 		"	strex	%1, %2, [%3]\n"
@@ -283,6 +295,16 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 			: "=&r" (ret), "=&r" (tmp)
 			: "r" (x), "r" (ptr)
 			: "memory", "cc");
+#else
+		raw_local_irq_save(flags);
+		asm volatile("@\n"
+		"	ldr	%0, [%3]\n"
+		"	str	%2, [%3]"
+			: "=&r" (ret), "=&r" (tmp)
+			: "r" (x), "r" (ptr)
+			: "memory", "cc");
+		raw_local_irq_restore(flags);
+#endif
 		break;
 #elif defined(swp_is_buggy)
 #ifdef CONFIG_SMP
@@ -346,7 +368,7 @@ extern void enable_hlt(void);
 			(unsigned long)(n), sizeof(*(ptr))))
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
 
-#ifndef CONFIG_SMP
+#ifndef CONFIG_SMP 
 #include <asm-generic/cmpxchg.h>
 #endif
 

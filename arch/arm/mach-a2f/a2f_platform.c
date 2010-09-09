@@ -50,6 +50,7 @@
 #include <mach/timer.h>
 #include <mach/clock.h>
 #include <mach/uart.h>
+#include <mach/eth.h>
 
 static void __init a2f_map_io(void);
 static void __init a2f_init_irq(void);
@@ -149,6 +150,12 @@ static void __init a2f_init(void)
  	 * Configure the UART devices.
  	 */
 	a2f_uart_init();
+
+	/*
+ 	 * Configure the Core10100 adapter.
+ 	 */
+	a2f_eth_init();
+
 }
 
 /*

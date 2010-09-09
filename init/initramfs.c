@@ -379,8 +379,8 @@ static int __init write_buffer(char *buf, unsigned len)
 	count = len;
 	victim = buf;
 
-	while (!actions[state]())
-		;
+	while (!actions[state]()) {
+	}
 	return len - count;
 }
 
@@ -417,6 +417,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 	decompress_fn decompress;
 	const char *compress_name;
 	static __initdata char msg_buf[64];
+
 
 	header_buf = kmalloc(110, GFP_KERNEL);
 	symlink_buf = kmalloc(PATH_MAX + N_ALIGN(PATH_MAX) + 1, GFP_KERNEL);

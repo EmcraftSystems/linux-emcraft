@@ -5,6 +5,10 @@
 #error SMP not supported on pre-ARMv6 CPUs
 #endif
 
+#if defined(CONFIG_ARCH_A2F)
+#error This file contains ldrex/strex
+#endif
+
 static inline void dsb_sev(void)
 {
 #if __LINUX_ARM_ARCH__ >= 7

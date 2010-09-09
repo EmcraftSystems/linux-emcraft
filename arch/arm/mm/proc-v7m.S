@@ -97,7 +97,38 @@ cpu_v7m_name:
 __v7m_setup:
 	@ Configure the vector table base address
 	ldr	r0, =0xe000ed08		@ vector table base address
+#if defined(CONFIG_ARCH_A2F)
+	/*
+	 * TO-DO: this probably warrants introduction of a new
+	 * configuration option (platform has a dedicated SRAM)
+	 * ...
+	 * Things are trickier than that for the Actel A2F SoC
+	 * (or, in fact, for any ARM-v7m processor that has
+	 * external RAM that is separate from the "SRAM memory",
+	 * unsing the terms of the ARMv7 Architecure.
+	 * In the A2F, the SRAM memory (the internal SRAM)
+	 * resides at 0x20000000, while the external RAM (where 
+	 * the OS kernel is relocated to run) resides at 0x70000000.
+	 * The ARMv7 allows setting the vector table either in
+	 * the boot memory (internal Flash for the A2F) or in
+	 * the SRAM memory (internal RAM for the A2F), contolled 
+	 * by Bit 29 in the Vector Table Base register.
+	 * This implies that the OS vector table needs to be copied to
+	 * the internal RAM, and the Vector Table Base register
+	 * needs to be given an appropriate value (0x20000000 + Offset
+	 * of the vector table in the internal RAM).
+	 */
+	ldr	r12, =0x20000000
+	mov	r5, r12			@ Copy the kernel vector_table to 
+	ldr	r6, =vector_table	@ the in-SRAM vector table
+	ldr	r4, =vector_table_end
+1:	ldr	r3, [r6], #4
+	str	r3, [r5], #4
+	cmp	r6, r4
+	bne	1b			@ End of the copy code
+#else
 	ldr	r12, =vector_table
+#endif
 	str	r12, [r0]
 
 	@ Lower the priority of the SVC and PendSV exceptions
@@ -115,8 +146,10 @@ __v7m_setup:
 	mov	r6, lr			@ save LR
 	mov	r7, sp			@ save SP
 	ldr	sp, =__v7m_setup_stack_top
+
 	cpsie	i
 	svc	#0
+
 1:	cpsid	i
 	str	r5, [r12, #11 * 4]	@ restore the original SVC vector entry
 	mov	lr, r6			@ restore LR

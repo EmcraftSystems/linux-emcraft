@@ -478,6 +478,7 @@ void __init parse_early_param(void)
 static void __init boot_cpu_init(void)
 {
 	int cpu = smp_processor_id();
+
 	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
 	set_cpu_online(cpu, true);
 	set_cpu_active(cpu, true);
@@ -508,6 +509,10 @@ static void __init mm_init(void)
 	pgtable_cache_init();
 	vmalloc_init();
 }
+
+/*
+ * vlad
+ */
 
 asmlinkage void __init start_kernel(void)
 {
@@ -806,9 +811,9 @@ static noinline int init_post(void)
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
-	if (sys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)
+	if (sys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0) {
 		printk(KERN_WARNING "Warning: unable to open an initial console.\n");
-
+	}
 	(void) sys_dup(0);
 	(void) sys_dup(0);
 

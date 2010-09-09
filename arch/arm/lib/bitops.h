@@ -5,11 +5,19 @@
 	and	r3, r0, #7		@ Get bit offset
 	add	r1, r1, r0, lsr #3	@ Get byte offset
 	mov	r3, r2, lsl r3
+#if !defined(CONFIG_ARCH_A2F)
 1:	ldrexb	r2, [r1]
 	\instr	r2, r2, r3
 	strexb	r0, r2, [r1]
 	cmp	r0, #0
 	bne	1b
+#else
+	save_and_disable_irqs ip
+	ldrb	r2, [r1]
+	\instr	r2, r2, r3
+	strb	r2, [r1]
+	restore_irqs ip
+#endif
 	mov	pc, lr
 	.endm
 
@@ -18,16 +26,25 @@
 	mov	r2, #1
 	add	r1, r1, r0, lsr #3	@ Get byte offset
 	mov	r3, r2, lsl r3		@ create mask
+#if !defined(CONFIG_ARCH_A2F)
 	smp_dmb
 1:	ldrexb	r2, [r1]
 	ands	r0, r2, r3		@ save old value of bit
-	\instr	r2, r2, r3			@ toggle bit
+	\instr	r2, r2, r3		@ toggle bit
 	strexb	ip, r2, [r1]
 	cmp	ip, #0
 	bne	1b
 	smp_dmb
 	cmp	r0, #0
 	movne	r0, #1
+#else
+	save_and_disable_irqs ip
+	ldr	r2, [r1]
+        ands    r0, r2, r3              @ save old value of bit
+        \instr  r2, r2, r3              @ toggle bit
+        str	r2, [r1]
+	restore_irqs ip
+#endif
 2:	mov	pc, lr
 	.endm
 #else

@@ -179,6 +179,7 @@
 #elif defined (CONFIG_CPU_V6)
 	ldr	r0, [sp]
 	strex	r1, r2, [sp]			@ clear the exclusive monitor
+xyi
 	ldmib	sp, {r1 - pc}^			@ load r1 - pc, cpsr
 #else
 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr

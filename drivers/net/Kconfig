@@ -2765,6 +2765,16 @@ config QLGE
 	  To compile this driver as a module, choose M here: the module
 	  will be called qlge.
 
+config CORE10100
+	tristate "Actel Core 10/100 Ethernet adapter"
+	depends on ARCH_A2F
+	help
+	  This driver supports Actel Core 10/100 Ethernet adapter.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called core10100.
+
+
 source "drivers/net/sfc/Kconfig"
 
 source "drivers/net/benet/Kconfig"

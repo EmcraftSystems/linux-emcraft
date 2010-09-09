@@ -129,3 +129,6 @@ ENTRY(vector_table)
 	.rept	64 - 16
 	.long	__irq_entry		@ 16..64 - External Interrupts
 	.endr
+#if defined(CONFIG_ARCH_A2F)
+ENTRY(vector_table_end)
+#endif

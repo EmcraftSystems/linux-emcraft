@@ -189,6 +189,14 @@ ftrace_stub:
 #define A710(code...)
 #endif
 
+#if !defined(VLAD)
+	.macro	pr_reg, rx
+	stmia	sp, {r0 - r4, lr}
+	mov	r0, \rx
+	bl	printhex8
+	ldmia	sp, {r0 - r4, lr}
+	.endm
+#endif
 	.align	5
 ENTRY(vector_swi)
 #ifdef CONFIG_CPU_V7M

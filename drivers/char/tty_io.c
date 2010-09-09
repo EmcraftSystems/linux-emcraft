@@ -3084,7 +3084,6 @@ void __init console_init(void)
 
 	/* Setup the default TTY line discipline. */
 	tty_ldisc_begin();
-
 	/*
 	 * set up the console device so that later boot sequences can
 	 * inform about problems etc..

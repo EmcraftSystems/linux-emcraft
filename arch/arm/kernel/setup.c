@@ -262,6 +262,7 @@ static void __init cacheid_init(void)
 	}
 
 	printk("CPU: %s data cache, %s instruction cache\n",
+#if !defined(CONFIG_ARCH_A2F)
 		cache_is_vivt() ? "VIVT" :
 		cache_is_vipt_aliasing() ? "VIPT aliasing" :
 		cache_is_vipt_nonaliasing() ? "VIPT nonaliasing" : "unknown",
@@ -269,11 +270,28 @@ static void __init cacheid_init(void)
 		icache_is_vivt_asid_tagged() ? "VIVT ASID tagged" :
 		cache_is_vipt_aliasing() ? "VIPT aliasing" :
 		cache_is_vipt_nonaliasing() ? "VIPT nonaliasing" : "unknown");
+#else
+		/*
+		 * There appears to be something wrong with the cache ID
+		 * parsing code above. On ARMv7M it reads CPUID Base Register,
+		 * which for Cortex-M3 doesn't contain any info regarding
+		 * caches (understandably so, since there are no caches in M3).
+		 * ...
+		 * It appears that cacheid is never used by the remainder
+		 * of the code, except that prints incorrect info about
+		 * caches for M3, in the original print-out above.
+		 * I have fixed that just for the A2F but this probably
+		 * warrants introduction of the dedicated parameter (or
+		 * a better way of fixing, anyhow.
+		 */
+		"NO", "NO");
+		cacheid = 0;
+#endif
 }
 
 /*
  * These functions re-use the assembly code in head.S, which
- * already provide the required functionality.
+ * already provide :the required functionality.
  */
 extern struct proc_info_list *lookup_processor_type(unsigned int);
 extern struct machine_desc *lookup_machine_type(unsigned int);
@@ -312,7 +330,7 @@ static void __init setup_processor(void)
 #ifdef CONFIG_CPU_V7M
 	printk("CPU: %s [%08x] revision %d (ARMv%sM)\n",
 	       cpu_name, processor_id, (int)processor_id & 15,
-	       proc_arch[cpu_architecture()]);
+	       proc_arch[cpu_architecture() - 1]);
 #else
 	printk("CPU: %s [%08x] revision %d (ARMv%s), cr=%08lx\n",
 	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15,
@@ -664,11 +682,12 @@ static int __init parse_tag(const struct tag *tag)
 	extern struct tagtable __tagtable_begin, __tagtable_end;
 	struct tagtable *t;
 
-	for (t = &__tagtable_begin; t < &__tagtable_end; t++)
+	for (t = &__tagtable_begin; t < &__tagtable_end; t++) {
 		if (tag->hdr.tag == t->tag) {
 			t->parse(tag);
 			break;
 		}
+	}
 
 	return t < &__tagtable_end;
 }
@@ -679,11 +698,12 @@ static int __init parse_tag(const struct tag *tag)
  */
 static void __init parse_tags(const struct tag *t)
 {
-	for (; t->hdr.size; t = tag_next(t))
+	for (; t->hdr.size; t = tag_next(t))  {
 		if (!parse_tag(t))
 			printk(KERN_WARNING
 				"Ignoring unrecognised tag 0x%08x\n",
 				t->hdr.tag);
+	}
 }
 
 /*

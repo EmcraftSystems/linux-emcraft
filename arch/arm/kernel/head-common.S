@@ -60,12 +60,24 @@ __mmap_switched:
  ARM(	ldmia	r3, {r4, r5, r6, r7, sp})
  THUMB(	ldmia	r3, {r4, r5, r6, r7}	)
  THUMB(	ldr	sp, [r3, #16]		)
+
 	str	r9, [r4]			@ Save processor ID
 	str	r1, [r5]			@ Save machine type
 	str	r2, [r6]			@ Save atags pointer
 	bic	r4, r0, #CR_A			@ Clear 'A' bit
+
+	/*
+	 * r7 is set to 0 in __switch_data for ARMv7 (conditional on
+	 * CONFIG_CPU_CP15. Not surprisingly an attempt to write to 0
+	 * in the command below results in an exception on the A2F
+	 * (where 0x00000000 is reserved for the internal Flash).
+	 * ... Not sure how this code worked on the other ARMv7 platforms.
+         */
+#ifdef CONFIG_CPU_CP15
 	stmia	r7, {r0, r4}			@ Save control register values
+#endif
 	b	start_kernel
+
 ENDPROC(__mmap_switched)
 
 /*
@@ -176,6 +188,7 @@ __lookup_processor_type:
 	cmp	r5, r6
 	blo	1b
 	mov	r5, #0				@ unknown processor
+	b	__error
 2:	mov	pc, lr
 ENDPROC(__lookup_processor_type)
 
