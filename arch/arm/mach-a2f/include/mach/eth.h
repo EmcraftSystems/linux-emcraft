@@ -22,7 +22,8 @@
 #ifndef _MACH_A2F_ETH_H_
 #define _MACH_A2F_ETH_H_
 
-#define MSS_ETH_BASE  0x40000000
+#define ETH_CORE_BASE 0x40003000
+#define ETH_CORE_SIZE 0xFFF
 
 #ifndef __ASSEMBLY__
 

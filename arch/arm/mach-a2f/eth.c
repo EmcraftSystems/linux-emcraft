@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-a2f/eth.c
  *
- * Copyright (C) Dmitry Cherkassov, Emcraft Systems
+ * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,17 +25,23 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
+#include <mach/a2f.h>
+#include <mach/eth.h>
+
 MODULE_LICENSE("GPL");
 
-#define MSS_CORE_BASE 0
-#define MSS_CORE_SIZE 0
-#define MSS_CORE_IRQ A
+#define ETH_CORE_BASE 0x40003000
+#define ETH_CORE_SIZE 0xFFF
 
-static struct resource mss_core_resources[] = {
+//IRQ label is EMAC_IRQ, Cortex M3 NVIC Inuput is INTISR[5]
+#define ETH_CORE_IRQ 5
+
+static struct resource eth_core_resources[] = {
         {
-        .start          = MSS_CORE_BASE,
-        .end            = MSS_CORE_BASE + MSS_CORE_SIZE,
+        .start          = ETH_CORE_BASE,
+        .end            = ETH_CORE_BASE + ETH_CORE_SIZE,
         .flags          = IORESOURCE_MEM,
+//	.irq            = ETH_CORE_IRQ
         }
 };
 
@@ -54,48 +60,17 @@ static struct plat_serial8250_port mss_uart0_data[] = {
 };
 */
 
-static int eth_probe(struct platform_device *pd)
-{
-	return 0;
-}
-
-static int eth_remove(struct platform_device *pd)
-{
-	return 0;
-}
-
-static void eth_shutdown(struct platform_device *pd)
-{
-	
-}
-
-
-
 
 static struct platform_device eth_device = {
-        .name           = "eth",
-        .id             = 0,
+        .name           = "core10100",
+        .id             = -1,
 	//.dev.platform_data = mss_uart0_data,
         .num_resources  = 1,
-        .resource       = mss_core_resources,
+        .resource       = eth_core_resources,
 };
 
-
-static int eth_init(void) {
-	printk(KERN_INFO "eth entry\n");
-
-	//platform_driver_register(&eth_platform_driver);
-	
-	platform_device_register(&eth_device);
-	
-	return 0;
+void __init a2f_eth_init()
+{
+	printk(KERN_INFO "in a2f_eth_init");
+	platform_device_register(&eth_device);		
 }
-
-static void eth_exit(void) {
-	printk(KERN_INFO "eth unload\n");
-	//platform_driver_unregister(&eth_platform_driver);
-}
-
-module_init(eth_init);
-module_exit(eth_exit);
- 
