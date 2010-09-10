@@ -21,12 +21,4 @@ config A2F_MSS_UART1
 	help
 	  Enable MSS UART_1 of SmartFusion
 
-config CORE10100
-	bool
-	depends on MACH_A2F
-	default y
-	help
-	  Enable A2F Core10100 Ethernet Controller
-
-
 endif

@@ -244,11 +244,12 @@ struct mdiobb_ctrl core_mdio_ctrl = {
 	&core_mdio_ops
 };
 
-struct mii_bus eth_mii_bus = {
-	.name = "eth_mii",
+struct mii_bus *eth_mii_bus;
+//= {
+//	.name = "eth_mii",
 //	.parent = ndev->dev
-//	.irq = ?
-};
+//	.irq = 
+//};
 
 /*
   Register access routines
@@ -260,13 +261,13 @@ static unsigned long read_reg(unsigned short reg)
 
 	rd =  readl(core_base + reg);
 
-	printk(KERN_INFO "read 0x%x from *(0x%x)", (unsigned int) rd, (unsigned int) (core_base + reg));
+//	printk(KERN_INFO "read 0x%x from *(0x%x)", (unsigned int) rd, (unsigned int) (core_base + reg));
 	return rd;
 }
 
 static void write_reg(unsigned short reg, unsigned long val)
 {
-	printk(KERN_INFO "wrote 0x%x to *(0x%x)",(unsigned int) val,(unsigned int) (core_base + reg));
+//	printk(KERN_INFO "wrote 0x%x to *(0x%x)",(unsigned int) val,(unsigned int) (core_base + reg));
 	
 	writel(val, core_base + reg);
 
@@ -308,7 +309,6 @@ int get_mdio_data(struct mdiobb_ctrl *ctrl)
 {
 	return mii_get_mdio();
 }
-
 
 
 #ifdef TROLOLO
@@ -463,10 +463,36 @@ static void reset_eth()
 	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst);
 }
 
-static void mdio_init()
+static int mdio_init()
 {
-	eth_mii_bus = alloc_mdio_bitbang(core_mdio_ctrl);
+	int ret;
+	int phy_addr;
+	struct phy_device *phydev = NULL;
 	
+	eth_mii_bus = alloc_mdio_bitbang(&core_mdio_ctrl);
+	
+	eth_mii_bus->name = "eth_mii_bus";
+	snprintf(eth_mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
+	ret = mdiobus_register(eth_mii_bus);
+
+	if (ret) {
+		printk(KERN_INFO "mdiobus_register failed!");
+	}
+
+	/* find the first phy */
+	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
+		if (eth_mii_bus->phy_map[phy_addr]) {
+			phydev = eth_mii_bus->phy_map[phy_addr];
+			break;
+		}
+	}
+	
+	if (!phydev) {
+		printk(KERN_ERR "no PHY found\n");
+		return -ENODEV;
+	}
+
+	printk(KERN_INFO "found PHY: id: %d", phydev->phy_id);
 }
 
 static int core10100_init()
@@ -492,6 +518,8 @@ static int core10100_init()
 		return !0;
 	}
 
+	mdio_init();
+	
 //	reset_eth();
 	
 	// Setup the little endian mode for the data descriptors 
