@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/mdio-bitbang.h>
 #include <asm/io.h>
 //#include <arm/io.h>
 
@@ -34,6 +35,14 @@ MODULE_LICENSE("GPL");
 //#define ETH_BASE 0x40003000
 
 //#define ADDR_CSR5 0x40003028
+
+
+//ethernet mac reset flag
+#define MAC_SR (4 << 1)
+
+//Soft reset controller address
+#define SOFT_RST_CR 0xE0042030
+
 
 /* Register offsets */
 #define CSR0			0x00
@@ -112,6 +121,58 @@ MODULE_LICENSE("GPL");
 static unsigned long read_reg(unsigned short);
 static void write_reg(unsigned short, unsigned long);
 
+/* PHY (Micrel KS8721) definitions */
+
+/* MDIO command bits */
+#define MDIO_ST			(1 << 14)
+#define MDIO_READ		(1 << 13)
+#define MDIO_WRITE		(1 << 12) | (1 << 1)
+#define MDIO_PHYADR_SHIFT	7
+#define MDIO_REG_SHIFT		2
+
+/* Compose an MDIO command */
+#define mdio_cmd(op, reg) \
+	(MDIO_ST | op | (pd->phy_id << MDIO_PHYADR_SHIFT) | \
+	(reg << MDIO_REG_SHIFT))
+
+/* Wait a half of MDC period (200 ns). Maximum possible frequency is 2.5 MHz. */
+#define mdio_wait ndelay(200)
+
+/* Get/Set MDC and MDIO pins */
+#define mii_set_mdc(val) { \
+    if (val) { \
+	write_reg(CSR9, read_reg(CSR9) | CSR9_MDC); \
+    } else { \
+	write_reg( CSR9, read_reg(CSR9) & ~CSR9_MDC); \
+    } \
+}
+
+#define mii_set_mdio(val) { \
+    if (val) { \
+	write_reg(CSR9, read_reg(CSR9) | CSR9_MDO); \
+    } else { \
+	write_reg(CSR9, read_reg(CSR9) & ~CSR9_MDO); \
+    } \
+}
+
+
+#define mii_get_mdio() (read_reg(CSR9) & CSR9_MDI)
+
+/* PHY registers */
+#define PHY_BCR			0
+#define PHY_BSR			1
+#define PHY_ID1			2
+
+/* PHY register bits */
+#define BCR_SR			(1 << 15)
+#define BCR_SS			(1 << 13)
+#define BCR_ANE			(1 << 12)
+#define BCR_RAN			(1 << 9)
+#define BCR_DM			(1 << 8)
+#define BSR_LS			(1 << 2)
+#define BSR_ANC			(1 << 5)
+
+
 //Driver functions
 static int core10100_probe(struct platform_device *);
 static int core10100_remove(struct platform_device *);
@@ -151,15 +212,42 @@ typedef struct {
 	//mac_addr_t mac[CFG_NUMBER_OF_LAN_CHANNELS];	/* MAC address(es) */
 	char mac[12];
 	desc_t tx_desc[2] __attribute ((__aligned__(4))); //ALIGN(4);		/* Two transmit descriptors */
-	unsigned char tx_cur;	/* Current transmit descriptor */
-	desc_t rx_desc[MAX_NUM_ETH_RX_MSG] __attribute ((__aligned__(4))) ; //ALIGN(4);		/* Receive descriptors */
-	unsigned char rx_cur;
-	unsigned char tx_buf[MAX_ETH_MSG_SIZE] __attribute((__aligned__(4)));//ALIGN(4); /* Transmit buffer */
-	unsigned char rx_buf[CORE_MAC_RX_BUF_SIZE] __attribute ((__aligned__(4))); //ALIGN(4); /* Receive buffers */
+//	unsigned char tx_cur;	/* Current transmit descriptor */
+//	desc_t rx_desc[MAX_NUM_ETH_RX_MSG] __attribute ((__aligned__(4))) ; //ALIGN(4);		/* Receive descriptors */
+//	unsigned char rx_cur;
+//	unsigned char tx_buf[MAX_ETH_MSG_SIZE] __attribute((__aligned__(4)));//ALIGN(4); /* Transmit buffer */
+//	unsigned char rx_buf[CORE_MAC_RX_BUF_SIZE] __attribute ((__aligned__(4))); //ALIGN(4); /* Receive buffers */
 } core_mac_desc_t;
 
 core_mac_desc_t core_desc = {
 	.phy_id = 0xff
+};
+
+
+//MII access callbacks
+void set_mdc(struct mdiobb_ctrl *ctrl, int level);
+void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output);
+void set_mdio_data(struct mdiobb_ctrl *ctrl, int value);
+int get_mdio_data(struct mdiobb_ctrl *ctrl);
+
+
+struct mdiobb_ops  core_mdio_ops = {
+	THIS_MODULE,
+	set_mdc,
+	set_mdio_dir,
+	set_mdio_data,
+	get_mdio_data
+};
+
+
+struct mdiobb_ctrl core_mdio_ctrl = {
+	&core_mdio_ops
+};
+
+struct mii_bus eth_mii_bus = {
+	.name = "eth_mii",
+//	.parent = ndev->dev
+//	.irq = ?
 };
 
 /*
@@ -170,33 +258,228 @@ static unsigned long read_reg(unsigned short reg)
 {
 	unsigned long rd;
 
-	printk(KERN_INFO "trying to read *(0x%x + 0x%x = 0x%x)", core_base, reg, core_base + reg);
 	rd =  readl(core_base + reg);
+
+	printk(KERN_INFO "read 0x%x from *(0x%x)", (unsigned int) rd, (unsigned int) (core_base + reg));
 	return rd;
 }
 
 static void write_reg(unsigned short reg, unsigned long val)
 {
-	printk(KERN_INFO "trying to write 0x%x to  *(0x%x + 0x%x = 0x%x)", val, core_base, reg, core_base + reg);
+	printk(KERN_INFO "wrote 0x%x to *(0x%x)",(unsigned int) val,(unsigned int) (core_base + reg));
 	
 	writel(val, core_base + reg);
 
 	//outl(core_base + reg, val);
 }
 
+
+/* Set the Management Data Clock high if level is one,
+ * low if level is zero.
+ */
+void set_mdc(struct mdiobb_ctrl *ctrl, int level)
+{
+	mii_set_mdc(level);
+}
+
+/* Configure the Management Data I/O pin as an input if
+ * "output" is zero, or an output if "output" is one.
+ */
+void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
+{
+	//<TODO> check inverted
+	if (output) 
+		write_reg(CSR9, read_reg(CSR9) | CSR9_MDEN);
+	else 
+		write_reg(CSR9, read_reg(CSR9) & ~CSR9_MDEN);
+}
+
+/* Set the Management Data I/O pin high if value is one,
+ * low if "value" is zero.  This may only be called
+ * when the MDIO pin is configured as an output.
+ */
+void set_mdio_data(struct mdiobb_ctrl *ctrl, int value)
+{
+	mii_set_mdio(value);
+}
+
+/* Retrieve the state Management Data I/O pin. */
+int get_mdio_data(struct mdiobb_ctrl *ctrl)
+{
+	return mii_get_mdio();
+}
+
+
+
+#ifdef TROLOLO
+static inline void enable_mdo(int enable)
+{
+    /* MSS MAC has MDEN bit inverted compared to CORE_10100 */
+
+    if (!enable) {
+	 write_reg(CSR9, read_register(pd, CSR9) | CSR9_MDEN);
+    } else {
+	 write_reg(CSR9, read_register(pd, CSR9) & ~CSR9_MDEN);
+    }
+}
+
+
+/* Read a register value via MII */
+static unsigned short mii_read(core_mac_desc_t *pd, unsigned short reg)
+{
+    unsigned short cmd;		/* MII command */
+    unsigned short data;	/* Read data */
+    unsigned short mask;	/* Auxiliary mask */
+    int i;
+
+    if (pd->phy_id == 0xff) {
+	return 0;
+    }
+
+    /* Compose and send the command */
+    cmd = mdio_cmd(MDIO_READ, reg);
+
+    enable_mdo(pd, 1); /* enable transmit */
+
+    mii_set_mdio(1);
+
+    for (i = 0; i < 32; i++) {
+	mii_set_mdc(0);
+	mdio_wait;
+	mii_set_mdc(1);
+	mdio_wait;
+    }
+
+    for (mask = 0x8000; mask > 0; mask >>= 1) {
+	mii_set_mdc(0);
+	mdio_wait;
+	mii_set_mdio((mask & cmd) ? 1 : 0);
+	mii_set_mdc(1);
+	mdio_wait;
+    }
+
+    /* Read a register value */
+    enable_mdo(pd, 0); /* receive */
+    for (data = 0, mask = 0x8000; mask > 0; mask >>= 1) {
+	mii_set_mdc(0);
+	mdio_wait;
+	if (mii_get_mdio()) {
+	    data |= mask;
+	}
+	mii_set_mdc(1);
+	mdio_wait;
+    }
+    mii_set_mdc(0);
+
+    return data;
+}
+
+
+
+/* Write a register value via MII */
+static void mii_write(core_mac_desc_t *pd, unsigned short reg,
+	unsigned short data)
+{
+     unsigned long cmd;		/* MII command */
+     unsigned long mask;		/* Auxiliary mask */
+     int i;
+
+     if (pd->phy_id == 0xff) {
+	  return;
+     }
+
+     /* Send the command and the new register value */
+     cmd = ((unsigned long)mdio_cmd(MDIO_WRITE, reg)) << 16 | data;
+
+     enable_mdo(pd, 1); /* enable transmit */
+
+     mii_set_mdio(1);
+
+     for (i = 0; i < 32; i++) {
+	  mii_set_mdc(0);
+	  mdio_wait;
+	  mii_set_mdc(1);
+	  mdio_wait;
+     }
+
+     for (mask = 0x80000000; mask > 0; mask >>= 1) {
+	  mii_set_mdc(0);
+	  mdio_wait;
+	  mii_set_mdio((mask & cmd) ? 1 : 0);
+	  mii_set_mdc(1);
+	  mdio_wait;
+     }
+     mii_set_mdc(0);
+}
+
+
+/* Initialize PHY */
+static unsigned char phy_init(core_mac_desc_t *pd)
+{
+     int i;
+     unsigned short val;
+
+     /* Probe (find) a PHY */
+     for (i = 0; i < 32; i++) {
+	  pd->phy_id = i;
+	  val = mii_read(pd, PHY_ID1);
+	  if (val != 0 && val != 0xffff) {
+	       break;
+	  }
+	  DBG_STR("PHY ");
+	  DBG_HEX(i);
+	  DBG_STR(" read ");
+	  DBG_HEX(val>>8);
+	  DBG_HEX(val);
+	  DBG_STR("\n");
+	  WDT_RESET;
+     }
+     if (i == 32) {
+	  /* Have not found a PHY */
+	  pd->phy_id = 0xff;
+	  return !0;
+     }
+
+     /* Software reset */
+     mii_write(pd, PHY_BCR, BCR_SR);
+
+     return 0;
+}
+#endif
 /*
   Adapter initialization
 */
 
+static void reset_eth()
+{
+	unsigned int sfrst;
+	
+	sfrst = readl(SOFT_RST_CR);
+
+	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst);
+	writel(sfrst & ~MAC_SR, SOFT_RST_CR);
+
+	printk(KERN_INFO "wrote 0x%x to SOFT_RST_CR", sfrst & ~MAC_SR);
+	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst);
+}
+
+static void mdio_init()
+{
+	eth_mii_bus = alloc_mdio_bitbang(core_mdio_ctrl);
+	
+}
+
 static int core10100_init()
 {
 	int i;
+	unsigned long rd;
+	
 	printk(KERN_INFO "-->core10100_init");
 
-	/* Reset the controller */
+	// Reset the controller 
 	write_reg(CSR0, read_reg(CSR0) | CSR0_SWR);
 
-	/* Wait for reset */
+	// Wait for reset 
 	for (i = 0; i < TIMEOUT_LOOPS; i++) {
 		if (!(read_reg(CSR0) & CSR0_SWR)) {
 			break;
@@ -209,9 +492,9 @@ static int core10100_init()
 		return !0;
 	}
 
-
-
-	/* Setup the little endian mode for the data descriptors */
+//	reset_eth();
+	
+	// Setup the little endian mode for the data descriptors 
 	write_reg(CSR0, read_reg(CSR0) & ~CSR0_DBO);
 
 
@@ -222,66 +505,8 @@ static int core10100_init()
 	*/
 	write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM | CSR6_SF);
 
-
 	return 0;
 	
-#ifdef TROLOLO
-	
-	/*
-	  Setup RX descriptor as follows (the only descriptor is used):
-	  - owned by Core
-	  - chained
-	  - buffer size is CFG_MAX_ETH_MSG_SIZE_ALIGNED
-	  - buffer1 points to rx_buf
-	  - buffer2 points to the descriptor itself
-	*/
-	pd->rx_cur = 0;
-	for( i = 0; i < CFG_MAX_NUM_ETH_RX_MSG; i++ ) {
-		pd->rx_desc[i].own_stat = DESC_OWN;
-		/* The size field of the descriptor is 10 bits in size, so 
-		   lets check that the CFG_MAX_ETH_MSG_SIZE is not bigger than
-		   2047 */
-		pd->rx_desc[i].cntl_size = DESC_TCH | (CFG_MAX_ETH_MSG_SIZE > 0x7FF ?
-						       0x7FF : CFG_MAX_ETH_MSG_SIZE);
-		pd->rx_desc[i].buf1 = &pd->rx_buf[i*CFG_MAX_ETH_MSG_SIZE_ALIGNED];
-		pd->rx_desc[i].buf2 = &pd->rx_desc[core_mac_find_next_desc(i, CFG_MAX_NUM_ETH_RX_MSG)];
-	}
-	write_register(pd, CSR3, (unsigned long)&pd->rx_desc);
-
-	/*
-	  Setup TX descriptors as follows (two descriptor are used,
-	  refer to the Core10/100 header file (core_mac.h) for details):
-	  - chained
-	  - buffer1 points to tx_buf
-	  - buffer2 points to the following itself
-	*/
-	pd->tx_desc[0].buf1 = pd->tx_buf;
-	pd->tx_desc[0].buf2 = &pd->tx_desc[1];
-	pd->tx_desc[1].buf1 = pd->tx_buf;
-	pd->tx_desc[1].buf2 = &pd->tx_desc[0];
-	pd->tx_cur = 0;
-	write_register(pd, CSR4, (unsigned long)&pd->tx_desc[0]);
-
-	/* Setup the controller mac filter */
-	if (setup_mac_filter(p, instance, mac)) {
-		DBG_STR(PSTR(LOG_PREFIX " filter failure\n"));
-		return !0;
-	}
-
-#ifndef CFG_NET_ETH_COREMAC_IGNORE_PHY
-	/* Update link status */
-	link_stat(pd);
-#else
-	/* Assume 100 MBit FD */
-	write_register(pd, CSR6, read_register(pd, CSR6) | CSR6_FD | CSR6_TTM);
-#endif
-
-	/* Start transmission and receiving */
-	write_register(pd, CSR6, read_register(pd, CSR6) | CSR6_ST | CSR6_SR);
-	pd->flags |= TX_RX_ENABLED;
-
-#endif
-
 	printk(KERN_INFO "<--core10100_init");
 	return 0;
 }
