@@ -26,10 +26,12 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/mdio-bitbang.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <asm/io.h>
 //#include <arm/io.h>
 
-//
+
 MODULE_LICENSE("GPL");
 
 //#define ETH_BASE 0x40003000
@@ -174,22 +176,59 @@ static void write_reg(unsigned short, unsigned long);
 
 
 //Driver functions
-static int core10100_probe(struct platform_device *);
-static int core10100_remove(struct platform_device *);
+static int core_probe(struct platform_device *);
+static int core_remove(struct platform_device *);
+
+//netdev functions
+static int core_open(struct net_device *dev);
+static int core_close(struct net_device *dev);
+static struct net_device_stats *core_get_stats(struct net_device *dev);
+static netdev_tx_t core_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static int core_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+
 
 
 //Core10/100 memory base
 void *core_base;
 
-struct platform_driver core10100_platform_driver = {
-	.probe = core10100_probe,
-	.remove = core10100_remove,
-//	.init = core10100_init,
-//	.exit = core10100_exit
+struct core {
+	void __iomem			*regs;
+	spinlock_t			lock;
+	struct platform_device		*pdev;
+	struct net_device		*dev;
+//	struct dnet_stats		hw_stats;
+	unsigned int			capabilities; /* read from FPGA */
+	struct napi_struct		napi;
+
+	/* PHY stuff */
+	struct mii_bus			*mii_bus;
+	unsigned int			link;
+	unsigned int			speed;
+	unsigned int			duplex;
+};
+
+
+struct platform_driver core_platform_driver = {
+	.probe = core_probe,
+	.remove = core_remove,
+//	.init = core_init,
+//	.exit = core_exit
 	.driver = {
 		.name = "core10100",
 		.owner = THIS_MODULE
 	}
+};
+
+
+static const struct net_device_ops core_netdev_ops = {
+	.ndo_open		= core_open,
+	.ndo_stop		= core_close,
+	.ndo_get_stats		= core_get_stats,
+	.ndo_start_xmit		= core_start_xmit,
+	.ndo_do_ioctl		= core_ioctl,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
 };
 
 /* Receive/transmit descriptor */
@@ -289,7 +328,7 @@ void set_mdc(struct mdiobb_ctrl *ctrl, int level)
 void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
 {
 	//<TODO> check inverted
-	if (output) 
+	if (!output) 
 		write_reg(CSR9, read_reg(CSR9) | CSR9_MDEN);
 	else 
 		write_reg(CSR9, read_reg(CSR9) & ~CSR9_MDEN);
@@ -483,7 +522,8 @@ static int mdio_init()
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
 		if (eth_mii_bus->phy_map[phy_addr]) {
 			phydev = eth_mii_bus->phy_map[phy_addr];
-			break;
+			printk(KERN_INFO "found PHY: id: %d addr %d", phydev->phy_id, phydev->addr);
+			//	break;
 		}
 	}
 	
@@ -492,10 +532,82 @@ static int mdio_init()
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "found PHY: id: %d", phydev->phy_id);
+// 	printk(KERN_INFO "found PHY: id: %d", phydev->phy_id);
 }
 
-static int core10100_init()
+static int core_open(struct net_device *dev)
+{
+	struct core *bp = netdev_priv(dev);
+
+	/* if the phy is not yet register, retry later */
+//	if (!bp->phy_dev)
+//		return -EAGAIN;
+
+	if (!is_valid_ether_addr(dev->dev_addr))
+		return -EADDRNOTAVAIL;
+
+	/*
+	napi_enable(&bp->napi);
+	dnet_init_hw(bp);
+
+	phy_start_aneg(bp->phy_dev);
+
+
+	phy_start(bp->phy_dev);
+
+	netif_start_queue(dev);
+	*/
+
+	return 0;
+}
+
+static int core_close(struct net_device *dev)
+{
+	struct dnet *bp = netdev_priv(dev);
+
+	/*
+	netif_stop_queue(dev);
+	napi_disable(&bp->napi);
+
+	if (bp->phy_dev)
+		phy_stop(bp->phy_dev);
+
+	dnet_reset_hw(bp);
+	netif_carrier_off(dev);
+	*/
+
+
+	return 0;
+}
+
+static struct net_device_stats *core_get_stats(struct net_device *dev)
+{
+	return NULL;
+}
+
+static netdev_tx_t core_start_xmit(struct sk_buff *skb, struct net_device *dev)
+
+{
+	return NETDEV_TX_OK;
+}
+
+static int core_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct dnet *bp = netdev_priv(dev);
+//	struct phy_device *phydev = bp->phy_dev;
+
+	if (!netif_running(dev))
+		return -EINVAL;
+
+//	if (!phydev)
+//		return -ENODEV;
+	
+}
+
+
+
+
+static int core_init()
 {
 	int i;
 	unsigned long rd;
@@ -540,10 +652,12 @@ static int core10100_init()
 }
 
 
-static int core10100_probe(struct platform_device *pd)
+static int core_probe(struct platform_device *pd)
 {
 	unsigned int sz;
 	unsigned int rd;
+	struct net_device *dev;
+	struct core *bp;
 
 	
 	printk(KERN_INFO "In probe!");
@@ -561,9 +675,11 @@ static int core10100_probe(struct platform_device *pd)
 	}
 	
 	printk(KERN_INFO "read csr5 defval ==> device match");
-	core10100_init();
+	core_init();
 
 
+	dev = allloc_etherdev(sizeof(*bp));
+	
 //	printk(KERN_INFO "read 0x%x. BAD", rd);
 	
 	/*
@@ -579,23 +695,23 @@ static int core10100_probe(struct platform_device *pd)
 		
 }
 
-static int core10100_remove(struct platform_device *pd)
+static int core_remove(struct platform_device *pd)
 {
 	return 0;
 }
 
-static int core10100_modinit(void) {
+static int core_modinit(void) {
 	printk(KERN_INFO "core10100 entry\n");
 
-	platform_driver_register(&core10100_platform_driver);
+	platform_driver_register(&core_platform_driver);
 	
 	return 0;
 }
 
-static void core10100_modexit(void) {
+static void core_modexit(void) {
 	printk(KERN_INFO "core10100 unload\n");
-	platform_driver_unregister(&core10100_platform_driver);
+	platform_driver_unregister(&core_platform_driver);
 }
 
-module_init(core10100_modinit);
-module_exit(core10100_modexit);
+module_init(core_modinit);
+module_exit(core_modexit);
