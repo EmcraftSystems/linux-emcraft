@@ -1,5 +1,4 @@
 /*
- * linux/arch/arm/mach-a2f/eth.c
  *
  * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
  *
@@ -25,11 +24,9 @@
 #define ETH_CORE_BASE 0x40003000
 #define ETH_CORE_SIZE 0xFFF
 
-#ifndef __ASSEMBLY__
+/*IRQ label is EMAC_IRQ, Cortex M3 NVIC Inuput is INTISR[5]*/
+#define ETH_CORE_IRQ 5
 
-
-extern void __init a2f_eth_init(void);
-
-#endif /* __ASSEMBLY__ */
+void __init a2f_eth_init(void);
 
 #endif	/*_MACH_A2F_ETH_H_ */

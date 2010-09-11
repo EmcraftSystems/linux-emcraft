@@ -1,5 +1,4 @@
 /*
- * linux/arch/arm/mach-a2f/eth.c
  *
  * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
  *
@@ -28,44 +27,21 @@
 #include <mach/a2f.h>
 #include <mach/eth.h>
 
-MODULE_LICENSE("GPL");
-
-#define ETH_CORE_BASE 0x40003000
-#define ETH_CORE_SIZE 0xFFF
-
-//IRQ label is EMAC_IRQ, Cortex M3 NVIC Inuput is INTISR[5]
-#define ETH_CORE_IRQ 5
 
 static struct resource eth_core_resources[] = {
         {
         .start          = ETH_CORE_BASE,
         .end            = ETH_CORE_BASE + ETH_CORE_SIZE,
         .flags          = IORESOURCE_MEM,
-//	.irq            = ETH_CORE_IRQ
         }
 };
-
-/*
-static struct plat_serial8250_port mss_uart0_data[] = {
-        {
-       .membase     	= (char *) MSS_CORE_BASE,
-       .mapbase     	= MSS_CORE_BASE,
-       .irq         	= MSS_CORE_IRQ,
-       .uartclk     	= 25000000,
-       .regshift    	= 2,
-       .iotype      	= UPIO_MEM,
-       .flags		= UPF_SKIP_TEST,
-        },
-        {  },
-};
-*/
 
 
 static struct platform_device eth_device = {
         .name           = "core10100",
         .id             = -1,
-	//.dev.platform_data = mss_uart0_data,
-        .num_resources  = 1,
+	//.dev.platform_data = ?,
+        .num_resources  = ARRAY_SIZE(eth_core_resources),
         .resource       = eth_core_resources,
 };
 

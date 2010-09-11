@@ -1,5 +1,4 @@
 /*
- * linux/drivers/net/core10100.c
  *
  * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
  *
@@ -113,15 +112,19 @@ MODULE_LICENSE("GPL");
 #define TX_RX_ENABLED		0x10
 
 /* Timeouts */
+
 #define TIMEOUT_UDELAY		500
 #define TIMEOUT_LOOPS		10000
 
 #define LINK_STAT_TIMEOUT	5   /* seconds */
 
 
-//Register access functions
-static unsigned long read_reg(unsigned short);
-static void write_reg(unsigned short, unsigned long);
+/*Register access functions*/
+//static u32 read_reg(u16);
+//static void write_reg(u16, u32);
+
+#define read_reg(reg) (readl(bp->base + reg))
+#define write_reg(val, reg) (writel(bp->base + reg, val))
 
 /* PHY (Micrel KS8721) definitions */
 
@@ -176,101 +179,35 @@ static void write_reg(unsigned short, unsigned long);
 
 
 //Driver functions
-static int core_probe(struct platform_device *);
-static int core_remove(struct platform_device *);
+static int core10100_probe(struct platform_device *);
+static int core10100_remove(struct platform_device *);
 
 //netdev functions
-static int core_open(struct net_device *dev);
-static int core_close(struct net_device *dev);
-static struct net_device_stats *core_get_stats(struct net_device *dev);
-static netdev_tx_t core_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static int core_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+static int core10100_open(struct net_device *dev);
+static int core10100_close(struct net_device *dev);
+static struct net_device_stats *core10100_get_stats(struct net_device *dev);
+static netdev_tx_t core10100_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
 
 
-//Core10/100 memory base
-void *core_base;
+/*TODO: removeit Core10/100 memory base */
+void *core10100_base;
 
-struct core {
-	void __iomem			*regs;
-	spinlock_t			lock;
-	struct platform_device		*pdev;
-	struct net_device		*dev;
-//	struct dnet_stats		hw_stats;
-	unsigned int			capabilities; /* read from FPGA */
-	struct napi_struct		napi;
-
-	/* PHY stuff */
-	struct mii_bus			*mii_bus;
-	unsigned int			link;
-	unsigned int			speed;
-	unsigned int			duplex;
-};
-
-
-struct platform_driver core_platform_driver = {
-	.probe = core_probe,
-	.remove = core_remove,
-//	.init = core_init,
-//	.exit = core_exit
-	.driver = {
-		.name = "core10100",
-		.owner = THIS_MODULE
-	}
-};
-
-
-static const struct net_device_ops core_netdev_ops = {
-	.ndo_open		= core_open,
-	.ndo_stop		= core_close,
-	.ndo_get_stats		= core_get_stats,
-	.ndo_start_xmit		= core_start_xmit,
-	.ndo_do_ioctl		= core_ioctl,
-	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
-};
-
-/* Receive/transmit descriptor */
-typedef struct desc {
-	volatile unsigned int own_stat;
-	volatile unsigned int cntl_size;
-	volatile void *buf1;
-	volatile void *buf2;
-} desc_t;
 
 #define MAX_ETH_MSG_SIZE 1500
 #define CORE_MAC_RX_BUF_SIZE 3000
 #define MAX_NUM_ETH_RX_MSG 3000
 
-typedef struct {
-	unsigned char *base;	/* Base address of the Core10/100 IP block */
-	unsigned char flags;	/* Generic and link status flags */
-	unsigned char phy_id;	/* ID of the PHY */
-	time_t link_stat_timer;	/* For less frequent PHY line status polling */
-	//mac_addr_t mac[CFG_NUMBER_OF_LAN_CHANNELS];	/* MAC address(es) */
-	char mac[12];
-	desc_t tx_desc[2] __attribute ((__aligned__(4))); //ALIGN(4);		/* Two transmit descriptors */
-//	unsigned char tx_cur;	/* Current transmit descriptor */
-//	desc_t rx_desc[MAX_NUM_ETH_RX_MSG] __attribute ((__aligned__(4))) ; //ALIGN(4);		/* Receive descriptors */
-//	unsigned char rx_cur;
-//	unsigned char tx_buf[MAX_ETH_MSG_SIZE] __attribute((__aligned__(4)));//ALIGN(4); /* Transmit buffer */
-//	unsigned char rx_buf[CORE_MAC_RX_BUF_SIZE] __attribute ((__aligned__(4))); //ALIGN(4); /* Receive buffers */
-} core_mac_desc_t;
-
-core_mac_desc_t core_desc = {
-	.phy_id = 0xff
-};
-
 
 //MII access callbacks
-void set_mdc(struct mdiobb_ctrl *ctrl, int level);
-void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output);
-void set_mdio_data(struct mdiobb_ctrl *ctrl, int value);
-int get_mdio_data(struct mdiobb_ctrl *ctrl);
+static void set_mdc(struct mdiobb_ctrl *ctrl, int level);
+static void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output);
+static void set_mdio_data(struct mdiobb_ctrl *ctrl, int value);
+static int get_mdio_data(struct mdiobb_ctrl *ctrl);
 
 
-struct mdiobb_ops  core_mdio_ops = {
+struct mdiobb_ops  core10100_mdio_ops = {
 	THIS_MODULE,
 	set_mdc,
 	set_mdio_dir,
@@ -279,39 +216,27 @@ struct mdiobb_ops  core_mdio_ops = {
 };
 
 
-struct mdiobb_ctrl core_mdio_ctrl = {
-	&core_mdio_ops
+struct mdiobb_ctrl core10100_mdio_ctrl = {
+	&core10100_mdio_ops
 };
 
 struct mii_bus *eth_mii_bus;
-//= {
-//	.name = "eth_mii",
-//	.parent = ndev->dev
-//	.irq = 
-//};
 
-/*
-  Register access routines
-*/
+/*Register access routines*/
 
-static unsigned long read_reg(unsigned short reg)
-{
-	unsigned long rd;
+/* static u32 read_reg(u16 reg) */
+/* { */
+/* 	u32 rd; */
 
-	rd =  readl(core_base + reg);
+/* 	rd =  readl(core10100_base + reg); */
 
-//	printk(KERN_INFO "read 0x%x from *(0x%x)", (unsigned int) rd, (unsigned int) (core_base + reg));
-	return rd;
-}
+/* 	return rd; */
+/* } */
 
-static void write_reg(unsigned short reg, unsigned long val)
-{
-//	printk(KERN_INFO "wrote 0x%x to *(0x%x)",(unsigned int) val,(unsigned int) (core_base + reg));
-	
-	writel(val, core_base + reg);
-
-	//outl(core_base + reg, val);
-}
+/* static void write_reg(u16 reg, u32 val) */
+/* { */
+/* 	writel(val, core10100_base + reg); */
+/* } */
 
 
 /* Set the Management Data Clock high if level is one,
@@ -364,7 +289,7 @@ static inline void enable_mdo(int enable)
 
 
 /* Read a register value via MII */
-static unsigned short mii_read(core_mac_desc_t *pd, unsigned short reg)
+static unsigned short mii_read(core10100_mac_desc_t *pd, unsigned short reg)
 {
     unsigned short cmd;		/* MII command */
     unsigned short data;	/* Read data */
@@ -416,7 +341,7 @@ static unsigned short mii_read(core_mac_desc_t *pd, unsigned short reg)
 
 
 /* Write a register value via MII */
-static void mii_write(core_mac_desc_t *pd, unsigned short reg,
+static void mii_write(core10100_mac_desc_t *pd, unsigned short reg,
 	unsigned short data)
 {
      unsigned long cmd;		/* MII command */
@@ -453,7 +378,7 @@ static void mii_write(core_mac_desc_t *pd, unsigned short reg,
 
 
 /* Initialize PHY */
-static unsigned char phy_init(core_mac_desc_t *pd)
+static unsigned char phy_init(core10100_mac_desc_t *pd)
 {
      int i;
      unsigned short val;
@@ -508,7 +433,7 @@ static int mdio_init()
 	int phy_addr;
 	struct phy_device *phydev = NULL;
 	
-	eth_mii_bus = alloc_mdio_bitbang(&core_mdio_ctrl);
+	eth_mii_bus = alloc_mdio_bitbang(&core10100_mdio_ctrl);
 	
 	eth_mii_bus->name = "eth_mii_bus";
 	snprintf(eth_mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
@@ -535,9 +460,9 @@ static int mdio_init()
 // 	printk(KERN_INFO "found PHY: id: %d", phydev->phy_id);
 }
 
-static int core_open(struct net_device *dev)
+static int core10100_open(struct net_device *dev)
 {
-	struct core *bp = netdev_priv(dev);
+	struct core10100_dev *bp = netdev_priv(dev);
 
 	/* if the phy is not yet register, retry later */
 //	if (!bp->phy_dev)
@@ -561,7 +486,7 @@ static int core_open(struct net_device *dev)
 	return 0;
 }
 
-static int core_close(struct net_device *dev)
+static int core10100_close(struct net_device *dev)
 {
 	struct dnet *bp = netdev_priv(dev);
 
@@ -580,18 +505,18 @@ static int core_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *core_get_stats(struct net_device *dev)
+static struct net_device_stats *core10100_get_stats(struct net_device *dev)
 {
 	return NULL;
 }
 
-static netdev_tx_t core_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t core10100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 {
 	return NETDEV_TX_OK;
 }
 
-static int core_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct dnet *bp = netdev_priv(dev);
 //	struct phy_device *phydev = bp->phy_dev;
@@ -607,7 +532,7 @@ static int core_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 
 
-static int core_init()
+static int core10100_init(struct core10100_dev *pb)
 {
 	int i;
 	unsigned long rd;
@@ -652,66 +577,137 @@ static int core_init()
 }
 
 
-static int core_probe(struct platform_device *pd)
+struct core10100_dev {
+	void __iomem			*base;
+	spinlock_t			lock;
+	struct platform_device		*pdev;
+	struct net_device		*dev;
+//	struct dnet_stats		hw_stats;
+	unsigned int			capabilities; /* read from FPGA */
+	struct napi_struct		napi;
+	char mac[12];
+
+	/* PHY stuff */
+	struct mii_bus			*mii_bus;
+	unsigned char phy_id;	/* ID of the PHY */
+	unsigned int			link;
+	unsigned int			speed;
+	unsigned int			duplex;
+};
+
+
+static int core10100_probe(struct platform_device *pd)
 {
 	unsigned int sz;
 	unsigned int rd;
 	struct net_device *dev;
-	struct core *bp;
-
+	struct core10100_dev *bp;
+	u32 mem_base, mem_size;
+	
+	int err = -ENXIO;
+	struct resource *res;
 	
 	printk(KERN_INFO "In probe!");
 
-	
-	sz = pd->resource[0].end - pd->resource[0].start;
-	core_base = ioremap(pd->resource[0].start, sz); //<TODO> заменить на platform_get_resource
+	/*<TODO> заменить на platform_get_resource*/
+	res = platform_get_resource(pd, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pd->dev, "no mmio resource defined\n");
+		goto err_out;
+	}
 
-	core_desc.base = core_base;
+	mem_base = res->start;
+	mem_size = resource_size(res);
+
 	
-//	printk(KERN_INFO "trying to access CSR5 (0x%x+0x%x = 0x%x)...", core_base, CSR5, core_base+CSR5);
+	/* sz = pd->resource[0].end - pd->resource[0].start; */
+	/* core10100_base = ioremap(pd->resource[0].start, sz);  */
+	
+	/* printk(KERN_INFO "trying to access CSR5 (0x%x+0x%x = 0x%x)...", core_base, CSR5, core_base+CSR5); */
 	
 	if ( (rd = read_reg(CSR5)) != 0xF0000000){
 		return -ENODEV;
 	}
 	
 	printk(KERN_INFO "read csr5 defval ==> device match");
-	core_init();
+	core10100_init(pb);
 
-
-	dev = allloc_etherdev(sizeof(*bp));
+	dev = alloc_etherdev(sizeof(*bp));
 	
-//	printk(KERN_INFO "read 0x%x. BAD", rd);
-	
-	/*
-	  unsigned int *pcsr5 = (unsigned int *) ADDR_CSR5;
+	if (!dev) {
+		dev_err(&pd->dev, "etherdev alloc failed, aborting.\n");
+		goto err_out;
+	}
 
-	  if (*pcsr5 == 0xF0000000) {
-	  printk(KERN_INFO "read csr5 defval!");
-	  return 0;
-	  }
-	*/
+	bp = netdev_priv(dev);
+	bp->dev = dev;
+
+	bp->base = core10100_base;
+
+	SET_NETDEV_DEV(dev, &pd->dev);
+	spin_lock_init(&bp->lock);
+
+	bp->base = ioremap(mem_base, mem_size);
+	
+
+err_out:
+	return err;
 
 	return 0;
 		
 }
 
-static int core_remove(struct platform_device *pd)
+static int core10100_remove(struct platform_device *pd)
 {
 	return 0;
 }
 
-static int core_modinit(void) {
+
+
+struct platform_driver core10100_platform_driver = {
+	.probe = core10100_probe,
+	.remove = core10100_remove,
+//	.init = core10100_init,
+//	.exit = core10100_exit
+	.driver = {
+		.name = "core10100",
+		.owner = THIS_MODULE
+	}
+};
+
+
+static const struct net_device_ops core10100_netdev_ops = {
+	.ndo_open		= core10100_open,
+	.ndo_stop		= core10100_close,
+	.ndo_get_stats		= core10100_get_stats,
+	.ndo_start_xmit		= core10100_start_xmit,
+	.ndo_do_ioctl		= core10100_ioctl,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
+/* Receive/transmit descriptor */
+ struct desc {
+	volatile unsigned int own_stat;
+	volatile unsigned int cntl_size;
+	volatile void *buf1;
+	volatile void *buf2;
+ };
+
+
+static int __init core10100_modinit(void) {
 	printk(KERN_INFO "core10100 entry\n");
 
-	platform_driver_register(&core_platform_driver);
+	platform_driver_register(&core10100_platform_driver);
 	
 	return 0;
 }
 
-static void core_modexit(void) {
+static void __exit core10100_modexit(void) {
 	printk(KERN_INFO "core10100 unload\n");
-	platform_driver_unregister(&core_platform_driver);
+	platform_driver_unregister(&core10100_platform_driver);
 }
 
-module_init(core_modinit);
-module_exit(core_modexit);
+module_init(core10100_modinit);
+module_exit(core10100_modexit);
