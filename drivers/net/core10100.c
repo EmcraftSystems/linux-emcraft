@@ -124,7 +124,7 @@ MODULE_LICENSE("GPL");
 //static void write_reg(u16, u32);
 
 #define read_reg(reg) (readl(bp->base + reg))
-#define write_reg(val, reg) (writel(bp->base + reg, val))
+#define write_reg(reg, val) (writel(bp->base + reg, val))
 
 /* PHY (Micrel KS8721) definitions */
 
@@ -189,6 +189,23 @@ static struct net_device_stats *core10100_get_stats(struct net_device *dev);
 static netdev_tx_t core10100_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
+struct core10100_dev {
+	void __iomem			*base;
+	spinlock_t			lock;
+	struct platform_device		*pdev;
+	struct net_device		*dev;
+//	struct dnet_stats		hw_stats;
+	unsigned int			capabilities; /* read from FPGA */
+	struct napi_struct		napi;
+	char mac[12];
+
+	/* PHY stuff */
+	struct mii_bus			*mii_bus;
+	unsigned char phy_id;	/* ID of the PHY */
+	unsigned int			link;
+	unsigned int			speed;
+	unsigned int			duplex;
+};
 
 
 /*TODO: removeit Core10/100 memory base */
@@ -200,7 +217,7 @@ void *core10100_base;
 #define MAX_NUM_ETH_RX_MSG 3000
 
 
-//MII access callbacks
+/* MII access callbacks */
 static void set_mdc(struct mdiobb_ctrl *ctrl, int level);
 static void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output);
 static void set_mdio_data(struct mdiobb_ctrl *ctrl, int value);
@@ -244,6 +261,9 @@ struct mii_bus *eth_mii_bus;
  */
 void set_mdc(struct mdiobb_ctrl *ctrl, int level)
 {
+/* TODO: remove it */
+	struct core10100_dev *bp = core10100_base;
+	
 	mii_set_mdc(level);
 }
 
@@ -252,7 +272,9 @@ void set_mdc(struct mdiobb_ctrl *ctrl, int level)
  */
 void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
 {
-	//<TODO> check inverted
+	/* TODO: remove it */
+	struct core10100_dev *bp = core10100_base;
+
 	if (!output) 
 		write_reg(CSR9, read_reg(CSR9) | CSR9_MDEN);
 	else 
@@ -265,12 +287,18 @@ void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
  */
 void set_mdio_data(struct mdiobb_ctrl *ctrl, int value)
 {
+	/* TODO: remove it */
+	struct core10100_dev *bp = core10100_base;
+	
 	mii_set_mdio(value);
 }
 
 /* Retrieve the state Management Data I/O pin. */
 int get_mdio_data(struct mdiobb_ctrl *ctrl)
 {
+	/* TODO: remove it */
+	struct core10100_dev *bp = core10100_base;
+	
 	return mii_get_mdio();
 }
 
@@ -532,7 +560,7 @@ static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 
 
-static int core10100_init(struct core10100_dev *pb)
+static int core10100_init(struct core10100_dev *bp)
 {
 	int i;
 	unsigned long rd;
@@ -540,8 +568,13 @@ static int core10100_init(struct core10100_dev *pb)
 	printk(KERN_INFO "-->core10100_init");
 
 	// Reset the controller 
-	write_reg(CSR0, read_reg(CSR0) | CSR0_SWR);
+//	write_reg(CSR0,  read_reg(CSR0) | CSR0_SWR);
 
+	write_reg(CSR0,  1);
+//	writel(read_reg(CSR0) | CSR0_SWR,  bp->base + CSR0);
+
+	return 0;
+	
 	// Wait for reset 
 	for (i = 0; i < TIMEOUT_LOOPS; i++) {
 		if (!(read_reg(CSR0) & CSR0_SWR)) {
@@ -555,7 +588,9 @@ static int core10100_init(struct core10100_dev *pb)
 		return !0;
 	}
 
-	mdio_init();
+
+	
+//	mdio_init();
 	
 //	reset_eth();
 	
@@ -577,28 +612,10 @@ static int core10100_init(struct core10100_dev *pb)
 }
 
 
-struct core10100_dev {
-	void __iomem			*base;
-	spinlock_t			lock;
-	struct platform_device		*pdev;
-	struct net_device		*dev;
-//	struct dnet_stats		hw_stats;
-	unsigned int			capabilities; /* read from FPGA */
-	struct napi_struct		napi;
-	char mac[12];
-
-	/* PHY stuff */
-	struct mii_bus			*mii_bus;
-	unsigned char phy_id;	/* ID of the PHY */
-	unsigned int			link;
-	unsigned int			speed;
-	unsigned int			duplex;
-};
-
 
 static int core10100_probe(struct platform_device *pd)
 {
-	unsigned int sz;
+	/* unsigned int sz; */
 	unsigned int rd;
 	struct net_device *dev;
 	struct core10100_dev *bp;
@@ -609,7 +626,7 @@ static int core10100_probe(struct platform_device *pd)
 	
 	printk(KERN_INFO "In probe!");
 
-	/*<TODO> заменить на platform_get_resource*/
+
 	res = platform_get_resource(pd, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pd->dev, "no mmio resource defined\n");
@@ -620,17 +637,12 @@ static int core10100_probe(struct platform_device *pd)
 	mem_size = resource_size(res);
 
 	
+	/*<TODO> заменить на platform_get_resource*/	
 	/* sz = pd->resource[0].end - pd->resource[0].start; */
 	/* core10100_base = ioremap(pd->resource[0].start, sz);  */
 	
 	/* printk(KERN_INFO "trying to access CSR5 (0x%x+0x%x = 0x%x)...", core_base, CSR5, core_base+CSR5); */
 	
-	if ( (rd = read_reg(CSR5)) != 0xF0000000){
-		return -ENODEV;
-	}
-	
-	printk(KERN_INFO "read csr5 defval ==> device match");
-	core10100_init(pb);
 
 	dev = alloc_etherdev(sizeof(*bp));
 	
@@ -642,13 +654,29 @@ static int core10100_probe(struct platform_device *pd)
 	bp = netdev_priv(dev);
 	bp->dev = dev;
 
-	bp->base = core10100_base;
+	/* bp->base = core10100_base; */
 
+	
 	SET_NETDEV_DEV(dev, &pd->dev);
 	spin_lock_init(&bp->lock);
 
 	bp->base = ioremap(mem_base, mem_size);
+
+	printk(KERN_INFO "bp base = 0x%x", bp->base);
+
+/* TODO: remove */
+	core10100_base = bp->base;
+
+
+	if ( (rd = read_reg(CSR5)) != 0xF0000000){
+		return -ENODEV;
+	}
 	
+	printk(KERN_INFO "read csr5 defval ==> device match");
+
+	
+	core10100_init(bp);
+
 
 err_out:
 	return err;
@@ -664,7 +692,7 @@ static int core10100_remove(struct platform_device *pd)
 
 
 
-struct platform_driver core10100_platform_driver = {
+static struct platform_driver core10100_platform_driver = {
 	.probe = core10100_probe,
 	.remove = core10100_remove,
 //	.init = core10100_init,
@@ -688,7 +716,7 @@ static const struct net_device_ops core10100_netdev_ops = {
 };
 
 /* Receive/transmit descriptor */
- struct desc {
+static struct desc {
 	volatile unsigned int own_stat;
 	volatile unsigned int cntl_size;
 	volatile void *buf1;
