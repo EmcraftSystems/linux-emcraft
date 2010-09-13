@@ -124,7 +124,7 @@ MODULE_LICENSE("GPL");
 //static void write_reg(u16, u32);
 
 #define read_reg(reg) (readl(bp->base + reg))
-#define write_reg(reg, val) (writel(bp->base + reg, val))
+#define write_reg(reg, val) (writel(val, bp->base + reg))
 
 /* PHY (Micrel KS8721) definitions */
 
@@ -224,20 +224,8 @@ static void set_mdio_data(struct mdiobb_ctrl *ctrl, int value);
 static int get_mdio_data(struct mdiobb_ctrl *ctrl);
 
 
-struct mdiobb_ops  core10100_mdio_ops = {
-	THIS_MODULE,
-	set_mdc,
-	set_mdio_dir,
-	set_mdio_data,
-	get_mdio_data
-};
 
-
-struct mdiobb_ctrl core10100_mdio_ctrl = {
-	&core10100_mdio_ops
-};
-
-struct mii_bus *eth_mii_bus;
+//struct mii_bus *eth_mii_bus;
 
 /*Register access routines*/
 
@@ -455,26 +443,45 @@ static void reset_eth()
 	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst);
 }
 
-static int mdio_init()
+struct mdiobb_ops  core10100_mdio_ops = {
+	THIS_MODULE,
+	set_mdc,
+	set_mdio_dir,
+	set_mdio_data,
+	get_mdio_data
+};
+
+
+struct mdiobb_ctrl core10100_mdio_ctrl = {
+	&core10100_mdio_ops
+};
+
+
+static int mdio_init(struct core10100_dev *bp)
 {
 	int ret;
 	int phy_addr;
 	struct phy_device *phydev = NULL;
 	
-	eth_mii_bus = alloc_mdio_bitbang(&core10100_mdio_ctrl);
+	bp->mii_bus = alloc_mdio_bitbang(&core10100_mdio_ctrl);
 	
-	eth_mii_bus->name = "eth_mii_bus";
-	snprintf(eth_mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
-	ret = mdiobus_register(eth_mii_bus);
-
+	bp->mii_bus->name = "eth_mii_bus";
+	
+	
+	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
+	
+	ret = mdiobus_register(bp->mii_bus);
+	
 	if (ret) {
 		printk(KERN_INFO "mdiobus_register failed!");
 	}
-
+	
+	return 1;
+	
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (eth_mii_bus->phy_map[phy_addr]) {
-			phydev = eth_mii_bus->phy_map[phy_addr];
+		if (bp->mii_bus->phy_map[phy_addr]) {
+			phydev = bp->mii_bus->phy_map[phy_addr];
 			printk(KERN_INFO "found PHY: id: %d addr %d", phydev->phy_id, phydev->addr);
 			//	break;
 		}
@@ -554,6 +561,7 @@ static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 //	if (!phydev)
 //		return -ENODEV;
+	return 0;
 	
 }
 
@@ -568,12 +576,7 @@ static int core10100_init(struct core10100_dev *bp)
 	printk(KERN_INFO "-->core10100_init");
 
 	// Reset the controller 
-//	write_reg(CSR0,  read_reg(CSR0) | CSR0_SWR);
-
-	write_reg(CSR0,  1);
-//	writel(read_reg(CSR0) | CSR0_SWR,  bp->base + CSR0);
-
-	return 0;
+	write_reg(CSR0,  read_reg(CSR0) | CSR0_SWR);
 	
 	// Wait for reset 
 	for (i = 0; i < TIMEOUT_LOOPS; i++) {
@@ -588,9 +591,8 @@ static int core10100_init(struct core10100_dev *bp)
 		return !0;
 	}
 
-
 	
-//	mdio_init();
+	mdio_init(bp);
 	
 //	reset_eth();
 	
@@ -605,12 +607,22 @@ static int core10100_init(struct core10100_dev *bp)
 	*/
 	write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM | CSR6_SF);
 
-	return 0;
+
 	
 	printk(KERN_INFO "<--core10100_init");
 	return 0;
 }
 
+static const struct net_device_ops core10100_netdev_ops = {
+	.ndo_open		= core10100_open,
+	.ndo_stop		= core10100_close,
+	.ndo_get_stats		= core10100_get_stats,
+	.ndo_start_xmit		= core10100_start_xmit,
+	.ndo_do_ioctl		= core10100_ioctl,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
 
 
 static int core10100_probe(struct platform_device *pd)
@@ -625,7 +637,6 @@ static int core10100_probe(struct platform_device *pd)
 	struct resource *res;
 	
 	printk(KERN_INFO "In probe!");
-
 
 	res = platform_get_resource(pd, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -651,6 +662,8 @@ static int core10100_probe(struct platform_device *pd)
 		goto err_out;
 	}
 
+	dev->netdev_ops = &core10100_netdev_ops;
+
 	bp = netdev_priv(dev);
 	bp->dev = dev;
 
@@ -658,11 +671,11 @@ static int core10100_probe(struct platform_device *pd)
 
 	
 	SET_NETDEV_DEV(dev, &pd->dev);
-	spin_lock_init(&bp->lock);
+	//spin_lock_init(&bp->lock);
 
 	bp->base = ioremap(mem_base, mem_size);
 
-	printk(KERN_INFO "bp base = 0x%x", bp->base);
+	printk(KERN_INFO "bp base = 0x%x", (unsigned int) bp->base);
 
 /* TODO: remove */
 	core10100_base = bp->base;
@@ -674,9 +687,13 @@ static int core10100_probe(struct platform_device *pd)
 	
 	printk(KERN_INFO "read csr5 defval ==> device match");
 
-	
 	core10100_init(bp);
 
+	err = register_netdev(dev);
+	if (err) {
+		dev_err(&pd->dev, "Cannot register net device, aborting.\n");
+		goto err_out;
+	}
 
 err_out:
 	return err;
@@ -704,16 +721,6 @@ static struct platform_driver core10100_platform_driver = {
 };
 
 
-static const struct net_device_ops core10100_netdev_ops = {
-	.ndo_open		= core10100_open,
-	.ndo_stop		= core10100_close,
-	.ndo_get_stats		= core10100_get_stats,
-	.ndo_start_xmit		= core10100_start_xmit,
-	.ndo_do_ioctl		= core10100_ioctl,
-	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
-};
 
 /* Receive/transmit descriptor */
 static struct desc {
