@@ -201,6 +201,8 @@ struct core10100_dev {
 
 	/* PHY stuff */
 	struct mii_bus			*mii_bus;
+	struct mdiobb_ctrl core10100_mdio_ctrl;
+
 	unsigned char phy_id;	/* ID of the PHY */
 	unsigned int			link;
 	unsigned int			speed;
@@ -209,7 +211,6 @@ struct core10100_dev {
 
 
 /*TODO: removeit Core10/100 memory base */
-void *core10100_base;
 
 
 #define MAX_ETH_MSG_SIZE 1500
@@ -224,33 +225,13 @@ static void set_mdio_data(struct mdiobb_ctrl *ctrl, int value);
 static int get_mdio_data(struct mdiobb_ctrl *ctrl);
 
 
-
-//struct mii_bus *eth_mii_bus;
-
-/*Register access routines*/
-
-/* static u32 read_reg(u16 reg) */
-/* { */
-/* 	u32 rd; */
-
-/* 	rd =  readl(core10100_base + reg); */
-
-/* 	return rd; */
-/* } */
-
-/* static void write_reg(u16 reg, u32 val) */
-/* { */
-/* 	writel(val, core10100_base + reg); */
-/* } */
-
-
 /* Set the Management Data Clock high if level is one,
  * low if level is zero.
  */
 void set_mdc(struct mdiobb_ctrl *ctrl, int level)
 {
-/* TODO: remove it */
-	struct core10100_dev *bp = core10100_base;
+	struct core10100_dev *bp = container_of(ctrl, struct core10100_dev,
+						core10100_mdio_ctrl);
 	
 	mii_set_mdc(level);
 }
@@ -260,9 +241,10 @@ void set_mdc(struct mdiobb_ctrl *ctrl, int level)
  */
 void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
 {
-	/* TODO: remove it */
-	struct core10100_dev *bp = core10100_base;
+	struct core10100_dev *bp = container_of(ctrl, struct core10100_dev,
+						core10100_mdio_ctrl);
 
+		
 	if (!output) 
 		write_reg(CSR9, read_reg(CSR9) | CSR9_MDEN);
 	else 
@@ -275,8 +257,8 @@ void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
  */
 void set_mdio_data(struct mdiobb_ctrl *ctrl, int value)
 {
-	/* TODO: remove it */
-	struct core10100_dev *bp = core10100_base;
+	struct core10100_dev *bp = container_of(ctrl, struct core10100_dev,
+						core10100_mdio_ctrl);
 	
 	mii_set_mdio(value);
 }
@@ -284,9 +266,9 @@ void set_mdio_data(struct mdiobb_ctrl *ctrl, int value)
 /* Retrieve the state Management Data I/O pin. */
 int get_mdio_data(struct mdiobb_ctrl *ctrl)
 {
-	/* TODO: remove it */
-	struct core10100_dev *bp = core10100_base;
-	
+	struct core10100_dev *bp = container_of(ctrl, struct core10100_dev,
+						core10100_mdio_ctrl);
+
 	return mii_get_mdio();
 }
 
@@ -430,12 +412,12 @@ static unsigned char phy_init(core10100_mac_desc_t *pd)
   Adapter initialization
 */
 
-static void reset_eth()
+static void reset_eth(void)
 {
 	unsigned int sfrst;
 	
 	sfrst = readl(SOFT_RST_CR);
-
+	
 	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst);
 	writel(sfrst & ~MAC_SR, SOFT_RST_CR);
 
@@ -452,31 +434,37 @@ struct mdiobb_ops  core10100_mdio_ops = {
 };
 
 
-struct mdiobb_ctrl core10100_mdio_ctrl = {
-	&core10100_mdio_ops
-};
+
+/* struct mdiobb_ctrl ore10100_mdio_ctrl = { */
+/* 	.ops = NULL */
+/* }; */
 
 
-static int mdio_init(struct core10100_dev *bp)
+
+static int core10100_mii_init(struct core10100_dev *bp)
 {
 	int ret;
 	int phy_addr;
 	struct phy_device *phydev = NULL;
+
+	bp->mii_bus = alloc_mdio_bitbang(&bp->core10100_mdio_ctrl);
+
+	if (!bp->mii_bus) {
+		printk(KERN_INFO "alloc_mdio_bitbang failed!");
+	}
 	
-	bp->mii_bus = alloc_mdio_bitbang(&core10100_mdio_ctrl);
-	
-	bp->mii_bus->name = "eth_mii_bus";
-	
-	
+	bp->mii_bus->name = "eth_mii_bus";	
 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
+
+//	BUG();
 	
 	ret = mdiobus_register(bp->mii_bus);
 	
+
 	if (ret) {
 		printk(KERN_INFO "mdiobus_register failed!");
 	}
 	
-	return 1;
 	
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
@@ -492,13 +480,15 @@ static int mdio_init(struct core10100_dev *bp)
 		return -ENODEV;
 	}
 
+	return 0;
+
 // 	printk(KERN_INFO "found PHY: id: %d", phydev->phy_id);
 }
 
 static int core10100_open(struct net_device *dev)
 {
-	struct core10100_dev *bp = netdev_priv(dev);
-
+//	struct core10100_dev *bp = netdev_priv(dev);
+	
 	/* if the phy is not yet register, retry later */
 //	if (!bp->phy_dev)
 //		return -EAGAIN;
@@ -523,7 +513,7 @@ static int core10100_open(struct net_device *dev)
 
 static int core10100_close(struct net_device *dev)
 {
-	struct dnet *bp = netdev_priv(dev);
+//	struct core10100 *bp = netdev_priv(dev);
 
 	/*
 	netif_stop_queue(dev);
@@ -553,7 +543,7 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb, struct net_device *
 
 static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct dnet *bp = netdev_priv(dev);
+//	struct core10100 *bp = netdev_priv(dev);
 //	struct phy_device *phydev = bp->phy_dev;
 
 	if (!netif_running(dev))
@@ -571,7 +561,7 @@ static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static int core10100_init(struct core10100_dev *bp)
 {
 	int i;
-	unsigned long rd;
+//	unsigned long rd;
 	
 	printk(KERN_INFO "-->core10100_init");
 
@@ -592,7 +582,7 @@ static int core10100_init(struct core10100_dev *bp)
 	}
 
 	
-	mdio_init(bp);
+
 	
 //	reset_eth();
 	
@@ -648,13 +638,6 @@ static int core10100_probe(struct platform_device *pd)
 	mem_size = resource_size(res);
 
 	
-	/*<TODO> заменить на platform_get_resource*/	
-	/* sz = pd->resource[0].end - pd->resource[0].start; */
-	/* core10100_base = ioremap(pd->resource[0].start, sz);  */
-	
-	/* printk(KERN_INFO "trying to access CSR5 (0x%x+0x%x = 0x%x)...", core_base, CSR5, core_base+CSR5); */
-	
-
 	dev = alloc_etherdev(sizeof(*bp));
 	
 	if (!dev) {
@@ -667,8 +650,6 @@ static int core10100_probe(struct platform_device *pd)
 	bp = netdev_priv(dev);
 	bp->dev = dev;
 
-	/* bp->base = core10100_base; */
-
 	
 	SET_NETDEV_DEV(dev, &pd->dev);
 	//spin_lock_init(&bp->lock);
@@ -677,23 +658,27 @@ static int core10100_probe(struct platform_device *pd)
 
 	printk(KERN_INFO "bp base = 0x%x", (unsigned int) bp->base);
 
-/* TODO: remove */
-	core10100_base = bp->base;
-
-
 	if ( (rd = read_reg(CSR5)) != 0xF0000000){
 		return -ENODEV;
 	}
 	
 	printk(KERN_INFO "read csr5 defval ==> device match");
 
+//	return 0;
+	bp->core10100_mdio_ctrl.ops = &core10100_mdio_ops;
+
+
 	core10100_init(bp);
+
+	core10100_mii_init(bp);
 
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(&pd->dev, "Cannot register net device, aborting.\n");
 		goto err_out;
 	}
+
+	
 
 err_out:
 	return err;
@@ -723,12 +708,13 @@ static struct platform_driver core10100_platform_driver = {
 
 
 /* Receive/transmit descriptor */
-static struct desc {
-	volatile unsigned int own_stat;
-	volatile unsigned int cntl_size;
-	volatile void *buf1;
-	volatile void *buf2;
- };
+
+/* static struct desc { */
+/* 	volatile unsigned int own_stat; */
+/* 	volatile unsigned int cntl_size; */
+/* 	volatile void *buf1; */
+/* 	volatile void *buf2; */
+/*  }; */
 
 
 static int __init core10100_modinit(void) {
