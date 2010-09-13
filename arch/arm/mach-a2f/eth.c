@@ -30,10 +30,15 @@
 
 static struct resource eth_core_resources[] = {
         {
-        .start          = ETH_CORE_BASE,
-        .end            = ETH_CORE_BASE + ETH_CORE_SIZE,
-        .flags          = IORESOURCE_MEM,
-        }
+		.start          = ETH_CORE_BASE,
+		.end            = ETH_CORE_BASE + ETH_CORE_SIZE,
+		.flags          = IORESOURCE_MEM,
+        }, {
+		.start = ETH_CORE_IRQ,
+		.end = ETH_CORE_IRQ,
+		.flags          = IORESOURCE_IRQ,
+	}
+	
 };
 
 

@@ -31,6 +31,9 @@
 //#include <arm/io.h>
 
 
+#define DRV_NAME		"core10100"
+
+
 MODULE_LICENSE("GPL");
 
 //#define ETH_BASE 0x40003000
@@ -194,7 +197,7 @@ struct core10100_dev {
 	spinlock_t			lock;
 	struct platform_device		*pdev;
 	struct net_device		*dev;
-//	struct dnet_stats		hw_stats;
+	/* struct dnet_stats		hw_stats; */
 	unsigned int			capabilities; /* read from FPGA */
 	struct napi_struct		napi;
 	char mac[12];
@@ -244,7 +247,6 @@ void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
 	struct core10100_dev *bp = container_of(ctrl, struct core10100_dev,
 						core10100_mdio_ctrl);
 
-		
 	if (!output) 
 		write_reg(CSR9, read_reg(CSR9) | CSR9_MDEN);
 	else 
@@ -272,142 +274,6 @@ int get_mdio_data(struct mdiobb_ctrl *ctrl)
 	return mii_get_mdio();
 }
 
-
-#ifdef TROLOLO
-static inline void enable_mdo(int enable)
-{
-    /* MSS MAC has MDEN bit inverted compared to CORE_10100 */
-
-    if (!enable) {
-	 write_reg(CSR9, read_register(pd, CSR9) | CSR9_MDEN);
-    } else {
-	 write_reg(CSR9, read_register(pd, CSR9) & ~CSR9_MDEN);
-    }
-}
-
-
-/* Read a register value via MII */
-static unsigned short mii_read(core10100_mac_desc_t *pd, unsigned short reg)
-{
-    unsigned short cmd;		/* MII command */
-    unsigned short data;	/* Read data */
-    unsigned short mask;	/* Auxiliary mask */
-    int i;
-
-    if (pd->phy_id == 0xff) {
-	return 0;
-    }
-
-    /* Compose and send the command */
-    cmd = mdio_cmd(MDIO_READ, reg);
-
-    enable_mdo(pd, 1); /* enable transmit */
-
-    mii_set_mdio(1);
-
-    for (i = 0; i < 32; i++) {
-	mii_set_mdc(0);
-	mdio_wait;
-	mii_set_mdc(1);
-	mdio_wait;
-    }
-
-    for (mask = 0x8000; mask > 0; mask >>= 1) {
-	mii_set_mdc(0);
-	mdio_wait;
-	mii_set_mdio((mask & cmd) ? 1 : 0);
-	mii_set_mdc(1);
-	mdio_wait;
-    }
-
-    /* Read a register value */
-    enable_mdo(pd, 0); /* receive */
-    for (data = 0, mask = 0x8000; mask > 0; mask >>= 1) {
-	mii_set_mdc(0);
-	mdio_wait;
-	if (mii_get_mdio()) {
-	    data |= mask;
-	}
-	mii_set_mdc(1);
-	mdio_wait;
-    }
-    mii_set_mdc(0);
-
-    return data;
-}
-
-
-
-/* Write a register value via MII */
-static void mii_write(core10100_mac_desc_t *pd, unsigned short reg,
-	unsigned short data)
-{
-     unsigned long cmd;		/* MII command */
-     unsigned long mask;		/* Auxiliary mask */
-     int i;
-
-     if (pd->phy_id == 0xff) {
-	  return;
-     }
-
-     /* Send the command and the new register value */
-     cmd = ((unsigned long)mdio_cmd(MDIO_WRITE, reg)) << 16 | data;
-
-     enable_mdo(pd, 1); /* enable transmit */
-
-     mii_set_mdio(1);
-
-     for (i = 0; i < 32; i++) {
-	  mii_set_mdc(0);
-	  mdio_wait;
-	  mii_set_mdc(1);
-	  mdio_wait;
-     }
-
-     for (mask = 0x80000000; mask > 0; mask >>= 1) {
-	  mii_set_mdc(0);
-	  mdio_wait;
-	  mii_set_mdio((mask & cmd) ? 1 : 0);
-	  mii_set_mdc(1);
-	  mdio_wait;
-     }
-     mii_set_mdc(0);
-}
-
-
-/* Initialize PHY */
-static unsigned char phy_init(core10100_mac_desc_t *pd)
-{
-     int i;
-     unsigned short val;
-
-     /* Probe (find) a PHY */
-     for (i = 0; i < 32; i++) {
-	  pd->phy_id = i;
-	  val = mii_read(pd, PHY_ID1);
-	  if (val != 0 && val != 0xffff) {
-	       break;
-	  }
-	  DBG_STR("PHY ");
-	  DBG_HEX(i);
-	  DBG_STR(" read ");
-	  DBG_HEX(val>>8);
-	  DBG_HEX(val);
-	  DBG_STR("\n");
-	  WDT_RESET;
-     }
-     if (i == 32) {
-	  /* Have not found a PHY */
-	  pd->phy_id = 0xff;
-	  return !0;
-     }
-
-     /* Software reset */
-     mii_write(pd, PHY_BCR, BCR_SR);
-
-     return 0;
-}
-#endif
 /*
   Adapter initialization
 */
@@ -456,15 +322,11 @@ static int core10100_mii_init(struct core10100_dev *bp)
 	bp->mii_bus->name = "eth_mii_bus";	
 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
 
-//	BUG();
-	
 	ret = mdiobus_register(bp->mii_bus);
 	
-
 	if (ret) {
 		printk(KERN_INFO "mdiobus_register failed!");
 	}
-	
 	
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
@@ -485,9 +347,20 @@ static int core10100_mii_init(struct core10100_dev *bp)
 // 	printk(KERN_INFO "found PHY: id: %d", phydev->phy_id);
 }
 
+static irqreturn_t core10100_interrupt(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
+	struct core10100 *bp = netdev_priv(dev);
+	unsigned int handled = 0;
+
+
+	return IRQ_RETVAL(handled);
+}
+
 static int core10100_open(struct net_device *dev)
 {
-//	struct core10100_dev *bp = netdev_priv(dev);
+	//struct core10100_dev *bp = netdev_priv(dev);
+
 	
 	/* if the phy is not yet register, retry later */
 //	if (!bp->phy_dev)
@@ -622,6 +495,7 @@ static int core10100_probe(struct platform_device *pd)
 	struct net_device *dev;
 	struct core10100_dev *bp;
 	u32 mem_base, mem_size;
+	u16 irq;
 	
 	int err = -ENXIO;
 	struct resource *res;
@@ -636,7 +510,10 @@ static int core10100_probe(struct platform_device *pd)
 
 	mem_base = res->start;
 	mem_size = resource_size(res);
+	
+	irq = platform_get_irq(pd, 0);
 
+	printk(KERN_INFO "Device irq: %d", irq);
 	
 	dev = alloc_etherdev(sizeof(*bp));
 	
@@ -652,21 +529,31 @@ static int core10100_probe(struct platform_device *pd)
 
 	
 	SET_NETDEV_DEV(dev, &pd->dev);
-	//spin_lock_init(&bp->lock);
+	/* spin_lock_init(&bp->lock); */
+
+	dev->irq = irq;
+
+	err = request_irq(dev->irq, core10100_interrupt, 0, DRV_NAME, dev);
 
 	bp->base = ioremap(mem_base, mem_size);
 
 	printk(KERN_INFO "bp base = 0x%x", (unsigned int) bp->base);
 
-	if ( (rd = read_reg(CSR5)) != 0xF0000000){
+	/* if ( (rd = read_reg(CSR5)) != 0xF0000000){ */
+	/* 	return -ENODEV; */
+	/* } */
+
+	if ( !(read_reg(CSR0) == 0xFE000000 &&
+	       read_reg(CSR5) == 0xF0000000 &&
+	       read_reg(CSR6) == 0x32000040))
+	{
 		return -ENODEV;
 	}
+		
 	
-	printk(KERN_INFO "read csr5 defval ==> device match");
+	printk(KERN_INFO "CSR[0,5,6] reset values are OK.");
 
-//	return 0;
 	bp->core10100_mdio_ctrl.ops = &core10100_mdio_ops;
-
 
 	core10100_init(bp);
 
@@ -677,7 +564,6 @@ static int core10100_probe(struct platform_device *pd)
 		dev_err(&pd->dev, "Cannot register net device, aborting.\n");
 		goto err_out;
 	}
-
 	
 
 err_out:
