@@ -33,6 +33,7 @@
 
 #define DRV_NAME		"core10100"
 
+#define PFX				DRV_NAME ": "
 
 MODULE_LICENSE("GPL");
 
@@ -180,6 +181,11 @@ MODULE_LICENSE("GPL");
 #define BSR_LS			(1 << 2)
 #define BSR_ANC			(1 << 5)
 
+/**
+ * Default MAC address
+ */
+
+#define DEFAULT_MAC_ADDRESS             0xC0u,0xB1u,0x3Cu,0x88u,0x88u,0x88u
 
 //Driver functions
 static int core10100_probe(struct platform_device *);
@@ -377,17 +383,18 @@ static int core10100_open(struct net_device *dev)
 
 
 	phy_start(bp->phy_dev);
-
-	netif_start_queue(dev);
 	*/
+	netif_start_queue(dev);
+
 
 	return 0;
 }
 
 static int core10100_close(struct net_device *dev)
 {
-//	struct core10100 *bp = netdev_priv(dev);
+	struct core10100 *bp = netdev_priv(dev);
 
+	netif_stop_queue(dev);
 	/*
 	netif_stop_queue(dev);
 	napi_disable(&bp->napi);
@@ -398,7 +405,7 @@ static int core10100_close(struct net_device *dev)
 	dnet_reset_hw(bp);
 	netif_carrier_off(dev);
 	*/
-
+	netif_carrier_off(dev);
 
 	return 0;
 }
@@ -408,9 +415,60 @@ static struct net_device_stats *core10100_get_stats(struct net_device *dev)
 	return NULL;
 }
 
+static inline void core10100_print_skb(struct sk_buff *skb)
+{
+	int k;
+	printk(KERN_DEBUG PFX "data:");
+	for (k = 0; k < skb->len; k++)
+		printk(" %02x", (unsigned int)skb->data[k]);
+	printk("\n");
+}
+
 static netdev_tx_t core10100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 {
+	unsigned int *bufp;
+	u32 tx_status, irq_enable;
+	unsigned int len, i, tx_cmd, wrsz;
+	unsigned long flags;
+	
+	struct core10100_dev *bp = netdev_priv(dev);
+	
+	pr_debug("start_xmit: len %u head %p data %p\n",
+		 skb->len, skb->head, skb->data);
+	
+	core10100_print_skb(skb);
+
+
+	/* <TODO>: core10100_init, intitial setup */
+	/* frame size (words) */
+	len = (skb->len + 3) >> 2;
+
+	spin_lock_irqsave(&bp->lock, flags);
+
+	tx_status = read_reg(CSR5);
+
+	bufp = (unsigned int *)(((unsigned long) skb->data) & ~0x3UL);
+	wrsz = (u32) skb->len + 3;
+	wrsz += ((unsigned long) skb->data) & 0x3;
+	wrsz >>= 2;
+	tx_cmd = ((((unsigned long)(skb->data)) & 0x03) << 16) | (u32) skb->len;
+
+	/* check if there is enough room for the current frame */
+	
+
+	/*
+	 * inform MAC that a packet's written and ready to be
+	 * shipped out
+	 */
+	
+	/* free the buffer */
+	dev_kfree_skb(skb);
+
+	spin_unlock_irqrestore(&bp->lock, flags);
+
+	dev->trans_start = jiffies;
+	
 	return NETDEV_TX_OK;
 }
 
@@ -427,8 +485,6 @@ static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return 0;
 	
 }
-
-
 
 
 static int core10100_init(struct core10100_dev *bp)
@@ -449,28 +505,24 @@ static int core10100_init(struct core10100_dev *bp)
 		udelay(TIMEOUT_UDELAY);
 //		WDT_RESET;
 	}
+	
 	if (i == TIMEOUT_LOOPS) {
 		printk(KERN_INFO "core10100: SWR timeout");
 		return !0;
 	}
-
-	
-
 	
 //	reset_eth();
 	
 	// Setup the little endian mode for the data descriptors 
 	write_reg(CSR0, read_reg(CSR0) & ~CSR0_DBO);
-
-
+	
 	/*
 	  Disable the promiscuous mode
 	  Pass all multicast
 	  Store and forward
 	*/
 	write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM | CSR6_SF);
-
-
+	
 	
 	printk(KERN_INFO "<--core10100_init");
 	return 0;
@@ -526,58 +578,56 @@ static int core10100_probe(struct platform_device *pd)
 
 	bp = netdev_priv(dev);
 	bp->dev = dev;
-
+	
 	
 	SET_NETDEV_DEV(dev, &pd->dev);
-	/* spin_lock_init(&bp->lock); */
-
+	spin_lock_init(&bp->lock); 
+	
 	dev->irq = irq;
-
+	
 	err = request_irq(dev->irq, core10100_interrupt, 0, DRV_NAME, dev);
-
+	
 	bp->base = ioremap(mem_base, mem_size);
-
+	
 	printk(KERN_INFO "bp base = 0x%x", (unsigned int) bp->base);
 
 	/* if ( (rd = read_reg(CSR5)) != 0xF0000000){ */
 	/* 	return -ENODEV; */
 	/* } */
-
+	
 	if ( !(read_reg(CSR0) == 0xFE000000 &&
 	       read_reg(CSR5) == 0xF0000000 &&
 	       read_reg(CSR6) == 0x32000040))
 	{
 		return -ENODEV;
 	}
-		
 	
 	printk(KERN_INFO "CSR[0,5,6] reset values are OK.");
 
 	bp->core10100_mdio_ctrl.ops = &core10100_mdio_ops;
 
 	core10100_init(bp);
-
+	
 	core10100_mii_init(bp);
-
+	
 	err = register_netdev(dev);
+	
 	if (err) {
 		dev_err(&pd->dev, "Cannot register net device, aborting.\n");
 		goto err_out;
 	}
 	
-
 err_out:
 	return err;
-
+	
 	return 0;
-		
+	
 }
 
 static int core10100_remove(struct platform_device *pd)
 {
 	return 0;
 }
-
 
 
 static struct platform_driver core10100_platform_driver = {
