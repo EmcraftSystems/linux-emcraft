@@ -78,6 +78,72 @@ MODULE_LICENSE("GPL");
 #define CSR5_TS_STOP		0x00
 #define CSR5_TS_SUSP		0x06
 
+#define CSR5_TI_OFFSET   0x28
+#define CSR5_TI_MASK     0x00000001UL
+#define CSR5_TI_SHIFT    0
+
+#define CSR5_NIS_OFFSET   0x28
+#define CSR5_NIS_MASK     0x00010000uL
+#define CSR5_NIS_SHIFT    16
+
+#define CSR5_RI_OFFSET   0x28
+#define CSR5_RI_MASK     0x00000040UL
+#define CSR5_RI_SHIFT    6
+
+#define CSR5_AIS_OFFSET   0x28
+#define CSR5_AIS_MASK     0x00008000UL
+#define CSR5_AIS_SHIFT    15
+
+/* Early receive interrupt */
+#define CSR5_ERI_OFFSET   0x28
+#define CSR5_ERI_MASK     0x00004000UL
+#define CSR5_ERI_SHIFT    14
+
+ /* Transmit underflow */
+#define CSR5_UNF_OFFSET   0x28
+#define CSR5_UNF_MASK     0x00000020UL
+#define CSR5_UNF_SHIFT    5
+
+/* Transmit buffer unavailable */
+#define CSR5_TU_OFFSET   0x28
+#define CSR5_TU_MASK     0x00000004UL
+#define CSR5_TU_SHIFT    2
+
+ /* Receive process stopped */
+#define CSR5_RPS_OFFSET   0x28
+#define CSR5_RPS_MASK     0x00000100UL
+#define CSR5_RPS_SHIFT    8
+
+ /* General-purpose timer expiration */
+#define CSR5_GTE_OFFSET   0x28
+#define CSR5_GTE_MASK     0x00000800UL
+#define CSR5_GTE_SHIFT    11
+
+ /*Early transmit interrupt*/
+#define CSR5_ETI_OFFSET   0x28
+#define CSR5_ETI_MASK     0x00000400UL
+#define CSR5_ETI_SHIFT    10
+
+ /* Receive buffer unavailable */
+
+#define CSR5_RU_OFFSET   0x28
+#define CSR5_RU_MASK     0x00000080UL
+#define CSR5_RU_SHIFT    7
+
+ /* Transmit process stopped */
+#define CSR5_TPS_OFFSET   0x28
+#define CSR5_TPS_MASK     0x00000002UL
+#define CSR5_TPS_SHIFT    1
+
+
+
+/* Abnormal interrupt summary */
+#define CSR5_INT_BITS	(CSR5_NIS_MASK | CSR5_AIS_MASK | CSR5_ERI_MASK | \
+	CSR5_GTE_MASK | CSR5_ETI_MASK | CSR5_RPS_MASK | CSR5_RU_MASK | \
+	CSR5_RI_MASK | CSR5_UNF_MASK | CSR5_TU_MASK | CSR5_TPS_MASK | CSR5_TI_MASK)
+
+
+
 #define CSR6_SR			(1 << 1)
 #define CSR6_PR			(1 << 6)
 #define CSR6_PM			(1 << 7)
@@ -85,6 +151,13 @@ MODULE_LICENSE("GPL");
 #define CSR6_ST			(1 << 13)
 #define CSR6_SF			(1 << 21)
 #define CSR6_TTM		(1 << 22)
+
+
+ /* Receive all */
+#define CSR6_RA_OFFSET   0x30
+#define CSR6_RA_MASK     0x40000000UL
+#define CSR6_RA_SHIFT    30
+
 
 /* #define CSR9_MDC		(1 << 16) */
 /* #define CSR9_MDO		(1 << 17) */
@@ -313,14 +386,19 @@ static struct rxtx_desc {
 	
 /* }; */
 
+struct core10100_stat {
+	u32 rx_interrupts;
+	u32 tx_interrupts;
+};
+
 struct core10100_dev {
 	void __iomem			*base;
 	spinlock_t			lock;
 	struct platform_device		*pdev;
 	struct net_device		*dev;
-	/* struct dnet_stats		hw_stats; */
 	unsigned int			capabilities; /* read from FPGA */
-	struct napi_struct		napi;
+	/* struct napi_struct		napi; */
+	uint8_t		flags;                  /**< Configuration of the driver*/
 
 	/*device mac-address*/
 	u16 mac[6];
@@ -349,6 +427,9 @@ struct core10100_dev {
 	unsigned int			link;
 	unsigned int			speed;
 	unsigned int			duplex;
+
+	/* statistics */
+	struct core10100_stat statistics;
 };
 
 
@@ -484,12 +565,33 @@ static int core10100_mii_init(struct core10100_dev *bp)
  	/* printk(KERN_INFO "found PHY: id: %d", phydev->phy_id); */
 }
 
-static irqreturn_t core10100_interrupt(int irq, void *dev_id)
+static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
-	struct core10100 *bp = netdev_priv(dev);
+	struct core10100_dev *bp = netdev_priv(dev);
 	unsigned int handled = 0;
+	u32 intr_status;
 
+	intr_status = read_reg(CSR5);
+       
+	if ( (intr_status & CSR5_NIS_MASK) != 0u ) {
+
+		/* Transmit */
+		if ( (intr_status & CSR5_TI_MASK) != 0u ) {
+			
+			bp->statistics.tx_interrupts++;
+			/* events |= MSS_MAC_EVENT_PACKET_SEND; */
+		}
+
+		/* Receive  */
+		if( (intr_status & CSR5_RI_MASK) != 0u ) {
+			
+			bp->statistics.rx_interrupts++;
+			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
+		}
+	}
+
+	write_reg(CSR5, CSR5_INT_BITS);
 
 	return IRQ_RETVAL(handled);
 }
@@ -689,10 +791,11 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 
 }
 
-
+/*Init the adapter*/
 static int core10100_init(struct core10100_dev *bp)
 {
 	int i;
+	int ra_mask;
 	/* unsigned long rd; */
 	
 	printk(KERN_INFO "-->core10100_init");
@@ -725,6 +828,23 @@ static int core10100_init(struct core10100_dev *bp)
 	  Store and forward
 	*/
 	write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM | CSR6_SF);
+
+
+	/* receive all (just for test) */
+
+	ra_mask = read_reg(CSR6);
+
+	if (ra_mask & CSR6_RA_MASK)
+		printk( KERN_INFO "Receive all is set!");
+	else {
+		write_reg(CSR6, CSR6_RA_MASK);
+
+
+		ra_mask = read_reg(CSR6);
+		
+		if (ra_mask & CSR6_RA_MASK)
+			printk( KERN_INFO "Can enable RA!!");
+	}
 	
 	
 	printk(KERN_INFO "<--core10100_init");
