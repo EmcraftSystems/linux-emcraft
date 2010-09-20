@@ -802,7 +802,7 @@ static int core10100_init(struct core10100_dev *bp)
 	/* unsigned long rd; */
 	
 	printk(KERN_INFO "-->core10100_init");
-
+	
 	 /* Reset the controller  */
 	write_reg(CSR0,  read_reg(CSR0) | CSR0_SWR);
 	
@@ -837,18 +837,19 @@ static int core10100_init(struct core10100_dev *bp)
 
 	ra_mask = read_reg(CSR6);
 
-	if (ra_mask & CSR6_RA_MASK)
-		printk( KERN_INFO "Receive all is set!");
-	else {
-		write_reg(CSR6, CSR6_RA_MASK);
+	/* if (ra_mask & CSR6_RA_MASK) */
+	/* 	printk( KERN_INFO "Receive all is set!"); */
+	/* else { */
+	/* 	write_reg(CSR6, CSR6_RA_MASK); */
 
 
-		ra_mask = read_reg(CSR6);
+	/* 	ra_mask = read_reg(CSR6); */
 		
-		if (ra_mask & CSR6_RA_MASK)
-			printk( KERN_INFO "Can enable RA!!");
-	}
-	
+	/* 	if (ra_mask & CSR6_RA_MASK) */
+	/* 		printk( KERN_INFO "Can enable RA!!"); */
+	/* } */
+
+//	core10100_mac_addr(struct net_device *dev, void *p)
 	
 	printk(KERN_INFO "<--core10100_init");
 	return 0;
@@ -875,6 +876,7 @@ static int core10100_probe(struct platform_device *pd)
 	struct core10100_dev *bp;
 	u32 mem_base, mem_size, a;
 	u16 irq;
+	const u8 mac_address[6] = { DEFAULT_MAC_ADDRESS };
 
 	
 	int err = -ENXIO;
@@ -884,8 +886,8 @@ static int core10100_probe(struct platform_device *pd)
 
 	res = platform_get_resource(pd, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pd->dev, "no mmio resource defined\n");
-		goto err_out;
+	     dev_err(&pd->dev, "no mmio resource defined\n");
+	     goto err_out;
 	}
 
 	mem_base = res->start;
@@ -898,8 +900,8 @@ static int core10100_probe(struct platform_device *pd)
 	dev = alloc_etherdev(sizeof(*bp));
 	
 	if (!dev) {
-		dev_err(&pd->dev, "etherdev alloc failed, aborting.\n");
-		goto err_out;
+	     dev_err(&pd->dev, "etherdev alloc failed, aborting.\n");
+	     goto err_out;
 	}
 
 	dev->netdev_ops = &core10100_netdev_ops;
@@ -934,8 +936,6 @@ static int core10100_probe(struct platform_device *pd)
 		
 	core10100_init(bp);
 	
-
-
 	err = register_netdev(dev);
 	
 	if (err) {
@@ -1010,6 +1010,12 @@ static int core10100_probe(struct platform_device *pd)
 	}
 	
 	bp->rx_descs[TX_RING_SIZE-1].own_stat |= TDES1_TER;
+
+	    
+	core10100_mac_addr(dev, mac_address);
+
+	/* receive all packets */
+	write_reg(CSR6, CSR6_RA_MASK);
 	
 	return 0;
 	
