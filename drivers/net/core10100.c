@@ -408,7 +408,11 @@ struct core10100_dev {
 	struct rxtx_desc *tx_descs;
 	struct rxtx_desc *tx_mac;
 
-	/*mac filter buffer*/
+	/* Current transmit/receieve descriptors */
+	u8 tx_cur;
+	u8 rx_cur; 
+	
+	/* mac filter buffer */
 	void *mac_filter;
 
 	/* RX/TX dma handles */
@@ -416,6 +420,9 @@ struct core10100_dev {
 	dma_addr_t tx_dma_handle;
 	dma_addr_t tx_mac_dma_handle;
 
+	/* previous transmit skb, must be freed in ISR */
+	struct sk_buff *last_skb;
+	
 	/*special mac filter buffer dma handle*/
 	dma_addr_t mac_filter_dma_handle;
 	
@@ -581,11 +588,17 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			
 			bp->statistics.tx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_SEND; */
+
+			/* TODO: Этого достаточно ? */
+			dev_kfree_skb(bp->last_skb);
 		}
 
 		/* Receive  */
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
+
+			/* TODO: RX polling */
 			
+			/* netif_receive_skb(skb) and friends */
 			bp->statistics.rx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
 		}
@@ -666,8 +679,9 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 {
 	unsigned int *bufp;
 	u32 tx_status, irq_enable;
-	unsigned int len, i, tx_cmd, wrsz;
+	u32 len, i, tx_cmd, wrsz;
 	unsigned long flags;
+	u8 tx_next;
 	
 	struct core10100_dev *bp = netdev_priv(dev);
 	
@@ -679,29 +693,76 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 
 	/* <TODO>: core10100_init, intitial setup */
 	/* frame size (words) */
-	len = (skb->len + 3) >> 2;
+
+	/*TODO: это именно длина сообщения? */
+	len = skb->len;
 
 	spin_lock_irqsave(&bp->lock, flags);
 
 	tx_status = read_reg(CSR5);
 
-	bufp = (unsigned int *)(((unsigned long) skb->data) & ~0x3UL);
-	wrsz = (u32) skb->len + 3;
-	wrsz += ((unsigned long) skb->data) & 0x3;
-	wrsz >>= 2;
-	tx_cmd = ((((unsigned long)(skb->data)) & 0x03) << 16) | (u32) skb->len;
+
+	/* 
+	Wait for the previous packet transmission end 
+	pd->tx_cur - free descriptor
+	tx_next - used in previous transmit operation
+	*/
+	tx_next = (bp->tx_cur + 1) % 2;
+
+	for (i=0; i < TIMEOUT_LOOPS; i++) {
+		if (!(bp->tx_descs[tx_next].own_stat & DESC_OWN)) {
+			break;
+		}
+		udelay(TIMEOUT_UDELAY);
+//		WDT_RESET;
+	}
+
+	if ( i == TIMEOUT_LOOPS ) {
+		/* Chesk status: may be status cache is out of sync */
+		/* link_stat(pd); */
+		printk (KERN_ERR "transmit_frame error: timeout");
+		return !0;
+	    }
+	
+	/*
+	Prepare the descriptors as follows:
+	 - set the last descriptor flag
+	 - set the first descriptor flag
+	 - set the packet length
+	*/
+	
+	bp->tx_descs[bp->tx_cur].cntl_size = DESC_TCH | DESC_TLS | DESC_TFS | len;
+
+	/* make descriptor pointer to point to skb buf */
+	bp->tx_descs[bp->tx_cur].buf1 = skb->data;
+	
+	/*
+	  Give the current descriptor ownership to Core10/100 and
+	  the following descriptor ownership to the host.
+	*/
+
+	bp->tx_descs[tx_next].own_stat = 0;
+	bp->tx_descs[bp->tx_cur].own_stat = DESC_OWN;
+
+
 
 	
-
 	/* Start transmission */
 	write_reg(CSR6, read_reg(CSR6) | CSR6_ST);
+
+	/* Transmit poll demand */
+	write_reg(CSR1, CSR1_TPD);
     
-	/* free the buffer */
-	dev_kfree_skb(skb);
+
+	/* save the buffer */
+	bp->last_skb = skb;
+	
 
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	dev->trans_start = jiffies;
+
+	bp->tx_cur = tx_next;
 	
 	return NETDEV_TX_OK;
 }
@@ -750,7 +811,7 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 	write_reg(CSR4, (unsigned long)&bp->tx_mac);
 
 
-	/*<TODO>: fix nasty idle loops to proper waits*/
+	/* <TODO>: fix nasty idle loops to proper waits */
 	
 	/* Start transmission */
 	write_reg(CSR6, read_reg(CSR6) | CSR6_ST);
@@ -830,7 +891,7 @@ static int core10100_init(struct core10100_dev *bp)
 	  Pass all multicast
 	  Store and forward
 	*/
-	write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM | CSR6_SF);
+	/* write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM | CSR6_SF); */
 
 
 	/* receive all (just for test) */
@@ -850,6 +911,8 @@ static int core10100_init(struct core10100_dev *bp)
 	/* } */
 
 //	core10100_mac_addr(struct net_device *dev, void *p)
+
+	bp->tx_cur = 0;
 	
 	printk(KERN_INFO "<--core10100_init");
 	return 0;
