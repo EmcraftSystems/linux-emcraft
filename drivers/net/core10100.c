@@ -591,6 +591,9 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 		}
 	}
 
+
+	printk(KERN_ERR "core10100: in irq");
+	
 	write_reg(CSR5, CSR5_INT_BITS);
 
 	return IRQ_RETVAL(handled);
