@@ -415,10 +415,15 @@ struct core10100_dev {
 	/* mac filter buffer */
 	void *mac_filter;
 
+	/* RX buffer pointer */
+	void *rx_buf;
+
 	/* RX/TX dma handles */
 	dma_addr_t rx_dma_handle;
 	dma_addr_t tx_dma_handle;
 	dma_addr_t tx_mac_dma_handle;
+	dma_addr_t rx_buf_dma_handle;
+	
 
 	/* previous transmit skb, must be freed in ISR */
 	struct sk_buff *last_skb;
@@ -429,6 +434,7 @@ struct core10100_dev {
 	/* PHY stuff */
 	struct mii_bus			*mii_bus;
 	struct mdiobb_ctrl core10100_mdio_ctrl;
+	struct phy_device *phy_dev;
 
 	unsigned char phy_id;	/* ID of the PHY */
 	unsigned int			link;
@@ -438,8 +444,6 @@ struct core10100_dev {
 	/* statistics */
 	struct core10100_stat statistics;
 };
-
-
 
 
 #define MAX_ETH_MSG_SIZE 1500
@@ -473,7 +477,8 @@ void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output)
 	struct core10100_dev *bp = container_of(ctrl, struct core10100_dev,
 						core10100_mdio_ctrl);
 
-	if (!output) 
+	/* if (!output)  */
+	if (output) 
 		write_reg(CSR9, read_reg(CSR9) | CSR9_MDEN);
 	else 
 		write_reg(CSR9, read_reg(CSR9) & ~CSR9_MDEN);
@@ -525,10 +530,79 @@ struct mdiobb_ops  core10100_mdio_ops = {
 	.get_mdio_data = get_mdio_data
 };
 
-static int core10100_mii_init(struct core10100_dev *bp)
+
+static void core10100_link_change(struct net_device *dev)
 {
+	struct core10100_dev *bp = netdev_priv(dev);
+	struct phy_device *phydev = bp->phy_dev;
+
+	int status_change = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bp->lock, flags);
+	
+	printk(KERN_INFO "in link_change!");
+
+	if (phydev->link) {
+		if (bp->duplex != phydev->duplex) {
+			if (phydev->duplex) {
+				
+			}
+
+			bp->duplex = phydev->duplex;
+			status_change = 1;
+		}
+		
+		if (bp->speed != phydev->speed) {
+			status_change = 1;
+			switch (phydev->speed) {
+			case 100:
+				
+			case 10:
+		
+				break;
+			default:
+				printk(KERN_WARNING
+				       "%s: Ack!  Speed (%d) is not "
+				       "10/100/1000!\n", dev->name,
+				       phydev->speed);
+				break;
+			}
+			bp->speed = phydev->speed;
+		}
+	}
+
+	if (phydev->link != bp->link) {
+		if (phydev->link) {
+			
+		} else {
+			bp->speed = 0;
+			bp->duplex = -1;
+		}
+		
+		bp->link = phydev->link;
+
+		status_change = 1;
+	}
+
+	spin_unlock_irqrestore(&bp->lock, flags);
+
+	if (status_change) {
+		if (phydev->link)
+			printk(KERN_INFO "%s: link up (%d/%s)\n",
+			       dev->name, phydev->speed,
+			       DUPLEX_FULL == phydev->duplex ? "Full" : "Half");
+		else
+			printk(KERN_INFO "%s: link down\n", dev->name);
+	}
+
+}
+
+static int core10100_mii_init(struct net_device *dev)
+{
+	struct core10100_dev *bp = netdev_priv(dev);
 	int ret;
-	int phy_addr;
+	short phy_addr;
 	struct phy_device *phydev = NULL;
 
 	bp->mii_bus = alloc_mdio_bitbang(&bp->core10100_mdio_ctrl);
@@ -545,32 +619,48 @@ static int core10100_mii_init(struct core10100_dev *bp)
 	if (ret) {
 		printk(KERN_INFO "mdiobus_register failed!");
 	}
-
-#define MSS_PHY_ADDRESS_AUTO_DETECT		255u
 	
 	/* find the first phy */
-	/* пробежаться по всем phy*/
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
 		if (bp->mii_bus->phy_map[phy_addr]) {
 			phydev = bp->mii_bus->phy_map[phy_addr];
-			printk(KERN_INFO "found PHY: id: %d addr %d",
+			printk(KERN_INFO "found PHY: id: 0x%x addr %d",
 			       phydev->phy_id, phydev->addr);
-				/* break; */
+			 break;
 		}
 	}
 	
 	if (!phydev) {
 		printk(KERN_ERR "no PHY found\n");
-		/* return -ENODEV; */
-		bp->phy_id = MSS_PHY_ADDRESS_AUTO_DETECT;
+		 return -ENODEV; 
+		/* bp->phy_id = MSS_PHY_ADDRESS_AUTO_DETECT; */
 	}
 
-		
+
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
+			     &core10100_link_change, 0,
+			     PHY_INTERFACE_MODE_RMII);
+
+	if (IS_ERR(phydev)) {
+		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
+		return PTR_ERR(phydev);
+	}
+
 	
+	phydev->supported &= PHY_BASIC_FEATURES;
+
+	bp->link = 0;
+	bp->speed = 0;
+	bp->duplex = -1;
+	bp->phy_dev = phydev;
+
 	return 0;
 
  	/* printk(KERN_INFO "found PHY: id: %d", phydev->phy_id); */
 }
+
+/* TODO: get it */
+#define FRAME_LEN 1500
 
 static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 {
@@ -578,6 +668,7 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 	struct core10100_dev *bp = netdev_priv(dev);
 	unsigned int handled = 0;
 	u32 intr_status;
+	struct sk_buff *skb;
 
 	intr_status = read_reg(CSR5);
        
@@ -597,6 +688,27 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
 
 			/* TODO: RX polling */
+
+			skb = dev_alloc_skb(FRAME_LEN);
+
+			if (skb != NULL) {
+				netif_receive_skb(skb);
+			} else {
+				printk(KERN_NOTICE
+				       "%s: No memory to allocate a sk_buff of "
+				       "size %u.\n", dev->name, FRAME_LEN);
+				
+				return IRQ_RETVAL(handled);
+			}
+
+
+			bp->rx_descs[bp->rx_cur].buf1 = skb->data;
+
+			/* TODO */
+			/* setup dma to skb */
+			
+			
+			netif_receive_skb(skb);
 			
 			/* netif_receive_skb(skb) and friends */
 			bp->statistics.rx_interrupts++;
@@ -677,9 +789,8 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 					struct net_device *dev)
 
 {
-	unsigned int *bufp;
 	u32 tx_status, irq_enable;
-	u32 len, i, tx_cmd, wrsz;
+	u32 len, i; 
 	unsigned long flags;
 	u8 tx_next;
 	
@@ -1038,6 +1149,15 @@ static int core10100_probe(struct platform_device *pd)
 				   192,
 				   &bp->mac_filter_dma_handle,
 				   GFP_DMA);
+
+	/* bp->rx_buf =  */
+	/* 	dma_alloc_coherent(&pd->dev, */
+	/* 			   1500, */
+	/* 			   &bp->rx_buf_dma_handle, */
+	/* 			   GFP_DMA); */
+
+
+
 	
 	if (!(bp->rx_descs && bp->tx_descs
 	      && bp->mac_filter && bp->tx_mac)) {
