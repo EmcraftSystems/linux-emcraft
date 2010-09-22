@@ -32,9 +32,9 @@
 #include <asm/io.h>
 
 
-#define DRV_NAME		"core10100"
+#define DRV_NAME "core10100"
 
-#define PFX				DRV_NAME ": "
+#define PFX DRV_NAME ": "
 
 MODULE_LICENSE("GPL");
 
@@ -375,7 +375,7 @@ static int core10100_ioctl(struct net_device *dev, struct ifreq *rq,
 			   int cmd);
 
 /* Receive/transmit descriptor */
-static struct rxtx_desc {
+struct rxtx_desc {
 	unsigned int own_stat;
 	unsigned int cntl_size;
 	void *buf1;
@@ -509,18 +509,18 @@ int get_mdio_data(struct mdiobb_ctrl *ctrl)
   Adapter initialization
 */
 
-static void reset_eth(void)
-{
-	unsigned int sfrst;
+/* static void reset_eth(void) */
+/* { */
+/* 	unsigned int sfrst; */
 	
-	sfrst = readl(SOFT_RST_CR);
+/* 	sfrst = readl(SOFT_RST_CR); */
 	
-	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst);
-	writel(sfrst & ~MAC_SR, SOFT_RST_CR);
+/* 	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst); */
+/* 	writel(sfrst & ~MAC_SR, SOFT_RST_CR); */
 
-	printk(KERN_INFO "wrote 0x%x to SOFT_RST_CR", sfrst & ~MAC_SR);
-	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst);
-}
+/* 	printk(KERN_INFO "wrote 0x%x to SOFT_RST_CR", sfrst & ~MAC_SR); */
+/* 	printk(KERN_INFO "read SOFT_RST_CR = 0x%x", sfrst); */
+/* } */
 
 struct mdiobb_ops  core10100_mdio_ops = {
 	.owner = THIS_MODULE,
@@ -531,51 +531,113 @@ struct mdiobb_ops  core10100_mdio_ops = {
 };
 
 
+/* static int dnet_mdio_read(struct mii_bus *bus, int mii_id, int regnum); */
+/* static int dnet_mdio_write(struct mii_bus *bus, int mii_id, int regnum, */
+/* 			   u16 value); */
+
+/* bp->mii_bus->read = &dnet_mdio_read; */
+/* bp->mii_bus->write = &dnet_mdio_write; */
+/* bp->mii_bus->reset = &dnet_mdio_reset; */
+
+
+/* Stop transmission and receiving */
+static void stop_tx_rx(	struct core10100_dev *bp)
+{
+	int i;
+
+	/* Stop transmission and receiving */
+	write_reg(CSR6, read_reg(CSR6) & ~(CSR6_ST | CSR6_SR));
+
+	/* Wait for the transmission and receiving processes stopped */
+	for (i = 0; i < TIMEOUT_LOOPS; i++) {
+		if (((read_reg(CSR5) >> CSR5_TS_SHIFT) & CSR5_TS_MASK) ==
+		    CSR5_TS_STOP &&
+		    ((read_reg(CSR5) >> CSR5_RS_SHIFT) & CSR5_RS_MASK) ==
+		    CSR5_RS_STOP) {
+			break;
+		}
+		udelay(TIMEOUT_UDELAY);
+		/* WDT_RESET; */
+	}
+	write_reg(CSR5, read_reg(CSR5) | CSR5_TPS);
+	write_reg(CSR5, read_reg(CSR5) | CSR5_RPS);
+}
+
+
+
 static void core10100_link_change(struct net_device *dev)
 {
 	struct core10100_dev *bp = netdev_priv(dev);
 	struct phy_device *phydev = bp->phy_dev;
 
-	int status_change = 0;
-	unsigned long flags;
+	u8  tx_rx_stopped = 0;
+	u32 status_change = 0;
+	u32 flags;
+	u8  link_stat;
+
+	printk(KERN_INFO "in link_change!");
 
 	spin_lock_irqsave(&bp->lock, flags);
 	
-	printk(KERN_INFO "in link_change!");
-
 	if (phydev->link) {
-		if (bp->duplex != phydev->duplex) {
-			if (phydev->duplex) {
-				
-			}
 
+		/* Check whether link duplex has been changed */
+		if (bp->duplex != phydev->duplex) {
+
+			/* TX/RX have to be stopped for updating */
+			if (bp->flags & TX_RX_ENABLED) {
+				stop_tx_rx(bp);
+				tx_rx_stopped = 1;
+			}
+			
+			if (phydev->duplex) {
+				bp->flags |= LINK_FD;
+				write_reg(CSR6, read_reg(CSR6) | CSR6_FD);
+			}
+			else {
+				bp->flags &= ~LINK_FD;
+				write_reg(CSR6, read_reg(CSR6) & ~CSR6_FD);
+			}
+			
 			bp->duplex = phydev->duplex;
 			status_change = 1;
 		}
 		
+		/* Check whether link speed has been changed */
 		if (bp->speed != phydev->speed) {
-			status_change = 1;
-			switch (phydev->speed) {
-			case 100:
-				
-			case 10:
-		
-				break;
-			default:
+			/* TX/RX have to be stopped for updating */
+			if (tx_rx_stopped != 1 && bp->flags & TX_RX_ENABLED){
+				stop_tx_rx(bp);
+				tx_rx_stopped = 1;
+			}
+
+			/* Update MAC register */
+			if (phydev->speed == 100) {
+				bp->flags |= LINK_100;
+				write_reg(CSR6, read_reg(CSR6) | CSR6_TTM);
+			} else if (phydev->speed == 10) {
+				bp->flags &= ~LINK_100;
+				write_reg(CSR6, read_reg(CSR6) & ~CSR6_TTM);
+			}
+			else
 				printk(KERN_WARNING
 				       "%s: Ack!  Speed (%d) is not "
 				       "10/100/1000!\n", dev->name,
 				       phydev->speed);
-				break;
-			}
+
+			status_change = 1;
 			bp->speed = phydev->speed;
 		}
 	}
 
+	/* Check whether link up/down has been changed */
 	if (phydev->link != bp->link) {
 		if (phydev->link) {
-			
+			bp->flags |= LINK_UP;
+			/* Perform auto-negotiation */
+			/* phy_auto_negotiation(pd); */
 		} else {
+			bp->flags &= ~LINK_UP;
 			bp->speed = 0;
 			bp->duplex = -1;
 		}
@@ -610,6 +672,7 @@ static int core10100_mii_init(struct net_device *dev)
 	if (!bp->mii_bus) {
 		printk(KERN_INFO "alloc_mdio_bitbang failed!");
 	}
+
 	
 	bp->mii_bus->name = "eth_mii_bus";	
 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
@@ -619,6 +682,7 @@ static int core10100_mii_init(struct net_device *dev)
 	if (ret) {
 		printk(KERN_INFO "mdiobus_register failed!");
 	}
+
 	
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
@@ -649,6 +713,8 @@ static int core10100_mii_init(struct net_device *dev)
 	
 	phydev->supported &= PHY_BASIC_FEATURES;
 
+
+	bp->phy_id = phydev->phy_id;
 	bp->link = 0;
 	bp->speed = 0;
 	bp->duplex = -1;
@@ -753,7 +819,7 @@ static int core10100_open(struct net_device *dev)
 
 static int core10100_close(struct net_device *dev)
 {
-	struct core10100 *bp = netdev_priv(dev);
+	/* struct core10100 *bp = netdev_priv(dev); */
 
 	netif_stop_queue(dev);
 	/*
@@ -789,7 +855,8 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 					struct net_device *dev)
 
 {
-	u32 tx_status, irq_enable;
+	u32 tx_status;
+	/* u32 irq_enable; */
 	u32 len, i; 
 	unsigned long flags;
 	u8 tx_next;
@@ -964,6 +1031,8 @@ int core10100_mac_addr(struct net_device *dev, void *p)
     write_reg(CSR4, (unsigned long)&bp->tx_descs[0]);
     /* pd->tx_cur = 0; */
 
+    return 0;
+    
 }
 
 /*Init the adapter*/
@@ -1045,7 +1114,7 @@ static const struct net_device_ops core10100_netdev_ops = {
 static int core10100_probe(struct platform_device *pd)
 {
 	/* unsigned int sz; */
-	unsigned int rd;
+	/* unsigned int rd; */
 	struct net_device *dev;
 	struct core10100_dev *bp;
 	u32 mem_base, mem_size, a;
@@ -1106,7 +1175,8 @@ static int core10100_probe(struct platform_device *pd)
 
 	bp->core10100_mdio_ctrl.ops = &core10100_mdio_ops;
 
-	core10100_mii_init(bp);
+	core10100_mii_init(dev);
+
 		
 	core10100_init(bp);
 	
@@ -1195,7 +1265,7 @@ static int core10100_probe(struct platform_device *pd)
 	bp->rx_descs[TX_RING_SIZE-1].own_stat |= TDES1_TER;
 
 	    
-	core10100_mac_addr(dev, mac_address);
+	core10100_mac_addr(dev, (void *) mac_address);
 
 	/* receive all packets */
 	write_reg(CSR6, CSR6_RA_MASK);
