@@ -708,6 +708,7 @@ static int core10100_mii_init(struct net_device *dev)
 			     &core10100_link_change, 0,
 			     PHY_INTERFACE_MODE_RMII);
 
+
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);
@@ -731,6 +732,18 @@ static int core10100_mii_init(struct net_device *dev)
 /* TODO: get it */
 #define FRAME_LEN 1500
 
+static inline unsigned char find_next_desc(unsigned char cur, unsigned char size)
+{
+	cur++;
+	
+	if(cur >= size) {
+		return 0;
+	}
+	
+	return cur;
+}
+
+
 static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
@@ -738,9 +751,10 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 	unsigned int handled = 0;
 	u32 intr_status;
 	struct sk_buff *skb;
+	u8 rx_next;
 
 	intr_status = read_reg(CSR5);
-       
+	
 	if ( (intr_status & CSR5_NIS_MASK) != 0u ) {
 
 		/* Transmit */
@@ -759,6 +773,23 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			/* TODO: RX polling */
 
 			skb = dev_alloc_skb(FRAME_LEN);
+			rx_next = (bp->rx_cur + 1) % 2;
+
+			bp->rx_descs[bp->rx_cur].buf1 = skb->data;
+			bp->rx_descs[rx_next].buf1 = skb->data;
+			
+
+			/* TODO */
+			/* setup dma to skb */
+
+			
+			
+			
+			netif_receive_skb(skb);
+			
+			/* netif_receive_skb(skb) and friends */
+			bp->statistics.rx_interrupts++;
+			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
 
 			if (skb != NULL) {
 				netif_receive_skb(skb);
@@ -771,17 +802,6 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			}
 
 
-			bp->rx_descs[bp->rx_cur].buf1 = skb->data;
-
-			/* TODO */
-			/* setup dma to skb */
-			
-			
-			netif_receive_skb(skb);
-			
-			/* netif_receive_skb(skb) and friends */
-			bp->statistics.rx_interrupts++;
-			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
 		}
 	}
 
@@ -797,6 +817,10 @@ static int core10100_open(struct net_device *dev)
 {
 	/* struct core10100_dev *bp = netdev_priv(dev); */
 
+	printk(KERN_NOTICE "in open");
+	       
+	       
+	
 	
 	/* if the phy is not yet register, retry later */
 	/* if (!bp->phy_dev) */
@@ -990,7 +1014,7 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 	bp->tx_mac->cntl_size = DESC_TCH | DESC_SET | 192;
 	bp->tx_mac->buf1 = bp->mac_filter;
 	bp->tx_mac->buf2 = bp->tx_mac;
-	write_reg(CSR4, (unsigned long)bp->tx_mac);
+	write_reg(CSR4, (unsigned long) bp->tx_mac);
 
 
 	/* <TODO>: fix nasty busy loops to proper waits */
@@ -1168,7 +1192,13 @@ static int core10100_probe(struct platform_device *pd)
 	dev->irq = irq;
 	
 	err = request_irq(dev->irq, core10100_interrupt, 0, DRV_NAME, dev);
-	
+
+	if (err) {
+		dev_err(&dev->dev, "Unable to request IRQ %d (error %d)\n",
+			irq, err);
+		goto err_out;
+	}
+
 	bp->base = ioremap(mem_base, mem_size);
 	
 	printk(KERN_INFO "bp base = 0x%x", (unsigned int) bp->base);
@@ -1188,6 +1218,10 @@ static int core10100_probe(struct platform_device *pd)
 
 		
 	core10100_init(bp);
+
+	random_ether_addr(dev->dev_addr);
+
+	memcpy(dev->dev_addr, sizeof(mac_address), mac_address);
 	
 	err = register_netdev(dev);
 	
@@ -1250,44 +1284,72 @@ static int core10100_probe(struct platform_device *pd)
 	/* No space between descriptors */
 	write_reg(CSR0, read_reg(CSR0) &~ CSR0_DSL_MASK);
 	
-	/* Set descriptors */
-	write_reg(CSR3, bp->rx_descs);
-	write_reg(CSR4, bp->tx_descs);
-
 #define	CFG_MAX_ETH_MSG_SIZE 1500
+
+	/*
+	  Setup RX descriptor as follows (the only descriptor is used):
+	  - owned by Core
+	  - chained
+	  - buffer size is CFG_MAX_ETH_MSG_SIZE_ALIGNED
+	  - buffer1 points to rx_buf
+	  - buffer2 points to the descriptor itself
+	*/
 	
-	for( a=0; a < 1; a++ )
+	bp->rx_cur = 0;
+
+	for(a = 0; a < 1; a++ )
 	{
 		/* Give the ownership to the MAC */
 		bp->rx_descs[a].own_stat = DESC_OWN;
-		
+
+		/*
+		  The size field of the descriptor is 10 bits in size,
+		  so lets check that the
+		  CFG_MAX_ETH_MSG_SIZE is not bigger than 2047
+		*/
+ 
 		bp->rx_descs[a].cntl_size =
 			DESC_TCH |
 			(CFG_MAX_ETH_MSG_SIZE > 0x7FF ?
 			 0x7FF : CFG_MAX_ETH_MSG_SIZE);
 		
-		bp->rx_descs[a].buf1 =
-			lskb->data;
+		bp->rx_descs[a].buf1 =	lskb->data;
 		
-		bp->rx_descs[a].buf2 =
-			bp->rx_descs;
+		bp->rx_descs[a].buf2 =	bp->rx_descs;
 
-	}
-
-	bp->rx_descs[TX_RING_SIZE-1].own_stat |= RDES1_RER;
-
-	for( a = 0; a < TX_RING_SIZE; a++ )
-	{
-		/* bp->tx_descs[a].buf1 = skb->buf;  */
 	}
 	
-	bp->rx_descs[TX_RING_SIZE-1].own_stat |= TDES1_TER;
+	write_reg(CSR3, (u32) bp->rx_descs);
+	
+	/*
+	  Setup TX descriptors as follows (two descriptor are used,
+	  refer to the Core10/100 header file (core_mac.h) for details):
+	  - chained
+	  - buffer1  will be set later to skb->data
+	  - buffer2 points to the following itself
+	*/
 
+	/* bp->tx_desc[0].buf1 = bp->tx_buf; */
+	bp->tx_descs[0].buf2 = &bp->tx_descs[1];
+	/* bp->tx_desc[1].buf1 = bp->tx_buf; */
+	bp->tx_descs[1].buf2 = &bp->tx_descs[0];
+	bp->tx_cur = 0;
+	
+	write_reg(CSR4, (u32) bp->tx_descs);
+
+
+	/* setup mac address */
 	
 	core10100_mac_addr(dev, (void *) mac_address);
 
 	/* receive all packets */
-	write_reg(CSR6, CSR6_RA_MASK);
+	/* write_reg(CSR6, CSR6_RA_MASK); */
+
+
+	/* Start transmission and receiving */
+	write_reg(CSR6, read_reg(CSR6) | CSR6_ST | CSR6_SR);
+	bp->flags |= TX_RX_ENABLED;
+
 	
 	return 0;
 	
