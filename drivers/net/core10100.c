@@ -404,9 +404,9 @@ struct core10100_dev {
 	u16 mac[6];
 
 	/* RX/TX descriptors */
-	struct rxtx_desc *rx_descs;
-	struct rxtx_desc *tx_descs;
-	struct rxtx_desc *tx_mac;
+	volatile struct rxtx_desc *rx_descs;
+	volatile struct rxtx_desc *tx_descs;
+	volatile struct rxtx_desc *tx_mac;
 
 	/* Current transmit/receieve descriptors */
 	u8 tx_cur;
@@ -423,7 +423,8 @@ struct core10100_dev {
 	dma_addr_t tx_dma_handle;
 	dma_addr_t tx_mac_dma_handle;
 	dma_addr_t rx_buf_dma_handle;
-	
+
+	struct completion rx_mac_completion;
 
 	/* previous transmit skb, must be freed in ISR */
 	struct sk_buff *last_skb;
@@ -443,6 +444,8 @@ struct core10100_dev {
 
 	/* statistics */
 	struct core10100_stat statistics;
+
+	
 };
 
 
@@ -967,7 +970,7 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 	
 	memcpy(bp->mac, p, sizeof(bp->mac));
 
-	/*Fill all the entries of the mac filter*/
+	/* Fill all the entries of the mac filter */
 	
 	for (i = 0; i < 192; i += 12) {
 		memcpy(bp->mac_filter + i, bp->mac, 12);
@@ -982,14 +985,15 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 	  - perfect filtering
 	  - length is 192
 	*/
+	
 	bp->tx_mac->own_stat = DESC_OWN;
 	bp->tx_mac->cntl_size = DESC_TCH | DESC_SET | 192;
 	bp->tx_mac->buf1 = bp->mac_filter;
-	bp->tx_mac->buf2 = &bp->tx_mac;
-	write_reg(CSR4, (unsigned long)&bp->tx_mac);
+	bp->tx_mac->buf2 = bp->tx_mac;
+	write_reg(CSR4, (unsigned long)bp->tx_mac);
 
 
-	/* <TODO>: fix nasty idle loops to proper waits */
+	/* <TODO>: fix nasty busy loops to proper waits */
 	
 	/* Start transmission */
 	write_reg(CSR6, read_reg(CSR6) | CSR6_ST);
@@ -1007,22 +1011,24 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 	}
 	
 	if (i == TIMEOUT_LOOPS) {
+		printk(KERN_ERR "MAC addr setup TX timeout");
 		return !0;
 	}
 
-    /* Stop transmission */
+	/* Stop transmission */
 	write_reg(CSR6, read_reg(CSR6) & ~CSR6_ST);
-    /* Wait for the transmission process stopped */
-    for (i = 0; i < TIMEOUT_LOOPS; i++) {
-	    if (((read_reg(CSR5) >> CSR5_TS_SHIFT) & CSR5_TS_MASK) ==
-		CSR5_TS_STOP) {
-		    break;
-	    }
-	    udelay(TIMEOUT_UDELAY);
-	    /* WDT_RESET; */
-    }
+	/* Wait for the transmission process stopped */
+	for (i = 0; i < TIMEOUT_LOOPS; i++) {
+		if (((read_reg(CSR5) >> CSR5_TS_SHIFT) & CSR5_TS_MASK) ==
+		    CSR5_TS_STOP) {
+			break;
+		}
+		udelay(TIMEOUT_UDELAY);
+		/* WDT_RESET; */
+	}
     
     if (i == TIMEOUT_LOOPS) {
+	    printk(KERN_ERR "Can not stop TX!");
 	    return !0;
     }
     write_reg(CSR5, read_reg(CSR5) | CSR5_TPS);
@@ -1031,6 +1037,8 @@ int core10100_mac_addr(struct net_device *dev, void *p)
     write_reg(CSR4, (unsigned long)&bp->tx_descs[0]);
     /* pd->tx_cur = 0; */
 
+
+    printk(KERN_INFO "MAC address is set up. (maybe)");
     return 0;
     
 }
@@ -1120,6 +1128,7 @@ static int core10100_probe(struct platform_device *pd)
 	u32 mem_base, mem_size, a;
 	u16 irq;
 	const u8 mac_address[6] = { DEFAULT_MAC_ADDRESS };
+	struct sk_buff *lskb;
 
 	
 	int err = -ENXIO;
@@ -1226,8 +1235,6 @@ static int core10100_probe(struct platform_device *pd)
 	/* 			   &bp->rx_buf_dma_handle, */
 	/* 			   GFP_DMA); */
 
-
-
 	
 	if (!(bp->rx_descs && bp->tx_descs
 	      && bp->mac_filter && bp->tx_mac)) {
@@ -1235,24 +1242,36 @@ static int core10100_probe(struct platform_device *pd)
 		goto err_out;
 	}
 
+	lskb = dev_alloc_skb(FRAME_LEN);
+
 	/* No automatic polling */
 	write_reg(CSR0, read_reg(CSR0) &~ CSR0_TAP_MASK);
 	
 	/* No space between descriptors */
 	write_reg(CSR0, read_reg(CSR0) &~ CSR0_DSL_MASK);
-    
+	
 	/* Set descriptors */
 	write_reg(CSR3, bp->rx_descs);
 	write_reg(CSR4, bp->tx_descs);
 
-	for( a=0; a< RX_RING_SIZE; a++ )
+#define	CFG_MAX_ETH_MSG_SIZE 1500
+	
+	for( a=0; a < 1; a++ )
 	{
 		/* Give the ownership to the MAC */
-		bp->rx_descs[a].cntl_size = DESC_OWN;
-		bp->rx_descs[a].own_stat  =
-			(MSS_RX_BUFF_SIZE << RDES1_RBS1_OFFSET);
+		bp->rx_descs[a].own_stat = DESC_OWN;
+		
+		bp->rx_descs[a].cntl_size =
+			DESC_TCH |
+			(CFG_MAX_ETH_MSG_SIZE > 0x7FF ?
+			 0x7FF : CFG_MAX_ETH_MSG_SIZE);
+		
+		bp->rx_descs[a].buf1 =
+			lskb->data;
+		
+		bp->rx_descs[a].buf2 =
+			bp->rx_descs;
 
-		/* bp->rx_descs[a].buf1 = skb->buf;  */
 	}
 
 	bp->rx_descs[TX_RING_SIZE-1].own_stat |= RDES1_RER;
@@ -1264,7 +1283,7 @@ static int core10100_probe(struct platform_device *pd)
 	
 	bp->rx_descs[TX_RING_SIZE-1].own_stat |= TDES1_TER;
 
-	    
+	
 	core10100_mac_addr(dev, (void *) mac_address);
 
 	/* receive all packets */
