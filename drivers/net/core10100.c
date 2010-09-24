@@ -159,10 +159,15 @@ MODULE_LICENSE("GPL");
 #define CSR6_RA_SHIFT    30
 
 
-/* #define CSR9_MDC		(1 << 16) */
-/* #define CSR9_MDO		(1 << 17) */
-/* #define CSR9_MDEN		(1 << 18) */
-/* #define CSR9_MDI		(1 << 19) */
+/* Interrupt enable register */
+#define CSR7_TIE  (1)
+#define CSR7_TSE  (1 << 1)
+#define CSR7_RIE  (1 << 6)
+#define CSR7_RUE  (1 << 7)
+#define CSR7_RSE  (1 << 8)
+#define CSR7_AIE  (1 << 15)
+#define CSR7_NIE  (1 << 16)
+
 
 #define CSR9_MDC		(1 << 16)
 #define CSR9_MDO		(1 << 17)
@@ -775,15 +780,12 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			skb = dev_alloc_skb(FRAME_LEN);
 			rx_next = (bp->rx_cur + 1) % 2;
 
-			bp->rx_descs[bp->rx_cur].buf1 = skb->data;
-			bp->rx_descs[rx_next].buf1 = skb->data;
+			/* bp->rx_descs[bp->rx_cur].buf1 = skb->data; */
+			/* bp->rx_descs[rx_next].buf1 = skb->data; */
 			
 
 			/* TODO */
 			/* setup dma to skb */
-
-			
-			
 			
 			netif_receive_skb(skb);
 			
@@ -791,6 +793,9 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			bp->statistics.rx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
 
+
+			write_reg(CSR5, CSR5_INT_BITS);
+			
 			if (skb != NULL) {
 				netif_receive_skb(skb);
 			} else {
@@ -1221,7 +1226,7 @@ static int core10100_probe(struct platform_device *pd)
 
 	random_ether_addr(dev->dev_addr);
 
-	memcpy(dev->dev_addr, sizeof(mac_address), mac_address);
+	memcpy(dev->dev_addr, mac_address, sizeof(mac_address));
 	
 	err = register_netdev(dev);
 	
@@ -1282,7 +1287,7 @@ static int core10100_probe(struct platform_device *pd)
 	write_reg(CSR0, read_reg(CSR0) &~ CSR0_TAP_MASK);
 	
 	/* No space between descriptors */
-	write_reg(CSR0, read_reg(CSR0) &~ CSR0_DSL_MASK);
+	/* write_reg(CSR0, read_reg(CSR0) &~ CSR0_DSL_MASK); */
 	
 #define	CFG_MAX_ETH_MSG_SIZE 1500
 
@@ -1313,7 +1318,7 @@ static int core10100_probe(struct platform_device *pd)
 			(CFG_MAX_ETH_MSG_SIZE > 0x7FF ?
 			 0x7FF : CFG_MAX_ETH_MSG_SIZE);
 		
-		bp->rx_descs[a].buf1 =	lskb->data;
+		bp->rx_descs[a].buf1 =  lskb->data;
 		
 		bp->rx_descs[a].buf2 =	bp->rx_descs;
 
@@ -1337,15 +1342,22 @@ static int core10100_probe(struct platform_device *pd)
 	
 	write_reg(CSR4, (u32) bp->tx_descs);
 
+	/* enable normal interrupts */
+	write_reg(CSR7, CSR7_NIE | read_reg(CSR7));
 
+	/* enable tx and rx interrupts */
+	write_reg(CSR7, CSR7_RIE | read_reg(CSR7));
+	write_reg(CSR7, CSR7_TIE | read_reg(CSR7));
+	
+	
 	/* setup mac address */
 	
 	core10100_mac_addr(dev, (void *) mac_address);
 
 	/* receive all packets */
 	/* write_reg(CSR6, CSR6_RA_MASK); */
-
-
+	
+	
 	/* Start transmission and receiving */
 	write_reg(CSR6, read_reg(CSR6) | CSR6_ST | CSR6_SR);
 	bp->flags |= TX_RX_ENABLED;
