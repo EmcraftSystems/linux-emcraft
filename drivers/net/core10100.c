@@ -365,6 +365,8 @@ MODULE_LICENSE("GPL");
 #define TDES1_TER     ((uint32_t)1 << 25)
 
 
+#define RX_MSG_NUM 1
+
 /* Driver functions */
 static int core10100_probe(struct platform_device *);
 static int core10100_remove(struct platform_device *);
@@ -398,7 +400,7 @@ struct core10100_stat {
 
 struct core10100_dev {
 	void __iomem			*base;
-	spinlock_t			lock;
+	spinlock_t		        lock;
 	struct platform_device		*pdev;
 	struct net_device		*dev;
 	unsigned int			capabilities; /* read from FPGA */
@@ -432,7 +434,10 @@ struct core10100_dev {
 	struct completion rx_mac_completion;
 
 	/* previous transmit skb, must be freed in ISR */
-	struct sk_buff *last_skb;
+	struct sk_buff *tx_skb;
+
+	/* received  skb */
+	struct sk_buff *rx_skb;
 	
 	/*special mac filter buffer dma handle*/
 	dma_addr_t mac_filter_dma_handle;
@@ -581,7 +586,7 @@ static void core10100_link_change(struct net_device *dev)
 	u8  tx_rx_stopped = 0;
 	u32 status_change = 0;
 	u32 flags;
-	u8  link_stat;
+	/* u8  link_stat; */
 
 	printk(KERN_INFO "in link_change!");
 
@@ -737,7 +742,7 @@ static int core10100_mii_init(struct net_device *dev)
 /* TODO: get it */
 #define FRAME_LEN 1500
 
-static inline unsigned char find_next_desc(unsigned char cur, unsigned char size)
+static inline u8 find_next_desc(unsigned char cur, unsigned char size)
 {
 	cur++;
 	
@@ -748,6 +753,83 @@ static inline unsigned char find_next_desc(unsigned char cur, unsigned char size
 	return cur;
 }
 
+/* handle (not) received frame */
+static short rx_handler(struct core10100_dev *bp)
+{
+	u32 i;
+
+	u8 size = 0;
+	
+	/*
+	  Check whether Core10/100 returns the descriptor to the host
+	  i.e. a packet is received.
+	*/
+	for (i = 0; i < RX_MSG_NUM; i++) {
+		bp->rx_cur = find_next_desc(bp->rx_cur, RX_MSG_NUM);
+		
+		if(!(bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN)) {
+			break;
+		}
+	}
+	
+	if (i == RX_MSG_NUM) {
+		printk(KERN_INFO "Bad RX num!\n");
+		return 0;
+
+	}
+	
+	/*
+	  Check that the descriptor contains the whole packet,
+	  i.e. the fist and last descriptor flags are set.
+	*/
+	if (!(bp->rx_descs[bp->rx_cur].own_stat & DESC_RFS) ||
+	    !(bp->rx_descs[bp->rx_cur].own_stat & DESC_RLS)) {
+		printk(KERN_INFO "receive_frame error: not whole packet");
+
+		goto end;
+	}
+
+	/* The DESC_RES bit is valid only when the DESC_RLS is set */
+	if(bp->rx_descs[bp->rx_cur].own_stat & DESC_RES) {
+		/* Chesk status: may be status cache is out of sync */
+		/* link_stat(pd); */
+		printk(KERN_INFO "receive_frame error: DESC_RES flag is set");
+		goto end;
+	}
+
+	/* Check the received packet size */
+	size = (bp->rx_descs[bp->rx_cur].own_stat >> 16) & 0x3fff;
+	if (size > FRAME_LEN) {
+		/* Drop the packet */
+		/* size = 0; */
+		printk(KERN_INFO "frame length > %d", FRAME_LEN);
+		goto end;
+	}
+
+end:
+
+		
+	netif_receive_skb(bp->rx_skb);
+
+	/* alloc skb for future rx-ed frame */
+	bp->rx_skb = dev_alloc_skb(FRAME_LEN);
+	
+	bp->rx_descs[bp->rx_cur].buf1 = bp->rx_skb->data; 
+
+	/* Prepare the packet for the following receiving */
+	bp->rx_descs[bp->rx_cur].cntl_size = DESC_TCH | FRAME_LEN;
+
+	/* Give the descriptor ownership to Core */
+	bp->rx_descs[bp->rx_cur].own_stat = DESC_OWN;
+
+	/* Receive poll demand */
+	write_reg(CSR2, 1);
+	
+
+
+	return 0;
+	
+}
 
 static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 {
@@ -755,7 +837,6 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 	struct core10100_dev *bp = netdev_priv(dev);
 	unsigned int handled = 0;
 	u32 intr_status;
-	struct sk_buff *skb;
 	u8 rx_next;
 
 	intr_status = read_reg(CSR5);
@@ -769,35 +850,30 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			/* events |= MSS_MAC_EVENT_PACKET_SEND; */
 
 			/* TODO: Этого достаточно ? */
-			dev_kfree_skb(bp->last_skb);
+			dev_kfree_skb(bp->tx_skb);
 		}
 
 		/* Receive  */
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
 
-			/* TODO: RX polling */
-
-			skb = dev_alloc_skb(FRAME_LEN);
+			/* skb = dev_alloc_skb(FRAME_LEN);  */
 			rx_next = (bp->rx_cur + 1) % 2;
-
-			/* bp->rx_descs[bp->rx_cur].buf1 = skb->data; */
-			/* bp->rx_descs[rx_next].buf1 = skb->data; */
 			
-
-			/* TODO */
-			/* setup dma to skb */
-			
-			netif_receive_skb(skb);
+			/* bp->rx_descs[rx_next].buf1 = skb->data;  */
 			
 			/* netif_receive_skb(skb) and friends */
 			bp->statistics.rx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
 
 
-			write_reg(CSR5, CSR5_INT_BITS);
 			
-			if (skb != NULL) {
-				netif_receive_skb(skb);
+			rx_handler(bp);
+			
+
+			
+			
+			if (bp->rx_skb != NULL) {
+				netif_receive_skb(bp->rx_skb);
 			} else {
 				printk(KERN_NOTICE
 				       "%s: No memory to allocate a sk_buff of "
@@ -965,7 +1041,7 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
     
 
 	/* save the buffer */
-	bp->last_skb = skb;
+	bp->tx_skb = skb;
 	
 
 	spin_unlock_irqrestore(&bp->lock, flags);
@@ -976,6 +1052,7 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 	
 	return NETDEV_TX_OK;
 }
+
 
 static int core10100_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
@@ -1018,10 +1095,10 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 	bp->tx_mac->own_stat = DESC_OWN;
 	bp->tx_mac->cntl_size = DESC_TCH | DESC_SET | 192;
 	bp->tx_mac->buf1 = bp->mac_filter;
-	bp->tx_mac->buf2 = bp->tx_mac;
+	bp->tx_mac->buf2 = (struct rxtx_desc *) bp->tx_mac;
 	write_reg(CSR4, (unsigned long) bp->tx_mac);
-
-
+	
+	
 	/* <TODO>: fix nasty busy loops to proper waits */
 	
 	/* Start transmission */
@@ -1157,8 +1234,6 @@ static int core10100_probe(struct platform_device *pd)
 	u32 mem_base, mem_size, a;
 	u16 irq;
 	const u8 mac_address[6] = { DEFAULT_MAC_ADDRESS };
-	struct sk_buff *lskb;
-
 	
 	int err = -ENXIO;
 	struct resource *res;
@@ -1221,7 +1296,6 @@ static int core10100_probe(struct platform_device *pd)
 
 	core10100_mii_init(dev);
 
-		
 	core10100_init(bp);
 
 	random_ether_addr(dev->dev_addr);
@@ -1281,7 +1355,8 @@ static int core10100_probe(struct platform_device *pd)
 		goto err_out;
 	}
 
-	lskb = dev_alloc_skb(FRAME_LEN);
+	/* alloc skb for first received frame */
+	bp->rx_skb = dev_alloc_skb(FRAME_LEN);
 
 	/* No automatic polling */
 	write_reg(CSR0, read_reg(CSR0) &~ CSR0_TAP_MASK);
@@ -1302,7 +1377,7 @@ static int core10100_probe(struct platform_device *pd)
 	
 	bp->rx_cur = 0;
 
-	for(a = 0; a < 1; a++ )
+	for(a = 0; a < RX_MSG_NUM; a++ )
 	{
 		/* Give the ownership to the MAC */
 		bp->rx_descs[a].own_stat = DESC_OWN;
@@ -1318,11 +1393,12 @@ static int core10100_probe(struct platform_device *pd)
 			(CFG_MAX_ETH_MSG_SIZE > 0x7FF ?
 			 0x7FF : CFG_MAX_ETH_MSG_SIZE);
 		
-		bp->rx_descs[a].buf1 =  lskb->data;
+		bp->rx_descs[a].buf1 = (struct rxtx_desc *) bp->rx_skb->data;
 		
-		bp->rx_descs[a].buf2 =	bp->rx_descs;
+		bp->rx_descs[a].buf2 =	(struct rxtx_desc *) bp->rx_descs;
 
 	}
+
 	
 	write_reg(CSR3, (u32) bp->rx_descs);
 	
@@ -1335,9 +1411,9 @@ static int core10100_probe(struct platform_device *pd)
 	*/
 
 	/* bp->tx_desc[0].buf1 = bp->tx_buf; */
-	bp->tx_descs[0].buf2 = &bp->tx_descs[1];
+	bp->tx_descs[0].buf2 = (struct rxtx_desc *) &bp->tx_descs[1];
 	/* bp->tx_desc[1].buf1 = bp->tx_buf; */
-	bp->tx_descs[1].buf2 = &bp->tx_descs[0];
+	bp->tx_descs[1].buf2 = (struct rxtx_desc *) &bp->tx_descs[0];
 	bp->tx_cur = 0;
 	
 	write_reg(CSR4, (u32) bp->tx_descs);
