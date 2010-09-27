@@ -670,6 +670,10 @@ static void core10100_adjust_link(struct net_device *dev)
 		else
 			printk(KERN_INFO "%s: link down\n", dev->name);
 	}
+	
+	/* If TX/RX has been stopped, start them */
+	if (tx_rx_stopped)
+		write_reg(CSR6, read_reg(CSR6) | CSR6_ST | CSR6_SR);
 
 }
 
@@ -912,6 +916,9 @@ static int core10100_open(struct net_device *dev)
 	napi_enable(&bp->napi);
 	dnet_init_hw(bp);
 	*/
+	bp->link = 0;
+	bp->duplex -1;
+	bp->speed = -1;
 	
 	phy_start_aneg(bp->phy_dev);
 
@@ -1310,7 +1317,7 @@ static int core10100_probe(struct platform_device *pd)
 
 	/* <TODO> верно ли это? */
 	pd->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-
+	
 
 	/*alloc rx/tx descriptors in DMA-coherent memory*/
 	
