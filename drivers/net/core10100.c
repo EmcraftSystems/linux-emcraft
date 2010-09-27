@@ -768,8 +768,10 @@ static inline void core10100_print_skb(struct sk_buff *skb)
 
 
 /* handle (not) received frame */
-static short rx_handler(struct core10100_dev *bp)
+static short rx_handler(struct net_device *dev)
 {
+	struct core10100_dev *bp = netdev_priv(dev);
+	
 	u32 i;
 
 	u8 size = 0;
@@ -820,12 +822,17 @@ static short rx_handler(struct core10100_dev *bp)
 		goto end;
 	}
 
-	bp->rx_skb->len = size;
+
 
 end:
+	bp->rx_skb->len = size;
 	core10100_print_skb(bp->rx_skb);
-		
-	netif_receive_skb(bp->rx_skb);
+
+	bp->rx_skb->protocol = eth_type_trans(bp->rx_skb, dev);
+	
+	/* netif_receive_skb(bp->rx_skb); */
+
+	netif_rx(bp->rx_skb);
 
 	/* alloc skb for future rx-ed frame */
 	bp->rx_skb = dev_alloc_skb(FRAME_LEN);
@@ -868,35 +875,20 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			
 			
 			/* TODO: Этого достаточно ? */
-			dev_kfree_skb(bp->tx_skb);
+			dev_kfree_skb_irq(bp->tx_skb);
 		}
 
 		/* Receive  */
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
 			
 			printk(KERN_NOTICE "received RX irq");
-			
-			/* skb = dev_alloc_skb(FRAME_LEN);  */
+
 			rx_next = (bp->rx_cur + 1) % 2;
 			
-			/* bp->rx_descs[rx_next].buf1 = skb->data;  */
-			
-			/* netif_receive_skb(skb) and friends */
 			bp->statistics.rx_interrupts++;
-			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
 
-			rx_handler(bp);
+			rx_handler(dev);
 			
-			/* if (bp->rx_skb != NULL) { */
-			/* 	netif_receive_skb(bp->rx_skb); */
-			/* } else { */
-			/* 	printk(KERN_NOTICE */
-			/* 	       "%s: No memory to allocate a sk_buff of " */
-			/* 	       "size %u.\n", dev->name, FRAME_LEN); */
-				
-			/* 	return IRQ_RETVAL(handled); */
-			/* } */
-
 
 		}
 	}
