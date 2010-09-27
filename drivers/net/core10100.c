@@ -588,7 +588,7 @@ static void core10100_adjust_link(struct net_device *dev)
 	u32 flags;
 	/* u8  link_stat; */
 
-	printk(KERN_INFO "in adjust_link!");
+	/* printk(KERN_INFO "in adjust_link!"); */
 
 	spin_lock_irqsave(&bp->lock, flags);
 	
@@ -757,6 +757,16 @@ static inline u8 find_next_desc(unsigned char cur, unsigned char size)
 	return cur;
 }
 
+static inline void core10100_print_skb(struct sk_buff *skb)
+{
+	int k;
+	printk(KERN_DEBUG PFX "data:");
+	for (k = 0; k < skb->len; k++)
+		printk(" %02x", (unsigned int)skb->data[k]);
+	printk("\n");
+}
+
+
 /* handle (not) received frame */
 static short rx_handler(struct core10100_dev *bp)
 {
@@ -781,7 +791,7 @@ static short rx_handler(struct core10100_dev *bp)
 		return 0;
 
 	}
-	
+
 	/*
 	  Check that the descriptor contains the whole packet,
 	  i.e. the fist and last descriptor flags are set.
@@ -810,8 +820,10 @@ static short rx_handler(struct core10100_dev *bp)
 		goto end;
 	}
 
-end:
+	bp->rx_skb->len = size;
 
+end:
+	core10100_print_skb(bp->rx_skb);
 		
 	netif_receive_skb(bp->rx_skb);
 
@@ -828,7 +840,6 @@ end:
 
 	/* Receive poll demand */
 	write_reg(CSR2, 1);
-	
 
 
 	return 0;
@@ -876,22 +887,22 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 
 			rx_handler(bp);
 			
-			if (bp->rx_skb != NULL) {
-				netif_receive_skb(bp->rx_skb);
-			} else {
-				printk(KERN_NOTICE
-				       "%s: No memory to allocate a sk_buff of "
-				       "size %u.\n", dev->name, FRAME_LEN);
+			/* if (bp->rx_skb != NULL) { */
+			/* 	netif_receive_skb(bp->rx_skb); */
+			/* } else { */
+			/* 	printk(KERN_NOTICE */
+			/* 	       "%s: No memory to allocate a sk_buff of " */
+			/* 	       "size %u.\n", dev->name, FRAME_LEN); */
 				
-				return IRQ_RETVAL(handled);
-			}
+			/* 	return IRQ_RETVAL(handled); */
+			/* } */
 
 
 		}
 	}
 
 
-	printk(KERN_ERR "core10100: in irq");
+	/* printk(KERN_ERR "core10100: in irq"); */
 	
 	write_reg(CSR5, CSR5_INT_BITS);
 
@@ -917,7 +928,7 @@ static int core10100_open(struct net_device *dev)
 	dnet_init_hw(bp);
 	*/
 	bp->link = 0;
-	bp->duplex -1;
+	bp->duplex = -1;
 	bp->speed = -1;
 	
 	phy_start_aneg(bp->phy_dev);
@@ -956,14 +967,6 @@ static struct net_device_stats *core10100_get_stats(struct net_device *dev)
 	return NULL;
 }
 
-static inline void core10100_print_skb(struct sk_buff *skb)
-{
-	int k;
-	printk(KERN_DEBUG PFX "data:");
-	for (k = 0; k < skb->len; k++)
-		printk(" %02x", (unsigned int)skb->data[k]);
-	printk("\n");
-}
 
 static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 					struct net_device *dev)
