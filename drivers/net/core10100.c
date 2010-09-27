@@ -578,7 +578,7 @@ static void stop_tx_rx(	struct core10100_dev *bp)
 
 
 
-static void core10100_link_change(struct net_device *dev)
+static void core10100_adjust_link(struct net_device *dev)
 {
 	struct core10100_dev *bp = netdev_priv(dev);
 	struct phy_device *phydev = bp->phy_dev;
@@ -588,7 +588,7 @@ static void core10100_link_change(struct net_device *dev)
 	u32 flags;
 	/* u8  link_stat; */
 
-	printk(KERN_INFO "in link_change!");
+	printk(KERN_INFO "in adjust_link!");
 
 	spin_lock_irqsave(&bp->lock, flags);
 	
@@ -715,7 +715,7 @@ static int core10100_mii_init(struct net_device *dev)
 
 
 	phydev = phy_connect(dev, dev_name(&phydev->dev),
-			     &core10100_link_change, 0,
+			     &core10100_adjust_link, 0,
 			     PHY_INTERFACE_MODE_RMII);
 
 
@@ -849,13 +849,18 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			bp->statistics.tx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_SEND; */
 
+			printk(KERN_NOTICE "received TX irq");
+			
+			
 			/* TODO: Этого достаточно ? */
 			dev_kfree_skb(bp->tx_skb);
 		}
 
 		/* Receive  */
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
-
+			
+			printk(KERN_NOTICE "received RX irq");
+			
 			/* skb = dev_alloc_skb(FRAME_LEN);  */
 			rx_next = (bp->rx_cur + 1) % 2;
 			
@@ -865,12 +870,7 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			bp->statistics.rx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_RECEIVED; */
 
-
-			
 			rx_handler(bp);
-			
-
-			
 			
 			if (bp->rx_skb != NULL) {
 				netif_receive_skb(bp->rx_skb);
@@ -896,12 +896,10 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 
 static int core10100_open(struct net_device *dev)
 {
-	/* struct core10100_dev *bp = netdev_priv(dev); */
+	struct core10100_dev *bp = netdev_priv(dev); 
 
 	printk(KERN_NOTICE "in open");
 	       
-	       
-	
 	
 	/* if the phy is not yet register, retry later */
 	/* if (!bp->phy_dev) */
@@ -913,12 +911,13 @@ static int core10100_open(struct net_device *dev)
 	/*
 	napi_enable(&bp->napi);
 	dnet_init_hw(bp);
-
+	*/
+	
 	phy_start_aneg(bp->phy_dev);
 
-
+	/* schedule a link state check */
 	phy_start(bp->phy_dev);
-	*/
+
 	netif_start_queue(dev);
 
 
@@ -970,7 +969,7 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 	u8 tx_next;
 	
 	struct core10100_dev *bp = netdev_priv(dev);
-	
+
 	pr_debug("start_xmit: len %u head %p data %p\n",
 		 skb->len, skb->head, skb->data);
 	
