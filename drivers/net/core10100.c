@@ -757,10 +757,18 @@ static inline u8 find_next_desc(unsigned char cur, unsigned char size)
 	return cur;
 }
 
-static inline void core10100_print_skb(struct sk_buff *skb)
+#define PRINT_TX 0
+#define PRINT_RX 1
+
+static inline void core10100_print_skb(struct sk_buff *skb, int rx)
 {
 	int k;
-	printk(KERN_DEBUG PFX "data:");
+	
+	if (rx)
+		printk(KERN_DEBUG PFX "data (RX): (%d)", skb->len);
+	else
+		printk(KERN_DEBUG PFX "data (TX): (%d)", skb->len);
+	
 	for (k = 0; k < skb->len; k++)
 		printk(" %02x", (unsigned int)skb->data[k]);
 	printk("\n");
@@ -823,10 +831,16 @@ static short rx_handler(struct net_device *dev)
 	}
 
 
-
 end:
-	bp->rx_skb->len = size;
-	core10100_print_skb(bp->rx_skb);
+	
+	skb_put(bp->rx_skb, size);
+
+	/* printk (KERN_INFO "skb->head = 0x%x", bp->rx_skb->head); */
+	/* printk (KERN_INFO "skb->data = 0x%x\n", bp->rx_skb->data); */
+	/* printk (KERN_INFO "skb->tail = 0x%x\n", bp->rx_skb->tail); */
+	/* printk (KERN_INFO "skb->len = %d\n", bp->rx_skb->len); */
+	
+	core10100_print_skb(bp->rx_skb, PRINT_RX);
 
 	bp->rx_skb->protocol = eth_type_trans(bp->rx_skb, dev);
 	
@@ -871,7 +885,7 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			bp->statistics.tx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_SEND; */
 
-			printk(KERN_NOTICE "received TX irq");
+			/* printk(KERN_NOTICE "received TX irq"); */
 			
 			
 			/* TODO: Этого достаточно ? */
@@ -881,7 +895,7 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 		/* Receive  */
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
 			
-			printk(KERN_NOTICE "received RX irq");
+			/* printk(KERN_NOTICE "received RX irq"); */
 
 			rx_next = (bp->rx_cur + 1) % 2;
 			
@@ -975,7 +989,7 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 	pr_debug("start_xmit: len %u head %p data %p\n",
 		 skb->len, skb->head, skb->data);
 	
-	core10100_print_skb(skb);
+	core10100_print_skb(skb, PRINT_TX); 
 
 
 	/* <TODO>: core10100_init, intitial setup */
