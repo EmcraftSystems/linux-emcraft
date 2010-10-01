@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
@@ -28,6 +27,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/dma-mapping.h>
+#include <linux/ip.h>
+#include <linux/icmp.h>
 
 #include <asm/io.h>
 
@@ -763,15 +764,54 @@ static inline u8 find_next_desc(unsigned char cur, unsigned char size)
 static inline void core10100_print_skb(struct sk_buff *skb, int rx)
 {
 	int k;
+	int type, code;
+
+	struct ethhdr *eh = eth_hdr(skb);
+	struct iphdr *iph = ip_hdr(skb);
+
+	printk("--------------------------------------------------");
 	
-	if (rx)
-		printk(KERN_DEBUG PFX "data (RX): (%d)", skb->len);
-	else
-		printk(KERN_DEBUG PFX "data (TX): (%d)", skb->len);
+	if (rx) {
+		printk(KERN_INFO PFX "data (RX): (%d)", skb->len);
+
+	}
+	else {
+		printk(KERN_INFO PFX "data (TX): (%d)", skb->len);
+	}
 	
 	for (k = 0; k < skb->len; k++)
 		printk(" %02x", (unsigned int)skb->data[k]);
 	printk("\n");
+
+	/* if (eh->h_proto == ETH_P_IP) */
+	{
+		printk(KERN_INFO " IP packet (proto = 0x%x)", iph->protocol);
+
+		if (iph->protocol == IPPROTO_ICMP) {
+			printk(KERN_INFO " ICMP packet:");
+
+			type = icmp_hdr(skb)->type;
+			code = icmp_hdr(skb)->code;
+
+			printk(KERN_INFO "src  addr = %pI4", &iph->saddr);
+			printk(KERN_INFO "dest addr = %pI4", &iph->daddr);
+
+			if (type == ICMP_ECHO) {
+				printk(KERN_INFO "ICMP_ECHO");
+
+			}
+			
+			if (type == ICMP_ECHOREPLY) {
+				printk(KERN_INFO "ICMP_REPLY");
+			}
+
+			printk(KERN_INFO "id = %d", (u16) icmp_hdr(skb)->un.frag.__unused);
+			printk(KERN_INFO "seq = %d", (u16) icmp_hdr(skb)->un.frag.mtu);
+		}
+
+	}
+
+	printk("--------------------------------------------------");
 }
 
 
@@ -839,10 +879,14 @@ end:
 	/* printk (KERN_INFO "skb->data = 0x%x\n", bp->rx_skb->data); */
 	/* printk (KERN_INFO "skb->tail = 0x%x\n", bp->rx_skb->tail); */
 	/* printk (KERN_INFO "skb->len = %d\n", bp->rx_skb->len); */
+
+	/* skb_set_network_header(bp->rx_skb, sizeof(struct ethhdr)); */
 	
 	core10100_print_skb(bp->rx_skb, PRINT_RX);
 
 	bp->rx_skb->protocol = eth_type_trans(bp->rx_skb, dev);
+
+	core10100_print_skb(bp->rx_skb, PRINT_RX);
 	
 	/* netif_receive_skb(bp->rx_skb); */
 
