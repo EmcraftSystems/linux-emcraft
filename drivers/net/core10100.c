@@ -850,25 +850,26 @@ static short rx_handler(struct net_device *dev)
 	  Check whether Core10/100 returns the descriptor to the host
 	  i.e. a packet is received.
 	*/
-	/* for (i = 0; i < RX_MSG_NUM; i++) { */
-	/* 	bp->rx_cur = find_next_desc(bp->rx_cur, RX_MSG_NUM); */
+	for (i = 0; i < RX_MSG_NUM; i++) {
+		bp->rx_cur = find_next_desc(bp->rx_cur, RX_MSG_NUM);
 		
-	/* 	if(!(bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN)) { */
-	/* 		break; */
-	/* 	} */
-	/* } */
+		if(!(bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN)) {
+			break;
+		}
+	}
 
-	bp->rx_cur = 0;
+	printk(KERN_INFO "rx_cur = %d", bp->rx_cur);
+
 	if (bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN) {
 		printk(KERN_INFO "Bad DESC_OWN is set!\n");
 	}
 
 	
-	/* if (i == RX_MSG_NUM) { */
-	/* 	printk(KERN_INFO "Bad RX num!\n"); */
-	/* 	return 0; */
+	if (i == RX_MSG_NUM) {
+		printk(KERN_INFO "Bad RX num!\n");
+		return 0;
 
-	/* } */
+	}
 
 	/*
 	  Check that the descriptor contains the whole packet,
@@ -898,15 +899,9 @@ static short rx_handler(struct net_device *dev)
 		goto end;
 	}
 
-
 end:
 	
 	skb_put(bp->rx_skb, size);
-
-	/* printk (KERN_INFO "skb->head = 0x%x", bp->rx_skb->head); */
-	/* printk (KERN_INFO "skb->data = 0x%x\n", bp->rx_skb->data); */
-	/* printk (KERN_INFO "skb->tail = 0x%x\n", bp->rx_skb->tail); */
-	/* printk (KERN_INFO "skb->len = %d\n", bp->rx_skb->len); */
 
 	/* skb_set_network_header(bp->rx_skb, sizeof(struct ethhdr)); */
 	
@@ -931,11 +926,9 @@ end:
 
 	/* Receive poll demand */
 	write_reg(CSR2, 1);
-
 	
 
 	return 0;
-	
 }
 
 static irqreturn_t core10100_interrupt (int irq, void *dev_id)
@@ -1486,7 +1479,7 @@ static int core10100_probe(struct platform_device *pd)
 		
 		bp->rx_descs[a].buf1 = (struct rxtx_desc *) bp->rx_skb->data;
 		
-		bp->rx_descs[a].buf2 =	(struct rxtx_desc *) &bp->rx_descs[1];
+		bp->rx_descs[a].buf2 =	(struct rxtx_desc *) &bp->rx_descs[find_next_desc(a, RX_MSG_NUM)];
 
 	}
 
