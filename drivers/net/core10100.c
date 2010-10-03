@@ -366,7 +366,7 @@ MODULE_LICENSE("GPL");
 #define TDES1_TER     ((uint32_t)1 << 25)
 
 
-#define RX_MSG_NUM 1
+#define RX_MSG_NUM 2
 
 /* Driver functions */
 static int core10100_probe(struct platform_device *);
@@ -424,7 +424,7 @@ struct core10100_dev {
 	void *mac_filter;
 
 	/* RX buffer pointer */
-	void *rx_buf;
+	void *rx_bufp[RX_MSG_NUM];
 
 	/* RX/TX dma handles */
 	dma_addr_t rx_dma_handle;
@@ -766,35 +766,57 @@ static inline void core10100_print_skb(struct sk_buff *skb, int rx)
 	int k;
 	int type, code;
 
-	struct ethhdr *eh = eth_hdr(skb);
-	struct iphdr *iph = ip_hdr(skb);
+	static int icnt = 0;
+	static int ricnt = 0;
 
-	printk("--------------------------------------------------");
+	/* struct ethhdr *eh = eth_hdr(skb); */
+	/* struct iphdr *iph = ip_hdr(skb); */
+
+	struct ethhdr *eh = skb->data;
+	struct iphdr *iph = &skb->data[14];
+	struct icmphdr *icmphdr = ((void* ) iph) + sizeof (struct iphdr);
+
+
+	/* skb_reset_network_header(skb); */
+
+	printk(KERN_DEBUG "--------------------------------------------------");
 	
-	if (rx) {
-		printk(KERN_INFO PFX "data (RX): (%d)", skb->len);
+	/* if (rx) { */
+	/* 	printk(KERN_INFO PFX "data (RX): (%d)", skb->len); */
 
-	}
-	else {
-		printk(KERN_INFO PFX "data (TX): (%d)", skb->len);
-	}
+	/* } */
+	/* else { */
+	/* 	printk(KERN_INFO PFX "data (TX): (%d)", skb->len); */
+	/* } */
 	
-	for (k = 0; k < skb->len; k++)
-		printk(" %02x", (unsigned int)skb->data[k]);
-	printk("\n");
+	/* for (k = 0; k < skb->len; k++) */
+	/* 	printk(" %02x", (unsigned int)skb->data[k]); */
+	/* printk("\n"); */
 
+	/* printk( KERN_DEBUG "proto = 0x%x", eh->h_proto); */
+	
 	/* if (eh->h_proto == ETH_P_IP) */
 	{
-		printk(KERN_INFO " IP packet (proto = 0x%x)", iph->protocol);
+		printk(KERN_DEBUG " IP packet (proto = 0x%x)", iph->protocol);
 
 		if (iph->protocol == IPPROTO_ICMP) {
+
+			/* icmphdr = &skb->data[32*5 + 14]; */
+				
 			printk(KERN_INFO " ICMP packet:");
 
-			type = icmp_hdr(skb)->type;
-			code = icmp_hdr(skb)->code;
+			/* type = icmp_hdr(skb)->type; */
+			/* code = icmp_hdr(skb)->code; */
+			type = icmphdr->type;
+			code = icmphdr->code;
 
 			printk(KERN_INFO "src  addr = %pI4", &iph->saddr);
 			printk(KERN_INFO "dest addr = %pI4", &iph->daddr);
+
+			/* if (rx) */
+			/* 	printk(KERN_INFO "ICMP RX = %d", ++icnt); */
+			/* else */
+			/* 	printk(KERN_INFO "ICMP TX = %d", ++ricnt); */
 
 			if (type == ICMP_ECHO) {
 				printk(KERN_INFO "ICMP_ECHO");
@@ -805,13 +827,13 @@ static inline void core10100_print_skb(struct sk_buff *skb, int rx)
 				printk(KERN_INFO "ICMP_REPLY");
 			}
 
-			printk(KERN_INFO "id = %d", (u16) icmp_hdr(skb)->un.frag.__unused);
-			printk(KERN_INFO "seq = %d", (u16) icmp_hdr(skb)->un.frag.mtu);
+			printk(KERN_INFO "id = %d", be16_to_cpu ((u16) icmphdr->un.echo.id));
+			printk(KERN_INFO "seq = %d", be16_to_cpu ((u16) icmphdr->un.echo.sequence));
 		}
-
+		
 	}
 
-	printk("--------------------------------------------------");
+	printk(KERN_DEBUG "--------------------------------------------------");
 }
 
 
@@ -828,19 +850,25 @@ static short rx_handler(struct net_device *dev)
 	  Check whether Core10/100 returns the descriptor to the host
 	  i.e. a packet is received.
 	*/
-	for (i = 0; i < RX_MSG_NUM; i++) {
-		bp->rx_cur = find_next_desc(bp->rx_cur, RX_MSG_NUM);
+	/* for (i = 0; i < RX_MSG_NUM; i++) { */
+	/* 	bp->rx_cur = find_next_desc(bp->rx_cur, RX_MSG_NUM); */
 		
-		if(!(bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN)) {
-			break;
-		}
-	}
-	
-	if (i == RX_MSG_NUM) {
-		printk(KERN_INFO "Bad RX num!\n");
-		return 0;
+	/* 	if(!(bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN)) { */
+	/* 		break; */
+	/* 	} */
+	/* } */
 
+	bp->rx_cur = 0;
+	if (bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN) {
+		printk(KERN_INFO "Bad DESC_OWN is set!\n");
 	}
+
+	
+	/* if (i == RX_MSG_NUM) { */
+	/* 	printk(KERN_INFO "Bad RX num!\n"); */
+	/* 	return 0; */
+
+	/* } */
 
 	/*
 	  Check that the descriptor contains the whole packet,
@@ -886,8 +914,6 @@ end:
 
 	bp->rx_skb->protocol = eth_type_trans(bp->rx_skb, dev);
 
-	core10100_print_skb(bp->rx_skb, PRINT_RX);
-	
 	/* netif_receive_skb(bp->rx_skb); */
 
 	netif_rx(bp->rx_skb);
@@ -906,6 +932,7 @@ end:
 	/* Receive poll demand */
 	write_reg(CSR2, 1);
 
+	
 
 	return 0;
 	
@@ -929,8 +956,10 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 			bp->statistics.tx_interrupts++;
 			/* events |= MSS_MAC_EVENT_PACKET_SEND; */
 
-			/* printk(KERN_NOTICE "received TX irq"); */
-			
+			printk(KERN_NOTICE "received TX irq");
+
+			netif_start_queue(dev);
+			printk(KERN_INFO "started queue");
 			
 			/* TODO: Этого достаточно ? */
 			dev_kfree_skb_irq(bp->tx_skb);
@@ -939,15 +968,13 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 		/* Receive  */
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
 			
-			/* printk(KERN_NOTICE "received RX irq"); */
+			printk(KERN_NOTICE "received RX irq");
 
 			rx_next = (bp->rx_cur + 1) % 2;
 			
 			bp->statistics.rx_interrupts++;
 
 			rx_handler(dev);
-			
-
 		}
 	}
 
@@ -1032,7 +1059,8 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 
 	pr_debug("start_xmit: len %u head %p data %p\n",
 		 skb->len, skb->head, skb->data);
-	
+
+	printk (KERN_INFO "in start_xmit");
 	core10100_print_skb(skb, PRINT_TX); 
 
 
@@ -1089,25 +1117,24 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 	bp->tx_descs[tx_next].own_stat = 0;
 	bp->tx_descs[bp->tx_cur].own_stat = DESC_OWN;
 
-
-
-	
 	/* Start transmission */
 	write_reg(CSR6, read_reg(CSR6) | CSR6_ST);
 
 	/* Transmit poll demand */
 	write_reg(CSR1, CSR1_TPD);
     
-
+	
 	/* save the buffer */
 	bp->tx_skb = skb;
-	
 
 	spin_unlock_irqrestore(&bp->lock, flags);
 
 	dev->trans_start = jiffies;
 
 	bp->tx_cur = tx_next;
+
+	netif_stop_queue(dev);
+	printk(KERN_INFO "stopped queue");
 	
 	return NETDEV_TX_OK;
 }
@@ -1244,12 +1271,17 @@ static int core10100_init(struct core10100_dev *bp)
 	  Pass all multicast
 	  Store and forward
 	*/
+	
 	/* write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM | CSR6_SF); */
+	/* printk(KERN_INFO "CSR6_PR = %d ", (read_reg(CSR6) & CSR6_PR)); */
 
+	/* write_reg(CSR6, (read_reg(CSR6) & ~CSR6_PR) | CSR6_PM ); */
+	/* write_reg(CSR6, (read_reg(CSR6)) | CSR6_PM); */
+	
 
 	/* receive all (just for test) */
 
-	ra_mask = read_reg(CSR6);
+	/* ra_mask = read_reg(CSR6); */
 
 	/* if (ra_mask & CSR6_RA_MASK) */
 	/* 	printk( KERN_INFO "Receive all is set!"); */
@@ -1454,9 +1486,12 @@ static int core10100_probe(struct platform_device *pd)
 		
 		bp->rx_descs[a].buf1 = (struct rxtx_desc *) bp->rx_skb->data;
 		
-		bp->rx_descs[a].buf2 =	(struct rxtx_desc *) bp->rx_descs;
+		bp->rx_descs[a].buf2 =	(struct rxtx_desc *) &bp->rx_descs[1];
 
 	}
+
+	bp->rx_descs[1].own_stat = 0;
+	bp->rx_descs[1].cntl_size = 0;
 
 	
 	write_reg(CSR3, (u32) bp->rx_descs);
