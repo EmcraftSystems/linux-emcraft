@@ -421,10 +421,10 @@ struct core10100_dev {
 	u8 rx_cur; 
 	
 	/* mac filter buffer */
-	void *mac_filter;
+	char *mac_filter;
 
 	/* RX buffer pointer */
-	void *rx_bufp[RX_MSG_NUM];
+	//	void *rx_bufp[RX_MSG_NUM];
 
 	/* RX/TX dma handles */
 	dma_addr_t rx_dma_handle;
@@ -438,7 +438,7 @@ struct core10100_dev {
 	struct sk_buff *tx_skb;
 
 	/* received  skb */
-	struct sk_buff *rx_skb;
+	struct sk_buff *rx_skb[RX_MSG_NUM];
 	
 	/*special mac filter buffer dma handle*/
 	dma_addr_t mac_filter_dma_handle;
@@ -836,39 +836,45 @@ static inline void core10100_print_skb(struct sk_buff *skb, int rx)
 	printk(KERN_DEBUG "--------------------------------------------------");
 }
 
-
+static int here;
 /* handle (not) received frame */
 static short rx_handler(struct net_device *dev)
 {
 	struct core10100_dev *bp = netdev_priv(dev);
 	
-	u32 i;
+	u32 i, cnt;
 
 	u8 size = 0;
-	
+
+	if (here)
+		printk("%s: recursive??????\n", __func__);
+
+	here = 1;
 	/*
 	  Check whether Core10/100 returns the descriptor to the host
 	  i.e. a packet is received.
 	*/
-	for (i = 0; i < RX_MSG_NUM; i++) {
-		bp->rx_cur = find_next_desc(bp->rx_cur, RX_MSG_NUM);
-		
-		if(!(bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN)) {
+	for (cnt = 0, i = bp->rx_cur; cnt < RX_MSG_NUM; cnt++, i = find_next_desc(i, RX_MSG_NUM)) {
+		//		bp->rx_cur = ;		
+
+		if(!(bp->rx_descs[i].own_stat & DESC_OWN)) {
+			bp->rx_cur = i;
 			break;
 		}
 	}
 
 	printk(KERN_INFO "rx_cur = %d", bp->rx_cur);
 
+	/* TBD - paranoia */
 	if (bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN) {
 		printk(KERN_INFO "Bad DESC_OWN is set!\n");
 	}
 
 	
-	if (i == RX_MSG_NUM) {
+	if (cnt == RX_MSG_NUM) {
 		printk(KERN_INFO "Bad RX num!\n");
+		here = 0;
 		return 0;
-
 	}
 
 	/*
@@ -892,6 +898,7 @@ static short rx_handler(struct net_device *dev)
 
 	/* Check the received packet size */
 	size = (bp->rx_descs[bp->rx_cur].own_stat >> 16) & 0x3fff;
+	printk("%s: pkt sz %d\n", __func__, size);
 	if (size > FRAME_LEN) {
 		/* Drop the packet */
 		/* size = 0; */
@@ -900,30 +907,33 @@ static short rx_handler(struct net_device *dev)
 	}
 
 end:
-	
-	skb_put(bp->rx_skb, size);
+
+	skb_put(bp->rx_skb[bp->rx_cur], size);
 
 	/* skb_set_network_header(bp->rx_skb, sizeof(struct ethhdr)); */
 	
-	core10100_print_skb(bp->rx_skb, PRINT_RX);
+	core10100_print_skb(bp->rx_skb[bp->rx_cur], PRINT_RX);
 
-	bp->rx_skb->protocol = eth_type_trans(bp->rx_skb, dev);
+	bp->rx_skb[bp->rx_cur]->protocol = eth_type_trans(bp->rx_skb[bp->rx_cur], dev);
 
 	/* netif_receive_skb(bp->rx_skb); */
 
-	netif_rx(bp->rx_skb);
+	netif_rx(bp->rx_skb[bp->rx_cur]);
 
 	/* alloc skb for future rx-ed frame */
-	bp->rx_skb = dev_alloc_skb(FRAME_LEN);
+	bp->rx_skb[bp->rx_cur] = dev_alloc_skb(FRAME_LEN);
 	
-	bp->rx_descs[bp->rx_cur].buf1 = bp->rx_skb->data; 
+	bp->rx_descs[bp->rx_cur].buf1 = bp->rx_skb[bp->rx_cur]->data; 
 
 	/* Prepare the packet for the following receiving */
-	bp->rx_descs[bp->rx_cur].cntl_size = DESC_TCH | FRAME_LEN;
+	bp->rx_descs[bp->rx_cur].cntl_size = DESC_TCH | (2048-1);
 
 	/* Give the descriptor ownership to Core */
 	bp->rx_descs[bp->rx_cur].own_stat = DESC_OWN;
 
+	/* Advance pointer to the next ready desc */
+	bp->rx_cur = find_next_desc(bp->rx_cur, RX_MSG_NUM);
+	here = 0;
 	/* Receive poll demand */
 	write_reg(CSR2, 1);
 	
@@ -937,7 +947,6 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 	struct core10100_dev *bp = netdev_priv(dev);
 	unsigned int handled = 0;
 	u32 intr_status;
-	u8 rx_next;
 
 	intr_status = read_reg(CSR5);
 	
@@ -962,8 +971,6 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 		if( (intr_status & CSR5_RI_MASK) != 0u ) {
 			
 			printk(KERN_NOTICE "received RX irq");
-
-			rx_next = (bp->rx_cur + 1) % 2;
 			
 			bp->statistics.rx_interrupts++;
 
@@ -1156,11 +1163,21 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 	memcpy(bp->mac, p, sizeof(bp->mac));
 
 	/* Fill all the entries of the mac filter */
-	
-	for (i = 0; i < 192; i += 12) {
-		memcpy(bp->mac_filter + i, bp->mac, 12);
-	}
 
+#if 1	
+	for (i = 0; i < 192; i += 12) {
+		memcpy(bp->mac_filter + i, bp->mac, 6);
+	}
+#else
+	for (i = 0; i < 192; i += 12) {
+		bp->mac_filter[i] = bp->mac[0];
+		bp->mac_filter[i+1] = bp->mac[1];
+		bp->mac_filter[i+4] = bp->mac[2];
+		bp->mac_filter[i+5] = bp->mac[3];
+		bp->mac_filter[i+8] = bp->mac[4];
+		bp->mac_filter[i+9] = bp->mac[5];
+	}
+#endif
 	/*
 	  Setup TX descriptor for the setup frame as follows:
 	  - owned by Core
@@ -1439,16 +1456,13 @@ static int core10100_probe(struct platform_device *pd)
 		goto err_out;
 	}
 
-	/* alloc skb for first received frame */
-	bp->rx_skb = dev_alloc_skb(FRAME_LEN);
-
 	/* No automatic polling */
 	write_reg(CSR0, read_reg(CSR0) &~ CSR0_TAP_MASK);
 	
 	/* No space between descriptors */
 	/* write_reg(CSR0, read_reg(CSR0) &~ CSR0_DSL_MASK); */
 	
-#define	CFG_MAX_ETH_MSG_SIZE 1500
+#define	CFG_MAX_ETH_MSG_SIZE (2048-1)
 
 	/*
 	  Setup RX descriptor as follows (the only descriptor is used):
@@ -1477,15 +1491,13 @@ static int core10100_probe(struct platform_device *pd)
 			(CFG_MAX_ETH_MSG_SIZE > 0x7FF ?
 			 0x7FF : CFG_MAX_ETH_MSG_SIZE);
 		
-		bp->rx_descs[a].buf1 = (struct rxtx_desc *) bp->rx_skb->data;
+		/* alloc skb for first received frame */
+		bp->rx_skb[a] = dev_alloc_skb(FRAME_LEN);
+		bp->rx_descs[a].buf1 = bp->rx_skb[a]->data;
 		
 		bp->rx_descs[a].buf2 =	(struct rxtx_desc *) &bp->rx_descs[find_next_desc(a, RX_MSG_NUM)];
 
 	}
-
-	bp->rx_descs[1].own_stat = 0;
-	bp->rx_descs[1].cntl_size = 0;
-
 	
 	write_reg(CSR3, (u32) bp->rx_descs);
 	
