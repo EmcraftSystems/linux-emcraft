@@ -52,6 +52,5 @@ static struct platform_device eth_device = {
 
 void __init a2f_eth_init()
 {
-	printk(KERN_INFO "in a2f_eth_init");
 	platform_device_register(&eth_device);		
 }
