@@ -80,6 +80,7 @@
 
 
 #define CSR6_SR			(1 << 1)
+#define CSR6_PB			(1 << 3)
 #define CSR6_PR			(1 << 6)
 #define CSR6_PM			(1 << 7)
 #define CSR6_FD			(1 << 9)
@@ -164,23 +165,6 @@
 
 #define read_reg(reg) (readl(bp->base + reg))
 #define write_reg(reg, val) (writel(val, bp->base + reg))
-
-/* PHY (Micrel KS8721) definitions */
-
-/* MDIO command bits */
-#define MDIO_ST			(1 << 14)
-#define MDIO_READ		(1 << 13)
-#define MDIO_WRITE		(1 << 12) | (1 << 1)
-#define MDIO_PHYADR_SHIFT	7
-#define MDIO_REG_SHIFT		2
-
-/* Compose an MDIO command */
-#define mdio_cmd(op, reg) \
-	(MDIO_ST | op | (pd->phy_id << MDIO_PHYADR_SHIFT) | \
-	(reg << MDIO_REG_SHIFT))
-
-/* Wait a half of MDC period (200 ns). Maximum possible frequency is 2.5 MHz. */
-#define mdio_wait ndelay(200)
 
 /* Get/Set MDC and MDIO pins */
 #define mii_set_mdc(val) { \

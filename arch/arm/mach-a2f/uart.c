@@ -62,7 +62,13 @@ static struct plat_serial8250_port mss_uart0_data[] = {
        .membase     	= (char *) MSS_UART0_BASE,
        .mapbase     	= MSS_UART0_BASE,
        .irq         	= MSS_UART0_IRQ,
+#if 0
+	   /* Actel A2F EVB, 100MHz core clock */
        .uartclk     	= 25000000,
+#else
+	   /* Emcraft A2F-LNX-EVB, 80MHz core clock */
+       .uartclk     	= 20000000,
+#endif
        .regshift    	= 2,
        .iotype      	= UPIO_MEM,
        .flags		= UPF_SKIP_TEST,

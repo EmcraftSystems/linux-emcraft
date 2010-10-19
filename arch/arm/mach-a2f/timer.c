@@ -72,8 +72,13 @@ static void mss_timer1_set_mode(enum clock_event_mode mode,
                  * Kernel ticker rate. Timer1 is clocked from PCLK0.
                  * TO-DO: is the Linux system clock rate configurable?
                  */
-                MSS_TIMER1->loadval= a2f_clock_get(CLCK_SYSTEMCORE) / 100;
-
+#if 0
+			/* Actel A2F EVB, 100MHz coreclock */
+			MSS_TIMER1->loadval= a2f_clock_get(CLCK_SYSTEMCORE) / 100;
+#else
+			/* Emcraft A2F-LNX-EVB, 80MHz coreclock */
+			MSS_TIMER1->loadval= a2f_clock_get(CLCK_SYSTEMCORE) / 125;
+#endif
                 /*
 		 * Enable interrupts, Periodic Mode, Timer Enabled
 		 */

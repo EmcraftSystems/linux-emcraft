@@ -408,6 +408,7 @@ static int core10100_check_rxframe(struct net_device *dev, struct rxtx_desc *rx_
 
 	if (rx_desc->own_stat & DESC_RLS) {
 		/* The DESC_RES bit is valid only when the DESC_RLS is set */
+#if 0
 		if((rx_desc->own_stat & DESC_RES)) {/* don't report collisions */
 			printk(KERN_INFO "receive_frame error: DESC_RES flag is set, len %d\n", (rx_desc->own_stat >> 16) & 0x3fff);
 			dump_desc(rx_desc, "RX", 1);
@@ -415,6 +416,7 @@ static int core10100_check_rxframe(struct net_device *dev, struct rxtx_desc *rx_
 			/* link_stat(pd); */
 			badframe = 1;
 		}
+#endif
 		if (rx_desc->own_stat & DESC_RDE) {
 			printk("%s: Descriptor Error (no Rx buffer avail)\n", __func__);
 			dev->stats.rx_fifo_errors++;
@@ -639,12 +641,14 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 		/* events |= MSS_MAC_EVENT_PACKET_SEND; */
 		if(dbg)printk(KERN_NOTICE "received TX irq\n");
 		tx_handler(dev);
+		handled = 1;
 	}
 
 	/* Receive  */
 	if (intr_status & CSR5_RI) {
 		bp->statistics.rx_interrupts++;
 		rx_handler(dev);
+		handled = 1;
 	}
 
 	/* printk(KERN_ERR "core10100: in irq\n"); */

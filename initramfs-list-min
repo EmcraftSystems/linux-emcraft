@@ -40,13 +40,19 @@ dir /bin 755 0 0
 
 # http stuff
 dir /httpd/html 0700 0 0
-dir /httpd/html/img 0700 0 0
+#dir /httpd/html/img 0700 0 0
 slink /httpd/html/cgi-bin /httpd/html 700 0 0
 file /httpd/html/mydemo.cgi ../local/html/mydemo.cgi 700 0 0
 file /httpd/html/index.html ../local/html/index.html 600 0 0
 file /httpd/html/styles.css ../local/html/styles.css 600 0 0
 file /httpd/html/test-2.htm ../local/html/test-2.htm 600 0 0
-file /httpd/html/img/ping13_150.jpg ../local/html/ping13_150.jpg 600 0 0
+#file /httpd/html/img/ping13_150.jpg ../local/html/ping13_150.jpg 600 0 0
+file /httpd/html/pi.a ../local/html/pi.a 600 0 0
+file /httpd/html/pi.b ../local/html/pi.b 600 0 0
+file /httpd/html/pi.c ../local/html/pi.c 600 0 0
+file /httpd/html/pi.d ../local/html/pi.d 600 0 0
+file /httpd/html/file.name ../local/html/file.name 600 0 0
+
 
 #Dropbear ssh server
 #dir /etc/dropbear 0755 0 0
@@ -63,7 +69,7 @@ file /bin/busybox ../busybox/busybox-1.17.0/busybox 755 0 0
 
 
 slink /bin/init busybox 777 0 0
-#file /etc/inittab ../local/inittab 755 0 0
+file /etc/inittab ../local/inittab 755 0 0
 file /etc/rc ../local/rc 755 0 0
 file /etc/hosts ../local/hosts 644 0 0
 file /etc/services ../local/services 644 0 0
@@ -77,18 +83,21 @@ file /etc/securetty ../local/securetty 644 0 0
 
 
 slink /bin/cat busybox 777 0 0
-#slink /bin/hostname busybox 777 0 0
+slink /bin/hostname busybox 777 0 0
 slink /bin/cp busybox 777 0 0
+slink /bin/chmod busybox 777 0 0
+slink /bin/chown busybox 777 0 0
 slink /bin/date busybox 777 0 0
 slink /bin/dd busybox 777 0 0
 #slink /bin/dmesg busybox 777 0 0
 slink /bin/echo busybox 777 0 0
 #slink /bin/false busybox 777 0 0
+slink /bin/httpd busybox 777 0 0
 slink /bin/hush busybox 777 0 0
 #slink /bin/inetd busybox 777 0 0
 slink /bin/kill busybox 777 0 0
-#slink /bin/ln busybox 777 0 0
-#slink /bin/login /bin/busybox 777 0 0
+slink /bin/ln busybox 777 0 0
+slink /bin/login /bin/busybox 777 0 0
 slink /bin/ls busybox 777 0 0
 slink /bin/mkdir busybox 777 0 0
 #slink /bin/mknod busybox 777 0 0
@@ -100,20 +109,20 @@ slink /bin/pwd busybox 777 0 0
 slink /bin/rm busybox 777 0 0
 #slink /bin/rmdir busybox 777 0 0
 slink /bin/sh busybox 777 0 0
-#slink /bin/sleep busybox 777 0 0
+slink /bin/sleep busybox 777 0 0
 #slink /bin/true busybox 777 0 0
 #slink /bin/uname busybox 777 0 0
 slink /bin/mount busybox 777 0 0
 slink /bin/umount busybox 777 0 0
-#slink /bin/ping busybox 777 0 0
+slink /bin/ping busybox 777 0 0
 slink /bin/ifconfig busybox 777 0 0
 #slink /bin/telnet busybox 777 0 0
-#slink /bin/telnetd busybox 777 0 0
-#slink /bin/wc busybox 777 0 0
-#dir /usr 755 0 0
-#dir /usr/bin 755 0 0
-#slink /usr/bin/[ ../../bin/busybox 777 0 0
-#slink /usr/bin/[[ ../../bin/busybox 777 0 0
+slink /bin/telnetd busybox 777 0 0
+slink /bin/wc busybox 777 0 0
+dir /usr 755 0 0
+dir /usr/bin 755 0 0
+slink /usr/bin/[ ../../bin/busybox 777 0 0
+slink /usr/bin/[[ ../../bin/busybox 777 0 0
 #slink /usr/bin/env ../../bin/busybox 777 0 0
 #slink /usr/bin/test ../../bin/busybox 777 0 0
 #slink /usr/bin/yes ../../bin/busybox 777 0 0
