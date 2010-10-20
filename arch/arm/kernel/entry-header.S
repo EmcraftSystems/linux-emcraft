@@ -82,7 +82,7 @@
 	cmpne	lr, #0xffffffed
 #endif
 	beq	1f			@ exception on process stack
-	add	r12, sp, #32		@ MSP before exception
+	add	r12, sp, #S_FRAME_SIZE >> 1 @ MSP before exception
 	stmdb	sp!, {r4-r12, lr}	@ push unsaved registers
 	b	2f
 1:
@@ -101,7 +101,7 @@
 #ifdef CONFIG_VFPM
 	cmpne	lr, #0xffffffed
 #endif
-	addeq	sp, #32			@ returning to PSP, just restore MSP
+	addeq	sp, #S_FRAME_SIZE >> 1	@ returning to PSP, just restore MSP
 	cpsie	i
 	bx	lr
 	.endm
@@ -179,7 +179,6 @@
 #elif defined (CONFIG_CPU_V6)
 	ldr	r0, [sp]
 	strex	r1, r2, [sp]			@ clear the exclusive monitor
-xyi
 	ldmib	sp, {r1 - pc}^			@ load r1 - pc, cpsr
 #else
 	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
