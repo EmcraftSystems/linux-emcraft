@@ -2,27 +2,33 @@
 
 dir /dev 0755 0 0
 nod /dev/console 0600 0 0 c 5 1
+nod /dev/tty 0666 0 0 c 5 0
 nod /dev/null 0600 0 0 c 1 3
 nod /dev/mem 0600 0 0 c 1 1
 nod /dev/kmem 0600 0 0 c 1 2
 nod /dev/zero 0600 0 0 c 1 5
 nod /dev/random 0600 0 0 c 1 8
 nod /dev/urandom 0600 0 0 c 1 9
-nod /dev/ttyp0 0600 0 0 c 3 0
-nod /dev/ttyp1 0600 0 0 c 3 1
-nod /dev/ttyp2 0600 0 0 c 3 2
-nod /dev/ttyp3 0600 0 0 c 3 3
-nod /dev/ttyp4 0600 0 0 c 3 4
-nod /dev/ttyp5 0600 0 0 c 3 5
-nod /dev/ttyp6 0600 0 0 c 3 6
+nod /dev/urandom 0600 0 0 c 5 0
 
-nod /dev/ptyp0 0600 0 0 c 2 0
-nod /dev/ptyp1 0600 0 0 c 2 1
-nod /dev/ptyp2 0600 0 0 c 2 2
-nod /dev/ptyp3 0600 0 0 c 2 3
-nod /dev/ptyp4 0600 0 0 c 2 4
-nod /dev/ptyp5 0600 0 0 c 2 5
-nod /dev/ptyp6 0600 0 0 c 2 6
+dir /dev/pts 0755 0 0
+nod /dev/ptmx 0666 0 0 c 5 2
+
+#nod /dev/ttyp0 0600 0 0 c 3 0
+#nod /dev/ttyp1 0600 0 0 c 3 1
+#nod /dev/ttyp2 0600 0 0 c 3 2
+#nod /dev/ttyp3 0600 0 0 c 3 3
+#nod /dev/ttyp4 0600 0 0 c 3 4
+#nod /dev/ttyp5 0600 0 0 c 3 5
+#nod /dev/ttyp6 0600 0 0 c 3 6
+
+#nod /dev/ptyp0 0600 0 0 c 2 0
+#nod /dev/ptyp1 0600 0 0 c 2 1
+#nod /dev/ptyp2 0600 0 0 c 2 2
+#nod /dev/ptyp3 0600 0 0 c 2 3
+#nod /dev/ptyp4 0600 0 0 c 2 4
+#nod /dev/ptyp5 0600 0 0 c 2 5
+#nod /dev/ptyp6 0600 0 0 c 2 6
 
 
 dir /root 0700 0 0
@@ -55,9 +61,10 @@ file /httpd/html/file.name ../local/html/file.name 600 0 0
 
 
 #Dropbear ssh server
-#dir /etc/dropbear 0755 0 0
-#file /etc/dropbear/dropbear_rsa_host_key ../local/ssh_host_rsa_key 644 0 0
-#file /bin/dropbear ../dropbear/dropbear-0.50/dropbear 755 0 0
+dir /etc/dropbear 0755 0 0
+file /etc/dropbear/dropbear_rsa_host_key ../local/ssh_host_rsa_key 644 0 0
+file /etc/dropbear/dropbear_dss_host_key ../local/ssh_host_dss_key 644 0 0
+file /bin/dropbear ../dropbear/dropbear-0.52/dropbear 755 0 0
 #file /bin/ssh ../dropbear/dropbear-0.52/dbclient 755 0 0
 
 #file /kinit usr/kinit/kinit 0755 0 0
