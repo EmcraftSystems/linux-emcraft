@@ -39,10 +39,10 @@
 	movne	r0, #1
 #else
 	save_and_disable_irqs ip
-	ldr	r2, [r1]
-        ands    r0, r2, r3              @ save old value of bit
-        \instr  r2, r2, r3              @ toggle bit
-        str	r2, [r1]
+	ldrb	r2, [r1]
+	ands    r0, r2, r3              @ save old value of bit
+	\instr  r2, r2, r3              @ toggle bit
+	strb	r2, [r1]
 	restore_irqs ip
 #endif
 2:	mov	pc, lr

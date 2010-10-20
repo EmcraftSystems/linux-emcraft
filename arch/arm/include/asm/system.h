@@ -255,17 +255,15 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	unsigned long ret;
 #if defined(swp_is_buggy) || defined(CONFIG_ARCH_A2F)
 	unsigned long flags;
-#endif
-#if __LINUX_ARM_ARCH__ >= 6
+#elif __LINUX_ARM_ARCH__ >= 6
 	unsigned int tmp;
 #endif
 
 	smp_mb();
 
 	switch (size) {
-#if __LINUX_ARM_ARCH__ >= 6
+#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_ARCH_A2F)
 	case 1:
-#if !defined(CONFIG_ARCH_A2F)
 		asm volatile("@	__xchg1\n"
 		"1:	ldrexb	%0, [%3]\n"
 		"	strexb	%1, %2, [%3]\n"
@@ -274,19 +272,8 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 			: "=&r" (ret), "=&r" (tmp)
 			: "r" (x), "r" (ptr)
 			: "memory", "cc");
-#else
-		raw_local_irq_save(flags);
-		asm volatile("\n"
-		"	ldr	%0, [%3]\n"
-		"	str	%2, [%3]"
-			: "=&r" (ret), "=&r" (tmp)
-			: "r" (x), "r" (ptr)
-			: "memory", "cc");
-		raw_local_irq_restore(flags);
-#endif
 		break;
 	case 4:
-#if !defined(CONFIG_ARCH_A2F)
 		asm volatile("@	__xchg4\n"
 		"1:	ldrex	%0, [%3]\n"
 		"	strex	%1, %2, [%3]\n"
@@ -295,18 +282,8 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 			: "=&r" (ret), "=&r" (tmp)
 			: "r" (x), "r" (ptr)
 			: "memory", "cc");
-#else
-		raw_local_irq_save(flags);
-		asm volatile("@\n"
-		"	ldr	%0, [%3]\n"
-		"	str	%2, [%3]"
-			: "=&r" (ret), "=&r" (tmp)
-			: "r" (x), "r" (ptr)
-			: "memory", "cc");
-		raw_local_irq_restore(flags);
-#endif
 		break;
-#elif defined(swp_is_buggy)
+#elif defined(swp_is_buggy) || defined(CONFIG_ARCH_A2F)
 #ifdef CONFIG_SMP
 #error SMP is not supported on this platform
 #endif
