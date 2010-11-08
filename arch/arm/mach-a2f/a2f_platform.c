@@ -56,30 +56,6 @@ static void __init a2f_map_io(void);
 static void __init a2f_init_irq(void);
 static void __init a2f_init(void);
 
- /*
-  * Kernel configuration data. This works as follows:
-  * - if r2 is <> zero at the kernel entry, this is treated
-  *   as a pointer to the config data tag list;
-  * - otherwise, if machine_desc->boot_params <> 0, this is treated
-  *   as a pointer to the config data tag list;
-  * I use the second option above to provide reasonable 
-  * settings for the kernel.
-  */
-
-static struct init_tags {
-	struct tag_header	h1;
-	struct tag_core		core;
-	struct tag_header	h2;
-	struct tag_mem32	mem;
-	struct tag_header	h3;
-} a2f_init_tags __initdata = {
-	{ tag_size(tag_core), ATAG_CORE },
-	{ 1, PAGE_SIZE, 0xFF },
-	{ tag_size(tag_mem32), ATAG_MEM },
-	{ CONFIG_DRAM_SIZE, CONFIG_DRAM_BASE },
-	{ 0, ATAG_NONE }
-};
-
 /*
  * Data structure for the timer system.
  */
@@ -102,11 +78,6 @@ MACHINE_START(A2F, "Actel A2F")
  	 */
 	.phys_io	= MSS_UART0_BASE,
 	.io_pg_offst	= (IO_ADDRESS(MSS_UART0_BASE) >> 18) & 0xfffc,
-
-	/* As explained above, I have this to point to ATAG-based
- 	 * machine specific parameters.
- 	 */
-	.boot_params	= (unsigned int) &a2f_init_tags,
 	.map_io		= a2f_map_io,
 	.init_irq	= a2f_init_irq,
 	.timer		= &a2f_timer, 

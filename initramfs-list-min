@@ -30,6 +30,7 @@ nod /dev/ptmx 0666 0 0 c 5 2
 #nod /dev/ptyp5 0600 0 0 c 2 5
 #nod /dev/ptyp6 0600 0 0 c 2 6
 
+nod /dev/ttyS0 0666 0 0 c 4 64
 
 dir /root 0700 0 0
 dir /proc 0755 0 0
@@ -42,7 +43,6 @@ dir /var/log 0755 0 0
 dir /var/run 0755 0 0
 dir /var/lock 0755 0 0
 dir /bin 755 0 0
-
 
 # http stuff
 dir /httpd/html 0700 0 0
@@ -59,21 +59,18 @@ file /httpd/html/pi.c ../local/html/pi.c 600 0 0
 file /httpd/html/pi.d ../local/html/pi.d 600 0 0
 file /httpd/html/file.name ../local/html/file.name 600 0 0
 
-
 #Dropbear ssh server
-dir /etc/dropbear 0755 0 0
-file /etc/dropbear/dropbear_rsa_host_key ../local/ssh_host_rsa_key 644 0 0
-file /etc/dropbear/dropbear_dss_host_key ../local/ssh_host_dss_key 644 0 0
-file /bin/dropbear ../dropbear/dropbear-0.52/dropbear 755 0 0
+#dir /etc/dropbear 0755 0 0
+#file /etc/dropbear/dropbear_rsa_host_key ../local/ssh_host_rsa_key 644 0 0
+#file /etc/dropbear/dropbear_dss_host_key ../local/ssh_host_dss_key 644 0 0
+#file /bin/dropbear ../dropbear/dropbear-0.52/dropbear 755 0 0
 #file /bin/ssh ../dropbear/dropbear-0.52/dbclient 755 0 0
 
 #file /kinit usr/kinit/kinit 0755 0 0
 #slink /init kinit 0755 0 0
 
-
 #file /bin/busybox /home/vlad/uclinux/busybox/busybox-1.17.0/busybox 755 0 0
 file /bin/busybox ../busybox/busybox-1.17.0/busybox 755 0 0
-
 
 slink /bin/init busybox 777 0 0
 file /etc/inittab ../local/inittab 755 0 0
@@ -86,8 +83,6 @@ file /etc/group ../local/group 644 0 0
 file /etc/shadow ../local/shadow 644 0 0
 file /etc/securetty ../local/securetty 644 0 0
 #file /etc/inetd.conf ../local/inetd.conf 644 0 0
-
-
 
 slink /bin/cat busybox 777 0 0
 slink /bin/hostname busybox 777 0 0

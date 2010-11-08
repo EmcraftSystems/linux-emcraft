@@ -47,10 +47,6 @@ ENTRY(stext)
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
 	beq	__error_p			@ yes, error 'p'
-#if defined(CONFIG_ARCH_A2F)
-	ldr	r1, =10001			@ machine type for A2F
-	ldr	r2, =0x0			@ __atags_pointer
-#endif
 	bl	__lookup_machine_type		@ r5=machinfo
 	movs	r8, r5				@ invalid machine (r5=0)?
 	beq	__error_a			@ yes, error 'a'
