@@ -1035,15 +1035,6 @@ static int core10100_probe(struct platform_device *pd)
 	
 	printk(KERN_INFO "Found CORE10100 MAC at 0x%x, irq %d\n", (unsigned int) bp->base, dev->irq);
 
-	if ( !(read_reg(CSR0) == 0xFE000000 &&
-	       read_reg(CSR5) == 0xF0000000 &&
-	       read_reg(CSR6) == 0x32000040))
-	{
-		return -ENODEV;
-	}
-	
-	printk(KERN_INFO "CSR[0,5,6] reset values are OK.\n");
-
 	bp->core10100_mdio_ctrl.ops = &core10100_mdio_ops;
 
 	core10100_mii_init(dev);
