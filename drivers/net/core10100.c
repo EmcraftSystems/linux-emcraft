@@ -31,6 +31,7 @@
 #include <linux/icmp.h>
 
 #include <asm/io.h>
+#include <asm/setup.h>
 #include "core10100.h"
 
 #define DRV_NAME "core10100"
@@ -226,7 +227,7 @@ static void core10100_adjust_link(struct net_device *dev)
 
 }
 
-static int core10100_mii_init(struct net_device *dev)
+static int __init core10100_mii_init(struct net_device *dev)
 {
 	struct core10100_dev *bp = netdev_priv(dev);
 	int ret;
@@ -904,7 +905,7 @@ int core10100_mac_addr(struct net_device *dev, void *p)
 }
 
 /*Init the adapter*/
-static int core10100_init(struct core10100_dev *bp)
+static int __init core10100_init(struct core10100_dev *bp)
 {
 	int i;
 	/* unsigned long rd; */
@@ -980,7 +981,7 @@ static const struct net_device_ops core10100_netdev_ops = {
 };
 
 
-static int core10100_probe(struct platform_device *pd)
+static int __init core10100_probe(struct platform_device *pd)
 {
 	/* unsigned int sz; */
 	/* unsigned int rd; */
@@ -988,11 +989,13 @@ static int core10100_probe(struct platform_device *pd)
 	struct core10100_dev *bp;
 	u32 mem_base, mem_size, a;
 	u16 irq;
-	const u8 mac_address[6] = { DEFAULT_MAC_ADDRESS };
 	char *p = (char *)0x20008000;
 
 	int err = -ENXIO;
 	struct resource *res;
+	u8 core_mac_addr[6];
+	char *ptr, *ptr_end;
+	u8 ethaddr[18];
 
 	res = platform_get_resource(pd, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1041,10 +1044,24 @@ static int core10100_probe(struct platform_device *pd)
 
 	core10100_init(bp);
 
-	random_ether_addr(dev->dev_addr);
+	memset(core_mac_addr, 0, sizeof(core_mac_addr));
 
-	memcpy(dev->dev_addr, mac_address, sizeof(mac_address));
-	
+	if ((ptr = strnstr(boot_command_line, "ethaddr=", COMMAND_LINE_SIZE))) {
+		int i;
+		memcpy(ethaddr, ptr + strlen("ethaddr="), sizeof(ethaddr));
+		ptr_end = ethaddr;
+		for (i = 0; i <= 5; i++) {
+			core_mac_addr[i] = simple_strtol(ptr_end, &ptr_end, 16) |
+				simple_strtol(ptr_end, &ptr_end, 16) << 4;
+			ptr_end++; /* skip ":" in  ethaddr */
+		}
+	}
+
+	if (!is_valid_ether_addr(core_mac_addr)) {
+		printk(KERN_ERR "MAC address is not set or invalid, using random.\n");
+		random_ether_addr(core_mac_addr);
+	}
+	memcpy(bp->dev->dev_addr, core_mac_addr, sizeof(core_mac_addr));
 	err = register_netdev(dev);
 	
 	if (err) {
@@ -1186,7 +1203,7 @@ static int core10100_probe(struct platform_device *pd)
 	write_reg(CSR7, CSR7_TIE | read_reg(CSR7));
 	
 	/* setup mac address */// psl TBD - move upper to not spoil CSR4
-	core10100_mac_addr(dev, (void *) mac_address);
+	core10100_mac_addr(dev, (void *) core_mac_addr);
 
 	/* receive all packets */
 	/* write_reg(CSR6, CSR6_RA_MASK); */	

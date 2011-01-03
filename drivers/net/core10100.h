@@ -203,13 +203,6 @@
 #define RX_RING_SIZE 4
 #define TX_RING_SIZE 4
 
-/**
- * Default MAC address
- */
-
-#define DEFAULT_MAC_ADDRESS             0xC0u,0xB1u,0x3Cu,0x88u,0x88u,0x88u
-
-
 /*MORE REGS*/
 
 /*------------------------------------------------------------------------------
