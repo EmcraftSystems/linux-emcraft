@@ -592,6 +592,7 @@ static short rx_handler(struct net_device *dev)
 			dev->stats.rx_dropped++;
 			goto end_alloc;
 		}
+		dev->stats.rx_bytes += size;
 
 		/* from fec.c */
 		skb = dev_alloc_skb(size - 4 + NET_IP_ALIGN);
@@ -708,11 +709,6 @@ static int core10100_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *core10100_get_stats(struct net_device *dev)
-{
-	return NULL;
-}
-
 static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 					struct net_device *dev)
 
@@ -752,6 +748,8 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 		skb_copy_from_linear_data(skb, bp->tx_buffs[bp->tx_dirty], skb->len);
 		p = bp->tx_buffs[bp->tx_dirty];
 	}
+
+	dev->stats.tx_bytes += skb->len;
 
 	//	skb_put(skb, 4);//add space for CRC????
 	/*
@@ -971,7 +969,6 @@ static int __init core10100_init(struct core10100_dev *bp)
 static const struct net_device_ops core10100_netdev_ops = {
 	.ndo_open		= core10100_open,
 	.ndo_stop		= core10100_close,
-	.ndo_get_stats		= core10100_get_stats,
 	.ndo_start_xmit		= core10100_start_xmit,
 	.ndo_do_ioctl		= core10100_ioctl,
 	/* .ndo_set_mac_address	= eth_mac_addr, */
