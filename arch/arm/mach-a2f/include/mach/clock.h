@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/mach-a2f/include/mach/clock.h
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ *  Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,20 @@ enum a2f_clock  {
  * Return a clock value for the specified clock.
  */
 extern unsigned int a2f_clock_get(enum a2f_clock);
+
+/*
+ * System frequency (FCLK) and the other derivative clocks
+ * coming out from reset. These are defined by the Libero
+ * project programmed onto SmartFusion.
+ * It is possible to read these frequencies from SmartFusion
+ * at run-time, however for simplicity of configuration we define these
+ * clocks at build-time.
+ */
+#define SF_CLK_FREQ			80000000uL
+#define SF_CLK_PCLK0			(SF_CLK_FREQ / 4)
+#define SF_CLK_PCLK1			(SF_CLK_FREQ / 4)
+#define SF_ACE_PCLK1			(SF_CLK_FREQ / 2)
+#define SF_FPGA_PCLK1			(SF_CLK_FREQ / 2)
 
 #endif	/*_MACH_A2F_CLOCK_H_ */
 

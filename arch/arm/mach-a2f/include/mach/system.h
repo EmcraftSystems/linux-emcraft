@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-a2f/include/mach/system.h
  *
- * Copyright (C) 2009 ARM Ltd.
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

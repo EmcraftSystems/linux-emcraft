@@ -29,7 +29,6 @@
 #include <mach/timer.h>
 #include <mach/clock.h>
 #include <mach/a2f.h>
-#include <mach/a2fxxxm3.h>
 
 /* 
  * We will user Timer1 of the SmartFusion (in the 32 bit mode)
@@ -64,48 +63,48 @@ struct mss_timer1 {
 static void mss_timer1_set_mode(enum clock_event_mode mode,
                                 struct clock_event_device *clk)
 {
-        unsigned long ctrl;
+	unsigned long ctrl;
 
-        switch(mode) {
-        case CLOCK_EVT_MODE_PERIODIC:
-                /*
-                 * Kernel ticker rate. Timer1 is clocked from PCLK0.
-                 * TO-DO: is the Linux system clock rate configurable?
-                 */
+	switch(mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		/*
+		 * Kernel ticker rate. Timer1 is clocked from PCLK0.
+		 * TO-DO: is the Linux system clock rate configurable?
+		 */
 #if 0
-			/* Actel A2F EVB, 100MHz coreclock */
-			MSS_TIMER1->loadval= a2f_clock_get(CLCK_SYSTEMCORE) / 100;
+		/* Actel A2F EVB, 100MHz coreclock */
+		MSS_TIMER1->loadval= a2f_clock_get(CLCK_SYSTEMCORE) / 100;
 #else
-			/* Emcraft A2F-LNX-EVB, 80MHz coreclock */
-			MSS_TIMER1->loadval= a2f_clock_get(CLCK_SYSTEMCORE) / 125;
+		/* Emcraft A2F-LNX-EVB, 80MHz coreclock */
+		MSS_TIMER1->loadval= a2f_clock_get(CLCK_SYSTEMCORE) / 125;
 #endif
-                /*
+		/*
 		 * Enable interrupts, Periodic Mode, Timer Enabled
 		 */
-                ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_PRDC | TIMER_CTRL_INTR;
-                break;
-        default:
+		ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_PRDC | TIMER_CTRL_INTR;
+		break;
+	default:
 		/*
 		 * Disable the timer.
 		 */
-                ctrl = MSS_TIMER1->ctrl & ~TIMER_CTRL_ENBL;
+		ctrl = MSS_TIMER1->ctrl & ~TIMER_CTRL_ENBL;
 		break;
-        }
+	}
 
-        MSS_TIMER1->ctrl = ctrl;
+	MSS_TIMER1->ctrl = ctrl;
 }
 
 /*
  * Description of the system clock timer operating parameters.
  */
 
-static struct clock_event_device mss_timer1_clockevent =     {
-        .name           = "A2F MSS Timer1 ClockEvent",
-        .shift          = 32,
-        .features       = CLOCK_EVT_FEAT_PERIODIC,
-        .set_mode       = mss_timer1_set_mode,
-        .rating         = 300,
-        .cpumask        = cpu_all_mask,
+static struct clock_event_device mss_timer1_clockevent = {
+	.name           = "A2F MSS Timer1 ClockEvent",
+	.shift          = 32,
+	.features       = CLOCK_EVT_FEAT_PERIODIC,
+	.set_mode       = mss_timer1_set_mode,
+	.rating         = 300,
+	.cpumask        = cpu_all_mask,
 };
 
 /* 
@@ -114,15 +113,15 @@ static struct clock_event_device mss_timer1_clockevent =     {
 
 static void __init mss_timer1_clockevents_init(unsigned int timer_irq)
 {
-        mss_timer1_clockevent.irq = timer_irq;
-        mss_timer1_clockevent.mult =
-                div_sc(1000000, NSEC_PER_SEC, mss_timer1_clockevent.shift);
-        mss_timer1_clockevent.max_delta_ns =
-                clockevent_delta2ns(0xffffffff, &mss_timer1_clockevent);
-        mss_timer1_clockevent.min_delta_ns =
-                clockevent_delta2ns(0xf, &mss_timer1_clockevent);
+	mss_timer1_clockevent.irq = timer_irq;
+	mss_timer1_clockevent.mult =
+		div_sc(1000000, NSEC_PER_SEC, mss_timer1_clockevent.shift);
+	mss_timer1_clockevent.max_delta_ns =
+		clockevent_delta2ns(0xffffffff, &mss_timer1_clockevent);
+	mss_timer1_clockevent.min_delta_ns =
+		clockevent_delta2ns(0xf, &mss_timer1_clockevent);
 
-        clockevents_register_device(&mss_timer1_clockevent);
+	clockevents_register_device(&mss_timer1_clockevent);
 }
 
 /*
@@ -131,18 +130,18 @@ static void __init mss_timer1_clockevents_init(unsigned int timer_irq)
 
 static irqreturn_t mss_timer1_interrupt(int irq, void *dev_id)
 {
-        struct clock_event_device *evt = &mss_timer1_clockevent;
+	struct clock_event_device *evt = &mss_timer1_clockevent;
 
-        /*
-         * Clear the interrupt.
-         */
-        MSS_TIMER1->ris = TIMER_RIS_ACK;
+	/*
+	 * Clear the interrupt.
+	 */
+	MSS_TIMER1->ris = TIMER_RIS_ACK;
 
 	/*
  	 * Handle the event.
  	 */
-        evt->event_handler(evt);
-        return IRQ_HANDLED;
+	evt->event_handler(evt);
+	return IRQ_HANDLED;
 }
 
 /*
@@ -150,9 +149,9 @@ static irqreturn_t mss_timer1_interrupt(int irq, void *dev_id)
  */
 
 static struct irqaction mss_timer1_irq = {
-        .name           = "A2F MSS Timer1 IRQ",
-        .flags          = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-        .handler        = mss_timer1_interrupt,
+	.name           = "A2F MSS Timer1 IRQ",
+	.flags          = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.handler        = mss_timer1_interrupt,
 };
 
 /*
@@ -161,29 +160,29 @@ static struct irqaction mss_timer1_irq = {
 
 void __init a2f_timer_init(void)
 {
-        unsigned int timer_irq;
+	unsigned int timer_irq;
 
-        /*
-         * We will use the AFS System Timer 1 in the 32-bit mode for
-         * the System Ticker.
-         * ...
-         * Another (obvious) candidatate would the Cortex-M3 SysTick,
-         * however the current ARMv7m kernel doesn't use it for
-         * some reason.
-         */
-        timer_irq = MSS_TIMER1_IRQ;
+	/*
+	 * We will use the AFS System Timer 1 in the 32-bit mode for
+	 * the System Ticker.
+	 * ...
+	 * Another (obvious) candidatate would the Cortex-M3 SysTick,
+	 * however the current ARMv7m kernel doesn't use it for
+	 * some reason.
+	 */
+	timer_irq = MSS_TIMER1_IRQ;
 
-        /*
+	/*
 	 * Unmask the Timer 1 interrupts at NVIC (interrupst are still
 	 * disabled globally in the kernel). Provide the interrupt handler
 	 * for the timer interrupt.
 	 */
-        setup_irq(timer_irq, &mss_timer1_irq);
+	setup_irq(timer_irq, &mss_timer1_irq);
 
-        /*
+	/*
 	 * Register and start the System Ticker.
 	 */
-        mss_timer1_clockevents_init(timer_irq);
+	mss_timer1_clockevents_init(timer_irq);
 
 	/*
 	 * Allow SystemTimer (Timer1 included) to count
@@ -195,5 +194,3 @@ void __init a2f_timer_init(void)
 /*
  * End of File
  */
-
-

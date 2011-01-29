@@ -29,13 +29,13 @@
 
 
 static struct resource eth_core_resources[] = {
-        {
+	{
 		.start          = ETH_CORE_BASE,
 		.end            = ETH_CORE_BASE + ETH_CORE_SIZE,
 		.flags          = IORESOURCE_MEM,
-        }, {
-		.start = ETH_CORE_IRQ,
-		.end = ETH_CORE_IRQ,
+	}, {
+		.start          = ETH_CORE_IRQ,
+		.end            = ETH_CORE_IRQ,
 		.flags          = IORESOURCE_IRQ,
 	}
 	
@@ -43,11 +43,10 @@ static struct resource eth_core_resources[] = {
 
 
 static struct platform_device eth_device = {
-        .name           = "core10100",
-        .id             = -1,
-	//.dev.platform_data = ?,
-        .num_resources  = ARRAY_SIZE(eth_core_resources),
-        .resource       = eth_core_resources,
+	.name           = "core10100",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(eth_core_resources),
+	.resource       = eth_core_resources,
 };
 
 void __init a2f_eth_init()

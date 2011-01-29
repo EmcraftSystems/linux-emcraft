@@ -1,6 +1,7 @@
 /*
  * arch/arm/mach-a2f/include/mach/memory.h
  *
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems.
  * Copyright (C) 2009 ARM Ltd.
  *
  * This program is free software; you can redistribute it and/or modify

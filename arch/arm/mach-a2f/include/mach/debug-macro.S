@@ -3,7 +3,7 @@
  *
  * Debugging macro include header
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ *  Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *  Copyright (C) 2009 ARM Ltd.
  *  Copyright (C) 1994-1999 Russell King
  *

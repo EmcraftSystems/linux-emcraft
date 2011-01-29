@@ -1,7 +1,7 @@
 /*
- *  linux/arch/arm/mach-a2f/include/mach/a2f.h
+ * linux/arch/arm/mach-a2f/include/mach/a2f.h
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ struct a2f_sysreg {
 
 struct a2f_scb {
 	unsigned int	cpuid;
-	unsigned int	icst;
+	unsigned int	icsr;
 	unsigned int	vtor;
 	unsigned int	aircr;
 };
@@ -79,10 +79,45 @@ struct a2f_scb {
 #define A2F_SCB_BASE	0xE000ED00
 #define A2F_SCB		((volatile struct a2f_scb *)(A2F_SCB_BASE))
 
+#define A2F_SCS_BASE	0xE000E000
+
+
+struct a2f_timer
+{
+	unsigned int timer1_val;
+	unsigned int timer1_loadval;
+	unsigned int timer1_bgloadval;
+	unsigned int timer1_ctrl;
+	unsigned int timer1_ris;
+	unsigned int timer1_mis;
+
+	unsigned int timer2_val;
+	unsigned int timer2_loadval;
+	unsigned int timer2_bgloadval;
+	unsigned int timer2_ctrl;
+	unsigned int timer2_ris;
+	unsigned int timer2_mis;
+
+	unsigned int timer64_val_u;
+	unsigned int timer64_val_l;
+	unsigned int timer64_loadval_u;
+	unsigned int timer64_loadval_l;
+	unsigned int timer64_bgloadval_u;
+	unsigned int timer64_bgloadval_l;
+	unsigned int timer64_ctrl;
+	unsigned int timer64_ris;
+	unsigned int timer64_mis;
+	unsigned int timer64_mode;
+};
+
+#define A2F_TIMER_BASE	0x40005000
+#define A2F_TIMER	((volatile struct a2f_timer *)(A2F_TIMER_BASE))
+
+static inline void __enable_irq(void)	{ asm volatile ("cpsie i"); }
+static inline void __disable_irq(void)	{ asm volatile ("cpsid i"); }
+
 #endif	/*_MACH_A2F_H_ */
 
 /*
  * End of File
  */
-
-

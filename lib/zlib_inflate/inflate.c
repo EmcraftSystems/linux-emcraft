@@ -90,9 +90,15 @@ int zlib_inflateInit2(z_streamp strm, int windowBits)
    Return state with length and distance decoding tables and index sizes set to
    fixed code decoding.  This returns fixed tables from inffixed.h.
  */
+#ifdef CONFIG_ARCH_A2F
+/* Stack on A2F is too small */
+#   include "inffixed.h"
+#endif
 static void zlib_fixedtables(struct inflate_state *state)
 {
+#ifndef CONFIG_ARCH_A2F
 #   include "inffixed.h"
+#endif
     state->lencode = lenfix;
     state->lenbits = 9;
     state->distcode = distfix;

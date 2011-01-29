@@ -46,42 +46,42 @@
 #define UART1_RST_CLR   (1<<8)
 
 static struct resource mss_uart0_resources[] = {
-        {
-        .start          = MSS_UART0_BASE,
-        .end            = MSS_UART0_BASE + MSS_UART0_SIZE,
-        .flags          = IORESOURCE_MEM,
-        },
-        {
-        .start          = MSS_UART0_IRQ,
-        .flags          = IORESOURCE_IRQ,
-        },
+	{
+		.start          = MSS_UART0_BASE,
+		.end            = MSS_UART0_BASE + MSS_UART0_SIZE,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MSS_UART0_IRQ,
+		.flags          = IORESOURCE_IRQ,
+	},
 };
 
 static struct plat_serial8250_port mss_uart0_data[] = {
-        {
-       .membase     	= (char *) MSS_UART0_BASE,
-       .mapbase     	= MSS_UART0_BASE,
-       .irq         	= MSS_UART0_IRQ,
+	{
+		.membase     	= (char *) MSS_UART0_BASE,
+		.mapbase     	= MSS_UART0_BASE,
+		.irq         	= MSS_UART0_IRQ,
 #if 0
-	   /* Actel A2F EVB, 100MHz core clock */
-       .uartclk     	= 25000000,
+		/* Actel A2F EVB, 100MHz core clock */
+		.uartclk     	= 25000000,
 #else
-	   /* Emcraft A2F-LNX-EVB, 80MHz core clock */
-       .uartclk     	= 20000000,
+		/* Emcraft A2F-LNX-EVB, 80MHz core clock */
+		.uartclk     	= 20000000,
 #endif
-       .regshift    	= 2,
-       .iotype      	= UPIO_MEM,
-       .flags		= UPF_SKIP_TEST,
-        },
-        {  },
+		.regshift    	= 2,
+		.iotype      	= UPIO_MEM,
+		.flags		= UPF_SKIP_TEST,
+	},
+	{  },
 };
 
 static struct platform_device mss_uart0_device = {
-        .name           = "serial8250",
-        .id             = 0,
+	.name           = "serial8250",
+	.id             = 0,
 	.dev.platform_data = mss_uart0_data,
-        .num_resources  = 2,
-        .resource       = mss_uart0_resources,
+	.num_resources  = 2,
+	.resource       = mss_uart0_resources,
 };
 #endif	/* CONFIG_A2F_MSS_UART0 */
 
@@ -95,36 +95,36 @@ static struct platform_device mss_uart0_device = {
 #define MSS_UART1_IRQ	11
 
 static struct resource mss_uart1_resources[] = {
-        {
-        .start          = MSS_UART1_BASE,
-        .end            = MSS_UART1_BASE + MSS_UART1_SIZE,
-        .flags          = IORESOURCE_MEM,
-        },
-        {
-        .start          = MSS_UART1_IRQ,
-        .flags          = IORESOURCE_IRQ,
-        },
+	{
+		.start          = MSS_UART1_BASE,
+		.end            = MSS_UART1_BASE + MSS_UART1_SIZE,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MSS_UART1_IRQ,
+		.flags          = IORESOURCE_IRQ,
+	},
 };
 
 static struct plat_serial8250_port mss_uart1_data[] = {
-        {
-       .membase		= (char *) MSS_UART1_BASE,
-       .mapbase		= MSS_UART1_BASE,
-       .irq		= MSS_UART1_IRQ,
-       .uartclk		= 25000000,
-       .regshift	= 2,
-       .iotype		= UPIO_MEM,
-       .flags		= UPF_SKIP_TEST,
-        },
-        {  },
+	{
+		.membase        = (char *) MSS_UART1_BASE,
+		.mapbase        = MSS_UART1_BASE,
+		.irq            = MSS_UART1_IRQ,
+		.uartclk        = 25000000,
+		.regshift       = 2,
+		.iotype         = UPIO_MEM,
+		.flags          = UPF_SKIP_TEST,
+	},
+	{  },
 };
 
 static struct platform_device mss_uart1_device = {
-        .name           = "serial8250",
-        .id             = 1,
+	.name           = "serial8250",
+	.id             = 1,
 	.dev.platform_data = mss_uart1_data,
-        .num_resources  = 2,
-        .resource       = mss_uart1_resources,
+	.num_resources  = 2,
+	.resource       = mss_uart1_resources,
 };
 #endif	/* CONFIG_A2F_MSS_UART1 */
 
@@ -143,7 +143,7 @@ void __init a2f_uart_init(void)
 	/*
  	 * Register device for UART_0.
  	 */
-        (void) platform_device_register(&mss_uart0_device);
+	(void) platform_device_register(&mss_uart0_device);
 #endif
 #if defined(CONFIG_A2F_MSS_UART1)
 	/*
@@ -154,7 +154,7 @@ void __init a2f_uart_init(void)
 	/*
  	 * Register device for UART_1.
  	 */
-        (void) platform_device_register(&mss_uart1_device);
+	(void) platform_device_register(&mss_uart1_device);
 #endif
 }
 

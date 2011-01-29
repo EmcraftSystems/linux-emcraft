@@ -46,7 +46,6 @@
 
 #include <mach/platform.h>
 #include <mach/irqs.h>
-#include <mach/a2fxxxm3.h>
 #include <mach/timer.h>
 #include <mach/clock.h>
 #include <mach/uart.h>
@@ -61,7 +60,7 @@ static void __init a2f_init(void);
  */
 
 static struct sys_timer a2f_timer = {
-        .init           = a2f_timer_init,
+	.init           = a2f_timer_init,
 };
 
 /*
@@ -71,7 +70,7 @@ static struct sys_timer a2f_timer = {
 MACHINE_START(A2F, "Actel A2F")
 	/*
  	 * Physical address of the serial port used for the early
- 	 * kernel debugging (CONFIG_DEBUG_LL=y). 
+	 * kernel debugging (CONFIG_DEBUG_LL=y).
  	 * This address is actually never used in the MMU-less kernel
  	 * (since no mapping is needed to access this port),
  	 * but let's keep these fields filled for consistency.
@@ -126,7 +125,6 @@ static void __init a2f_init(void)
  	 * Configure the Core10100 adapter.
  	 */
 	a2f_eth_init();
-
 }
 
 /*

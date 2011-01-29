@@ -21,10 +21,9 @@
 #ifndef _MACH_A2F_ETH_H_
 #define _MACH_A2F_ETH_H_
 
-#define ETH_CORE_BASE 0x40003000
-#define ETH_CORE_SIZE 0xFFF
+#define ETH_CORE_BASE		0x40003000
+#define ETH_CORE_SIZE		0xFFF
 
-/*IRQ label is EMAC_IRQ, Cortex M3 NVIC Inuput is INTISR[5]*/
 #define ETH_CORE_IRQ 5
 
 void __init a2f_eth_init(void);

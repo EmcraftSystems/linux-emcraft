@@ -17,18 +17,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
 #include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/sysdev.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/serial_8250.h>
-
 #include <mach/a2f.h>
 #include <mach/clock.h>
-#include <mach/a2fxxxm3.h>
 
 /*
  * Initialize the clock section of the A2F.
@@ -36,7 +27,6 @@
 
 void __init a2f_clock_init(void)
 {
-	SystemCoreClockUpdate();
 }
 
 /*
@@ -49,19 +39,19 @@ unsigned int a2f_clock_get(enum a2f_clock clck)
 
 	switch (clck)  {
 	case CLCK_SYSTEMCORE:
-		val = SystemCoreClock;
+		val = SF_CLK_FREQ;
 		break;
 	case CLCK_PCLK0:
-		val = g_FrequencyPCLK0;
+		val = SF_CLK_PCLK0;
 		break;
 	case CLCK_PCLK1:
-		val = g_FrequencyPCLK1;
+		val = SF_CLK_PCLK1;
 		break;
 	case CLCK_ACE:
-		val = g_FrequencyACE;
+		val = SF_ACE_PCLK1;
 		break;
 	case CLCK_FPGA:
-		val = g_FrequencyFPGA;
+		val = SF_FPGA_PCLK1;
 		break;
 	}
 

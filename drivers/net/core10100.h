@@ -294,16 +294,12 @@
 
 /* Driver functions */
 static int core10100_probe(struct platform_device *);
-static int core10100_remove(struct platform_device *);
 
 /* netdev functions */
 static int core10100_open(struct net_device *dev);
 static int core10100_close(struct net_device *dev);
 static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
-
-static int core10100_ioctl(struct net_device *dev, struct ifreq *rq,
-			   int cmd);
 
 #define CORE10100_MAX_DATA_SIZE_ALIGNED ((1600+3) &(-4))
 /* Receive/transmit descriptor */
@@ -395,5 +391,13 @@ static void set_mdc(struct mdiobb_ctrl *ctrl, int level);
 static void set_mdio_dir(struct mdiobb_ctrl *ctrl, int output);
 static void set_mdio_data(struct mdiobb_ctrl *ctrl, int value);
 static int get_mdio_data(struct mdiobb_ctrl *ctrl);
+
+
+#ifdef  DEBUG
+#define debug(fmt,args...)  printf (fmt ,##args)
+#else
+#define debug(fmt,args...)
+#endif  /* DEBUG */
+
 
 #endif /* CORE10100_H */

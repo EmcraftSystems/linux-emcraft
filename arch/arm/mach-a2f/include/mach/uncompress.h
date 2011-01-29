@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-a2f/include/mach/uncompress.h
  *
- * Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,14 +21,14 @@
 #include <linux/serial_reg.h>
 #include <mach/hardware.h>
 
-#define UART_BASE ((volatile u32 *) 0x40000000)
-#define TX_DONE (UART_LSR_TEMT | UART_LSR_THRE)
+#define UART_BASE	((volatile u32 *) 0x40000000)
+#define TX_DONE		(UART_LSR_TEMT | UART_LSR_THRE)
 
 static inline void putc(char c)
 {
-        while ((UART_BASE[UART_LSR] & TX_DONE) != TX_DONE)
-                barrier();
-        UART_BASE[UART_TX] = c;
+	while ((UART_BASE[UART_LSR] & TX_DONE) != TX_DONE)
+		barrier();
+	UART_BASE[UART_TX] = c;
 }
 
 static inline void flush(void)
