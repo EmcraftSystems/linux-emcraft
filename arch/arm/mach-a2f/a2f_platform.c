@@ -1,7 +1,7 @@
 /*
- *  linux/arch/arm/mach-a2f/a2f_platform.c
+ * linux/arch/arm/mach-a2f/a2f_platform.c
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,6 +51,9 @@
 #include <mach/uart.h>
 #include <mach/eth.h>
 
+/*
+ * Forward declarations.
+ */
 static void __init a2f_map_io(void);
 static void __init a2f_init_irq(void);
 static void __init a2f_init(void);
@@ -58,7 +61,6 @@ static void __init a2f_init(void);
 /*
  * Data structure for the timer system.
  */
-
 static struct sys_timer a2f_timer = {
 	.init           = a2f_timer_init,
 };
@@ -66,14 +68,13 @@ static struct sys_timer a2f_timer = {
 /*
  * A2F plaform machine description.
  */
-
 MACHINE_START(A2F, "Actel A2F")
 	/*
  	 * Physical address of the serial port used for the early
 	 * kernel debugging (CONFIG_DEBUG_LL=y).
  	 * This address is actually never used in the MMU-less kernel
  	 * (since no mapping is needed to access this port),
- 	 * but let's keep these fields filled for consistency.
+ 	 * but let's keep these fields filled out for consistency.
  	 */
 	.phys_io	= MSS_UART0_BASE,
 	.io_pg_offst	= (IO_ADDRESS(MSS_UART0_BASE) >> 18) & 0xfffc,
@@ -86,9 +87,8 @@ MACHINE_END
 /*
  * Map required regions. 
  * This being the no-MMU Linux, I am not mapping anything
- * since any I/O registers are available at their physical addresses.
+ * since all I/O registers are available at their physical addresses.
  */
-
 static void __init a2f_map_io(void)
 {
 }
@@ -96,7 +96,6 @@ static void __init a2f_map_io(void)
 /*
  * Initialize the interrupt processing subsystem.
  */
-
 static void __init a2f_init_irq(void)
 {
 	/*
@@ -108,7 +107,6 @@ static void __init a2f_init_irq(void)
 /*
  * A2F plaform initialization.
  */
-
 static void __init a2f_init(void)
 {
 	/*
@@ -126,7 +124,3 @@ static void __init a2f_init(void)
  	 */
 	a2f_eth_init();
 }
-
-/*
- * End of File
- */

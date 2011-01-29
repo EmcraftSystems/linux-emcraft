@@ -1,7 +1,7 @@
 /*
- *  linux/arch/arm/mach-a2f/uart.c
+ * linux/arch/arm/mach-a2f/uart.c
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@
 /*
  * MSS UART_0
  */
-
 #if defined(CONFIG_A2F_MSS_UART0)
 
 #define	MSS_UART0_SIZE  (0x1000 - 1)
@@ -88,7 +87,6 @@ static struct platform_device mss_uart0_device = {
 /*
  * MSS UART_1
  */
-
 #if defined(CONFIG_A2F_MSS_UART1)
 
 #define	MSS_UART1_SIZE  (0x1000 - 1)
@@ -111,7 +109,13 @@ static struct plat_serial8250_port mss_uart1_data[] = {
 		.membase        = (char *) MSS_UART1_BASE,
 		.mapbase        = MSS_UART1_BASE,
 		.irq            = MSS_UART1_IRQ,
-		.uartclk        = 25000000,
+#if 0
+		/* Actel A2F EVB, 100MHz core clock */
+		.uartclk     	= 25000000,
+#else
+		/* Emcraft A2F-LNX-EVB, 80MHz core clock */
+		.uartclk     	= 20000000,
+#endif
 		.regshift       = 2,
 		.iotype         = UPIO_MEM,
 		.flags          = UPF_SKIP_TEST,
@@ -131,7 +135,6 @@ static struct platform_device mss_uart1_device = {
 /*
  * Register the A2F specific UART devices with the kernel.
  */
-
 void __init a2f_uart_init(void)
 {
 #if defined(CONFIG_A2F_MSS_UART0)
@@ -157,7 +160,3 @@ void __init a2f_uart_init(void)
 	(void) platform_device_register(&mss_uart1_device);
 #endif
 }
-
-/*
- * End of File
- */

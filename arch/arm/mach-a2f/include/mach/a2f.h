@@ -117,7 +117,3 @@ static inline void __enable_irq(void)	{ asm volatile ("cpsie i"); }
 static inline void __disable_irq(void)	{ asm volatile ("cpsid i"); }
 
 #endif	/*_MACH_A2F_H_ */
-
-/*
- * End of File
- */

@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify

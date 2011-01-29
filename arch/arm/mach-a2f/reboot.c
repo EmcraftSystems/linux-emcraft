@@ -1,7 +1,7 @@
 /*
- *  linux/arch/arm/mach-a2f/reboot.c
+ * linux/arch/arm/mach-a2f/reboot.c
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 /*
  * Perform the low-level reboot.
  */
-
 void a2f_reboot(void)
 {
 	/*
@@ -37,7 +36,3 @@ void a2f_reboot(void)
                           (A2F_SCB->aircr & (7<<8)) |
                           (1<<2); 
 }
-
-/*
- * End of File
- */

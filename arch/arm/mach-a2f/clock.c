@@ -1,7 +1,7 @@
 /*
- *  linux/arch/arm/mach-a2f/clock.c
+ * linux/arch/arm/mach-a2f/clock.c
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 /*
  * Initialize the clock section of the A2F.
  */
-
 void __init a2f_clock_init(void)
 {
 }
@@ -32,7 +31,6 @@ void __init a2f_clock_init(void)
 /*
  * Return a clock value for the specified clock.
  */
-
 unsigned int a2f_clock_get(enum a2f_clock clck)
 {
 	unsigned int val = 0;
@@ -57,9 +55,3 @@ unsigned int a2f_clock_get(enum a2f_clock clck)
 
 	return val;
 }
-
-/*
- * End of File
- */
-
-

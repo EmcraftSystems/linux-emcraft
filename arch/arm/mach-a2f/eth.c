@@ -1,6 +1,5 @@
 /*
- *
- * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
+ * Copyright (C) 2010,2011 Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +26,6 @@
 #include <mach/a2f.h>
 #include <mach/eth.h>
 
-
 static struct resource eth_core_resources[] = {
 	{
 		.start          = ETH_CORE_BASE,
@@ -40,7 +38,6 @@ static struct resource eth_core_resources[] = {
 	}
 	
 };
-
 
 static struct platform_device eth_device = {
 	.name           = "core10100",

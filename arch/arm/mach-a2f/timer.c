@@ -33,9 +33,9 @@
 /* 
  * We will user Timer1 of the SmartFusion (in the 32 bit mode)
  * as the system ticker.
+ * ...
  * Provide a description of the the timer hardware interfaces.
  */
-
 #define MSS_TIMER1_BASE	0x40005000
 #define MSS_TIMER1_IRQ	20
 
@@ -59,7 +59,6 @@ struct mss_timer1 {
 /*
  * Set the frequency and periodic mode for the system tick timer.
  */
-
 static void mss_timer1_set_mode(enum clock_event_mode mode,
                                 struct clock_event_device *clk)
 {
@@ -91,7 +90,6 @@ static void mss_timer1_set_mode(enum clock_event_mode mode,
 /*
  * Description of the system clock timer operating parameters.
  */
-
 static struct clock_event_device mss_timer1_clockevent = {
 	.name           = "A2F MSS Timer1 ClockEvent",
 	.shift          = 32,
@@ -104,7 +102,6 @@ static struct clock_event_device mss_timer1_clockevent = {
 /* 
  * Register and start the system clock timer.
  */
-
 static void __init mss_timer1_clockevents_init(unsigned int timer_irq)
 {
 	mss_timer1_clockevent.irq = timer_irq;
@@ -121,7 +118,6 @@ static void __init mss_timer1_clockevents_init(unsigned int timer_irq)
 /*
  * IRQ handler for the system clock timer.
  */
-
 static irqreturn_t mss_timer1_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = &mss_timer1_clockevent;
@@ -141,7 +137,6 @@ static irqreturn_t mss_timer1_interrupt(int irq, void *dev_id)
 /*
  * The IRQ handler data structure for the system clock interrupt.
  */
-
 static struct irqaction mss_timer1_irq = {
 	.name           = "A2F MSS Timer1 IRQ",
 	.flags          = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
@@ -151,7 +146,6 @@ static struct irqaction mss_timer1_irq = {
 /*
  * Initialize the timer systems of the SmartFusion.
  */
-
 void __init a2f_timer_init(void)
 {
 	unsigned int timer_irq;
@@ -184,7 +178,3 @@ void __init a2f_timer_init(void)
 	 */
 	A2F_SYSREG->soft_rst_cr &= ~TIMER_RST_CLR;
 }
-
-/*
- * End of File
- */

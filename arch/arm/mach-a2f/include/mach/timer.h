@@ -1,7 +1,7 @@
 /*
- *  linux/arch/arm/mach-a2f/include/mach/timer.h
+ * linux/arch/arm/mach-a2f/include/mach/timer.h
  *
- *  Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +24,5 @@
 extern void __init a2f_timer_init(void);
 
 #endif	/*_MACH_A2F_TIMER_H_ */
-
-/*
- * End of File
- */
 
 
