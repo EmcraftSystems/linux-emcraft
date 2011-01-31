@@ -26,7 +26,13 @@
 #include <mach/a2f.h>
 #include <mach/eth.h>
 
+/*
+ * The MSS subsystem of SmartFusion contains one Ethernet MAC device.
+ *
+ */
+
 #define ETH_CORE_SIZE		0xFFF
+#define MAC_RST_CLR		(1<<4)
 
 static struct resource eth_core_resources[] = {
 	{
@@ -50,5 +56,11 @@ static struct platform_device eth_device = {
 
 void __init a2f_eth_init()
 {
+#if defined(CONFIG_CORE10100)
+	/*
+	 * Bring Ethernet MAC out of the power-up reset.
+	 */
+	A2F_SYSREG->soft_rst_cr &= ~MAC_RST_CLR;
 	platform_device_register(&eth_device);		
+#endif
 }
