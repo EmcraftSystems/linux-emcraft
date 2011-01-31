@@ -28,9 +28,7 @@
 
 /*
  * The MSS subsystem of SmartFusion contains one Ethernet MAC device.
- *
  */
-
 #define ETH_CORE_SIZE		0xFFF
 #define MAC_RST_CLR		(1<<4)
 
