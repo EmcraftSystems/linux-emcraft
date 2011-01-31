@@ -1,7 +1,7 @@
 /*
- *  linux/arch/arm/mach-a2f/timer.c
+ * linux/arch/arm/mach-a2f/timer.c
  *
- *  Copyright (C) 2010 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,7 +68,6 @@ static void mss_timer1_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_PERIODIC:
 		/*
 		 * Kernel ticker rate. Timer1 is clocked from PCLK0.
-		 * TO-DO: is the Linux system clock rate configurable?
 		 */
 		MSS_TIMER1->loadval = a2f_clock_get(CLCK_PCLK0) / HZ;
 		/*
