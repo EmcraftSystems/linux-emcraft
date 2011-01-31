@@ -564,7 +564,6 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 	intr_status = read_reg(CSR5);
 	/* Transmit */
 	if (intr_status & CSR5_TI) {			
-		bp->statistics.tx_interrupts++;
 		debug(KERN_NOTICE "received TX irq\n");
 		tx_handler(dev);
 		handled = 1;
@@ -572,7 +571,6 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 
 	/* Receive  */
 	if (intr_status & CSR5_RI) {
-		bp->statistics.rx_interrupts++;
 		rx_handler(dev);
 		handled = 1;
 	}
