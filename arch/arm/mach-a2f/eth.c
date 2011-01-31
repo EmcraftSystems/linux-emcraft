@@ -54,11 +54,9 @@ static struct platform_device eth_device = {
 
 void __init a2f_eth_init()
 {
-#if defined(CONFIG_CORE10100)
 	/*
 	 * Bring Ethernet MAC out of the power-up reset.
 	 */
 	A2F_SYSREG->soft_rst_cr &= ~MAC_RST_CLR;
 	platform_device_register(&eth_device);		
-#endif
 }
