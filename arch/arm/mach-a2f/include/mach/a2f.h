@@ -116,4 +116,7 @@ struct a2f_timer
 static inline void __enable_irq(void)	{ asm volatile ("cpsie i"); }
 static inline void __disable_irq(void)	{ asm volatile ("cpsid i"); }
 
+#define ETH_CORE_BASE		0x40003000
+#define ETH_CORE_IRQ 5
+
 #endif	/*_MACH_A2F_H_ */

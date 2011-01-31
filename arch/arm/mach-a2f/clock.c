@@ -22,6 +22,20 @@
 #include <mach/clock.h>
 
 /*
+ * System frequency (FCLK) and the other derivative clocks
+ * coming out from reset. These are defined by the Libero
+ * project programmed onto SmartFusion.
+ * It is possible to read these frequencies from SmartFusion
+ * at run-time, however for simplicity of configuration we define these
+ * clocks at build-time.
+ */
+#define SF_CLK_FREQ			80000000uL
+#define SF_CLK_PCLK0			(SF_CLK_FREQ / 4)
+#define SF_CLK_PCLK1			(SF_CLK_FREQ / 4)
+#define SF_ACE_PCLK1			(SF_CLK_FREQ / 2)
+#define SF_FPGA_PCLK1			(SF_CLK_FREQ / 2)
+
+/*
  * Initialize the clock section of the A2F.
  */
 void __init a2f_clock_init(void)

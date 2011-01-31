@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Dmitry Cherkassov, Emcraft Systems
+ * Copyright (C) 2010,2011 Sergei Poselenov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,11 +19,6 @@
 
 #ifndef _MACH_A2F_ETH_H_
 #define _MACH_A2F_ETH_H_
-
-#define ETH_CORE_BASE		0x40003000
-#define ETH_CORE_SIZE		0xFFF
-
-#define ETH_CORE_IRQ 5
 
 void __init a2f_eth_init(void);
 

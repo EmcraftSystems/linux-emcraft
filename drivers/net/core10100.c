@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010,2011 Dmitry Cherkassov, Sergei Poselenov, Emcraft Systems
+ * Copyright (C) 2010,2011 Sergei Poselenov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,9 @@
 
 #include <asm/io.h>
 #include <asm/setup.h>
-/* Use A2F internal RAM for descriptors and buffers */
+/* Use A2F internal RAM for descriptors and buffers.
+ * Undef for external RAM.
+*/
 #define USE_INTRAM		0x20008000
 #undef DEBUG /* define to enable debugging msgs */
 #include "core10100.h"

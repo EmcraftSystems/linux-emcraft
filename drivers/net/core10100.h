@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Dmitry Cherkassov, Sergei Poselenov, Emcraft Systems
+ * Copyright (C) 2010,2011 Sergei Poselenov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,13 +19,6 @@
 
 #ifndef CORE10100_H
 #define CORE10100_H
-
-/* ethernet mac reset flag */
-#define MAC_SR (4 << 1)
-
-/* Soft reset controller address */
-#define SOFT_RST_CR 0xE0042030
-
 
 /* Register offsets */
 #define CSR0			0x00
@@ -50,21 +43,20 @@
 
 
 /* CSR5 bits */
-#define CSR5_TI				(1<<0)
-#define CSR5_TPS			(1<<1)
-#define CSR5_TU				(1<<2)
+#define CSR5_TI			(1<<0)
+#define CSR5_TPS		(1<<1)
+#define CSR5_TU			(1<<2)
+#define CSR5_UNF		(1<<5)
+#define CSR5_RI			(1<<6)
+#define CSR5_RU			(1<<7)
+#define CSR5_RPS		(1<<8)
 
-#define CSR5_UNF			(1<<5)
-#define CSR5_RI				(1<<6)
-#define CSR5_RU				(1<<7)
-#define CSR5_RPS			(1<<8)
+#define CSR5_ETI		(1<<10)
+#define CSR5_GTE		(1<<11)
 
-#define CSR5_ETI			(1<<10)
-#define CSR5_GTE			(1<<11)
-
-#define CSR5_ERI			(1<<14)
-#define CSR5_AIS			(1<<15)
-#define CSR5_NIS			(1<<16)
+#define CSR5_ERI		(1<<14)
+#define CSR5_AIS		(1<<15)
+#define CSR5_NIS		(1<<16)
 #define CSR5_RS_SHIFT		17
 #define CSR5_RS_MASK		(0x7 << CSR5_RS_SHIFT)
 #define CSR5_RS_STOP		0
@@ -90,19 +82,19 @@
 
 
  /* Receive all */
-#define CSR6_RA_OFFSET   0x30
-#define CSR6_RA_MASK     0x40000000UL
-#define CSR6_RA_SHIFT    30
+#define CSR6_RA_OFFSET		0x30
+#define CSR6_RA_MASK		0x40000000UL
+#define CSR6_RA_SHIFT		30
 
 
 /* Interrupt enable register */
-#define CSR7_TIE  (1)
-#define CSR7_TSE  (1 << 1)
-#define CSR7_RIE  (1 << 6)
-#define CSR7_RUE  (1 << 7)
-#define CSR7_RSE  (1 << 8)
-#define CSR7_AIE  (1 << 15)
-#define CSR7_NIE  (1 << 16)
+#define CSR7_TIE		(1)
+#define CSR7_TSE		(1 << 1)
+#define CSR7_RIE		(1 << 6)
+#define CSR7_RUE		(1 << 7)
+#define CSR7_RSE		(1 << 8)
+#define CSR7_AIE		(1 << 15)
+#define CSR7_NIE		(1 << 16)
 
 
 #define CSR9_MDC		(1 << 16)
@@ -160,11 +152,8 @@
 
 #define LINK_STAT_TIMEOUT	5   /* seconds */
 
-
-/*Register access functions*/
-
-#define read_reg(reg) (readl(bp->base + reg))
-#define write_reg(reg, val) (writel(val, bp->base + reg))
+#define read_reg(reg)		(readl(bp->base + reg))
+#define write_reg(reg, val)	(writel(val, bp->base + reg))
 
 /* Get/Set MDC and MDIO pins */
 #define mii_set_mdc(val) { \
@@ -200,34 +189,31 @@
 #define BSR_ANC			(1 << 5)
 
 
-#define RX_RING_SIZE 4
-#define TX_RING_SIZE 4
+#define RX_RING_SIZE		4
+#define TX_RING_SIZE		4
 
-/*MORE REGS*/
 
-/*------------------------------------------------------------------------------
+/*
  * CSR0_DSL:
  *   DSL field of register CSR0.
- *------------------------------------------------------------------------------
+ *
  * Descriptor skip length
  */
-#define CSR0_DSL_MASK     (0x1f << CSR0_DSL_SHIFT)
-#define CSR0_DSL_SHIFT    2
+#define CSR0_DSL_MASK		(0x1f << CSR0_DSL_SHIFT)
+#define CSR0_DSL_SHIFT		2
 
-/*------------------------------------------------------------------------------
+/*
  * CSR0_TAP:
- *   TAP field of register CSR0.
- *------------------------------------------------------------------------------
+ * TAP field of register CSR0.
  * Transmit automatic polling
  */
-#define CSR0_TAP_MASK     (0x7 << CSR0_TAP_SHIFT)
-#define CSR0_TAP_SHIFT    17
+#define CSR0_TAP_MASK		(0x7 << CSR0_TAP_SHIFT)
+#define CSR0_TAP_SHIFT		17
 
 
-/*--------------------------------------------------------------*/
 /*
  * Allowed values for CSR0_TAP:
- *------------------------------------------------------------------------------
+ *
  * TAP_DISABLED:   TAP disabled
  * TAP_819US:      TAP 819/81.9us
  * TAP_2450US:     TAP 2450/245us
@@ -237,23 +223,21 @@
  * TAP_153_6US:    TAP 156.6/15.26us
  * TAP_358_4US:    TAP 358.4/35.84us
  */
-#define TAP_DISABLED    0x0
-#define TAP_819US       0x1
-#define TAP_2450US      0x2
-#define TAP_5730US      0x3
-#define TAP_51_2US      0x4
-#define TAP_102_4US     0x5
-#define TAP_153_6US     0x6
-#define TAP_358_4US     0x7
-/*------------------------------------------------------------------------------*/
+#define TAP_DISABLED		0x0
+#define TAP_819US		0x1
+#define TAP_2450US		0x2
+#define TAP_5730US		0x3
+#define TAP_51_2US		0x4
+#define TAP_102_4US		0x5
+#define TAP_153_6US		0x6
+#define TAP_358_4US		0x7
 
-
-/**
+/*
  * Size of the max packet that can be received/transmited.
  */
-#define MSS_MAX_PACKET_SIZE  1514uL
+#define MSS_MAX_PACKET_SIZE	1514uL
 
-/**
+/*
  * Size of a receive/transmit buffer.
  * Buffer size must be enough big to hold a full frame and must be multiple of
  * four. For rx buffer +4 bytes allocated for crc values. These bytes doesn't
@@ -262,35 +246,38 @@
 #define MSS_TX_BUFF_SIZE  ((MSS_MAX_PACKET_SIZE + 3u) & (~(uint32_t)3))
 #define MSS_RX_BUFF_SIZE  ((MSS_MAX_PACKET_SIZE + 7u) & (~(uint32_t)3))
 
-/***************************************************************************//**
+/*
  * Buffer 2 size.
- * Indicates the size, in bytes, of memory space used by the second data buffer. This number must be a
- * multiple of four. If it is 0, Core10/100 ignores the second data buffer and fetches the next data descriptor.
+ * Indicates the size, in bytes, of memory space used by the second data buffer.
+ *  This number must be a multiple of four. If it is 0, Core10/100 ignores the
+ *  second data buffer and fetches the next data descriptor.
  * This number is valid only when RDES1.24 (second address chained) is cleared.
  */
 #define RDES1_RBS2_MASK		0x7FF
 #define RDES1_RBS2_OFFSET	11
 
-/***************************************************************************//**
+/*
  * Buffer 1 size
- * Indicates the size, in bytes, of memory space used by the first data buffer. This number must be a multiple of
- * four. If it is 0, Core10/100 ignores the first data buffer and uses the second data buffer.
+ * Indicates the size, in bytes, of memory space used by the first data buffer.
+ *  This number must be a multiple of four. If it is 0, Core10/100 ignores
+ *  the first data buffer and uses the second data buffer.
  */
 #define RDES1_RBS1_MASK		0x7FF
 #define RDES1_RBS1_OFFSET	0
 
-/***************************************************************************//**
+/*
  * Receive end of ring.
- * When set, indicates that this is the last descriptor in the receive descriptor ring. Core10/100 returns to the
- * first descriptor in the ring, as specified by CSR3 (start of receive list address).
+ * When set, indicates that this is the last descriptor in the receive
+ * descriptor ring. Core10/100 returns to the first descriptor in the ring, as
+ * specified by CSR3 (start of receive list address).
  */
-#define RDES1_RER   0x02000000UL
+#define RDES1_RER		0x02000000UL
 
-/***************************************************************************//**
+/*
  * Transmit end of ring.
  * When set, indicates the last descriptor in the descriptor ring.
  */
-#define TDES1_TER     ((uint32_t)1 << 25)
+#define TDES1_TER		((uint32_t)1 << 25)
 
 /* Driver functions */
 static int core10100_probe(struct platform_device *);
@@ -301,7 +288,7 @@ static int core10100_close(struct net_device *dev);
 static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 					struct net_device *dev);
 
-#define CORE10100_MAX_DATA_SIZE_ALIGNED ((1600+3) &(-4))
+#define CORE10100_MAX_DATA_SIZE_ALIGNED		((1600+3) &(-4))
 /* Receive/transmit descriptor */
 struct rxtx_desc {
 	unsigned int own_stat;
@@ -310,10 +297,6 @@ struct rxtx_desc {
 	void *buf2;
 };
 
-/* struct core10100_ring { */
-	
-/* }; */
-
 struct core10100_stat {
 	u32 rx_interrupts;
 	u32 tx_interrupts;
@@ -321,65 +304,56 @@ struct core10100_stat {
 
 struct core10100_dev {
 	void __iomem			*base;
-	spinlock_t		        lock;
+	spinlock_t			lock;
 	struct platform_device		*pdev;
 	struct net_device		*dev;
-	unsigned int			capabilities; /* read from FPGA */
-	/* struct napi_struct		napi; */
-	uint8_t		flags;                  /**< Configuration of the driver*/
+	uint8_t				flags;
 
-	/*device mac-address*/
 	u8 mac[6];
 
 	/* RX/TX descriptors */
-	volatile struct rxtx_desc *rx_descs __attribute__((aligned(4)));
-	volatile struct rxtx_desc *tx_descs __attribute__((aligned(4)));
-	volatile struct rxtx_desc *tx_mac __attribute__((aligned(4)));
+	volatile struct rxtx_desc	*rx_descs __attribute__((aligned(4)));
+	volatile struct rxtx_desc	*tx_descs __attribute__((aligned(4)));
+	volatile struct rxtx_desc	*tx_mac __attribute__((aligned(4)));
 
 	/* Current Tx descriptor to be sent by host */
-	int tx_cur;
+	int 				tx_cur;
 	/* Tx Full indicator */
-	int tx_full;
+	int 				tx_full;
 	/* Current Tx descriptor being sent by MAC, i.e. to be freed */
-	int tx_dirty;
+	int 				tx_dirty;
 	/* Current Rx descriptor */
-	int rx_cur; 
+	int 				rx_cur; 
 	
 	/* mac filter buffer */
-	char *mac_filter;
+	char 				*mac_filter;
 
 	/* RX/TX dma handles */
-	dma_addr_t rx_dma_handle;
-	dma_addr_t tx_dma_handle;
-	dma_addr_t tx_mac_dma_handle;
-	dma_addr_t rx_buf_dma_handle;
-
-	struct completion rx_mac_completion;
+	dma_addr_t 			rx_dma_handle;
+	dma_addr_t 			tx_dma_handle;
+	dma_addr_t 			tx_mac_dma_handle;
+	dma_addr_t 			rx_buf_dma_handle;
 
 	/* Tx skb-s, indexed by tx_dirty, linked with Tx descriptors.
 	 * Freed in Tx ISR
 	 */
-	struct sk_buff *tx_skbs[TX_RING_SIZE];
-	char *tx_buffs[TX_RING_SIZE] __attribute__((aligned(4)));
-	char *rx_buffs[RX_RING_SIZE] __attribute__((aligned(4)));
+	struct sk_buff			*tx_skbs[TX_RING_SIZE];
+	char				*tx_buffs[TX_RING_SIZE]
+						__attribute__((aligned(4)));
+	char				*rx_buffs[RX_RING_SIZE]
+						__attribute__((aligned(4)));
 	
-	/*special mac filter buffer dma handle*/
-	dma_addr_t mac_filter_dma_handle;
+	dma_addr_t			mac_filter_dma_handle;
 	
 	/* PHY stuff */
 	struct mii_bus			*mii_bus;
-	struct mdiobb_ctrl core10100_mdio_ctrl;
-	struct phy_device *phy_dev;
+	struct mdiobb_ctrl		core10100_mdio_ctrl;
+	struct phy_device 		*phy_dev;
 
-	unsigned char phy_id;	/* ID of the PHY */
+	unsigned char 			phy_id;	/* ID of the PHY */
 	unsigned int			link;
 	unsigned int			speed;
 	unsigned int			duplex;
-
-	/* statistics */
-	struct core10100_stat statistics;
-
-	
 };
 
 #define CORE_MAC_RX_BUF_SIZE 3000

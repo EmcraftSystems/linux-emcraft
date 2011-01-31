@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2010,2011 Emcraft Systems
+ *
+ * Copyright (C) 2010,2011 Sergei Poselenov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +26,8 @@
 
 #include <mach/a2f.h>
 #include <mach/eth.h>
+
+#define ETH_CORE_SIZE		0xFFF
 
 static struct resource eth_core_resources[] = {
 	{
