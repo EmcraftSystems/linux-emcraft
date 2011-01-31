@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (C) 2010,2011 Sergei Poselenov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify

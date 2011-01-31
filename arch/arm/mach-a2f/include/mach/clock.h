@@ -44,8 +44,3 @@ extern unsigned int a2f_clock_get(enum a2f_clock);
 
 #endif	/*_MACH_A2F_CLOCK_H_ */
 
-/*
- * End of File
- */
-
-

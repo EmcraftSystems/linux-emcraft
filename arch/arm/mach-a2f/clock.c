@@ -23,8 +23,8 @@
 
 /*
  * System frequency (FCLK) and the other derivative clocks
- * coming out from reset. These are defined by the Libero
- * project programmed onto SmartFusion.
+ * coming out from firmware. These are defined by the Libero
+ * project programmed onto SmartFusion and then, optionally, by firmware.
  * It is possible to read these frequencies from SmartFusion
  * at run-time, however for simplicity of configuration we define these
  * clocks at build-time.
