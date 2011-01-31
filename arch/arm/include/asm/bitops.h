@@ -41,7 +41,7 @@ static inline void ____atomic_set_bit(unsigned int bit, volatile unsigned long *
 	unsigned long mask = 1UL << (bit & 31);
 
 	p += bit >> 5;
-	
+
 	raw_local_irq_save(flags);
 	*p |= mask;
 	raw_local_irq_restore(flags);

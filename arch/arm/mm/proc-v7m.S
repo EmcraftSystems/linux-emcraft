@@ -107,11 +107,11 @@ __v7m_setup:
 	 * external RAM that is separate from the "SRAM memory",
 	 * unsing the terms of the ARMv7 Architecure.
 	 * In the A2F, the SRAM memory (the internal SRAM)
-	 * resides at 0x20000000, while the external RAM (where 
+	 * resides at 0x20000000, while the external RAM (where
 	 * the OS kernel is relocated to run) resides at 0x70000000.
 	 * The ARMv7 allows setting the vector table either in
 	 * the boot memory (internal Flash for the A2F) or in
-	 * the SRAM memory (internal RAM for the A2F), contolled 
+	 * the SRAM memory (internal RAM for the A2F), contolled
 	 * by Bit 29 in the Vector Table Base register.
 	 * This implies that the OS vector table needs to be copied to
 	 * the internal RAM, and the Vector Table Base register
@@ -119,7 +119,7 @@ __v7m_setup:
 	 * of the vector table in the internal RAM).
 	 */
 	ldr	r12, =0x20000000
-	mov	r5, r12			@ Copy the kernel vector_table to 
+	mov	r5, r12			@ Copy the kernel vector_table to
 	ldr	r6, =vector_table	@ the in-SRAM vector table
 	ldr	r4, =vector_table_end
 1:	ldr	r3, [r6], #4
@@ -146,10 +146,8 @@ __v7m_setup:
 	mov	r6, lr			@ save LR
 	mov	r7, sp			@ save SP
 	ldr	sp, =__v7m_setup_stack_top
-
 	cpsie	i
 	svc	#0
-
 1:	cpsid	i
 	str	r5, [r12, #11 * 4]	@ restore the original SVC vector entry
 	mov	lr, r6			@ restore LR

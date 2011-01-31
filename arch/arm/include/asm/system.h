@@ -345,7 +345,7 @@ extern void enable_hlt(void);
 			(unsigned long)(n), sizeof(*(ptr))))
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
 
-#ifndef CONFIG_SMP 
+#ifndef CONFIG_SMP
 #include <asm-generic/cmpxchg.h>
 #endif
 

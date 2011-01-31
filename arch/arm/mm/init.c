@@ -565,7 +565,6 @@ void __init mem_init(void)
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
 #endif
 
-
 	/* this will put all unused low memory onto the freelists */
 	for_each_online_node(node) {
 		pg_data_t *pgdat = NODE_DATA(node);

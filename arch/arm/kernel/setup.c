@@ -291,7 +291,7 @@ static void __init cacheid_init(void)
 
 /*
  * These functions re-use the assembly code in head.S, which
- * already provide :the required functionality.
+ * already provide the required functionality.
  */
 extern struct proc_info_list *lookup_processor_type(unsigned int);
 extern struct machine_desc *lookup_machine_type(unsigned int);

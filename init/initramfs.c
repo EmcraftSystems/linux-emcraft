@@ -380,6 +380,7 @@ static int __init write_buffer(char *buf, unsigned len)
 	victim = buf;
 
 	while (!actions[state]()) {
+		;
 	}
 	return len - count;
 }

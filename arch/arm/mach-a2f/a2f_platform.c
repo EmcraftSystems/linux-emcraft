@@ -120,7 +120,7 @@ static void __init a2f_init(void)
 	a2f_uart_init();
 
 	/*
- 	 * Configure the Core10100 adapter.
- 	 */
+	 * Configure the Core10100 adapter.
+	 */
 	a2f_eth_init();
 }

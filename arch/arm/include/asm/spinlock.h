@@ -6,7 +6,7 @@
 #endif
 
 #if defined(CONFIG_ARCH_A2F)
-#error This file contains ldrex/strex
+#error ldrex/strex is not supported on A2F
 #endif
 
 static inline void dsb_sev(void)

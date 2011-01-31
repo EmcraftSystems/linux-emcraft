@@ -478,7 +478,6 @@ void __init parse_early_param(void)
 static void __init boot_cpu_init(void)
 {
 	int cpu = smp_processor_id();
-
 	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
 	set_cpu_online(cpu, true);
 	set_cpu_active(cpu, true);
@@ -509,10 +508,6 @@ static void __init mm_init(void)
 	pgtable_cache_init();
 	vmalloc_init();
 }
-
-/*
- * vlad
- */
 
 asmlinkage void __init start_kernel(void)
 {
