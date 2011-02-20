@@ -14,29 +14,12 @@ nod /dev/urandom 0600 0 0 c 5 0
 dir /dev/pts 0755 0 0
 nod /dev/ptmx 0666 0 0 c 5 2
 
-#nod /dev/ttyp0 0600 0 0 c 3 0
-#nod /dev/ttyp1 0600 0 0 c 3 1
-#nod /dev/ttyp2 0600 0 0 c 3 2
-#nod /dev/ttyp3 0600 0 0 c 3 3
-#nod /dev/ttyp4 0600 0 0 c 3 4
-#nod /dev/ttyp5 0600 0 0 c 3 5
-#nod /dev/ttyp6 0600 0 0 c 3 6
-
-#nod /dev/ptyp0 0600 0 0 c 2 0
-#nod /dev/ptyp1 0600 0 0 c 2 1
-#nod /dev/ptyp2 0600 0 0 c 2 2
-#nod /dev/ptyp3 0600 0 0 c 2 3
-#nod /dev/ptyp4 0600 0 0 c 2 4
-#nod /dev/ptyp5 0600 0 0 c 2 5
-#nod /dev/ptyp6 0600 0 0 c 2 6
-
 nod /dev/ttyS0 0666 0 0 c 4 64
 
 dir /root 0700 0 0
 dir /proc 0755 0 0
 dir /etc 0755 0 0
 dir /var 0755 0 0
-dir /httpd 0700 0 0
 dir /var/config 0755 0 0
 dir /var/tmp 0755 0 0
 dir /var/log 0755 0 0
@@ -44,45 +27,19 @@ dir /var/run 0755 0 0
 dir /var/lock 0755 0 0
 dir /bin 755 0 0
 
-# http stuff
-dir /httpd/html 0700 0 0
-#dir /httpd/html/img 0700 0 0
-slink /httpd/html/cgi-bin /httpd/html 700 0 0
-file /httpd/html/mydemo.cgi ../local/html/mydemo.cgi 700 0 0
-file /httpd/html/index.html ../local/html/index.html 600 0 0
-file /httpd/html/styles.css ../local/html/styles.css 600 0 0
-file /httpd/html/test-2.htm ../local/html/test-2.htm 600 0 0
-#file /httpd/html/img/ping13_150.jpg ../local/html/ping13_150.jpg 600 0 0
-file /httpd/html/pi.a ../local/html/pi.a 600 0 0
-file /httpd/html/pi.b ../local/html/pi.b 600 0 0
-file /httpd/html/pi.c ../local/html/pi.c 600 0 0
-file /httpd/html/pi.d ../local/html/pi.d 600 0 0
-file /httpd/html/file.name ../local/html/file.name 600 0 0
-
-#Dropbear ssh server
-#dir /etc/dropbear 0755 0 0
-#file /etc/dropbear/dropbear_rsa_host_key ../local/ssh_host_rsa_key 644 0 0
-#file /etc/dropbear/dropbear_dss_host_key ../local/ssh_host_dss_key 644 0 0
-#file /bin/dropbear ../dropbear/dropbear-0.52/dropbear 755 0 0
-#file /bin/ssh ../dropbear/dropbear-0.52/dbclient 755 0 0
-
-#file /kinit usr/kinit/kinit 0755 0 0
-#slink /init kinit 0755 0 0
-
-#file /bin/busybox /home/vlad/uclinux/busybox/busybox-1.17.0/busybox 755 0 0
-file /bin/busybox ../busybox/busybox-1.17.0/busybox 755 0 0
+# busybox binary should be in the source tree.
+file /bin/busybox ${INSTALL_ROOT}/A2F/busybox/busybox 755 0 0
 
 slink /bin/init busybox 777 0 0
-file /etc/inittab ../local/inittab 755 0 0
-file /etc/rc ../local/rc 755 0 0
-file /etc/hosts ../local/hosts 644 0 0
-file /etc/services ../local/services 644 0 0
-file /etc/passwd ../local/passwd 644 0 0
-file /etc/group ../local/group 644 0 0
-#file /etc/gshadow ../local/gshadow 644 0 0
-file /etc/shadow ../local/shadow 644 0 0
-file /etc/securetty ../local/securetty 644 0 0
-#file /etc/inetd.conf ../local/inetd.conf 644 0 0
+file /etc/inittab ${INSTALL_ROOT}/projects/${SAMPLE}/local/inittab 755 0 0
+file /etc/rc ${INSTALL_ROOT}/projects/${SAMPLE}/local/rc 755 0 0
+file /etc/hosts ${INSTALL_ROOT}/projects/${SAMPLE}/local/hosts 644 0 0
+file /etc/services ${INSTALL_ROOT}/projects/${SAMPLE}/local/services 644 0 0
+file /etc/passwd ${INSTALL_ROOT}/projects/${SAMPLE}/local/passwd 644 0 0
+file /etc/group ${INSTALL_ROOT}/projects/${SAMPLE}/local/group 644 0 0
+file /etc/shadow ${INSTALL_ROOT}/projects/${SAMPLE}/local/shadow 644 0 0
+file /etc/securetty ${INSTALL_ROOT}/projects/${SAMPLE}/local/securetty 644 0 0
+file /etc/resolv.conf ${INSTALL_ROOT}/projects/${SAMPLE}/local/resolv.conf 644 0 0
 
 slink /bin/cat busybox 777 0 0
 slink /bin/hostname busybox 777 0 0
@@ -91,40 +48,42 @@ slink /bin/chmod busybox 777 0 0
 slink /bin/chown busybox 777 0 0
 slink /bin/date busybox 777 0 0
 slink /bin/dd busybox 777 0 0
-#slink /bin/dmesg busybox 777 0 0
 slink /bin/echo busybox 777 0 0
-#slink /bin/false busybox 777 0 0
-slink /bin/httpd busybox 777 0 0
 slink /bin/hush busybox 777 0 0
-#slink /bin/inetd busybox 777 0 0
 slink /bin/kill busybox 777 0 0
 slink /bin/ln busybox 777 0 0
 slink /bin/login /bin/busybox 777 0 0
 slink /bin/ls busybox 777 0 0
 slink /bin/mkdir busybox 777 0 0
-#slink /bin/mknod busybox 777 0 0
-#slink /bin/more busybox 777 0 0
 slink /bin/mv busybox 777 0 0
 slink /bin/ps busybox 777 0 0
 slink /bin/pwd busybox 777 0 0
-#slink /bin/reboot busybox 777 0 0
+slink /bin/reboot busybox 777 0 0
 slink /bin/rm busybox 777 0 0
-#slink /bin/rmdir busybox 777 0 0
 slink /bin/sh busybox 777 0 0
 slink /bin/sleep busybox 777 0 0
-#slink /bin/true busybox 777 0 0
-#slink /bin/uname busybox 777 0 0
 slink /bin/mount busybox 777 0 0
 slink /bin/umount busybox 777 0 0
 slink /bin/ping busybox 777 0 0
 slink /bin/ifconfig busybox 777 0 0
-#slink /bin/telnet busybox 777 0 0
 slink /bin/telnetd busybox 777 0 0
 slink /bin/wc busybox 777 0 0
+
+slink /bin/netstat busybox 777 0 0
+slink /bin/nslookup busybox 777 0 0
+slink /bin/ntpd busybox 777 0 0
+slink /bin/route busybox 777 0 0
+slink /bin/telnet busybox 777 0 0
+slink /bin/traceroute busybox 777 0 0
+slink /bin/wget busybox 777 0 0
+slink /bin/vi busybox 777 0 0
+slink /bin/udhcpc busybox 777 0 0
+
 dir /usr 755 0 0
+dir /usr/share 755 0 0
+dir /usr/share/udhcpc 755 0 0
+file /usr/share/udhcpc/default.script ${INSTALL_ROOT}/projects/${SAMPLE}/local/default.script 755 0 0
+
 dir /usr/bin 755 0 0
 slink /usr/bin/[ ../../bin/busybox 777 0 0
 slink /usr/bin/[[ ../../bin/busybox 777 0 0
-#slink /usr/bin/env ../../bin/busybox 777 0 0
-#slink /usr/bin/test ../../bin/busybox 777 0 0
-#slink /usr/bin/yes ../../bin/busybox 777 0 0

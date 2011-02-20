@@ -13,6 +13,7 @@
 #include <asm/sections.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+#include <asm/mpu.h>
 #include <asm/mach/arch.h>
 
 #include "mm.h"
@@ -52,6 +53,9 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 void __init paging_init(struct machine_desc *mdesc)
 {
 	bootmem_init();
+#ifdef CONFIG_MPU
+	mpu_init();
+#endif
 }
 
 /*

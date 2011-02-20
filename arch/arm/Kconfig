@@ -188,6 +188,28 @@ config MMU
 	  Select if you want MMU-based virtualised addressing space
 	  support by paged memory management. If unsure, say 'Y'.
 
+config MPU
+	bool "Enable the memory protection unit (EXPERIMENTAL)"
+	depends on !MMU
+	default n
+	help
+	  Use the processor MPU to protect applications from accessing
+	  memory they do not own.  This comes at a performance penalty
+	  and is recommended only for debugging.
+	  Enable CONFIG_DEBUG_USER and pass user_debug=8 to the kernel
+	  to make the MPU handler print a verbose debug message on
+	  a process MPU fault.
+
+config MPU_STACK_REDZONE
+	bool "Enable stack protection (red zone) at the bottom of stack"
+	depends on MPU
+	default y
+	help
+	  Attempt to read/write from a user-space process the red zone
+          will result in a memory fault exception for the process.
+	  The red zone consumes up to 512 bytes of the lower stack
+	  (the red zone itlsef is 256 bytes + alignment).
+
 choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE

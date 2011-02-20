@@ -60,11 +60,22 @@ struct thread_struct {
 #ifndef CONFIG_CPU_V7M
 #define nommu_start_thread(regs) regs->ARM_r10 = current->mm->start_data
 #else
+#ifndef CONFIG_MPU
 #define nommu_start_thread(regs) do {					\
 	regs->ARM_r10 = current->mm->start_data;			\
 	regs->ARM_sp -= 32;		/* exception return state */	\
 	regs->ARM_EXC_lr = 0xfffffffdL;	/* exception lr */		\
 } while (0)
+#else 
+extern void mpu_start_thread(void);
+
+#define nommu_start_thread(regs) do {					\
+	regs->ARM_r10 = current->mm->start_data;			\
+	regs->ARM_sp -= 32;		/* exception return state */	\
+	regs->ARM_EXC_lr = 0xfffffffdL;	/* exception lr */		\
+	mpu_start_thread();						\
+} while (0)
+#endif /* CONFIG_MPU */
 #endif
 #endif
 

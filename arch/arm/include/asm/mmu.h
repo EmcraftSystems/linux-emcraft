@@ -26,6 +26,9 @@ typedef struct {
  */
 typedef struct {
 	unsigned long		end_brk;
+#ifdef CONFIG_MPU
+	void *			p;
+#endif
 } mm_context_t;
 
 #endif

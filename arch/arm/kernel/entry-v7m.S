@@ -82,6 +82,26 @@ __pendsv_entry:
 	b	ret_to_user
 ENDPROC(__pendsv_entry)
 
+#ifdef CONFIG_MPU
+	.align	2
+__memmanage_entry:
+	v7m_exception_entry
+
+	@
+	@ Invoke the Memory Fault handler
+	@ routine called with r0 = struct pt_regs *
+	mov	r0, sp
+	bl	do_memmanage
+
+	@ execute the pending work, including reschedule
+	get_thread_info tsk
+	mov	why, #0
+	b	ret_to_user
+
+	@ v7m_exception_fast_exit
+ENDPROC(__memmanage_entry)
+#endif /* CONFIG_MPU */
+
 /*
  * Register switch for ARMv7-M processors.
  * r0 = previous task_struct, r1 = previous thread_info, r2 = next thread_info
@@ -114,7 +134,11 @@ ENTRY(vector_table)
 	.long	__invalid_entry		@ 1 - Reset
 	.long	__invalid_entry		@ 2 - NMI
 	.long	__invalid_entry		@ 3 - HardFault
+#ifdef CONFIG_MPU
+	.long	__memmanage_entry	@ 4 - MemManage
+#else
 	.long	__invalid_entry		@ 4 - MemManage
+#endif
 	.long	__invalid_entry		@ 5 - BusFault
 	.long	__invalid_entry		@ 6 - UsageFault
 	.long	__invalid_entry		@ 7 - Reserved
