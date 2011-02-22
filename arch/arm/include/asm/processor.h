@@ -67,13 +67,13 @@ struct thread_struct {
 	regs->ARM_EXC_lr = 0xfffffffdL;	/* exception lr */		\
 } while (0)
 #else 
-extern void mpu_start_thread(void);
+extern void mpu_start_thread(struct pt_regs *regs);
 
 #define nommu_start_thread(regs) do {					\
 	regs->ARM_r10 = current->mm->start_data;			\
 	regs->ARM_sp -= 32;		/* exception return state */	\
 	regs->ARM_EXC_lr = 0xfffffffdL;	/* exception lr */		\
-	mpu_start_thread();						\
+	mpu_start_thread(regs);						\
 } while (0)
 #endif /* CONFIG_MPU */
 #endif
