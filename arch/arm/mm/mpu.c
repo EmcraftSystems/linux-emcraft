@@ -53,7 +53,7 @@
 /*
  * Enable / disable debug print-outs
  */
-#if 1
+#if 0
 #define DEBUG
 #endif
 
