@@ -20,8 +20,6 @@
  * some ARMv7 processor has an MPU that is different from that of
  * Cortex-M3 (which is 8 regions; no separation of instruction data;
  * pages of various size; protection must be size-aligned).
- *
- * TO-DO: add support for user mmap()'s.
  */
 
 #include <linux/kernel.h>
@@ -91,8 +89,10 @@ static void mpu_hw_on(void)
 #define MPU_CONTROL_PRIVDEFENA	(1<<2)
 
 	/*
-	 * TO-DO: Should I set up the priority of MemManage Exception
-	 * so as to ensure the handler doesn't get pre-empted?
+	 * As long as software does not attempt to expressly change
+	 * the priority of MemManage, it remains at the highest priority
+	 * and no other exception handlers will preempt the MemManage
+	 * exception handler (with exception of Reset, NMI and HardFault). 
 	 */
 
 	/*
@@ -322,6 +322,11 @@ static inline void mpu_context_init(struct mm_struct *mm)
 	 * TO-DO - add a check for successful allocation of memory.
 	 */
 	p = __get_free_pages(GFP_KERNEL, mpu_page_tbl_order);
+	if (! p) {
+		printk("%s: no free_pages; stopping the kernel\n", __func__);
+		for (;;);
+	}
+
 	memset((void *) p, 0, mpu_page_tbl_len);
 
 	/*
@@ -612,7 +617,17 @@ static void mpu_page_printall(const char * s, struct mm_struct *mm)
 
 /*
  * Section below is a set of services exported by this module.
- * ...
+ */
+
+/*
+ * Define a mappable region
+ */
+void mpu_region_define(unsigned long b, unsigned long t)
+{
+	mpu_addr_region_define(b, t);
+}
+
+/* 
  * Enable the MPU hardware as well as initalize related data structures
  * This is called from the architecture-specific initilization code.
  */
@@ -624,8 +639,7 @@ void mpu_init(void)
 	 */
 	unsigned int ram_bot = bank_phys_start(& meminfo.bank[0]);
 	unsigned int ram_top = ram_bot + bank_phys_size(& meminfo.bank[0]);
-	mpu_addr_region_define(ram_bot, ram_top);
-	mpu_addr_region_define(0x20000000, 0x20010000);
+	mpu_region_define(ram_bot, ram_top);
 
 	/*
 	 * Turn the MPU and related h/w intefaces on.
@@ -712,8 +726,6 @@ void mpu_start_thread(struct pt_regs * regs)
 
 	/*
  	 * Set up mappings for the stack.
- 	 * TO-DO: provide explanation as to why the stack must be mapped
- 	 * before a new process is called for a first time.
  	 */
 
 	for (t = mm->start_stack;
@@ -765,12 +777,15 @@ void mpu_start_thread(struct pt_regs * regs)
 
 	/*
  	 * Stack is large; we are not able to fit it in.
- 	 * TO-DO: Do the process kill
  	 */
 	if (i == MPU_STACK_BAR) {
 		printk("MPU: stack too large for '%s';", current->comm);
 		printk("; killing process\n");
 
+		/*
+ 	 	 * Send a SIGSEGV to the process
+ 	 	 */
+		send_sig(SIGSEGV, current, 0);
 		goto Done;
 	}
 

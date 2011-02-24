@@ -15,10 +15,31 @@
 #include <linux/mm_types.h>
 
 /*
+ * Define a mappable region
+ */
+extern void mpu_region_define(unsigned long b, unsigned long t);
+
+/*
  * Prepare to allocate "the MPU page tables".
  * Enable the hardware MPU.
  */
 extern void mpu_init(void);
+
+/*
+ * These two functions were defined in the generic kernel code
+ * by the Blackfin kernel maintainers (MPU support has been
+ * around in Blackfin for a while). I preserve this interface so that
+ * I don't have to modify the architecture-neutral code.
+ * ...
+ * Protect a specified page with specified permissions.
+ */
+extern void protect_page(struct mm_struct *mm, unsigned long addr,
+		   	 unsigned long flags);
+
+/*
+ * Update the MPU after permissions have changed for a mm area.
+ */
+extern void update_protections(struct mm_struct *mm);
 
 /*
  * Allocate and free a per-process "MPU page table".
@@ -38,19 +59,11 @@ extern void mpu_switch_mm(struct mm_struct *prev, struct mm_struct *next);
 extern void mpu_start_thread(struct pt_regs *regs);
 
 /*
- * These two functions were defined in the generic kernel code
- * by the Blackfin kernel maintainers (MPU support has been
- * around in Blackfin for a while). I preserve this interface so that
- * I don't have to modify the architecture-neutral code.
- * ...
- * Protect a specified page with specified permissions.
+ * Memory Fault (memmanage) exception handler.
+ * This is called from the architecture-specific low-level
+ * exception handler. It is assumed that this code doesn't
+ * get pre-emtped. 
  */
-extern void protect_page(struct mm_struct *mm, unsigned long addr,
-		   	 unsigned long flags);
-
-/*
- * Update the MPU after permissions have changed for a mm area.
- */
-extern void update_protections(struct mm_struct *mm);
+extern asmlinkage void __exception do_memmanage(struct pt_regs *regs);
 
 #endif
