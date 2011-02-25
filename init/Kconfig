@@ -118,6 +118,9 @@ config HAVE_KERNEL_LZMA
 config HAVE_KERNEL_LZO
 	bool
 
+config HAVE_KERNEL_COMPRESS_NONE
+	bool
+
 choice
 	prompt "Kernel compression mode"
 	default KERNEL_GZIP
@@ -173,6 +176,12 @@ config KERNEL_LZO
 	  Its compression ratio is the poorest among the 4. The kernel
 	  size is about about 10% bigger than gzip; however its speed
 	  (both compression and decompression) is the fastest.
+
+config KERNEL_COMPRESS_NONE
+	bool "NONE"
+	depends on HAVE_KERNEL_COMPRESS_NONE
+	help
+	  No compression of the kernel image. Fastest decompression time.
 
 endchoice
 
