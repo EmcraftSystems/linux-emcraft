@@ -340,7 +340,7 @@ static struct variant_data variant_arm = {
 static struct variant_data variant_u300 = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
-	.clkreg_enable		= 1 << 13, /* HWFCEN */
+	.clkreg_enable		= MCI_ST_U300_HWFCEN,
 	.datalength_bits	= 16,
 	.sdio			= true,
 };
@@ -349,7 +349,7 @@ static struct variant_data variant_ux500 = {
 	.fifosize		= 30 * 4,
 	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
-	.clkreg_enable		= 1 << 14, /* HWFCEN */
+	.clkreg_enable		= MCI_ST_UX500_HWFCEN,
 	.datalength_bits	= 24,
 	.sdio			= true,
 	.st_clkdiv		= true,
