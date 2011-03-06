@@ -434,7 +434,9 @@ static inline int mpu_context_addr_valid_for_region(
 static inline int mpu_context_addr_valid(
 	struct mm_struct *mm, unsigned int a, unsigned int f)
 {
+#ifdef CONFIG_MPU_STACK_REDZONE
 	mpu_context_t *p = mpu_context_p(mm);
+#endif
 	mpu_addr_region_t *r;
 	int b = 0;
 
@@ -664,6 +666,18 @@ void protect_page(struct mm_struct *mm, unsigned long addr,
 void update_protections(struct mm_struct *mm)
 {
 }
+
+#ifdef CONFIG_MPU_USER_ACCESS
+/*
+ * The MPU version of addr_ok used by uaccess.h to check
+ * validiry of a user-space address
+ */
+int mpu_addr_ok(const void * addr)
+{
+	return mpu_context_addr_valid(current->mm, (unsigned long) addr,
+		  		      VM_READ | VM_WRITE);
+}
+#endif
 
 /*
  * Create the MPU context for a new process.

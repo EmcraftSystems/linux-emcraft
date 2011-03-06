@@ -18,6 +18,7 @@
 #include <asm/domain.h>
 #include <asm/system.h>
 #include <asm/unified.h>
+#include <asm/mpu.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1
@@ -168,6 +169,8 @@ extern int __put_user_8(void *, unsigned long long);
 
 #else /* CONFIG_MMU */
 
+#ifndef CONFIG_MPU_USER_ACCESS
+
 /*
  * uClinux has only one addr space, so has simplified address limits.
  */
@@ -181,6 +184,28 @@ extern int __put_user_8(void *, unsigned long long);
 static inline void set_fs(mm_segment_t fs)
 {
 }
+
+/*
+ * If CONFIG_MPU_USER_ACCESS is enabled, the no-MMU linux provides protection
+ * of user protection, including access_ok and friends
+ */
+#else
+
+#define USER_DS		TASK_SIZE
+#define get_fs()	(current_thread_info()->addr_limit)
+
+static inline void set_fs(mm_segment_t fs)
+{
+	current_thread_info()->addr_limit = fs;
+	modify_domain(DOMAIN_KERNEL, fs ? DOMAIN_CLIENT : DOMAIN_MANAGER);
+}
+
+#define segment_eq(a,b)	(1)
+
+#define __addr_ok(addr)		(get_fs()==KERNEL_DS ? 1 : mpu_addr_ok(addr))
+#define __range_ok(addr,size)	(! __addr_ok(addr))
+
+#endif /* CONFIG_MPU_USER_ACCESS */
 
 #define get_user(x,p)	__get_user(x,p)
 #define put_user(x,p)	__put_user(x,p)

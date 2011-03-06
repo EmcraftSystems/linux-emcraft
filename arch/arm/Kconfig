@@ -211,6 +211,16 @@ config MPU_STACK_REDZONE
 	  The red zone consumes up to 512 bytes of the lower stack
 	  (the red zone itlsef is 256 bytes + alignment).
 
+config MPU_USER_ACCESS
+	bool "Check validity of user region in copy_[to/from]_user"
+	depends on MPU
+	default y
+	help
+	  Ensure validity of the user region in copy_to_user, copy_from_user
+	  and friends. This ensures that the kernel doesn't allow 
+	  accessing to a region unmapped for the current process from 
+	  a system call. 
+
 choice
 	prompt "ARM system type"
 	default ARCH_VERSATILE
