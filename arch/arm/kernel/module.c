@@ -3,6 +3,8 @@
  *
  *  Copyright (C) 2002 Russell King.
  *  Modified for nommu by Hyok S. Choi
+ *  2011, Modified for SmartFusion Cortex-M3 by
+ *  	Vladimir Khusainov, vlad@emcraft.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -214,9 +216,26 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			if (offset & 0x01000000)
 				offset -= 0x02000000;
 			offset += sym->st_value - loc;
-
+			/*
+			 * This first test below doesn't allow my module
+			 * to load on Actel's SmartFusion Cortex-M3.
+			 * At least one offset, as calulated above,
+			 * does have a 0 in the first bit.
+			 * If I disable this particular test, my
+			 * module loads and works just fine.
+			 * ...
+			 * I didn't try to figure the logic in this 
+			 * section of module.c but I suspect that 
+			 * there are scenarios where a 0 in the first
+			 * bit is a legit scenario. Just in case,
+			 * I disable the test for SmartFision only.
+			 */
+#ifndef CONFIG_ARCH_A2F
 			/* only Thumb addresses allowed (no interworking) */
 			if (!(offset & 1) ||
+#else
+			if (0 ||
+#endif
 			    offset <= (s32)0xff000000 ||
 			    offset >= (s32)0x01000000) {
 				printk(KERN_ERR

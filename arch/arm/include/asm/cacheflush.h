@@ -276,8 +276,11 @@ extern struct cpu_cache_fns cpu_cache;
 #ifdef CONFIG_CPU_V7M
 
 static inline void v7m_flush_kern_all(void) { }
+static inline void v7m_flush_kern_cache_all(void) { }
 static inline void v7m_flush_user_all(void) { }
+static inline void v7m_flush_user_cache_all(void) { }
 static inline void v7m_flush_user_range(unsigned long a, unsigned long b, unsigned int c) { }
+static inline void v7m_flush_user_cache_range(unsigned long a, unsigned long b, unsigned int c) { }
 
 static inline void v7m_coherent_kern_range(unsigned long a, unsigned long b) { }
 static inline void v7m_coherent_user_range(unsigned long a, unsigned long b) { }

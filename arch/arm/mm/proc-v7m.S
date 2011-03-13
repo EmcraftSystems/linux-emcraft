@@ -67,11 +67,9 @@ ENTRY(cpu_v7m_switch_mm)
 	mov	pc, lr
 ENDPROC(cpu_v7m_switch_mm)
 
-#if 0
 ENTRY(cpu_v7m_set_pte_ext)
 	mov	pc, lr
 ENDPROC(cpu_v7m_set_pte_ext)
-#endif
 
 cpu_v7m_name:
 	.ascii	"ARMv7-M Processor"
