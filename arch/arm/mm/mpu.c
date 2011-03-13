@@ -677,6 +677,7 @@ int mpu_addr_ok(const void * addr)
 	return mpu_context_addr_valid(current->mm, (unsigned long) addr,
 		  		      VM_READ | VM_WRITE);
 }
+EXPORT_SYMBOL(mpu_addr_ok);
 #endif
 
 /*

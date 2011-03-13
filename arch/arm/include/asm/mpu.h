@@ -44,10 +44,9 @@ extern void update_protections(struct mm_struct *mm);
 #ifdef CONFIG_MPU_USER_ACCESS
 /*
  * The MPU version of addr_ok and range_ok used by uaccess.h to check
- * validiry of a user-space address
+ * validity of a user-space address
  */
 extern int mpu_addr_ok(const void * addr);
-extern int mpu_range_ok(const void * addr, unsigned long size);
 #endif
 
 /*
