@@ -97,6 +97,15 @@ config DEVKMEM
 	  kind of kernel debugging operations.
 	  When in doubt, say "N".
 
+config A2F_ENVM
+	tristate "Microsemi's SmartFusion: support for eNVM "
+	depends on ARCH_A2F
+	help
+	  Add support for accessing the integrated eNVM of
+	  SmartFusion as a character device file.
+
+	  To compile this driver as a module, choose M.
+
 config BFIN_JTAG_COMM
 	tristate "Blackfin JTAG Communication"
 	depends on BLACKFIN
