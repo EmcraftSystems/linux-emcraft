@@ -47,10 +47,12 @@ static const char *processor_modes[] = {
   "USER_32", "FIQ_32" , "IRQ_32" , "SVC_32" , "UK4_32" , "UK5_32" , "UK6_32" , "ABT_32" ,
   "UK8_32" , "UK9_32" , "UK10_32", "UND_32" , "UK12_32", "UK13_32", "UK14_32", "SYS_32"
 };
+#define PM_NUM	(sizeof(processor_modes)/sizeof(processor_modes[0]))
 
 static const char *isa_modes[] = {
   "ARM" , "Thumb" , "Jazelle", "ThumbEE"
 };
+#define ISA_NUM	(sizeof(isa_modes)/sizeof(isa_modes[0]))
 
 extern void setup_mm_for_reboot(char mode);
 
@@ -265,8 +267,10 @@ void __show_regs(struct pt_regs *regs)
 	printk("Flags: %s  IRQs o%s  FIQs o%s  Mode %s  ISA %s  Segment %s\n",
 		buf, interrupts_enabled(regs) ? "n" : "ff",
 		fast_interrupts_enabled(regs) ? "n" : "ff",
-		processor_modes[processor_mode(regs)],
-		isa_modes[isa_mode(regs)],
+		processor_mode(regs) < PM_NUM ?
+			processor_modes[processor_mode(regs)] : "unknown",
+		isa_mode(regs) < ISA_NUM ?
+			isa_modes[isa_mode(regs)] : "unknown",
 		get_fs() == get_ds() ? "kernel" : "user");
 #ifdef CONFIG_CPU_CP15
 	{
