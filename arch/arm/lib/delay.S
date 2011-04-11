@@ -41,6 +41,26 @@ ENTRY(__const_udelay)				@ 0 <= r0 <= 0x7fffff06
 
 @ Delay routine
 ENTRY(__delay)
+#if defined(CONFIG_CPU_V7M)
+		subs	r0, r0, #1
+		bls	out
+		subs	r0, r0, #1
+		bls	out
+		subs	r0, r0, #1
+		bls	out
+		subs	r0, r0, #1
+		bls	out
+		subs	r0, r0, #1
+		bls	out
+		subs	r0, r0, #1
+		bls	out
+		subs	r0, r0, #1
+		bls	out
+		subs	r0, r0, #1
+		bhi	__delay
+out:
+		mov	pc, lr
+#else
 		subs	r0, r0, #1
 #if 0
 		movls	pc, lr
@@ -60,6 +80,7 @@ ENTRY(__delay)
 #endif
 		bhi	__delay
 		mov	pc, lr
+#endif
 ENDPROC(__udelay)
 ENDPROC(__const_udelay)
 ENDPROC(__delay)
