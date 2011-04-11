@@ -82,7 +82,7 @@
 	cmpne	lr, #0xffffffed
 #endif
 	beq	1f			@ exception on process stack
-	add	r12, sp, #S_FRAME_SIZE >> 1 @ MSP before exception
+	add	r12, sp, #32		@ MSP before exception
 	stmdb	sp!, {r4-r12, lr}	@ push unsaved registers
 	b	2f
 1:
@@ -119,7 +119,7 @@
 	ldr	lr, [sp, #S_PC]
 	add	sp, #S_R0
 	ldmia	sp, {r0-r3, r12}	@ restore the rest of registers
-	add	sp, #S_FRAME_SIZE-S_R0	@ restore the stack pointer
+	add	sp, #32			@ restore the stack pointer
 	cpsie	i
 	bx	lr
 1:
