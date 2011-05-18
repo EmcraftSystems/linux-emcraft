@@ -353,7 +353,7 @@ void __init mount_root(void)
 			change_floppy("root floppy");
 	}
 #endif
-#ifdef CONFIG_BLOCK
+#if defined(CONFIG_BLOCK) && !defined(CONFIG_BLK_DEV_INITRD)
 	create_dev("/dev/root", ROOT_DEV);
 	mount_block_root("/dev/root", root_mountflags);
 #endif
