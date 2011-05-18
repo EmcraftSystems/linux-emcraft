@@ -871,7 +871,7 @@ static irqreturn_t spi_a2f_irq(int irq, void *dev_id)
  * @dev			SPI controller platform device
  * @returns		0->success, <0->error code
  */
-static int spi_a2f_probe(struct platform_device *dev)
+static int __devinit spi_a2f_probe(struct platform_device *dev)
 {
 	struct spi_master *m = NULL;
 	struct spi_a2f *c = NULL;
@@ -1074,7 +1074,7 @@ Done:
  * @dev			SPI controller platform device
  * @returns		0->success, <0->error code
  */
-static int spi_a2f_remove(struct platform_device *dev)
+static int __devexit spi_a2f_remove(struct platform_device *dev)
 {
 	struct spi_master *m  = platform_get_drvdata(dev);
 	struct spi_a2f *c = spi_master_get_devdata(m);
@@ -1120,7 +1120,7 @@ static int spi_a2f_remove(struct platform_device *dev)
  */
 static struct platform_driver spi_a2f_drv = {
 	.probe	= spi_a2f_probe,
-	.remove	= spi_a2f_remove,
+	.remove	= __devexit_p(spi_a2f_remove),
 	.driver = {
 		.name = "spi_a2f",
 		.owner = THIS_MODULE,
