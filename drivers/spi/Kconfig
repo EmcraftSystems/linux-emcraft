@@ -60,6 +60,12 @@ config SPI_ATMEL
 	  This selects a driver for the Atmel SPI Controller, present on
 	  many AT32 (AVR32) and AT91 (ARM) chips.
 
+config SPI_A2F
+	tristate "SmartFusion SPI Controller"
+	depends on MACH_A2F
+	help
+	  This is the SPI controller master driver for the SmartFusion SoC.
+
 config SPI_BFIN
 	tristate "SPI controller driver for ADI Blackfin5xx"
 	depends on BLACKFIN
