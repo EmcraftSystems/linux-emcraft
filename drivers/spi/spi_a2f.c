@@ -21,8 +21,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <mach/a2f.h>
-#include <mach/clock.h>
-#include <mach/spi.h>
 
 /*
  * Driver verbosity level: 0->silent; >0->verbose (1 to 4, growing verbosity)
@@ -187,24 +185,6 @@ static inline int spi_a2f_hw_cs_set(struct spi_a2f *c, int cs)
 	d_printk(2, "bus=%d,cs=%d,slave_select=0x%x,ret=%d\n", 
 		 c->bus, cs, MSS_SPI(c)->spi_slave_select, ret);
 	return ret;
-}
-
-/*
- * Get the max clock rate supported by this controller.
- * @param c		controller data structure
- * @param bus		bus number
- * @returns		clock rate for this controller
- */
-static unsigned int spi_a2f_hw_clk_max(struct spi_a2f *c)
-{
-	/*
- 	 * The MSS SPI controller clock is a derivative of a PCLK*.
- 	 */
-	unsigned int rate = a2f_clock_get(c->bus==0 ?
-					  CLCK_PCLK0 : CLCK_PCLK1);
-
-	d_printk(2, "bus=%d,ret=%d\n", c->bus, rate);
-	return rate;
 }
 
 /*
@@ -925,12 +905,6 @@ static int __devinit spi_a2f_probe(struct platform_device *dev)
 		goto Error_release_nothing;
 	}
 
-	/*
- 	 * Remember the master in the platform device.
- 	 * We are going to need that pointer when we
- 	 * are doing removal on the platform device.
- 	 */
-	platform_set_drvdata(dev, m);
 
 	/*
 	 * Pointer the controller-specific data structure
@@ -999,9 +973,10 @@ static int __devinit spi_a2f_probe(struct platform_device *dev)
 	}
 
 	/*
- 	 * Figure the clock rate for this controller
+ 	 * Figure the clock rate for this controller.
+ 	 * This is passed to us by the platform.
  	 */
-	c->speed_hz = spi_a2f_hw_clk_max(c);
+	c->speed_hz = (unsigned int) platform_get_drvdata(dev);
 
 	/*
  	 * SPI mode understood by this driver
@@ -1034,6 +1009,13 @@ static int __devinit spi_a2f_probe(struct platform_device *dev)
 			"for SPI controller %d\n", bus);
 		goto Error_release_hardware;
 	}
+
+	/*
+ 	 * Remember the master in the platform device.
+ 	 * We are going to need that pointer when we
+ 	 * are doing removal on the platform device.
+ 	 */
+	platform_set_drvdata(dev, m);
 
 	/*
 	 * If we are here, we are successful

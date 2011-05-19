@@ -50,6 +50,7 @@
 #include <mach/clock.h>
 #include <mach/uart.h>
 #include <mach/eth.h>
+#include <mach/spi.h>
 
 /*
  * Forward declarations.
@@ -110,19 +111,24 @@ static void __init a2f_init_irq(void)
 static void __init a2f_init(void)
 {
 	/*
-	 * Configure the A2F clocks. 
+	 * Configure the A2F clocks 
 	 */
 	a2f_clock_init();
 
 	/*
- 	 * Configure the UART devices.
+ 	 * Configure the UART devices
  	 */
 	a2f_uart_init();
 
 #if defined(CONFIG_CORE10100)
 	/*
-	 * Configure the Core10100 adapter.
+	 * Configure the Core10100 adapter
 	 */
 	a2f_eth_init();
 #endif
+
+	/*
+ 	 * Configure the SPI devices
+ 	 */
+	a2f_spi_init();
 }

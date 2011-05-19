@@ -25,8 +25,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/serial_8250.h>
-
 #include <mach/a2f.h>
+#include <mach/clock.h>
 #include <mach/uart.h>
 
 /*
@@ -34,20 +34,20 @@
  * provide the s/w compatibility with the 16550 device.
  */
 
+#define	MSS_UART_RGSZ  (0x1000 - 1)
+
 /*
  * MSS UART_0
  */
 #if defined(CONFIG_A2F_MSS_UART0)
 
-#define	MSS_UART0_SIZE  (0x1000 - 1)
 #define MSS_UART0_IRQ	10
 #define UART0_RST_CLR   (1<<7)
-#define UART1_RST_CLR   (1<<8)
 
 static struct resource mss_uart0_resources[] = {
 	{
 		.start          = MSS_UART0_BASE,
-		.end            = MSS_UART0_BASE + MSS_UART0_SIZE,
+		.end            = MSS_UART0_BASE + MSS_UART_RGSZ,
 		.flags          = IORESOURCE_MEM,
 	},
 	{
@@ -61,13 +61,6 @@ static struct plat_serial8250_port mss_uart0_data[] = {
 		.membase     	= (char *) MSS_UART0_BASE,
 		.mapbase     	= MSS_UART0_BASE,
 		.irq         	= MSS_UART0_IRQ,
-#if 0
-		/* Actel A2F EVB, 100MHz core clock */
-		.uartclk     	= 25000000,
-#else
-		/* Emcraft A2F-LNX-EVB, 80MHz core clock */
-		.uartclk     	= 20000000,
-#endif
 		.regshift    	= 2,
 		.iotype      	= UPIO_MEM,
 		.flags		= UPF_SKIP_TEST,
@@ -89,13 +82,13 @@ static struct platform_device mss_uart0_device = {
  */
 #if defined(CONFIG_A2F_MSS_UART1)
 
-#define	MSS_UART1_SIZE  (0x1000 - 1)
 #define MSS_UART1_IRQ	11
+#define UART1_RST_CLR   (1<<8)
 
 static struct resource mss_uart1_resources[] = {
 	{
 		.start          = MSS_UART1_BASE,
-		.end            = MSS_UART1_BASE + MSS_UART1_SIZE,
+		.end            = MSS_UART1_BASE + MSS_UART_RGSZ,
 		.flags          = IORESOURCE_MEM,
 	},
 	{
@@ -109,13 +102,6 @@ static struct plat_serial8250_port mss_uart1_data[] = {
 		.membase        = (char *) MSS_UART1_BASE,
 		.mapbase        = MSS_UART1_BASE,
 		.irq            = MSS_UART1_IRQ,
-#if 0
-		/* Actel A2F EVB, 100MHz core clock */
-		.uartclk     	= 25000000,
-#else
-		/* Emcraft A2F-LNX-EVB, 80MHz core clock */
-		.uartclk     	= 20000000,
-#endif
 		.regshift       = 2,
 		.iotype         = UPIO_MEM,
 		.flags          = UPF_SKIP_TEST,
@@ -144,6 +130,11 @@ void __init a2f_uart_init(void)
 	A2F_SYSREG->soft_rst_cr &= ~UART0_RST_CLR;
 
 	/*
+ 	 * Get the reference clock for this UART port
+ 	 */
+	mss_uart0_data[0].uartclk = a2f_clock_get(CLCK_PCLK0);
+
+	/*
  	 * Register device for UART_0.
  	 */
 	(void) platform_device_register(&mss_uart0_device);
@@ -153,6 +144,11 @@ void __init a2f_uart_init(void)
 	 * Bring UART_1 out of the power-up reset.
 	 */
 	A2F_SYSREG->soft_rst_cr &= ~UART1_RST_CLR;
+
+	/*
+ 	 * Get the reference clock for this UART port
+ 	 */
+	mss_uart0_data[1].uartclk = a2f_clock_get(CLCK_PCLK1);
 
 	/*
  	 * Register device for UART_1.

@@ -21,4 +21,18 @@ config A2F_MSS_UART1
 	help
 	  Enable MSS UART_1 of SmartFusion
 
+config A2F_MSS_SPI0
+	bool
+	depends on MACH_A2F
+	default y
+	help
+	  Enable MSS SPI_0 of SmartFusion
+
+config A2F_MSS_SPI1
+	bool
+	depends on MACH_A2F
+	default n
+	help
+	  Enable MSS SPI_1 of SmartFusion
+
 endif
