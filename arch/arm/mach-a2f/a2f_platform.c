@@ -46,6 +46,7 @@
 
 #include <mach/platform.h>
 #include <mach/irqs.h>
+#include <mach/iomux.h>
 #include <mach/timer.h>
 #include <mach/clock.h>
 #include <mach/uart.h>
@@ -111,7 +112,12 @@ static void __init a2f_init_irq(void)
 static void __init a2f_init(void)
 {
 	/*
-	 * Configure the A2F clocks 
+	 * Configure the IOMUXes of SmartFusion
+	 */
+	a2f_iomux_init();
+
+	/*
+	 * Configure the SmartFusion clocks 
 	 */
 	a2f_clock_init();
 

@@ -100,12 +100,11 @@ static struct platform_device spi_a2f_dev1 = {
 void __init a2f_spi_init(void)
 {
 #if defined(CONFIG_A2F_MSS_SPI0)
-	unsigned int c0 = a2f_clock_get(CLCK_PCLK0);
-
 	/*
  	 * Pass the reference clock to the driver
  	 */
-	platform_set_drvdata(&spi_a2f_dev0, (void *) c0);
+	platform_set_drvdata(&spi_a2f_dev0, 
+		(void *) (a2f_clock_get(CLCK_PCLK0)));
 
 	/*
 	 * Register a platform device for this interface
@@ -113,12 +112,11 @@ void __init a2f_spi_init(void)
 	platform_device_register(&spi_a2f_dev0);		
 #endif
 #if defined(CONFIG_A2F_MSS_SPI1)
-	unsigned int c1 = a2f_clock_get(CLCK_PCLK1);
-
 	/*
  	 * Pass the reference clock to the driver
  	 */
-	platform_set_drvdata(&spi_a2f_dev1, (void *) c1);
+	platform_set_drvdata(&spi_a2f_dev1, 
+		(void *) (a2f_clock_get(CLCK_PCLK1)));
 
 	/*
 	 * Register a platform device for this interface
