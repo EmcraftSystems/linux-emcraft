@@ -52,6 +52,7 @@
 #include <mach/uart.h>
 #include <mach/eth.h>
 #include <mach/spi.h>
+#include <mach/flash.h>
 
 /*
  * Forward declarations.
@@ -137,4 +138,9 @@ static void __init a2f_init(void)
  	 * Configure the SPI devices
  	 */
 	a2f_spi_init();
+
+	/*
+ 	 * Configure external Flash
+ 	 */
+	a2f_flash_init();
 }
