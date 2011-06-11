@@ -256,6 +256,11 @@ static void __init timer_clocksource_init(void)
 void __init a2f_timer_init(void)
 {
 	/*
+	 * Configure the SmartFusion clocks 
+	 */
+	a2f_clock_init();
+
+	/*
 	 * Timers of SmartFision are clocked by PCLK0
 	 */
 	timer_ref_clk = a2f_clock_get(CLCK_PCLK0);

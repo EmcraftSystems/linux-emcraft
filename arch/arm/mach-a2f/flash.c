@@ -29,6 +29,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <asm/mach/flash.h>
+#include <mach/platform.h>
 #include <mach/a2f.h>
 #include <mach/flash.h>
 
@@ -41,11 +42,9 @@
  * Where the NOR Flash resides in the physical map
  */
 #define FLASH_BASE		0x74000000
-#define FLASH_SIZE		(8 * 1024 * 1024)
 static struct resource flash_resources[] = {
 	{
 		.start	= FLASH_BASE,
-		.end	= FLASH_BASE + FLASH_SIZE-1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -64,21 +63,22 @@ static struct resource flash_resources[] = {
  * 20000-2fffff: 	Linux bootable image
  * 300000-7fffff:	JFFS2 filesystem
  */
+#define FLASH_IMAGE_OFFSET	0x20000
+#define FLASH_JFFS2_OFFSET	(3*1024*1024)
 static struct mtd_partition flash_partitions[] = {
 	{
 		.name	= "flash_uboot_env",
 		.offset = 0,
-		.size	= 0x20000,
+		.size	= FLASH_IMAGE_OFFSET,
 	},
 	{
 		.name	= "flash_linux_image",
-		.offset = 0x20000,
-		.size	= (3 * 1024 * 1024 - 0x20000),
+		.offset = FLASH_IMAGE_OFFSET,
+		.size	= (FLASH_JFFS2_OFFSET - FLASH_IMAGE_OFFSET),
 	},
 	{
 		.name	= "flash_jffs2",
-		.offset = (3 * 1024 * 1024),
-		.size	= (5 * 1024 * 1024),
+		.offset = FLASH_JFFS2_OFFSET,
 	},
 };
 static struct physmap_flash_data flash_data = {
@@ -105,6 +105,19 @@ static struct platform_device flash_dev = {
  */
 void __init a2f_flash_init(void)
 {
+	unsigned int size = 0;
+
+	/*
+	 * Calculate Flash and partition sizes at run time
+	 */
+	if (a2f_platform == PLATFORM_A2F_LNX_EVB) {
+		size = 8*1024*1024;
+	}
+	else if (a2f_platform == PLATFORM_A2F_ACTEL_DEV_BRD) {
+		size = 16*1024*1024;
+	}
+	flash_resources[0].end = flash_resources[0].start + size - 1;
+	flash_partitions[2].size = size - FLASH_JFFS2_OFFSET;
 
 	/*
 	 * Register a platform device for the external Flash.

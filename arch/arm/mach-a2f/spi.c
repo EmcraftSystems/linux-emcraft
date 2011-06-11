@@ -30,6 +30,13 @@
 #include <mach/spi.h>
 
 /*
+ * Define (undefine) these constants to define
+ * the population of supported SPI ports
+ */
+#define CONFIG_A2F_MSS_SPI0
+#undef CONFIG_A2F_MSS_SPI1
+
+/*
  * The MSS subsystem of SmartFusion contains two SPI ports
  */
 #define SPI_A2F_REGS_SIZE	0x28

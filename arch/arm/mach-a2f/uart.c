@@ -30,6 +30,13 @@
 #include <mach/uart.h>
 
 /*
+ * Define (undefine) these constants to define
+ * the population of supported UART ports
+ */
+#define CONFIG_A2F_MSS_UART0
+#undef CONFIG_A2F_MSS_UART1
+
+/*
  * The MSS subsystem of SmartFusion contains two UART ports that
  * provide the s/w compatibility with the 16550 device.
  */
@@ -148,7 +155,7 @@ void __init a2f_uart_init(void)
 	/*
  	 * Get the reference clock for this UART port
  	 */
-	mss_uart0_data[1].uartclk = a2f_clock_get(CLCK_PCLK1);
+	mss_uart1_data[0].uartclk = a2f_clock_get(CLCK_PCLK1);
 
 	/*
  	 * Register device for UART_1.

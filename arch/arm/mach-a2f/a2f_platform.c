@@ -55,6 +55,27 @@
 #include <mach/flash.h>
 
 /*
+ * Define a particular platform (board)
+ */
+int a2f_platform = PLATFORM_A2F_LNX_EVB;
+
+/*
+ * User can (and should) define the platform from U-Boot
+ */
+static int __init a2f_platform_parse(char *s)
+{
+	if (!strcmp(s, "a2f-lnx-evb")) {
+		a2f_platform = PLATFORM_A2F_LNX_EVB;
+	}
+	else if (!strcmp(s, "a2f-actel-dev-brd")) {
+		a2f_platform = PLATFORM_A2F_ACTEL_DEV_BRD;
+	}
+
+	return 1;
+}
+__setup("a2f_platform=", a2f_platform_parse);
+
+/*
  * Forward declarations.
  */
 static void __init a2f_map_io(void);
@@ -117,15 +138,12 @@ static void __init a2f_init(void)
 	 */
 	a2f_iomux_init();
 
-	/*
-	 * Configure the SmartFusion clocks 
-	 */
-	a2f_clock_init();
-
+#if defined(CONFIG_SERIAL_8250)
 	/*
  	 * Configure the UART devices
  	 */
 	a2f_uart_init();
+#endif
 
 #if defined(CONFIG_CORE10100)
 	/*
@@ -134,13 +152,18 @@ static void __init a2f_init(void)
 	a2f_eth_init();
 #endif
 
+#if defined(CONFIG_SPI_A2F)
 	/*
- 	 * Configure the SPI devices
+ 	 * Configure the SPI master interfaces (and possibly,
+ 	 * SPI slave devices).
  	 */
 	a2f_spi_init();
+#endif
 
+#if defined(CONFIG_MTD_PHYSMAP)
 	/*
  	 * Configure external Flash
  	 */
 	a2f_flash_init();
+#endif
 }

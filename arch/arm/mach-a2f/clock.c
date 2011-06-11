@@ -18,28 +18,48 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/init.h>
+#include <mach/platform.h>
 #include <mach/a2f.h>
 #include <mach/clock.h>
 
 /*
+ * Reference clock settings
+ */
+
+static unsigned int clock_fclk;
+static unsigned int clock_pclk0;
+static unsigned int clock_pclk1;
+static unsigned int clock_ace;
+static unsigned int clock_fpga;
+
+/*
+ * Initialize the reference clocks.
+ * TO-DO: Eventually, this needs to be changed to get
+ * the reference clock settings from the hardware, rather
+ * than to have the user to configure it here. 
  * System frequency (FCLK) and the other derivative clocks
  * coming out from firmware. These are defined by the Libero
  * project programmed onto SmartFusion and then, optionally, by firmware.
  * It is possible to read these frequencies from SmartFusion
  * at run-time, however for simplicity of configuration we define these
- * clocks at build-time.
- */
-#define SF_CLK_FREQ			80000000uL
-#define SF_CLK_PCLK0			(SF_CLK_FREQ / 4)
-#define SF_CLK_PCLK1			(SF_CLK_FREQ / 4)
-#define SF_ACE_PCLK1			(SF_CLK_FREQ / 2)
-#define SF_FPGA_PCLK1			(SF_CLK_FREQ / 2)
-
-/*
- * Initialize the clock section of the A2F.
+ * clocks as constants.
  */
 void __init a2f_clock_init(void)
 {
+	if (a2f_platform == PLATFORM_A2F_LNX_EVB) {
+		clock_fclk	= 80000000;
+		clock_pclk0	= clock_fclk / 4;
+		clock_pclk1	= clock_fclk / 4;
+		clock_ace	= clock_fclk / 2;
+		clock_fpga	= clock_fclk / 2;
+	}
+	else if (a2f_platform == PLATFORM_A2F_ACTEL_DEV_BRD) {
+		clock_fclk	= 80000000;
+		clock_pclk0	= clock_fclk / 4;
+		clock_pclk1	= clock_fclk / 4;
+		clock_ace	= clock_fclk / 2;
+		clock_fpga	= clock_fclk / 2;
+	}
 }
 
 /*
@@ -51,19 +71,19 @@ unsigned int a2f_clock_get(enum a2f_clock clck)
 
 	switch (clck)  {
 	case CLCK_SYSTEMCORE:
-		val = SF_CLK_FREQ;
+		val = clock_fclk;
 		break;
 	case CLCK_PCLK0:
-		val = SF_CLK_PCLK0;
+		val = clock_pclk0;
 		break;
 	case CLCK_PCLK1:
-		val = SF_CLK_PCLK1;
+		val = clock_pclk1;
 		break;
 	case CLCK_ACE:
-		val = SF_ACE_PCLK1;
+		val = clock_ace;
 		break;
 	case CLCK_FPGA:
-		val = SF_FPGA_PCLK1;
+		val = clock_fpga;
 		break;
 	}
 

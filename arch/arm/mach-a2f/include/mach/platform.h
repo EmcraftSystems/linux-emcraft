@@ -2,6 +2,7 @@
  * arch/arm/mach-a2f/include/mach/platform.h
  *
  * Copyright (C) 2009 ARM Ltd.
+ * 2011, Vladimir Khusainov, Emcraft Systems, vlad@emcraft.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,5 +21,10 @@
 
 #ifndef __ASM_ARCH_PLATFORM_H
 #define __ASM_ARCH_PLATFORM_H
+
+#define PLATFORM_A2F_LNX_EVB		0
+#define PLATFORM_A2F_ACTEL_DEV_BRD	1
+
+extern int a2f_platform;
 
 #endif	/* __ASM_ARCH_PLATFORM_H */
