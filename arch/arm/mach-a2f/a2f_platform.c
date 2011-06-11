@@ -58,6 +58,7 @@
  * Define a particular platform (board)
  */
 int a2f_platform = PLATFORM_A2F_LNX_EVB;
+EXPORT_SYMBOL(a2f_platform);
 
 /*
  * User can (and should) define the platform from U-Boot
