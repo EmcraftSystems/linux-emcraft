@@ -26,6 +26,7 @@
 #include <linux/irq.h>
 #include <linux/clockchips.h>
 
+#include <mach/spi.h>
 #include <mach/iomux.h>
 
 /* 

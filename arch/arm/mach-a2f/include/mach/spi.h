@@ -21,6 +21,13 @@
 #ifndef _MACH_A2F_SPI_H_
 #define _MACH_A2F_SPI_H_
 
+/*
+ * Define the population of the SPI controllers that
+ * you would like to enable on the platform.
+ */
+#define CONFIG_A2F_MSS_SPI0
+#undef CONFIG_A2F_MSS_SPI1
+
 extern void __init a2f_spi_init(void);
 
 #endif	/*_MACH_A2F_SPI_H_ */

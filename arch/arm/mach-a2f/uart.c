@@ -30,13 +30,6 @@
 #include <mach/uart.h>
 
 /*
- * Define (undefine) these constants to define
- * the population of supported UART ports
- */
-#define CONFIG_A2F_MSS_UART0
-#undef CONFIG_A2F_MSS_UART1
-
-/*
  * The MSS subsystem of SmartFusion contains two UART ports that
  * provide the s/w compatibility with the 16550 device.
  */
