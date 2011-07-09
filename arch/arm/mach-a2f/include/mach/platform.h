@@ -24,6 +24,7 @@
 
 #define PLATFORM_A2F_LNX_EVB		0
 #define PLATFORM_A2F_ACTEL_DEV_BRD	1
+#define PLATFORM_A2F_HOERMANN_BRD	2
 
 extern int a2f_platform;
 

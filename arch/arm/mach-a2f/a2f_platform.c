@@ -71,6 +71,9 @@ static int __init a2f_platform_parse(char *s)
 	else if (!strcmp(s, "a2f-actel-dev-brd")) {
 		a2f_platform = PLATFORM_A2F_ACTEL_DEV_BRD;
 	}
+	else if (!strcmp(s, "a2f-hoermann-brd")) {
+		a2f_platform = PLATFORM_A2F_HOERMANN_BRD;
+	}
 
 	return 1;
 }

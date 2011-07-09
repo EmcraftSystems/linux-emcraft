@@ -61,7 +61,7 @@ static struct resource flash_resources[] = {
  *
  * 0-1ffff: 		U-boot environment
  * 20000-2fffff: 	Linux bootable image
- * 300000-7fffff:	JFFS2 filesystem
+ * 300000-end of Flash:	JFFS2 filesystem
  */
 #define FLASH_IMAGE_OFFSET	0x20000
 #define FLASH_JFFS2_OFFSET	(3*1024*1024)
@@ -114,6 +114,9 @@ void __init a2f_flash_init(void)
 		size = 8*1024*1024;
 	}
 	else if (a2f_platform == PLATFORM_A2F_ACTEL_DEV_BRD) {
+		size = 16*1024*1024;
+	}
+	else if (a2f_platform == PLATFORM_A2F_HOERMANN_BRD) {
 		size = 16*1024*1024;
 	}
 	flash_resources[0].end = flash_resources[0].start + size - 1;

@@ -60,6 +60,13 @@ void __init a2f_clock_init(void)
 		clock_ace	= clock_fclk / 2;
 		clock_fpga	= clock_fclk / 2;
 	}
+	else if (a2f_platform == PLATFORM_A2F_HOERMANN_BRD) {
+		clock_fclk	= 80000000;
+		clock_pclk0	= clock_fclk / 4;
+		clock_pclk1	= clock_fclk / 4;
+		clock_ace	= clock_fclk / 2;
+		clock_fpga	= clock_fclk / 2;
+	}
 }
 
 /*
