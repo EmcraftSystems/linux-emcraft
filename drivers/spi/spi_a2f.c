@@ -236,7 +236,7 @@ static inline int spi_a2f_hw_bt_check(struct spi_a2f *c, int bt)
 	/*
  	 * TO-DO: add support for frames that are not 8 bits
  	 */
-	int ret = bt == 8 ? 0 : 1;
+	int ret = 8 <= bt && bt <= 16 ? 0 : 1;
 
 	d_printk(2, "bus=%d,bt=%d,ret=%d\n", c->bus, bt, ret);
 	return ret;
@@ -336,14 +336,23 @@ static inline int spi_a2f_hw_txfifo_full(struct spi_a2f *c)
  * Put a frame into the transmit FIFO
  * TO-DO: support frames of size != 8
  * @param c		controller data structure
+ * @param wb		frame size in full bytes
  * @param tx		transmit buf (can be NULL)
  * @param i		index of frame in buf
  */
-static inline void spi_a2f_hw_txfifo_put(struct spi_a2f *c, 
-	const void *tx, int i)
+static inline void spi_a2f_hw_txfifo_put(
+	struct spi_a2f *c, int wb, const void *tx, int i)
 {
+	int j;
+	unsigned int d = 0;
 	unsigned char *p = (unsigned char *)tx;
-	unsigned char d = p ? p[i] : 0;
+
+	if (p) {
+		for (j = 0; j < wb; j++) {
+			d <<= 8;
+			d |= p[i*wb + j];
+		}
+	}
 	MSS_SPI(c)->spi_tx_data = d;
 }
 
@@ -360,7 +369,7 @@ static inline int spi_a2f_hw_rxfifo_empty(struct spi_a2f *c)
 /*
  * Is receive FIFO overflown?
  * @param c		controller data structure
- * @returns		!0->empty,0->not empty
+ * @returns		!0->error,0->no error
  */
 static inline int spi_a2f_hw_rxfifo_error(struct spi_a2f *c)
 {
@@ -371,16 +380,22 @@ static inline int spi_a2f_hw_rxfifo_error(struct spi_a2f *c)
  * Retrieve a frame from the receive FIFO
  * TO-DO: support frames of size != 8
  * @param c		controller data structure
+ * @param wb		frame size in full bytes
  * @param rx		receive buf (can be NULL)
  * @param i		index of frame in buf
  */
-static inline void spi_a2f_hw_rxfifo_get(struct spi_a2f *c, 
-	void *rx, int i)
+static inline void spi_a2f_hw_rxfifo_get(
+	struct spi_a2f *c, unsigned int wb, void *rx, int i)
 {
-	unsigned char d = MSS_SPI(c)->spi_rx_data;
-	unsigned char *p = (char *)rx;
+	int j;
+	unsigned int d = MSS_SPI(c)->spi_rx_data;
+	unsigned char *p = (unsigned char *)rx;
+
 	if (p) {
-		p[i] = d;
+		for (j = wb-1; j >= 0; j--) {
+			p[i*wb + j] = d & 0xFF;
+			d >>= 8;
+		}
 	}
 }
 
@@ -393,7 +408,7 @@ static inline void spi_a2f_hw_rxfifo_get(struct spi_a2f *c,
 static inline void spi_a2f_hw_rxfifo_purge(struct spi_a2f *c) 
 {
 	while (!spi_a2f_hw_rxfifo_empty(c)) {
-		spi_a2f_hw_rxfifo_get(c, NULL, 0);
+		spi_a2f_hw_rxfifo_get(c, 1, NULL, 0);
 	}
 	MSS_SPI(c)->spi_int_clear |= SPI_INTCLR_RXFIFOOVR;
 }
@@ -467,17 +482,21 @@ Done:
 /*
  * Transfer a message in PIO mode
  * @param c		controller data structure
+ * @param s		slave data structure
  * @param msg		message
  * @param		pointer to actual transfer length (set here)
  * @returns		0->success, <0->error code
  */
 static int spi_a2f_pio(
-	struct spi_a2f *c, struct spi_message *msg, int *rlen)
+	struct spi_a2f *c, struct spi_device *s, 
+	struct spi_message *msg, int *rlen)
 {
 	struct spi_transfer *t, *tx_t, *rx_t;
 	int ti, ri, tx_l, tx_i, rx_l, rx_i;
+	int wb = (s->bits_per_word + 7) / 8;
 	int len = 0;
 	int ret = 0;
+	int i;
 
 	/*
  	 * Count the total length of the message
@@ -485,6 +504,7 @@ static int spi_a2f_pio(
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
 		len += t->len;
 	}
+	len /= wb;
 
 	/*
  	 * Set the size of the transfer in the SPI controller
@@ -498,11 +518,11 @@ static int spi_a2f_pio(
  	 */
 	tx_t = list_entry((&msg->transfers)->next,
 		   struct spi_transfer, transfer_list);
-	tx_l = tx_t->len;
+	tx_l = tx_t->len / wb;
 	tx_i = 0;
 	rx_t = list_entry((&msg->transfers)->next,
 		   struct spi_transfer, transfer_list);
-	rx_l = rx_t->len;
+	rx_l = rx_t->len / wb;
 	rx_i = 0;
 
 	/*
@@ -528,34 +548,32 @@ static int spi_a2f_pio(
 			while (tx_i == tx_l) {
 				tx_t = list_entry(tx_t->transfer_list.next, 
 		                          struct spi_transfer, transfer_list);
-				tx_l = tx_t->len;
+				tx_l = tx_t->len / wb;
 				tx_i = 0;
 			}
 
 			/*
  			 * Put a frame (or a dummy value) to the transmit fifo
  			 */
-			spi_a2f_hw_txfifo_put(c, tx_t->tx_buf, tx_i);
+			spi_a2f_hw_txfifo_put(c, wb, tx_t->tx_buf, tx_i);
 			tx_i++;
 			ti++;
 		}
 
 		/*
- 		 * Wait for a frame to come in
+ 		 * Wait for a frame to come in (but not indefinitely)
  		 * but check for error conditions first
  		 */
 		if (spi_a2f_hw_rxfifo_error(c)) {
 			/*
 			 * If the receive fifo overflown, this transfer
-			 * needs to be finished. Still this is not 
-			 * an error from the point of view of upper layers.
-			 * So, just purge the fifo and return the number
-			 * of frames actually transferred.
+			 * needs to be finished with an error.
 			 */
 			spi_a2f_hw_rxfifo_purge(c);
+			ret = -EIO;
 			goto Done;
 		}
-		while (spi_a2f_hw_rxfifo_empty(c));
+		for (i = 0; i < 100 && spi_a2f_hw_rxfifo_empty(c); i++);
 
 		/*
 		 * Process as many incoming frames as there is in the fifo
@@ -579,24 +597,23 @@ static int spi_a2f_pio(
  			 	 */
 				rx_t = list_entry(rx_t->transfer_list.next, 
 	                        	  struct spi_transfer, transfer_list);
-				rx_l = rx_t->len;
+				rx_l = rx_t->len / wb;
 				rx_i = 0;
 			}
 
 			/* 
  		 	 * Read in the frame (or a dummy frame).
  		 	 */
-			spi_a2f_hw_rxfifo_get(c, rx_t->rx_buf, rx_i);
+			spi_a2f_hw_rxfifo_get(c, wb, rx_t->rx_buf, rx_i);
 			rx_i++;
 		}
 	}
 
-Done:
 	/*
  	 * Return the number of bytes actully transferred
  	 */
 	*rlen = ri;
-
+Done:
 	d_printk(3, "msg=%p,len=%d,rlen=%d,ret=%d\n", msg, len, *rlen, ret);
 	return ret;
 }
@@ -631,7 +648,7 @@ static int spi_a2f_handle_message(struct spi_a2f *c, struct spi_message *msg)
 	/*
  	 * Transfer the message over the wire
  	 */
-	ret = spi_a2f_pio(c, msg, &rlen);
+	ret = spi_a2f_pio(c, s, msg, &rlen);
 	if (ret) {
 		goto Done;
 	}
