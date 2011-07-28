@@ -75,14 +75,14 @@ config FIRMWARE_EDID
 	 suffer from this problem.
 
 config FB_DDC
-       tristate
+       tristate "CONFIG_FB_DDC"
        depends on FB
        select I2C_ALGOBIT
        select I2C
        default n
 
 config FB_BOOT_VESA_SUPPORT
-	bool
+	bool "CONFIG_FB_BOOT_VESA_SUPPORT"
 	depends on FB
 	default n
 	---help---
@@ -90,7 +90,7 @@ config FB_BOOT_VESA_SUPPORT
 	  of VESA video modes set at an early boot stage via the vga= parameter.
 
 config FB_CFB_FILLRECT
-	tristate
+	tristate "Generic software rectangle filling using cfb_fillrect"
 	depends on FB
 	default n
 	---help---
@@ -99,7 +99,7 @@ config FB_CFB_FILLRECT
 	  (accelerated) version.
 
 config FB_CFB_COPYAREA
-	tristate
+	tristate "Generic software area copying using cfb_copyarea"
 	depends on FB
 	default n
 	---help---
@@ -108,7 +108,7 @@ config FB_CFB_COPYAREA
 	  version.
 
 config FB_CFB_IMAGEBLIT
-	tristate
+	tristate "Generic software image blitting cfb_imageblit"
 	depends on FB
 	default n
 	---help---
@@ -117,7 +117,7 @@ config FB_CFB_IMAGEBLIT
 	  (accelerated) version.
 
 config FB_CFB_REV_PIXELS_IN_BYTE
-	bool
+	bool "CONFIG_FB_CFB_REV_PIXELS_IN_BYTE"
 	depends on FB
 	default n
 	---help---
@@ -126,7 +126,7 @@ config FB_CFB_REV_PIXELS_IN_BYTE
 	  byte order to bytes in long order.
 
 config FB_SYS_FILLRECT
-	tristate
+	tristate "Generic software rectangle filling using sys_fillrect"
 	depends on FB
 	default n
 	---help---
@@ -135,7 +135,7 @@ config FB_SYS_FILLRECT
 	  (accelerated) version and the framebuffer is in system RAM.
 
 config FB_SYS_COPYAREA
-	tristate
+	tristate "Generic software rectangle filling using sys_copearea"
 	depends on FB
 	default n
 	---help---
@@ -144,7 +144,7 @@ config FB_SYS_COPYAREA
 	  version and the framebuffer is in system RAM.
 
 config FB_SYS_IMAGEBLIT
-	tristate
+	tristate "Generic software rectangle filling using sys_imageblit"
 	depends on FB
 	default n
 	---help---
@@ -177,21 +177,21 @@ config FB_LITTLE_ENDIAN
 endchoice
 
 config FB_SYS_FOPS
-       tristate
+       tristate "CONFIG_BF_SYS_FOPS"
        depends on FB
        default n
 
 config FB_DEFERRED_IO
-	bool
+	bool "CONFIG_FB_DEFERRED_IO"
 	depends on FB
 
 config FB_HECUBA
-	tristate
+	tristate "CONFIG_FB_HECUBA"
 	depends on FB
 	depends on FB_DEFERRED_IO
 
 config FB_SVGALIB
-	tristate
+	tristate "CONFIG_FB_SVGALIB"
 	depends on FB
 	default n
 	---help---
@@ -199,12 +199,12 @@ config FB_SVGALIB
 	  cards.
 
 config FB_MACMODES
-       tristate
+       tristate "CONFIG_FB_MACMODES"
        depends on FB
        default n
 
 config FB_BACKLIGHT
-	bool
+	bool "CONFIG_FB_BACKLIGHT"
 	depends on FB
 	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
