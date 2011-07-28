@@ -92,6 +92,11 @@ extern unsigned int kobjsize(const void *objp);
 
 #define FIRST_USER_ADDRESS      (0)
 
+/* provide a special get_unmapped_area for framebuffer mmaps of nommu */
+extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
+					  unsigned long, unsigned long,
+					  unsigned long);
+#define HAVE_ARCH_FB_UNMAPPED_AREA
 #include <asm-generic/pgtable.h>
 
 #else 
