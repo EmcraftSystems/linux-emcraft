@@ -30,13 +30,6 @@
 #include <mach/spi.h>
 
 /*
- * Define (undefine) these constants to define
- * the population of supported SPI ports
- */
-#define CONFIG_A2F_MSS_SPI0
-#undef CONFIG_A2F_MSS_SPI1
-
-/*
  * The MSS subsystem of SmartFusion contains two SPI ports
  */
 #define SPI_A2F_REGS_SIZE	0x28
@@ -77,7 +70,7 @@ static struct platform_device spi_a2f_dev0 = {
 #if defined(CONFIG_A2F_MSS_SPI1)
 
 #define SPI_A2F_DEV1_IRQ	13
-#define SPI_A2F_DEV1_REGS	0x40001100
+#define SPI_A2F_DEV1_REGS	0x40011000
 
 static struct resource spi_a2f_dev1_resources[] = {
 	{
