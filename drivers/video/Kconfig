@@ -2020,6 +2020,18 @@ config FB_XILINX
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
 
+config FB_NOKIA6100
+	tristate "Nokia 6100 SPI-based LCD"
+	depends on FB && ARCH_A2F && SPI
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	help
+	  This is a framebuffer device driver for
+	  the Nokia 6100 SPI-based LCD. This is a low-end
+	  132x132 12-bit RGB LCD with a serial (SPI) interface.
+
 config FB_COBALT
 	tristate "Cobalt server LCD frame buffer support"
 	depends on FB && MIPS_COBALT
