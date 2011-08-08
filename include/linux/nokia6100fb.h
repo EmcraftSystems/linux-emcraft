@@ -17,6 +17,8 @@
 
 #include <linux/ioctl.h>
 
+#ifdef __KERNEL__
+
 /* 
  * LCD controller ID.
  * Sadly, there appears to be no programming interface to figure
@@ -71,6 +73,8 @@ struct nokia6100fb_plat {
 	int volctr;	
 	int reset;
 };
+
+#endif /* __KERNEL__ */
 
 /*
  * Issue an explicit command to sync up the framebuffer with
