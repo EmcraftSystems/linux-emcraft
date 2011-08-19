@@ -49,6 +49,7 @@
 #include <mach/iomux.h>
 #include <mach/timer.h>
 #include <mach/clock.h>
+#include <mach/fpga.h>
 #include <mach/uart.h>
 #include <mach/eth.h>
 #include <mach/spi.h>
@@ -142,10 +143,17 @@ static void __init a2f_init(void)
 	 */
 	a2f_iomux_init();
 
+#if defined(CONFIG_A2F_FPGA_DEMUX)
+	/*
+	 * Configure the FPGA IRQ demultiplexer
+	 */
+	a2f_fpga_demux_init();
+#endif
+
 #if defined(CONFIG_SERIAL_8250)
 	/*
- 	 * Configure the UART devices
- 	 */
+	 * Configure the UART devices
+	 */
 	a2f_uart_init();
 #endif
 

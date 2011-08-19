@@ -26,13 +26,6 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * Define the pupulation of UART controllers
- * that you want to enable on the platform.
- */
-#define CONFIG_A2F_MSS_UART0
-#define CONFIG_A2F_MSS_UART1
-
 extern void __init a2f_uart_init(void);
 
 #endif /* __ASSEMBLY__ */

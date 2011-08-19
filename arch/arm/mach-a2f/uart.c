@@ -28,13 +28,14 @@
 #include <mach/a2f.h>
 #include <mach/clock.h>
 #include <mach/uart.h>
+#include <mach/fpga.h>
 
 /*
  * The MSS subsystem of SmartFusion contains two UART ports that
  * provide the s/w compatibility with the 16550 device.
  */
 
-#define	MSS_UART_RGSZ  (0x1000 - 1)
+#define	MSS_UART_RGSZ  (0x20 - 1)
 
 /*
  * MSS UART_0
@@ -118,6 +119,83 @@ static struct platform_device mss_uart1_device = {
 };
 #endif	/* CONFIG_A2F_MSS_UART1 */
 
+/* The FPGA may have two additional Core16550 UARTs */
+
+#define FPGA_UART0_IRQ	A2F_FPGA_DEMUX_IRQ_MAP(CONFIG_A2F_FPGA_UART0_IRQ_SRC)
+#define FPGA_UART1_IRQ	A2F_FPGA_DEMUX_IRQ_MAP(CONFIG_A2F_FPGA_UART1_IRQ_SRC)
+
+/* FPGA UART_0 */
+#if defined(CONFIG_A2F_FPGA_UART0)
+
+static struct resource fpga_uart0_resources[] = {
+	{
+		.start		= CONFIG_A2F_FPGA_UART0_BASE,
+		.end		= CONFIG_A2F_FPGA_UART0_BASE + MSS_UART_RGSZ,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= FPGA_UART0_IRQ,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct plat_serial8250_port fpga_uart0_data[] = {
+	{
+		.membase	= (char *) CONFIG_A2F_FPGA_UART0_BASE,
+		.mapbase	= CONFIG_A2F_FPGA_UART0_BASE,
+		.irq		= FPGA_UART0_IRQ,
+		.regshift	= 2,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_SKIP_TEST,
+	},
+	{  },
+};
+
+static struct platform_device fpga_uart0_device = {
+	.name			= "serial8250",
+	.id			= 2,
+	.dev.platform_data	= fpga_uart0_data,
+	.num_resources		= 2,
+	.resource		= fpga_uart0_resources,
+};
+#endif	/* CONFIG_A2F_FPGA_UART0 */
+
+/* FPGA UART_1 */
+#if defined(CONFIG_A2F_FPGA_UART1)
+
+static struct resource fpga_uart1_resources[] = {
+	{
+		.start		= CONFIG_A2F_FPGA_UART1_BASE,
+		.end		= CONFIG_A2F_FPGA_UART1_BASE + MSS_UART_RGSZ,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= FPGA_UART1_IRQ,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct plat_serial8250_port fpga_uart1_data[] = {
+	{
+		.membase	= (char *) CONFIG_A2F_FPGA_UART1_BASE,
+		.mapbase	= CONFIG_A2F_FPGA_UART1_BASE,
+		.irq		= FPGA_UART1_IRQ,
+		.regshift	= 2,
+		.iotype		= UPIO_MEM,
+		.flags		= UPF_SKIP_TEST,
+	},
+	{  },
+};
+
+static struct platform_device fpga_uart1_device = {
+	.name			= "serial8250",
+	.id			= 3,
+	.dev.platform_data	= fpga_uart1_data,
+	.num_resources		= 2,
+	.resource		= fpga_uart1_resources,
+};
+#endif	/* CONFIG_A2F_FPGA_UART1 */
+
 /*
  * Register the A2F specific UART devices with the kernel.
  */
@@ -130,13 +208,13 @@ void __init a2f_uart_init(void)
 	A2F_SYSREG->soft_rst_cr &= ~UART0_RST_CLR;
 
 	/*
- 	 * Get the reference clock for this UART port
- 	 */
+	 * Get the reference clock for this UART port
+	 */
 	mss_uart0_data[0].uartclk = a2f_clock_get(CLCK_PCLK0);
 
 	/*
- 	 * Register device for UART_0.
- 	 */
+	 * Register device for UART_0.
+	 */
 	(void) platform_device_register(&mss_uart0_device);
 #endif
 #if defined(CONFIG_A2F_MSS_UART1)
@@ -146,13 +224,35 @@ void __init a2f_uart_init(void)
 	A2F_SYSREG->soft_rst_cr &= ~UART1_RST_CLR;
 
 	/*
- 	 * Get the reference clock for this UART port
- 	 */
+	 * Get the reference clock for this UART port
+	 */
 	mss_uart1_data[0].uartclk = a2f_clock_get(CLCK_PCLK1);
 
 	/*
- 	 * Register device for UART_1.
- 	 */
+	 * Register device for UART_1.
+	 */
 	(void) platform_device_register(&mss_uart1_device);
+#endif
+
+#if defined(CONFIG_A2F_FPGA_UART0)
+	/* Enable IRQ source within CoreInterrupt */
+	a2f_fpga_demux_irq_source_enable(CONFIG_A2F_FPGA_UART0_IRQ_SRC);
+
+	/* Get the reference clock for this UART port */
+	fpga_uart0_data[0].uartclk = a2f_clock_get(CLCK_FPGA);
+
+	/* Register device for FPGA UART_0 */
+	(void) platform_device_register(&fpga_uart0_device);
+#endif
+
+#if defined(CONFIG_A2F_FPGA_UART1)
+	/* Enable IRQ source within CoreInterrupt */
+	a2f_fpga_demux_irq_source_enable(CONFIG_A2F_FPGA_UART1_IRQ_SRC);
+
+	/* Get the reference clock for this UART port */
+	fpga_uart1_data[0].uartclk = a2f_clock_get(CLCK_FPGA);
+
+	/* Register device for FPGA UART_1 */
+	(void) platform_device_register(&fpga_uart1_device);
 #endif
 }

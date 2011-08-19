@@ -7,4 +7,103 @@ config MACH_A2F
 	help
 	  Include support for the Actel A2F (SmartFusion) SoC
 
+
+menu "A2F I/O interfaces"
+	depends on ARCH_A2F
+
+
+config A2F_MSS_UART0
+	depends on ARCH_A2F && SERIAL_8250
+	bool "Enable MSS UART0 port"
+	default y
+	help
+	  Include support for the MSS UART0 port
+
+config A2F_MSS_UART1
+	depends on ARCH_A2F && SERIAL_8250
+	bool "Enable MSS UART1 port"
+	default n
+	help
+	  Include support for the MSS UART1 port
+
+
+config A2F_FPGA_CINT
+	depends on ARCH_A2F
+	bool "Enable support for the FPGA CoreInterrupt IP"
+	default y
+	help
+	  This option needs to be enabled if the FPGA fabric logic includes
+	  an instance of the CoreInterrupt IP
+
+config A2F_FPGA_CINT_BASE
+	depends on A2F_FPGA_CINT
+	hex "Base address of CoreInterrupt"
+	default 0x40050000
+	help
+	  Define the base address of the CoreInterrupt IP block in the MSS
+	  address space
+
+config A2F_FPGA_DEMUX
+	depends on A2F_FPGA_CINT
+	bool "Enable the IRQ demultiplexer for CoreInterrupt"
+	default y
+	help
+	  Define this option in case you have different IP blocks, all
+	  generating interrupts to the MSS core using CoreInterrupt,
+	  installed in the FPGA fabric. Alternatively, this option needs
+	  to be enabled in case you have installed several instances of
+	  a single IP block but a device driver for that IP does not
+	  explicitly support interrupt sharing.
+
+
+config A2F_FPGA_UART0
+	depends on ARCH_A2F && SERIAL_8250
+	bool "Enable FPGA-based Core16550 port 0"
+	default n
+	help
+	  Include support for the FPGA-based Core16550 port 0
+
+config A2F_FPGA_UART0_BASE
+	depends on A2F_FPGA_UART0
+	hex "Base address of the FPGA-based Core16550 port 0"
+	default 0x40050200
+	help
+	  Define the base address of the FPGA-based Core16650 port 0
+	  in the MSS address space
+
+config A2F_FPGA_UART0_IRQ_SRC
+	depends on A2F_FPGA_UART0
+	int "IRQ source of FPGA-based Core16550 port 0"
+	default 0
+	help
+	  Define the IRQ source within CoreInterrupt of the FPGA-based
+	  Core16650 port 0
+
+config A2F_FPGA_UART1
+	depends on ARCH_A2F && SERIAL_8250
+	bool "Enable FPGA-based Core16550 port 1"
+	default n
+	help
+	  Include support for the FPGA-based Core16550 port 1
+
+config A2F_FPGA_UART1_BASE
+	depends on A2F_FPGA_UART1
+	hex "Base address of the FPGA-based Core16550 port 1"
+	default 0x40050300
+	help
+	  Define the base address of the FPGA-based Core16650 port 1
+	  in the MSS address space
+
+config A2F_FPGA_UART1_IRQ_SRC
+	depends on A2F_FPGA_UART1
+	int "IRQ source of FPGA-based Core16550 port 1"
+	default 1
+	help
+	  Define the IRQ source within CoreInterrupt of the FPGA-based
+	  Core16650 port 1
+
+
+endmenu
+
+
 endif
