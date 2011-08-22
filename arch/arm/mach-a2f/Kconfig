@@ -26,6 +26,26 @@ config A2F_MSS_UART1
 	help
 	  Include support for the MSS UART1 port
 
+config A2F_MSS_ETHER
+	depends on ARCH_A2F && CORE10100
+	bool "Enable MSS Ethernet port"
+	default y
+	help
+	  Include support for the MSS Core10100 Ethernet port
+
+config A2F_MSS_SPI0
+	depends on ARCH_A2F && SPI_A2F
+	bool "Enable MSS SPI0 port"
+	default y
+	help
+	  Include support for the MSS SPI0 port
+
+config A2F_MSS_SPI1
+	depends on ARCH_A2F && SPI_A2F
+	bool "Enable MSS SPI1 port"
+	default y
+	help
+	  Include support for the MSS SPI1 port
 
 config A2F_FPGA_CINT
 	depends on ARCH_A2F

@@ -119,12 +119,16 @@ static struct platform_device mss_uart1_device = {
 };
 #endif	/* CONFIG_A2F_MSS_UART1 */
 
-/* The FPGA may have two additional Core16550 UARTs */
+/*
+ * The FPGA may have several additional Core16550 UARTs
+ */
 
 #define FPGA_UART0_IRQ	A2F_FPGA_DEMUX_IRQ_MAP(CONFIG_A2F_FPGA_UART0_IRQ_SRC)
 #define FPGA_UART1_IRQ	A2F_FPGA_DEMUX_IRQ_MAP(CONFIG_A2F_FPGA_UART1_IRQ_SRC)
 
-/* FPGA UART_0 */
+/*
+ * FPGA UART_0
+ */
 #if defined(CONFIG_A2F_FPGA_UART0)
 
 static struct resource fpga_uart0_resources[] = {
@@ -160,7 +164,9 @@ static struct platform_device fpga_uart0_device = {
 };
 #endif	/* CONFIG_A2F_FPGA_UART0 */
 
-/* FPGA UART_1 */
+/*
+ * FPGA UART_1
+ */
 #if defined(CONFIG_A2F_FPGA_UART1)
 
 static struct resource fpga_uart1_resources[] = {
@@ -235,24 +241,36 @@ void __init a2f_uart_init(void)
 #endif
 
 #if defined(CONFIG_A2F_FPGA_UART0)
-	/* Enable IRQ source within CoreInterrupt */
+	/*
+	 * Enable IRQ source within CoreInterrupt
+	 */
 	a2f_fpga_demux_irq_source_enable(CONFIG_A2F_FPGA_UART0_IRQ_SRC);
 
-	/* Get the reference clock for this UART port */
+	/*
+	 * Get the reference clock for this UART port
+	 */
 	fpga_uart0_data[0].uartclk = a2f_clock_get(CLCK_FPGA);
 
-	/* Register device for FPGA UART_0 */
+	/*
+	 * Register device for FPGA UART_0
+	 */
 	(void) platform_device_register(&fpga_uart0_device);
 #endif
 
 #if defined(CONFIG_A2F_FPGA_UART1)
-	/* Enable IRQ source within CoreInterrupt */
+	/*
+	 * Enable IRQ source within CoreInterrupt
+	 */
 	a2f_fpga_demux_irq_source_enable(CONFIG_A2F_FPGA_UART1_IRQ_SRC);
 
-	/* Get the reference clock for this UART port */
+	/*
+	 * Get the reference clock for this UART port
+	 */
 	fpga_uart1_data[0].uartclk = a2f_clock_get(CLCK_FPGA);
 
-	/* Register device for FPGA UART_1 */
+	/*
+	 * Register device for FPGA UART_1
+	 */
 	(void) platform_device_register(&fpga_uart1_device);
 #endif
 }

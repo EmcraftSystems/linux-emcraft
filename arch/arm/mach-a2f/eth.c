@@ -29,6 +29,8 @@
 /*
  * The MSS subsystem of SmartFusion contains one Ethernet MAC device.
  */
+#if defined(CONFIG_A2F_MSS_ETHER)
+
 #define ETH_CORE_SIZE		0xFFF
 #define MAC_RST_CLR		(1<<4)
 
@@ -52,11 +54,15 @@ static struct platform_device eth_device = {
 	.resource       = eth_core_resources,
 };
 
+#endif	/* CONFIG_A2F_MSS_ETHER */
+
 void __init a2f_eth_init()
 {
+#if defined(CONFIG_A2F_MSS_ETHER)
 	/*
 	 * Bring Ethernet MAC out of the power-up reset.
 	 */
 	A2F_SYSREG->soft_rst_cr &= ~MAC_RST_CLR;
-	platform_device_register(&eth_device);		
+	platform_device_register(&eth_device);
+#endif
 }
