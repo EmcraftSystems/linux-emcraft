@@ -26,10 +26,9 @@
 #include <linux/irq.h>
 #include <linux/clockchips.h>
 
-#include <mach/spi.h>
 #include <mach/iomux.h>
 
-/* 
+/*
  * Provide a description of the the SmartFusion timer hardware interfaces.
  */
 #define MSS_IOMUX_BASE	0xE0042100
@@ -39,6 +38,10 @@ struct mss_iomux {
 };
 
 #define MSS_IOMUX	((volatile struct mss_iomux *)(MSS_IOMUX_BASE))
+
+#define MSS_IOMUX_INOUT	0x00
+#define MSS_IOMUX_IN	0x0A
+#define MSS_IOMUX_OUT	0x18
 
 /*
  * Initialize the IOMUXes of the SmartFusion.
@@ -56,20 +59,39 @@ struct mss_iomux {
  * project, however, we don't want to have the user update the Libero
  * project, or firmware, on their boards without compelling need. Hence,
  * the decision to do configuration for SPI and other "non-key"
- * interfaces here. 
+ * interfaces here.
  */
 void __init a2f_iomux_init(void)
 {
+#if defined(CONFIG_A2F_MSS_UART0)
+	writel(MSS_IOMUX_OUT,	&MSS_IOMUX->cr[4]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[5]);
+#endif
+#if defined(CONFIG_A2F_MSS_UART1)
+	writel(MSS_IOMUX_OUT,	&MSS_IOMUX->cr[12]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[13]);
+#endif
+#if defined(CONFIG_A2F_MSS_ETHER)
+	writel(MSS_IOMUX_OUT,	&MSS_IOMUX->cr[16]);
+	writel(MSS_IOMUX_OUT,	&MSS_IOMUX->cr[17]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[18]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[19]);
+	writel(MSS_IOMUX_OUT,	&MSS_IOMUX->cr[20]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[21]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[22]);
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[23]);
+	writel(MSS_IOMUX_OUT,	&MSS_IOMUX->cr[24]);
+#endif
 #if defined(CONFIG_A2F_MSS_SPI0)
-	MSS_IOMUX->cr[0] = 0x0;
-	MSS_IOMUX->cr[1] = 0xA;
-	MSS_IOMUX->cr[2] = 0x0;
-	MSS_IOMUX->cr[3] = 0x0;
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[0]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[1]);
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[2]);
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[3]);
 #endif
 #if defined(CONFIG_A2F_MSS_SPI1)
-	MSS_IOMUX->cr[8] = 0x0;
-	MSS_IOMUX->cr[9] = 0xA;
-	MSS_IOMUX->cr[10] = 0x0;
-	MSS_IOMUX->cr[11] = 0x0;
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[8]);
+	writel(MSS_IOMUX_IN,	&MSS_IOMUX->cr[9]);
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[10]);
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[11]);
 #endif
 }
