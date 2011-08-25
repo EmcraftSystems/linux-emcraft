@@ -45,7 +45,7 @@ static inline int valid_phys_addr_range(unsigned long addr, size_t size)
 	if (addr >= A2F_SYSREG_BASE &&
 		addr + size < A2F_SYSREG_BASE + sizeof(struct a2f_sysreg))
 		return 1;
-	
+
 	return 0;
 }
 
