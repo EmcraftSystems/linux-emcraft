@@ -58,8 +58,39 @@
 /*
  * Define a particular platform (board)
  */
-int a2f_platform = PLATFORM_A2F_LNX_EVB;
-EXPORT_SYMBOL(a2f_platform);
+static int a2f_platform = PLATFORM_A2F_LNX_EVB;
+
+/*
+ * Interface to get the platform
+ */
+EXPORT_SYMBOL(a2f_platform_get);
+int a2f_platform_get(void)
+{
+	return a2f_platform;
+}
+
+/*
+ * Interface to get the SmartFusion device
+ */
+EXPORT_SYMBOL(a2f_device_get);
+int a2f_device_get(void)
+{
+	int r;
+
+	switch (a2f_platform) {
+	case PLATFORM_A2F_ACTEL_DEV_BRD:
+		r = DEVICE_A2F_500;
+		break;
+	case PLATFORM_A2F_HOERMANN_BRD:
+		r = DEVICE_A2F_500;
+		break;
+	case PLATFORM_A2F_LNX_EVB:
+	default:
+		r = DEVICE_A2F_200;
+		break;
+	}
+	return r;
+}
 
 /*
  * User can (and should) define the platform from U-Boot

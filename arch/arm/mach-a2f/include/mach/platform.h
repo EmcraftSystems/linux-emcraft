@@ -26,6 +26,12 @@
 #define PLATFORM_A2F_ACTEL_DEV_BRD	1
 #define PLATFORM_A2F_HOERMANN_BRD	2
 
-extern int a2f_platform;
+extern int a2f_platform_get(void);
+
+#define DEVICE_A2F_060			0
+#define DEVICE_A2F_200			1
+#define DEVICE_A2F_500			2
+
+extern int a2f_device_get(void);
 
 #endif	/* __ASM_ARCH_PLATFORM_H */
