@@ -31,7 +31,9 @@ __invalid_entry:
 	mov	r2, lr
 	bl	printk
 	mov	r0, sp
-	bl	__show_regs
+	bl	show_regs
+	mov	r0, 0
+	bl	panic
 1:	b	1b
 ENDPROC(__invalid_entry)
 
