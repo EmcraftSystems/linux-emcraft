@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/spinlock.h>
 #include <mach/fpga.h>
 
 /*
@@ -54,6 +55,33 @@ struct a2f_fpga_cint {
 
 #if defined(CONFIG_A2F_FPGA_DEMUX)
 
+struct a2f_fpga_demux {
+	struct irq_chip		irq_chip;
+	struct a2f_fpga_cint	*cint;
+	uint32_t		irq_masked;
+	spinlock_t		spinlock;
+};
+
+static void a2f_fpga_demux_irq_ack(unsigned int irq);
+static void a2f_fpga_demux_irq_mask(unsigned int irq);
+static void a2f_fpga_demux_irq_unmask(unsigned int irq);
+
+/*
+ * irq_chip structure and other variables for the demultiplexer
+ */
+static struct a2f_fpga_demux a2f_fpga_demux = {
+	.irq_chip = {
+		.name		= "CoreInterrupt IRQ demux",
+		.ack		= a2f_fpga_demux_irq_ack,
+		.mask		= a2f_fpga_demux_irq_mask,
+		.unmask		= a2f_fpga_demux_irq_unmask,
+	},
+	.cint			= A2F_FPGA_CINT,
+	.irq_masked		= -1u,
+	.spinlock		= SPIN_LOCK_UNLOCKED,
+};
+
+
 /*
  * Acknowledge interrupt source in the demultiplexer; nothing to do
  * @param irq		MPU IRQ number
@@ -68,8 +96,13 @@ static void a2f_fpga_demux_irq_ack(unsigned int irq)
  */
 static void a2f_fpga_demux_irq_mask(unsigned int irq)
 {
-	writel(1 << (irq - A2F_FPGA_DEMUX_IRQ_BASE),
-			&A2F_FPGA_CINT->IRQEnableClear);
+	unsigned long flags;
+	uint32_t mask = 1 << (irq - A2F_FPGA_DEMUX_IRQ_BASE);
+
+	spin_lock_irqsave(&a2f_fpga_demux.spinlock, flags);
+	a2f_fpga_demux.irq_masked |= mask;
+	writel(mask, &a2f_fpga_demux.cint->IRQEnableClear);
+	spin_unlock_irqrestore(&a2f_fpga_demux.spinlock, flags);
 }
 
 /*
@@ -78,19 +111,14 @@ static void a2f_fpga_demux_irq_mask(unsigned int irq)
  */
 static void a2f_fpga_demux_irq_unmask(unsigned int irq)
 {
-	writel(1 << (irq - A2F_FPGA_DEMUX_IRQ_BASE),
-			&A2F_FPGA_CINT->IRQEnable);
-}
+	unsigned long flags;
+	uint32_t mask = 1 << (irq - A2F_FPGA_DEMUX_IRQ_BASE);
 
-/*
- * irq_chip structure for the demultiplexer
- */
-static struct irq_chip a2f_fpga_demux_irq_chip = {
-	.name		= "CoreInterrupt IRQ demux",
-	.ack		= a2f_fpga_demux_irq_ack,
-	.mask		= a2f_fpga_demux_irq_mask,
-	.unmask		= a2f_fpga_demux_irq_unmask,
-};
+	spin_lock_irqsave(&a2f_fpga_demux.spinlock, flags);
+	a2f_fpga_demux.irq_masked &= ~mask;
+	writel(mask, &a2f_fpga_demux.cint->IRQEnable);
+	spin_unlock_irqrestore(&a2f_fpga_demux.spinlock, flags);
+}
 
 /*
  * This function is called then IRQ from CoreInterrupt is triggered;
@@ -101,13 +129,15 @@ static struct irq_chip a2f_fpga_demux_irq_chip = {
  */
 static void a2f_fpga_demux_handler(unsigned int irq, struct irq_desc *desc)
 {
-	int i;
-	uint32_t status = readl(&A2F_FPGA_CINT->IRQStatus);
+	if (a2f_fpga_demux.irq_masked != -1u) {
+		int i;
+		uint32_t status = readl(&a2f_fpga_demux.cint->IRQStatus);
 
-	/* generate software IRQ for each active FPGA source */
-	for (i = 0; i < 32; i++) {
-		if (status & (1 << i)) {
-			generic_handle_irq(A2F_FPGA_DEMUX_IRQ_MAP(i));
+		/* generate software IRQ for each active FPGA source */
+		for (i = 0; i < 32; i++) {
+			if (status & (1 << i)) {
+				generic_handle_irq(A2F_FPGA_DEMUX_IRQ_MAP(i));
+			}
 		}
 	}
 }
@@ -141,7 +171,7 @@ int a2f_fpga_demux_irq_source_enable(unsigned int irq)
 	}
 #if defined(CONFIG_A2F_FPGA_DEMUX)
 	if ((ret = set_irq_chip(A2F_FPGA_DEMUX_IRQ_MAP(irq),
-			&a2f_fpga_demux_irq_chip)) < 0) {
+			&a2f_fpga_demux.irq_chip)) < 0) {
 		printk(KERN_ERR "a2f_fpga_demux: error %d attaching "
 				"IRQ source %d\n", ret, irq);
 		goto Done_release_nothing;
