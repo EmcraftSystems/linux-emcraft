@@ -570,7 +570,21 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		do_DataAbort(addr, 15 + (1 << 11), regs);
 	}
 #endif
-
+	case NR(atomicops):
+		switch (regs->ARM_r0) {
+		case SYS_ARM_ATOMIC_SET:
+		{
+			unsigned int oldval=0, flags;
+			local_irq_save(flags);
+			oldval = *(unsigned int *)(regs->ARM_r1);
+			*(unsigned int *)(regs->ARM_r1) = regs->ARM_r2;
+			local_irq_restore(flags);
+			return oldval;
+		}
+		default:
+			break;
+		}
+		break;
 	default:
 		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS
 		   if not implemented, rather than raising SIGILL.  This
