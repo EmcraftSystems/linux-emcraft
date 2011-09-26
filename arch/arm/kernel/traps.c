@@ -32,6 +32,9 @@
 
 #include "ptrace.h"
 #include "signal.h"
+#if defined(CONFIG_CPU_V7M)
+#include "traps-v7m.h"
+#endif
 
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
 
@@ -790,5 +793,7 @@ void __init early_trap_init(void)
 
 	flush_icache_range(vectors, vectors + PAGE_SIZE);
 	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
-#endif
+#else /* CONFIG_CPU_V7M */
+	traps_v7m_init();
+#endif /* CONFIG_CPU_V7M */
 }

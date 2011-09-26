@@ -19,6 +19,7 @@ obj-y		:= compat.o elf.o entry-common.o irq.o \
 
 ifeq ($(CONFIG_CPU_V7M),y)
 obj-y		+= entry-v7m.o
+obj-y		+= traps-v7m.o
 else
 obj-y		+= entry-armv.o
 endif
