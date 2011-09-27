@@ -110,13 +110,13 @@ void __init a2f_flash_init(void)
 	/*
 	 * Calculate Flash and partition sizes at run time
 	 */
-	if (a2f_platform == PLATFORM_A2F_LNX_EVB) {
+	if (a2f_platform_get() == PLATFORM_A2F_LNX_EVB) {
 		size = 8*1024*1024;
 	}
-	else if (a2f_platform == PLATFORM_A2F_ACTEL_DEV_BRD) {
+	else if (a2f_platform_get() == PLATFORM_A2F_ACTEL_DEV_BRD) {
 		size = 16*1024*1024;
 	}
-	else if (a2f_platform == PLATFORM_A2F_HOERMANN_BRD) {
+	else if (a2f_platform_get() == PLATFORM_A2F_HOERMANN_BRD) {
 		size = 16*1024*1024;
 	}
 	flash_resources[0].end = flash_resources[0].start + size - 1;
