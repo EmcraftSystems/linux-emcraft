@@ -124,9 +124,9 @@ void __init a2f_flash_init(void)
 
 	/*
 	 * Register a platform device for the external Flash.
-	 * If there is no external Flash in your design, or 
+	 * If there is no external Flash in your design, or
 	 * you don't want to use it in your application, just
 	 * comment out the line below.
 	 */
-	platform_device_register(&flash_dev);		
+	platform_device_register(&flash_dev);
 }
