@@ -780,6 +780,16 @@ config ARCH_A2F
 	help
 	  This enables support for the Actel A2F (SmartFusion) SoC
 
+config ARCH_STM32
+	bool "STMicro STM32 SoC"
+	depends on !MMU
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for the STMicro STM32 SoC
+
 endchoice
 
 source "arch/arm/mach-aaec2000/Kconfig"
@@ -893,6 +903,8 @@ source "arch/arm/mach-w90x900/Kconfig"
 source "arch/arm/mach-mps/Kconfig"
 
 source "arch/arm/mach-a2f/Kconfig"
+
+source "arch/arm/mach-stm32/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN

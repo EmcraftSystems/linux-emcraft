@@ -262,7 +262,7 @@ static void __init cacheid_init(void)
 	}
 
 	printk("CPU: %s data cache, %s instruction cache\n",
-#if !defined(CONFIG_ARCH_A2F)
+#if !defined(CONFIG_ARCH_A2F) && !defined(CONFIG_ARCH_STM32)
 		cache_is_vivt() ? "VIVT" :
 		cache_is_vipt_aliasing() ? "VIPT aliasing" :
 		cache_is_vipt_nonaliasing() ? "VIPT nonaliasing" : "unknown",

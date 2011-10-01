@@ -176,6 +176,7 @@ machine-$(CONFIG_ARCH_W90X900)		:= w90x900
 machine-$(CONFIG_FOOTBRIDGE)		:= footbridge
 machine-$(CONFIG_ARCH_MPS)		:= mps
 machine-$(CONFIG_ARCH_A2F)		:= a2f
+machine-$(CONFIG_ARCH_STM32)		:= stm32
 
 # Platform directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.

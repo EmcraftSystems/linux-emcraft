@@ -230,7 +230,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			 * bit is a legit scenario. Just in case,
 			 * I disable the test for SmartFision only.
 			 */
-#ifndef CONFIG_ARCH_A2F
+#if !defined(CONFIG_ARCH_A2F) && !defined(CONFIG_ARCH_STM32)
 			/* only Thumb addresses allowed (no interworking) */
 			if (!(offset & 1) ||
 #else
