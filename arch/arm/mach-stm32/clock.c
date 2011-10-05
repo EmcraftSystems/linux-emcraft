@@ -55,9 +55,11 @@
 
 #define STM32_RCC_CFGR_PPRE1_BIT	10	/* APB Low speed presc (APB1) */
 #define STM32_RCC_CFGR_PPRE1_MSK	0x7
+#define STM32_RCC_CFGR_PPRE1_DIVNO	0x0
 
 #define STM32_RCC_CFGR_PPRE2_BIT	13	/* APB high-speed presc (APB2)*/
 #define STM32_RCC_CFGR_PPRE2_MSK	0x7
+#define STM32_RCC_CFGR_PPRE2_DIVNO	0x0
 
 #define STM32_RCC_PLLCFGR_HSESRC	(1 << 22) /* Main PLL entry clock src */
 
@@ -152,12 +154,26 @@ void __init stm32_clock_init(void)
 	clock_val[CLOCK_PCLK1] = clock_val[CLOCK_HCLK] >> presc;
 
 	/*
+	 * Get PTMR1: see "Clock tree" in RM, if APB1 is prescaled, then x2
+	 */
+	clock_val[CLOCK_PTMR1] = clock_val[CLOCK_PCLK1];
+	if (tmp != STM32_RCC_CFGR_PPRE1_DIVNO)
+		clock_val[CLOCK_PTMR1] *= 2;
+
+	/*
 	 * Get PCLK2
 	 */
 	tmp  = rcc_regs->cfgr >> STM32_RCC_CFGR_PPRE2_BIT;
 	tmp &= STM32_RCC_CFGR_PPRE2_MSK;
 	presc = apbahb_presc_tbl[tmp];
 	clock_val[CLOCK_PCLK2] = clock_val[CLOCK_HCLK] >> presc;
+
+	/*
+	 * Get PTMR2: see "Clock tree" in RM, if APB2 is prescaled, then x2
+	 */
+	clock_val[CLOCK_PTMR2] = clock_val[CLOCK_PCLK2];
+	if (tmp != STM32_RCC_CFGR_PPRE2_DIVNO)
+		clock_val[CLOCK_PTMR2] *= 2;
 
 	return;
 }
