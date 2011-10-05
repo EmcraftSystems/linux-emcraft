@@ -29,7 +29,10 @@
 
 int stm32_platform_get(void);
 
-#define DEVICE_STM32_F2			2
+/*
+ * STM32 Device (microcontroller) identifiers
+ */
+#define DEVICE_STM32F207IG		0
 
 int stm32_device_get(void);
 

@@ -77,7 +77,7 @@ int stm32_device_get(void)
 	switch (stm32_platform) {
 	case PLATFORM_STM32_STM3220G_EVAL:
 	default:
-		r = DEVICE_STM32_F2;
+		r = DEVICE_STM32F207IG;
 		break;
 	}
 	return r;

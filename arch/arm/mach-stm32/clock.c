@@ -174,8 +174,6 @@ void __init stm32_clock_init(void)
 	clock_val[CLOCK_PTMR2] = clock_val[CLOCK_PCLK2];
 	if (tmp != STM32_RCC_CFGR_PPRE2_DIVNO)
 		clock_val[CLOCK_PTMR2] *= 2;
-
-	return;
 }
 
 /*
