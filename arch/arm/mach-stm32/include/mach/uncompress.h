@@ -23,14 +23,19 @@
  */
 
 #include <asm/types.h>
-#include <linux/serial_reg.h>
+
 #include <mach/hardware.h>
+#include <mach/uart.h>
 
 static inline void putc(char c)
 {
-	/*
-	 * TBD
-	 */
+	volatile struct stm32_usart_regs	*uart;
+
+	uart = (struct stm32_usart_regs *)(STM32_DBG_USART_APBX +
+					   STM32_DBG_USART_OFFS);
+	while (!(uart->sr & STM32_USART_SR_TXE))
+		barrier();
+	uart->dr = c;
 }
 
 static inline void flush(void)

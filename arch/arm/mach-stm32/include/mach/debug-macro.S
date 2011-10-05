@@ -30,9 +30,29 @@
 
 #include <mach/uart.h>
 
-	.macro		addruart,rx
-	mov		\rx, 0 ;/* FIXME */
+	/*
+	 * UART base addresses are not well aligned, so set them
+	 * with 'add' op.
+	 */
+	.macro	addruart, rx
+	mov	\rx, STM32_DBG_USART_APBX
+	add	\rx, \rx, STM32_DBG_USART_OFFS
 	.endm
 
-#define UART_SHIFT      2
-#include <asm/hardware/debug-8250.S>
+	.macro	senduart, rd, rx
+	strb	\rd, [\rx, #STM32_UART_DR]
+	.endm
+
+	.macro	busyuart, rd, rx
+1002:	ldr	\rd, [\rx, #STM32_UART_SR]
+	tst	\rd, #STM32_USART_SR_TXE
+	beq	1002b
+	.endm
+
+	.macro	waituart, rd, rx
+#ifdef FLOW_CONTROL
+1001:	ldr	\rd, [\rx, #STM32_USART_SR]
+	tst	\rd, #STM32_USART_SR_CTS
+	beq	1001b
+#endif
+	.endm

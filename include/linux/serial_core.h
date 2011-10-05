@@ -182,6 +182,9 @@
 /* Aeroflex Gaisler GRLIB APBUART */
 #define PORT_APBUART    90
 
+/* STM32 USART */
+#define PORT_STM32USART	91
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

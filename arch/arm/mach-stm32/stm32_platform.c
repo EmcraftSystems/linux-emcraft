@@ -32,9 +32,11 @@
 #include <asm/mach/time.h>
 
 #include <mach/clock.h>
+#include <mach/hardware.h>
 #include <mach/iomux.h>
 #include <mach/platform.h>
 #include <mach/timer.h>
+#include <mach/uart.h>
 
 /*
  * Prototypes
@@ -105,8 +107,8 @@ MACHINE_START(STM32, "STMicro STM32")
 	 * (since no mapping is needed to access this port),
 	 * but let's keep these fields filled out for consistency.
 	 */
-	.phys_io	= 0 /* TBD */,
-	.io_pg_offst	= 0 /* TBD */,
+	.phys_io	= STM32_USART3_BASE,
+	.io_pg_offst	= (IO_ADDRESS(STM32_USART3_BASE) >> 18) & 0xfffc,
 	.map_io		= stm32_map_io,
 	.init_irq	= stm32_init_irq,
 	.timer		= &stm32_timer,
@@ -148,6 +150,7 @@ static void __init stm32_init(void)
 	/*
 	 * Configure the USART devices
 	 */
+	stm32_uart_init();
 #endif
 
 #if defined(CONFIG_STM32_MAC)
