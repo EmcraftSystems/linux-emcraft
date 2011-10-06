@@ -9,6 +9,49 @@ config MACH_STM32
 
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
+
+config STM32_USART1
+	depends on ARCH_STM32 && SERIAL_STM32
+	bool "Enable STM32 USART1 port"
+	default n
+	help
+	  Include support for the STM32 USART1 port
+
+config STM32_USART2
+	depends on ARCH_STM32 && SERIAL_STM32
+	bool "Enable STM32 USART2 port"
+	default n
+	help
+	  Include support for the STM32 USART2 port
+
+config STM32_USART3
+	depends on ARCH_STM32 && SERIAL_STM32
+	bool "Enable STM32 USART3 port"
+	default y
+	help
+	  Include support for the STM32 USART3 port
+
+config STM32_USART4
+	depends on ARCH_STM32 && SERIAL_STM32
+	bool "Enable STM32 USART4 port"
+	default n
+	help
+	  Include support for the STM32 USART4 port
+
+config STM32_USART5
+	depends on ARCH_STM32 && SERIAL_STM32
+	bool "Enable STM32 USART5 port"
+	default n
+	help
+	  Include support for the STM32 USART5 port
+
+config STM32_USART6
+	depends on ARCH_STM32 && SERIAL_STM32
+	bool "Enable STM32 USART6 port"
+	default n
+	help
+	  Include support for the STM32 USART6 port
+
 endmenu
 
 endif

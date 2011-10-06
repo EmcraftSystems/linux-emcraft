@@ -283,7 +283,7 @@ static struct uart_ops stm32_uart_ops = {
 	.verify_port	= stm_port_verify_port
 };
 
-#ifdef CONFIG_STM32_USART_CONSOLE
+#ifdef CONFIG_SERIAL_STM32_CONSOLE
 
 /*
  * Send char to console
@@ -365,7 +365,7 @@ static struct console		stm32_console = {
 	.data	= &stm32_uart_driver,
 };
 
-#endif /* CONFIG_STM32_USART_CONSOLE */
+#endif /* CONFIG_SERIAL_STM32_CONSOLE */
 
 /*
  * UART driver instance
@@ -377,7 +377,7 @@ static struct uart_driver	stm32_uart_driver = {
 	.major		= TTY_MAJOR,
 	.minor		= 64,
 	.nr		= STM32_NR_UARTS,
-#ifdef CONFIG_STM32_USART_CONSOLE
+#ifdef CONFIG_SERIAL_STM32_CONSOLE
 	.cons		= &stm32_console,
 #endif
 };

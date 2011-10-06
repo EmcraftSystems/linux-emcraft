@@ -27,31 +27,6 @@
 
 #include <linux/init.h>
 
-/*
- * GPIO roles (alternative functions); role determines by whom GPIO is used
- */
-enum stm32f2_gpio_role {
-	STM32F2_GPIO_ROLE_USART1,	/* USART1			      */
-	STM32F2_GPIO_ROLE_USART2,	/* USART2			      */
-	STM32F2_GPIO_ROLE_USART3,	/* USART3			      */
-	STM32F2_GPIO_ROLE_USART4,	/* USART4			      */
-	STM32F2_GPIO_ROLE_USART5,	/* USART5			      */
-	STM32F2_GPIO_ROLE_USART6,	/* USART6			      */
-	STM32F2_GPIO_ROLE_ETHERNET,	/* MAC				      */
-	STM32F2_GPIO_ROLE_MCO		/* MC external output clock	      */
-};
-
-/*
- * GPIO descriptor
- */
-struct stm32f2_gpio_dsc {
-	u32		port;		/* GPIO port			      */
-	u32		pin;		/* GPIO pin			      */
-};
-
 void __init stm32_iomux_init(void);
-
-int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
-			enum stm32f2_gpio_role role);
 
 #endif	/*_MACH_STM32_IOMUX_H_ */

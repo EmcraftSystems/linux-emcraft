@@ -1490,16 +1490,17 @@ config SERIAL_GRLIB_GAISLER_APBUART_CONSOLE
 	help
 	Support for running a console on the GRLIB APBUART
 
-config STM32_USART
-	tristate "STM32 USART serial support"
+config SERIAL_STM32
+	tristate "STM32 on-chip USART ports support"
 	depends on ARCH_STM32
 	select SERIAL_CORE
 	help
-	  Include support for the STM32 USART port
+	  This driver supports the built-in serial ports of the STM32 family
+	  of CPUs
 
-config STM32_USART_CONSOLE
+config SERIAL_STM32_CONSOLE
 	bool "Console on STM32 USART port"
-	depends on STM32_USART=y
+	depends on SERIAL_STM32=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Use STM32 serial port as the system console

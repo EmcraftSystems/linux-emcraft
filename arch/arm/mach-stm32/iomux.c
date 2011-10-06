@@ -24,9 +24,11 @@
 
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 
-#include <mach/stm32.h>
 #include <mach/iomux.h>
+#include <mach/platform.h>
+#include <mach/stm32.h>
 
 /*
  * GPIO registers bases
@@ -111,6 +113,28 @@ struct stm32f2_gpio_regs {
 };
 
 /*
+ * GPIO roles (alternative functions); role determines by whom GPIO is used
+ */
+enum stm32f2_gpio_role {
+	STM32F2_GPIO_ROLE_USART1,	/* USART1			      */
+	STM32F2_GPIO_ROLE_USART2,	/* USART2			      */
+	STM32F2_GPIO_ROLE_USART3,	/* USART3			      */
+	STM32F2_GPIO_ROLE_USART4,	/* USART4			      */
+	STM32F2_GPIO_ROLE_USART5,	/* USART5			      */
+	STM32F2_GPIO_ROLE_USART6,	/* USART6			      */
+	STM32F2_GPIO_ROLE_ETHERNET,	/* MAC				      */
+	STM32F2_GPIO_ROLE_MCO		/* MC external output clock	      */
+};
+
+/*
+ * GPIO descriptor
+ */
+struct stm32f2_gpio_dsc {
+	u32		port;		/* GPIO port			      */
+	u32		pin;		/* GPIO pin			      */
+};
+
+/*
  * Register map bases
  */
 static const unsigned long io_base[] = {
@@ -141,8 +165,8 @@ static const enum stm32f2_gpio_role usart_gpio_role[] = {
 /*
  * Configure the specified GPIO for the specified role
  */
-int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
-			enum stm32f2_gpio_role role)
+static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
+			       enum stm32f2_gpio_role role)
 {
 	volatile struct stm32f2_gpio_regs	*gpio_regs;
 	volatile struct stm32_rcc_regs		*rcc_regs;
@@ -239,7 +263,38 @@ out:
  */
 void __init stm32_iomux_init(void)
 {
+	struct stm32f2_gpio_dsc		gpio_dsc;
+	int				platform;
+
 	/*
-	 * TBD
+	 * Configure IOs depending on the board we're running on, and
+	 * the configuration options we're using.
+	 * Let's control platform strictly: if some of it does not need to
+	 * play with iomux, it must be present in switch below (otherwise,
+	 * the warning message will be printed-out)
 	 */
+	platform = stm32_platform_get();
+
+	switch (platform) {
+	case PLATFORM_STM32_STM3220G_EVAL:
+#if defined(CONFIG_STM32_USART3)
+		gpio_dsc.port = 2;
+		gpio_dsc.pin  = 10;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
+
+		gpio_dsc.port = 2;
+		gpio_dsc.pin  = 11;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
+#endif
+		break;
+	default:
+		printk(KERN_WARNING "%s: unsupported platform %d\n", __func__,
+			platform);
+		/*
+		 * Just to avoid compilation warns in case of configuration
+		 * which doesn't need iomux, 'use' gpio_dsc var
+		 */
+		gpio_dsc.port = gpio_dsc.pin = 0;
+		break;
+	}
 }

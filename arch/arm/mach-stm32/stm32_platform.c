@@ -146,7 +146,7 @@ static void __init stm32_init(void)
 	 */
 	stm32_iomux_init();
 
-#if defined(CONFIG_STM32_USART)
+#if defined(CONFIG_SERIAL_STM32)
 	/*
 	 * Configure the USART devices
 	 */
