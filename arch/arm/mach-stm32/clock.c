@@ -25,15 +25,11 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 
 #include <mach/platform.h>
 #include <mach/clock.h>
 #include <mach/stm32.h>
-
-/*
- * External oscillator value
- */
-#define CONFIG_STM32_HSE_HZ		25000000	/* 25 MHz	      */
 
 /*
  * Internal oscillator value
@@ -88,9 +84,30 @@ void __init stm32_clock_init(void)
 	static u32 apbahb_presc_tbl[] = {0, 0, 0, 0, 1, 2, 3, 4,
 					 1, 2, 3, 4, 6, 7, 8, 9};
 
-	volatile struct stm32_rcc_regs *rcc_regs =
-		(struct stm32_rcc_regs *)STM32_RCC_BASE;
-	u32 tmp, presc, pllvco, pllp, pllm;
+	volatile struct stm32_rcc_regs	*rcc_regs;
+	u32				hse_hz, tmp, presc, pllvco, pllp, pllm;
+	int				platform;
+
+	rcc_regs = (struct stm32_rcc_regs *)STM32_RCC_BASE;
+
+	/*
+	 * Select HSE (external oscillator) freq value depending on the
+	 * platform we're running on
+	 */
+	platform = stm32_platform_get();
+	switch (platform) {
+	case PLATFORM_STM32_STM3220G_EVAL:
+		hse_hz = 25000000;
+		break;
+	default:
+		/*
+		 * Let's assume smth in this case; maybe things will work..
+		 */
+		hse_hz = 25000000;
+		printk(KERN_WARNING "%s: unsupported platform %d\n", __func__,
+			platform);
+		break;
+	}
 
 	/*
 	 * Get SYSCLK
@@ -104,7 +121,7 @@ void __init stm32_clock_init(void)
 		break;
 	case STM32_RCC_CFGR_SWS_HSE:
 		/* HSE used as system clock source */
-		clock_val[CLOCK_SYSCLK] = CONFIG_STM32_HSE_HZ;
+		clock_val[CLOCK_SYSCLK] = hse_hz;
 		break;
 	case STM32_RCC_CFGR_SWS_PLL:
 		/* PLL used as system clock source */
@@ -117,7 +134,7 @@ void __init stm32_clock_init(void)
 
 		if (rcc_regs->pllcfgr & STM32_RCC_PLLCFGR_HSESRC) {
 			/* HSE used as PLL clock source */
-			tmp = CONFIG_STM32_HSE_HZ;
+			tmp = hse_hz;
 		} else {
 			/* HSI used as PLL clock source */
 			tmp = STM32_HSI_HZ;
