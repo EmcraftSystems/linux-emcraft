@@ -344,11 +344,32 @@ static void stm_console_write(struct console *co, const char *s,
 }
 
 /*
- * Assume that console is already initilized by U-Boot
+ * Setup console
  */
 static int __init stm_console_setup(struct console *co, char *options)
 {
-	return 0;
+	struct uart_port	*port;
+	int			rv;
+
+	if (co->index < 0 || co->index >= STM32_NR_UARTS) {
+		rv = -EINVAL;
+		goto out;
+	}
+
+	port = &stm32_ports[co->index];
+	if (!port->mapbase) {
+		pr_debug("console on %s%i not present\n", STM32_USART_NAME,
+			 co->index);
+		rv = -ENODEV;
+		goto out;
+	}
+
+	/*
+	 * TBD: depending on the options configure device (baud, parity, ...)
+	 */
+	rv = 0;
+out:
+	return rv;
 }
 
 /*
@@ -373,7 +394,7 @@ static struct console		stm32_console = {
 static struct uart_driver	stm32_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= STM32_USART_DRV_NAME,
-	.dev_name	= "ttyS",
+	.dev_name	= STM32_USART_NAME,
 	.major		= TTY_MAJOR,
 	.minor		= 64,
 	.nr		= STM32_NR_UARTS,
