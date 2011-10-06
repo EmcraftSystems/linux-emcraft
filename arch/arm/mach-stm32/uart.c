@@ -93,8 +93,8 @@ static struct platform_device		stm_usart_## uid ##_device = {	       \
  */
 #define usart_init_clocks_and_register(uid) do {			       \
 	volatile u32 *usart_enr;					       \
-	usart_enr = (u32 *)(STM32_RCC_BASE+rcc_enr_offset[uid - 1]);	       \
-	*usart_enr |= rcc_msk[uid - 1];					       \
+	usart_enr = (u32 *)(STM32_RCC_BASE+stm32_uart_rcc_enr_ofs[uid - 1]);   \
+	*usart_enr |= stm32_uart_rcc_enr_msk[uid - 1];			       \
 	platform_device_register(&stm_usart_## uid ##_device);		       \
 } while (0)
 
@@ -134,7 +134,7 @@ USART_PLAT_DEVICE(6);
 /*
  * RCC UART register offsets
  */
-static const unsigned long rcc_enr_offset[] = {
+static const unsigned long stm32_uart_rcc_enr_ofs[] = {
 	STM32_RCC_ENR_USART1, STM32_RCC_ENR_USART2, STM32_RCC_ENR_USART3,
 	STM32_RCC_ENR_USART4, STM32_RCC_ENR_USART5, STM32_RCC_ENR_USART6
 };
@@ -142,7 +142,7 @@ static const unsigned long rcc_enr_offset[] = {
 /*
  * RCC UART clocks masks
  */
-static const unsigned long rcc_msk[] = {
+static const unsigned long stm32_uart_rcc_enr_msk[] = {
 	STM32_RCC_MSK_USART1, STM32_RCC_MSK_USART2, STM32_RCC_MSK_USART3,
 	STM32_RCC_MSK_USART4, STM32_RCC_MSK_USART5, STM32_RCC_MSK_USART6
 };
