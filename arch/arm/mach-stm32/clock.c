@@ -84,11 +84,8 @@ void __init stm32_clock_init(void)
 	static u32 apbahb_presc_tbl[] = {0, 0, 0, 0, 1, 2, 3, 4,
 					 1, 2, 3, 4, 6, 7, 8, 9};
 
-	volatile struct stm32_rcc_regs	*rcc_regs;
-	u32				hse_hz, tmp, presc, pllvco, pllp, pllm;
-	int				platform;
-
-	rcc_regs = (struct stm32_rcc_regs *)STM32_RCC_BASE;
+	u32	hse_hz, tmp, presc, pllvco, pllp, pllm;
+	int	platform;
 
 	/*
 	 * Select HSE (external oscillator) freq value depending on the
@@ -112,7 +109,7 @@ void __init stm32_clock_init(void)
 	/*
 	 * Get SYSCLK
 	 */
-	tmp  = rcc_regs->cfgr >> STM32_RCC_CFGR_SWS_BIT;
+	tmp  = STM32_RCC->cfgr >> STM32_RCC_CFGR_SWS_BIT;
 	tmp &= STM32_RCC_CFGR_SWS_MSK;
 	switch (tmp) {
 	case STM32_RCC_CFGR_SWS_HSI:
@@ -129,21 +126,21 @@ void __init stm32_clock_init(void)
 		 * PLL_VCO = (HSE_VALUE or HSI_VALUE / PLLM) * PLLN
 		 * SYSCLK = PLL_VCO / PLLP
 		 */
-		pllm  = rcc_regs->pllcfgr >> STM32_RCC_PLLCFGR_PLLM_BIT;
+		pllm  = STM32_RCC->pllcfgr >> STM32_RCC_PLLCFGR_PLLM_BIT;
 		pllm &= STM32_RCC_PLLCFGR_PLLM_MSK;
 
-		if (rcc_regs->pllcfgr & STM32_RCC_PLLCFGR_HSESRC) {
+		if (STM32_RCC->pllcfgr & STM32_RCC_PLLCFGR_HSESRC) {
 			/* HSE used as PLL clock source */
 			tmp = hse_hz;
 		} else {
 			/* HSI used as PLL clock source */
 			tmp = STM32_HSI_HZ;
 		}
-		pllvco  = rcc_regs->pllcfgr >> STM32_RCC_PLLCFGR_PLLN_BIT;
+		pllvco  = STM32_RCC->pllcfgr >> STM32_RCC_PLLCFGR_PLLN_BIT;
 		pllvco &= STM32_RCC_PLLCFGR_PLLN_MSK;
 		pllvco *= tmp / pllm;
 
-		pllp  = rcc_regs->pllcfgr >> STM32_RCC_PLLCFGR_PLLP_BIT;
+		pllp  = STM32_RCC->pllcfgr >> STM32_RCC_PLLCFGR_PLLP_BIT;
 		pllp &= STM32_RCC_PLLCFGR_PLLP_MSK;
 		pllp  = (pllp + 1) * 2;
 
@@ -157,7 +154,7 @@ void __init stm32_clock_init(void)
 	/*
 	 * Get HCLK
 	 */
-	tmp  = rcc_regs->cfgr >> STM32_RCC_CFGR_HPRE_BIT;
+	tmp  = STM32_RCC->cfgr >> STM32_RCC_CFGR_HPRE_BIT;
 	tmp &= STM32_RCC_CFGR_HPRE_MSK;
 	presc = apbahb_presc_tbl[tmp];
 	clock_val[CLOCK_HCLK] = clock_val[CLOCK_SYSCLK] >> presc;
@@ -165,7 +162,7 @@ void __init stm32_clock_init(void)
 	/*
 	 * Get PCLK1
 	 */
-	tmp  = rcc_regs->cfgr >> STM32_RCC_CFGR_PPRE1_BIT;
+	tmp  = STM32_RCC->cfgr >> STM32_RCC_CFGR_PPRE1_BIT;
 	tmp &= STM32_RCC_CFGR_PPRE1_MSK;
 	presc = apbahb_presc_tbl[tmp];
 	clock_val[CLOCK_PCLK1] = clock_val[CLOCK_HCLK] >> presc;
@@ -180,7 +177,7 @@ void __init stm32_clock_init(void)
 	/*
 	 * Get PCLK2
 	 */
-	tmp  = rcc_regs->cfgr >> STM32_RCC_CFGR_PPRE2_BIT;
+	tmp  = STM32_RCC->cfgr >> STM32_RCC_CFGR_PPRE2_BIT;
 	tmp &= STM32_RCC_CFGR_PPRE2_MSK;
 	presc = apbahb_presc_tbl[tmp];
 	clock_val[CLOCK_PCLK2] = clock_val[CLOCK_HCLK] >> presc;
