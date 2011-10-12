@@ -72,3 +72,11 @@ config W90P910_ETH
 	help
 	  Say Y here if you want to use built-in Ethernet ports
 	  on w90p910 processor.
+
+config STM32_ETHER
+	tristate "STM32 Ethernet support"
+	depends on ARM && ARCH_STM32
+	select MII
+	help
+	  Say Y here if you want to use built-in Ethernet ports
+	  on STM32 processor.
