@@ -32,6 +32,7 @@
 #include <asm/mach/time.h>
 
 #include <mach/clock.h>
+#include <mach/eth.h>
 #include <mach/hardware.h>
 #include <mach/iomux.h>
 #include <mach/platform.h>
@@ -157,6 +158,7 @@ static void __init stm32_init(void)
 	/*
 	 * Configure the STM32 MAC
 	 */
+	stm32_eth_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)

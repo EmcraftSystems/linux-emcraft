@@ -10,6 +10,13 @@ config MACH_STM32
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
 
+config STM32_MAC
+	depends on ARCH_STM32 && STM32_ETHER
+	bool "Enable STM32 MAC controller"
+	default y
+	help
+	  Include support for Ethernet on MAC
+
 config STM32_USART1
 	depends on ARCH_STM32 && SERIAL_STM32
 	bool "Enable STM32 USART1 port"

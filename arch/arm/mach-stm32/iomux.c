@@ -284,6 +284,28 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.pin  = 11;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
 #endif
+#if defined(CONFIG_STM32_MAC)
+		gpio_dsc.port = 0;
+		gpio_dsc.pin  = 8;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_MCO);
+
+		do {
+			static struct stm32f2_gpio_dsc mac_gpio[] = {
+				{0,  1}, {0,  2}, {0,  7},
+				{1,  5}, {1,  8},
+				{2,  1}, {2,  2}, {2,  3}, {2,  4}, {2,  5},
+				{6, 11}, {6, 13}, {6, 14},
+				{7,  2}, {7,  3}, {7,  6}, {7,  7},
+				{8, 10}
+			};
+			int	i;
+
+			for (i = 0; i < ARRAY_SIZE(mac_gpio); i++) {
+				stm32f2_gpio_config(&mac_gpio[i],
+						    STM32F2_GPIO_ROLE_ETHERNET);
+			}
+		} while (0);
+#endif
 		break;
 	default:
 		printk(KERN_WARNING "%s: unsupported platform %d\n", __func__,
