@@ -25,15 +25,24 @@
 #ifndef __ASM_ARCH_PLATFORM_H
 #define __ASM_ARCH_PLATFORM_H
 
-#define PLATFORM_STM32_STM3220G_EVAL	0
-
-int stm32_platform_get(void);
-
 /*
  * STM32 Device (microcontroller) identifiers
  */
 #define DEVICE_STM32F207IG		0
 
+/*
+ * STM32 platform identifiers
+ */
+#define PLATFORM_STM32_STM3220G_EVAL	0
+
+/*
+ * Get device DEVICE_STM32xxx ID we're running on
+ */
 int stm32_device_get(void);
+
+/*
+ * Get platform PLATFORM_STM32_xxx ID we're running om
+ */
+int stm32_platform_get(void);
 
 #endif /* __ASM_ARCH_PLATFORM_H */
