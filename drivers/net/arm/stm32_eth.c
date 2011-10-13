@@ -301,7 +301,7 @@ static void stm32_eth_hw_stop(struct net_device *dev)
 	 * Stop DMA operations
 	 *
 	 * FIXME: do full MII restart instead (with DMABMR[SR]), note
-	 * that in this case we'll have to do full MAC & PHY reiniialization,
+	 * that in this case we'll have to do full MAC & PHY reinitialization,
 	 * otherwise frames will be received, but on send we'll get 'No carrier'
 	 * status in Tx bds, and there'll be no frames on wires really. Now
 	 * things just work because MAC & PHY are inited in U-Boot
@@ -425,7 +425,7 @@ out:
 }
 
 /*
- * Walk though the list of ready descriptors, fetch rxed frames,
+ * Walk through the list of ready descriptors, fetch rxed frames,
  * and copy data to skbufs
  */
 static int stm32_eth_rx_get(struct net_device *dev, int processed, int budget)
@@ -504,7 +504,7 @@ next:
 }
 
 /*
- * This is a NAPI method. Called to received next 'budget' frames (maximum)
+ * This is a NAPI method. Called to receive next 'budget' frames (maximum)
  */
 static int stm32_eth_rx_poll(struct napi_struct *napi, int budget)
 {
@@ -558,7 +558,7 @@ static void stm32_eth_tx_complete(struct net_device *dev)
 		u32					stat, idx;
 
 		/*
-		 * Get next bd, and check if its done
+		 * Get next bd, and check if it's done
 		 */
 		idx = stm->tx_done_idx;
 		bd = &stm->tx_bd[idx];
@@ -623,7 +623,7 @@ static irqreturn_t stm32_eth_irq(int irq, void *dev_id)
 	stm = netdev_priv(dev);
 
 	/*
-	 * Get status, and ack
+	 * Get status, and acknowledge it
 	 */
 	status = stm->regs->dmasr;
 	stm->regs->dmasr = status;
@@ -705,9 +705,7 @@ static int stm32_netdev_open(struct net_device *dev)
 	stm->tx_restart = 1;
 	stm->tx_blocked = 0;
 
-	rv = request_irq(stm->irq, stm32_eth_irq,
-			 IRQF_DISABLED | IRQF_SAMPLE_RANDOM /* IRQF_SHARED */,
-			 dev->name, dev);
+	rv = request_irq(stm->irq, stm32_eth_irq, IRQF_SHARED, dev->name, dev);
 	if (rv) {
 		napi_disable(&stm->napi);
 		stm32_eth_hw_stop(dev);
@@ -767,7 +765,7 @@ static int stm32_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/*
-	 * We need atomical access, only while 'capturing' next tx bd;
+	 * We need atomical access only while 'capturing' next tx bd;
 	 * then we may unlock the spin: if we'll be preempted, and some
 	 * other call to xmit() happens, then the next 'skb', even being
 	 * programmed to bds, won't be sent until we complete our captured
@@ -984,7 +982,7 @@ static int __devinit stm32_plat_probe(struct platform_device *pdev)
 	stm->irq = rs->start;
 
 	/*
-	 * Set-up driver parameters passed by user
+	 * Setup driver parameters passed by user
 	 */
 	stm->frame_max_size = data->frame_max_size;
 	if (stm->frame_max_size < 64 ||

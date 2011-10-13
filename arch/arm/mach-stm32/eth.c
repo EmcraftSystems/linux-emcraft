@@ -57,7 +57,7 @@ static struct resource		eth_resources[] = {
 };
 
 /*
- * STM32_STM3220G_EVAL ethernet platform data
+ * STM3220G-EVAL board ethernet platform data
  */
 static struct stm32_eth_data	stm3220g_eval_eth_data = {
 	.frame_max_size	= 2044,
