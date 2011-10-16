@@ -285,10 +285,6 @@ void __init stm32_iomux_init(void)
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
 #endif
 #if defined(CONFIG_STM32_MAC)
-		gpio_dsc.port = 0;
-		gpio_dsc.pin  = 8;
-		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_MCO);
-
 		do {
 			static struct stm32f2_gpio_dsc mac_gpio[] = {
 				{0,  1}, {0,  2}, {0,  7},
