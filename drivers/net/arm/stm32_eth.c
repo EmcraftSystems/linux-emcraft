@@ -199,7 +199,6 @@ struct stm32_eth_priv {
 	u32				tx_done_idx;
 
 	u32				tx_pending;
-	u32				tx_restart;
 	u32				tx_blocked;
 
 	/*
@@ -518,8 +517,10 @@ static int stm32_eth_rx_poll(struct napi_struct *napi, int budget)
 		more = 0;
 
 		rx = stm32_eth_rx_get(dev, rx, budget);
-		if (!(rx < budget))
+		if (!(rx < budget)) {
+			stm->regs->dmaier |= STM32_MAC_DMAIER_RIE;
 			break;
+		}
 
 		/*
 		 * Enable Rx interrupts, check if there's smth to rx, and if
@@ -528,11 +529,11 @@ static int stm32_eth_rx_poll(struct napi_struct *napi, int budget)
 		spin_lock_irqsave(&stm->rx_lock, flags);
 		__napi_complete(napi);
 
-		stm->regs->dmaier |= STM32_MAC_DMAIER_TIE |
-				     STM32_MAC_DMAIER_RIE;
+		stm->regs->dmaier |= STM32_MAC_DMAIER_RIE;
 		if (!(stm->rx_bd[stm->rx_done_idx].stat &
 		      STM32_DMA_RBD_DMA_OWN)) {
 			stm->regs->dmaier &= ~STM32_MAC_DMAIER_RIE;
+			stm->regs->dmasr = STM32_MAC_DMASR_RX_MSK;
 			more = 1;
 		}
 
@@ -564,7 +565,7 @@ static void stm32_eth_tx_complete(struct net_device *dev)
 		bd = &stm->tx_bd[idx];
 
 		stat = bd->stat;
-		if (stat & STM32_DMA_RBD_DMA_OWN)
+		if (stat & STM32_DMA_TBD_DMA_OWN)
 			break;
 
 		if (stat & STM32_DMA_TBD_ES) {
@@ -592,11 +593,6 @@ static void stm32_eth_tx_complete(struct net_device *dev)
 
 		stm->tx_pending--;
 		stm->tx_done_idx = (stm->tx_done_idx + 1) % stm->tx_buf_num;
-	}
-
-	if (stm->tx_pending && stm->tx_restart) {
-		stm->tx_restart = 0;
-		stm->regs->dmatpdr = 0;
 	}
 
 	if (unlikely(stm->tx_blocked)) {
@@ -657,8 +653,6 @@ static irqreturn_t stm32_eth_irq(int irq, void *dev_id)
 		 */
 		if (status & STM32_MAC_DMASR_TUS)
 			stm->stat.tx_fifo_errors++;
-		if (status & STM32_MAC_DMASR_TBUS)
-			stm->tx_restart = 1;
 
 		stm32_eth_tx_complete(dev);
 	}
@@ -702,7 +696,6 @@ static int stm32_netdev_open(struct net_device *dev)
 	stm->tx_done_idx = 0;
 
 	stm->tx_pending = 0;
-	stm->tx_restart = 1;
 	stm->tx_blocked = 0;
 
 	rv = request_irq(stm->irq, stm32_eth_irq, IRQF_SHARED, dev->name, dev);
@@ -798,13 +791,11 @@ static int stm32_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 					       skb->len, DMA_TO_DEVICE);
 	stm->tx_bd[idx].stat |= STM32_DMA_TBD_FS | STM32_DMA_TBD_LS |
 				STM32_DMA_TBD_DMA_OWN;
-	spin_lock_irqsave(&stm->tx_lock, flags);
 
-	if (stm->tx_restart) {
-		stm->tx_restart = 0;
-		stm->regs->dmatpdr = 0;
-	}
-	spin_unlock_irqrestore(&stm->tx_lock, flags);
+	/*
+	 * Command DMA to refetch BD (legaly even if DMA already running)
+	 */
+	stm->regs->dmatpdr = 0;
 
 	rv = NETDEV_TX_OK;
 out:

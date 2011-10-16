@@ -61,8 +61,8 @@ static struct resource		eth_resources[] = {
  */
 static struct stm32_eth_data	stm3220g_eval_eth_data = {
 	.frame_max_size	= 2044,
-	.tx_buf_num	= 4,
-	.rx_buf_num	= 8,
+	.tx_buf_num	= 24,
+	.rx_buf_num	= 32,
 	.phy_id		= 1,
 };
 
