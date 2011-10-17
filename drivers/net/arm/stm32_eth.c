@@ -608,12 +608,10 @@ static void stm32_eth_tx_complete(struct net_device *dev)
 
 	if (unlikely(stm->tx_blocked)) {
 		stm->tx_blocked = 0;
-		spin_unlock(&stm->tx_lock);
-
 		netif_wake_queue(dev);
-	} else {
-		spin_unlock(&stm->tx_lock);
 	}
+
+	spin_unlock(&stm->tx_lock);
 }
 
 /*
@@ -819,9 +817,9 @@ static int stm32_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&stm->tx_lock, flags);
 	if (stm->tx_pending == stm->tx_buf_num) {
 		stm->tx_blocked = 1;
+		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&stm->tx_lock, flags);
 
-		netif_stop_queue(dev);
 		debug(STM32_INFO ": TX queue full\n");
 	} else {
 		spin_unlock_irqrestore(&stm->tx_lock, flags);
