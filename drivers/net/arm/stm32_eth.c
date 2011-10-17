@@ -27,6 +27,8 @@
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
 
+#include <asm/setup.h>
+
 #include <mach/eth.h>
 
 /*
@@ -947,12 +949,13 @@ static int stm32_mdio_read(struct net_device *dev, int phy_id, int reg)
 /*
  * Platform bus binding
  */
-static int __devinit stm32_plat_probe(struct platform_device *pdev)
+static int __init stm32_plat_probe(struct platform_device *pdev)
 {
 	struct stm32_eth_data	*data;
 	struct stm32_eth_priv	*stm;
 	struct net_device	*dev;
 	struct resource		*rs;
+	char			*p;
 	int			rv;
 
 	/*
@@ -974,7 +977,35 @@ static int __devinit stm32_plat_probe(struct platform_device *pdev)
 		rv = -ENOMEM;
 		goto out;
 	}
-	memcpy(dev->dev_addr, data->mac_addr, ETH_ALEN);
+
+	p = strnstr(boot_command_line, "ethaddr=", COMMAND_LINE_SIZE);
+	if (p) {
+		/*
+		 * Get ethernet address from command line
+		 */
+		char	ethaddr[18];
+		int	i;
+
+		memcpy(ethaddr, &p[strlen("ethaddr=")], sizeof(ethaddr));
+		p = ethaddr;
+		for (i = 0; i < ETH_ALEN; i++) {
+			dev->dev_addr[i] = (simple_strtol(p, &p, 16) << 0) |
+					   (simple_strtol(p, &p, 16) << 4);
+			p++; /* skip ":" in  ethaddr */
+		}
+	} else {
+		/*
+		 * Get ethernet address from platform device settings
+		 */
+		memcpy(dev->dev_addr, data->mac_addr, ETH_ALEN);
+	}
+
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		printk(STM32_INFO ": ethernet address is not set or invalid, "
+			"using random.\n");
+		random_ether_addr(dev->dev_addr);
+        }
+
 	dev->netdev_ops = &stm32_netdev_ops;
 
 	stm = netdev_priv(dev);
@@ -1037,9 +1068,6 @@ static int __devinit stm32_plat_probe(struct platform_device *pdev)
 	stm->mii.dev = dev;
 	stm->mii.mdio_read  = stm32_mdio_read;
 	stm->mii.mdio_write = stm32_mdio_write;
-
-	if (is_zero_ether_addr(dev->dev_addr))
-		random_ether_addr(dev->dev_addr);
 
 	rv = register_netdev(dev);
 	if (rv) {
