@@ -30,6 +30,17 @@
 #include <mach/eth.h>
 
 /*
+ * Define this to enable debugging msgs
+ */
+#undef DEBUG
+
+#ifdef DEBUG
+#define debug(fmt,args...)	printk(fmt, ##args)
+#else
+#define debug(fmt,args...)
+#endif	/* DEBUG */
+
+/*
  * Prefix used by driver in printk()s
  */
 #define STM32_INFO			KERN_INFO STM32_ETH_DRV_NAME
@@ -766,13 +777,18 @@ static int stm32_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	spin_lock_irqsave(&stm->tx_lock, flags);
 	idx = stm->tx_todo_idx;
-	if (stm->tx_pending + 1 > stm->tx_buf_num) {
-		stm->tx_blocked = 1;
+
+	/*
+	 * Actually, enough to check tx_blocked; checking tx_pending is
+	 * a paranoidal one. Moreover, all this check is paranoidal -
+	 * we shouldn't be called in 'blocked' case, because we stopped
+	 * netif queue previously (see at the end of this function).
+	 */
+	if (stm->tx_blocked || stm->tx_pending >= stm->tx_buf_num) {
 		spin_unlock_irqrestore(&stm->tx_lock, flags);
 
-		netif_stop_queue(dev);
 		rv = NETDEV_TX_BUSY;
-		printk(STM32_INFO ": TX queue full\n");
+		printk(STM32_INFO ": TX queue overflow\n");
 		goto out;
 	}
 	stm->tx_pending++;
@@ -796,6 +812,20 @@ static int stm32_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * Command DMA to refetch BD (legaly even if DMA already running)
 	 */
 	stm->regs->dmatpdr = 0;
+
+	/*
+	 * If there's no place for the next xmit, stop queue
+	 */
+	spin_lock_irqsave(&stm->tx_lock, flags);
+	if (stm->tx_pending == stm->tx_buf_num) {
+		stm->tx_blocked = 1;
+		spin_unlock_irqrestore(&stm->tx_lock, flags);
+
+		netif_stop_queue(dev);
+		debug(STM32_INFO ": TX queue full\n");
+	} else {
+		spin_unlock_irqrestore(&stm->tx_lock, flags);
+	}
 
 	rv = NETDEV_TX_OK;
 out:
