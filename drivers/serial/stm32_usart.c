@@ -476,11 +476,17 @@ static int stm32_receive(struct uart_port *port)
 		port->icount.rx++;
 
 		if (status & STM32_USART_SR_ERRORS) {
+/*
+ * Don't say kernel about overflow to avoid "input overrun(s)" message.
+ * TBD: implement rx/tx with DMA
+ */
+#if 0
 			if (status & STM32_USART_SR_ORE) {
 				tty_insert_flip_char(tty, ch, flag);
 				port->icount.overrun++;
 				flag = TTY_OVERRUN;
 			}
+#endif
 			if (status & STM32_USART_SR_PE) {
 				port->icount.parity++;
 				flag = TTY_PARITY;
