@@ -35,31 +35,82 @@
 
 #include <mach/uart.h>
 
+/*
+ * Driver settings
+ */
 #define STM32_NR_UARTS		6
 #define STM32_USART_NAME	"ttyS"
 
 #define STM32_USART_PORT	"STM32 USART Port"
 
 /*
- * CR1 bits
+ * Size, and number of DMAed RX buffers.
+ * Notes:
+ * - the number of buffers may be either 2, or 1;
+ * - in case of strong flow on serial line, i.e. without IDLEs, rx
+ * interrupts (from DMA) will be generated at half, and full levels of these
+ * buffers.
  */
-#define STM32_USART_CR1_UE	(1 << 13)	/* USART enable		     */
-#define STM32_USART_CR1_TXEIE	(1 <<  7)	/* TXE interrupt enable	     */
-#define STM32_USART_CR1_RXNEIE	(1 <<  5)	/* RXNE interrupt enable     */
-#define STM32_USART_CR1_TE	(1 <<  3)	/* Transmitter enable	     */
-#define STM32_USART_CR1_RE	(1 <<  2)	/* Receiver enable	     */
+#define STM32_DMA_RX_BUF_LEN	512		/* 512 chars		      */
+#define STM32_DMA_RX_BUF_NUM	2		/* 2 buffers		      */
+
+#if (STM32_DMA_RX_BUF_NUM != 2) && (STM32_DMA_RX_BUF_NUM != 1)
+# error "Incorrect RX BUF Number configuration."
+#endif
 
 /*
- * SR bits (this is not the full list, see the others in uart.h header)
+ * Define this to enable debugging msgs
  */
-#define STM32_USART_SR_RXNE	(1 << 5)	/* Read data reg not empty   */
-#define STM32_USART_SR_ORE	(1 << 3)	/* Overrun error	     */
-#define STM32_USART_SR_FE	(1 << 1)	/* Framing error	     */
-#define STM32_USART_SR_PE	(1 << 0)	/* Parity error		     */
-#define STM32_USART_SR_ERRORS	(STM32_USART_SR_ORE | STM32_USART_SR_FE |     \
+#undef DEBUG
+
+#ifdef DEBUG
+# define debug(fmt,args...)	printk(fmt, ##args)
+#else
+# define debug(fmt,args...)
+#endif /* DEBUG */
+
+/*
+ * USART CR bits
+ */
+#define STM32_USART_CR1_UE	(1 << 13)	/* USART enable		      */
+#define STM32_USART_CR1_TXEIE	(1 << 7)	/* TXE interrupt enable	      */
+#define STM32_USART_CR1_IDLIE	(1 << 4)	/* IDLE interrupt enable      */
+#define STM32_USART_CR1_TE	(1 << 3)	/* Transmitter enable	      */
+#define STM32_USART_CR1_RE	(1 << 2)	/* Receiver enable	      */
+
+#define STM32_USART_CR3_DMAR	(1 << 6)	/* DMA enable receiver	      */
+
+/*
+ * USART SR bits (this is not the full list, see the others in uart.h header)
+ */
+#define STM32_USART_SR_IDLE	(1 << 4)
+#define STM32_USART_SR_ORE	(1 << 3)	/* Overrun error	      */
+#define STM32_USART_SR_FE	(1 << 1)	/* Framing error	      */
+#define STM32_USART_SR_PE	(1 << 0)	/* Parity error		      */
+#define STM32_USART_SR_ERRORS	(STM32_USART_SR_ORE | STM32_USART_SR_FE |      \
 				 STM32_USART_SR_PE)
-#define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_RXNE | STM32_USART_SR_ORE |   \
-				 STM32_USART_SR_PE   | STM32_USART_SR_FE)
+#define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_ORE | STM32_USART_SR_PE |      \
+				 STM32_USART_SR_FE)
+
+/*
+ * DMA CR bits
+ */
+#define STM32_DMA_CR_CHSEL_BIT	25		/* Channel selection	      */
+#define STM32_DMA_CR_CT		(1 << 19)	/* Current target	      */
+#define STM32_DMA_CR_DBM	(1 << 18)	/* Double buffer mode	      */
+#define STM32_DMA_CR_PL_BIT	16		/* Priority level	      */
+#define STM32_DMA_CR_PL_HIGH	0x2
+#define STM32_DMA_CR_MINC	(1 << 10)	/* Memory increment mode      */
+#define STM32_DMA_CR_CIRC	(1 << 8)	/* Circular mode	      */
+#define STM32_DMA_CR_TCIE	(1 << 4)	/* Transfer complete irq ena  */
+#define STM32_DMA_CR_HTIE	(1 << 3)	/* Half transfer irq ena      */
+#define STM32_DMA_CR_EN		(1 << 0)	/* Stream enable	      */
+
+/*
+ * DMA NDTR bits
+ */
+#define STM32_DMA_NDTR_NDT_BIT	0		/* Num of data items to xfer  */
+#define STM32_DMA_NDTR_NDT_MSK	0xFFFF
 
 /*
  * USART register map
@@ -81,28 +132,148 @@ struct stm32_usart_regs {
 };
 
 /*
+ * DMA register map
+ */
+struct stm32_dma_regs {
+	u32	lisr;			/* low interrupt status		      */
+	u32	hisr;			/* high interrupt status	      */
+	u32	lifcr;			/* low interrupt flag clear	      */
+	u32	hifcr;			/* high interrupt flag clear	      */
+	struct {
+		u32		cr;	/* configuration		      */
+		u32		ndtr;	/* number of data		      */
+		volatile void	*par;	/* peripheral address		      */
+		volatile void	*m0ar;	/* memory 0 address		      */
+		volatile void	*m1ar;	/* memory 1 address		      */
+		u32		fcr;	/* FIFO control			      */
+	} s[8];
+};
+
+/*
+ * DMA streams and channels
+ */
+enum stm32_dma_stream {
+	STM32_DMA_STREAM_0		= 0,
+	STM32_DMA_STREAM_1,
+	STM32_DMA_STREAM_2,
+	STM32_DMA_STREAM_3,
+	STM32_DMA_STREAM_4,
+	STM32_DMA_STREAM_5,
+	STM32_DMA_STREAM_6,
+	STM32_DMA_STREAM_7,
+
+	STM32_DMA_STREAM_LAST
+};
+
+enum stm32_dma_chan {
+	STM32_DMA_CHAN_0		= 0,
+	STM32_DMA_CHAN_1,
+	STM32_DMA_CHAN_2,
+	STM32_DMA_CHAN_3,
+	STM32_DMA_CHAN_4,
+	STM32_DMA_CHAN_5,
+	STM32_DMA_CHAN_6,
+	STM32_DMA_CHAN_7,
+
+	STM32_DMA_CHAN_LAST
+};
+
+/*
+ * DMA initiator
+ */
+struct stm32_dma_ini {
+	enum stm32_dma_stream		stream;
+	enum stm32_dma_chan		chan;
+};
+
+/*
+ * Driver private
+ */
+struct stm32_usart_priv {
+	volatile struct stm32_usart_regs	*reg_usart_base;
+	volatile struct stm32_dma_regs		*reg_dma_base;
+
+	int					usart_irq;
+	int					dma_irq;
+
+	struct stm32_dma_ini			ini;
+	volatile u32				*dma_isr;
+	volatile u32				*dma_ifcr;
+
+	/*
+	 * TBD: actually, should allocate this in some coherent area
+	 */
+	u8					rx_buf[2][STM32_DMA_RX_BUF_LEN];
+	u32					wbuf;
+	u32					wpos;
+	u32					rbuf;
+	u32					rpos;
+};
+#define stm32_drv_priv(port)	    (struct stm32_usart_priv *)		       \
+				    ((port)->private_data)
+#define stm32_drv_regs(port, name)  (struct stm32_##name##_regs *)	       \
+				    ((stm32_drv_priv(port))->reg_##name##_base)
+
+#define stm32_usart(port)	stm32_drv_regs(port, usart)
+#define stm32_dma(port)		stm32_drv_regs(port, dma)
+
+/*
  * Prototypes
  */
 static void stm32_xmit_char(volatile struct stm32_usart_regs *uart,
 			    unsigned char c);
-static int stm32_transmit(struct uart_port *port);
-static irqreturn_t stm32_isr(int irq, void *dev_id);
+static void stm32_transmit(struct uart_port *port);
+
+static irqreturn_t stm32_usart_isr(int irq, void *dev_id);
+static irqreturn_t stm32_dma_isr(int irq, void *dev_id);
 
 /*
- * UART ports
+ * UART ports and privates
  */
 static struct uart_port		stm32_ports[STM32_NR_UARTS];
+static struct stm32_usart_priv	stm32_usart_priv[STM32_NR_UARTS];
+
+/*
+ * DMA peripheral streams & channels (USART1/6 - DMA2, others - DMA1)
+ */
+static struct stm32_dma_ini	stm32_usart_rx_dma[STM32_NR_UARTS] = {
+	/* USART1 */
+	{STM32_DMA_STREAM_5, STM32_DMA_CHAN_4},
+	/* USART2 */
+	{STM32_DMA_STREAM_5, STM32_DMA_CHAN_4},
+	/* USART3 */
+	{STM32_DMA_STREAM_1, STM32_DMA_CHAN_4},
+	/* USART4 */
+	{STM32_DMA_STREAM_2, STM32_DMA_CHAN_4},
+	/* USART5 */
+	{STM32_DMA_STREAM_0, STM32_DMA_CHAN_4},
+	/* USART6 */
+	{STM32_DMA_STREAM_2, STM32_DMA_CHAN_5}
+};
+
+/*
+ * Stream ISR bits for half[0]/complete[1] transfers
+ */
+static u32			stm32_dma_isr_bit[STM32_DMA_STREAM_LAST] = {
+	(1 <<  4) | (1 <<  5),
+	(1 << 10) | (1 << 11),
+	(1 << 20) | (1 << 21),
+	(1 << 26) | (1 << 27),
+	(1 <<  4) | (1 <<  5),
+	(1 << 10) | (1 << 11),
+	(1 << 20) | (1 << 21),
+	(1 << 26) | (1 << 27)
+};
 
 /*
  * Check if transmitter in idle (tx reg empty)
  */
 static u32 stm_port_tx_empty(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
 	unsigned long				flags;
 	u32					rv;
 
-	uart = (struct stm32_usart_regs *)port->mapbase;
 	spin_lock_irqsave(&port->lock, flags);
 	rv = (uart->sr & STM32_USART_SR_TXE) ? TIOCSER_TEMT : 0;
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -115,11 +286,10 @@ static u32 stm_port_tx_empty(struct uart_port *port)
  */
 static void stm_port_stop_tx(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
 	unsigned long				flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	uart = (struct stm32_usart_regs *)port->mapbase;
 	uart->cr1 &= ~STM32_USART_CR1_TXEIE;
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -129,11 +299,10 @@ static void stm_port_stop_tx(struct uart_port *port)
  */
 static void stm_port_start_tx(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
 	unsigned long				flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	uart = (struct stm32_usart_regs *)port->mapbase;
 	uart->cr1 |= STM32_USART_CR1_TXEIE;
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -145,12 +314,22 @@ static void stm_port_start_tx(struct uart_port *port)
  */
 static void stm_port_stop_rx(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
+	volatile struct stm32_dma_regs		*dma = stm32_dma(port);
+	struct stm32_usart_priv			*priv = stm32_drv_priv(port);
 	unsigned long				flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	uart = (struct stm32_usart_regs *)port->mapbase;
-	uart->cr1 &= ~STM32_USART_CR1_RXNEIE;
+	/*
+	 * Stop DMA
+	 */
+	dma->s[priv->ini.stream].cr &= ~STM32_DMA_CR_EN;
+	while (dma->s[priv->ini.stream].cr & STM32_DMA_CR_EN);
+
+	/*
+	 * Stop USART receiver
+	 */
+	uart->cr1 &= ~STM32_USART_CR1_RE;
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -159,22 +338,61 @@ static void stm_port_stop_rx(struct uart_port *port)
  */
 static int stm_port_startup(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
+	volatile struct stm32_dma_regs		*dma = stm32_dma(port);
+	struct stm32_usart_priv			*priv = stm32_drv_priv(port);
+	u32					tmp;
 	int					rv;
 
-	rv = request_irq(port->irq, stm32_isr,
+	rv = request_irq(priv->usart_irq, stm32_usart_isr,
 			 IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 			 STM32_USART_PORT, port);
 	if (rv) {
 		printk(KERN_ERR "%s: request_irq (%d)failed (%d)\n",
-			__func__, port->irq, rv);
+			__func__, priv->usart_irq, rv);
+		goto out;
+	}
+	rv = request_irq(priv->dma_irq, stm32_dma_isr,
+			 IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
+			 STM32_USART_PORT, port);
+	if (rv) {
+		printk(KERN_ERR "%s: request_irq (%d)failed (%d)\n",
+			__func__, priv->dma_irq, rv);
+		free_irq(priv->usart_irq, port);
 		goto out;
 	}
 
-	uart = (struct stm32_usart_regs *)port->mapbase;
+	/*
+	 * Configure DMA to receive from USART:
+	 * - circular mode,
+	 * - high priority,
+	 * - full/half interrupts enable
+	 */
+	tmp = (priv->ini.chan << STM32_DMA_CR_CHSEL_BIT) |
+	      (STM32_DMA_CR_PL_HIGH << STM32_DMA_CR_PL_BIT) |
+	      STM32_DMA_CR_CIRC | STM32_DMA_CR_MINC |
+	      STM32_DMA_CR_TCIE | STM32_DMA_CR_HTIE;
+#if (STM32_DMA_RX_BUF_NUM == 2)
+	/*
+	 * Double buffers
+	 */
+	tmp |= STM32_DMA_CR_DBM;
+#endif
+
+	dma->s[priv->ini.stream].cr &= ~STM32_DMA_CR_EN;
+	while (dma->s[priv->ini.stream].cr & STM32_DMA_CR_EN);
+
+	dma->s[priv->ini.stream].cr   = tmp;
+	dma->s[priv->ini.stream].ndtr = STM32_DMA_RX_BUF_LEN;
+	dma->s[priv->ini.stream].par  = &uart->dr;
+	dma->s[priv->ini.stream].m0ar = &priv->rx_buf[0][0];
+#if (STM32_DMA_RX_BUF_NUM == 2)
+	dma->s[priv->ini.stream].m1ar = &priv->rx_buf[1][0];
+#endif
+	dma->s[priv->ini.stream].cr  |= STM32_DMA_CR_EN;
 
 	/*
-	 * Clear status
+	 * Configure USART
 	 */
 	uart->sr = 0;
 
@@ -185,9 +403,20 @@ static int stm_port_startup(struct uart_port *port)
 		     STM32_USART_CR1_UE;
 
 	/*
-	 * Enable RX-not-empty & TX-empty interrupts
+	 * Read SR & DR to clear IDLE
 	 */
-	uart->cr1 |= STM32_USART_CR1_RXNEIE | STM32_USART_CR1_TXEIE;
+	rv = uart->sr;
+	rv = uart->dr;
+
+	/*
+	 * Enable DMA access to USART
+	 */
+	uart->cr3 |= STM32_USART_CR3_DMAR;
+
+	/*
+	 * Enable RX-idle & TX-empty interrupts
+	 */
+	uart->cr1 |= STM32_USART_CR1_IDLIE | STM32_USART_CR1_TXEIE;
 
 	rv = 0;
 out:
@@ -199,17 +428,20 @@ out:
  */
 static void stm_port_shutdown(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
+	volatile struct stm32_dma_regs		*dma = stm32_dma(port);
+	struct stm32_usart_priv			*priv = stm32_drv_priv(port);
 
-	uart = (struct stm32_usart_regs *)port->mapbase;
+	dma->s[priv->ini.stream].cr &= ~STM32_DMA_CR_EN;
+	while (dma->s[priv->ini.stream].cr & STM32_DMA_CR_EN);
 
 	uart->cr1 &= ~(STM32_USART_CR1_TE | STM32_USART_CR1_RE |
 		       STM32_USART_CR1_UE);
-	uart->cr1 &= ~(STM32_USART_CR1_RXNEIE | STM32_USART_CR1_TXEIE);
+	uart->cr1 &= ~(STM32_USART_CR1_IDLIE | STM32_USART_CR1_TXEIE);
+	uart->sr   = 0;
 
-	uart->sr &= ~(u32)(-1);
-
-	free_irq(port->irq, port);
+	free_irq(priv->dma_irq, port);
+	free_irq(priv->usart_irq, port);
 }
 
 /*
@@ -338,7 +570,9 @@ static struct uart_ops stm32_uart_ops = {
  */
 static void stm_console_putchar(struct uart_port *port, int ch)
 {
-	stm32_xmit_char((struct stm32_usart_regs *)port->mapbase, ch);
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
+
+	stm32_xmit_char(uart, ch);
 }
 
 /*
@@ -347,14 +581,13 @@ static void stm_console_putchar(struct uart_port *port, int ch)
 static void stm_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
-	volatile struct stm32_usart_regs	*uart;
-	struct uart_port			*port;
+	struct uart_port			*port = &stm32_ports[co->index];
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
+	volatile struct stm32_dma_regs		*dma = stm32_dma(port);
+	struct stm32_usart_priv			*priv = stm32_drv_priv(port);
 	unsigned long				flags;
-	unsigned char				irxne, itxe;
+	u32					iuarte, idmae;
 	int					locked;
-
-	port = &stm32_ports[co->index];
-	uart = (struct stm32_usart_regs *)port->mapbase;
 
 	if (oops_in_progress) {
 		locked = spin_trylock_irqsave(&port->lock, flags);
@@ -366,24 +599,25 @@ static void stm_console_write(struct console *co, const char *s,
 	/*
 	 * Save and disable interrupts
 	 */
-	irxne = uart->cr1 & STM32_USART_CR1_RXNEIE;
-	itxe  = uart->cr1 & STM32_USART_CR1_TXEIE;
+	iuarte = uart->cr1 & (STM32_USART_CR1_IDLIE | STM32_USART_CR1_TXEIE);
+	idmae  = dma->s[priv->ini.stream].cr & (STM32_DMA_CR_TCIE |
+						STM32_DMA_CR_HTIE);
 
-	if (irxne)
-		uart->cr1 &= ~STM32_USART_CR1_RXNEIE;
-	if (itxe)
-		uart->cr1 &= ~STM32_USART_CR1_TXEIE;
+	if (iuarte)
+		uart->cr1 &= ~iuarte;
+	if (idmae)
+		dma->s[priv->ini.stream].cr &= ~idmae;
 
 	uart_console_write(port, s, count, stm_console_putchar);
 
 	/*
 	 * Restore interrupt state
 	 */
-	if (itxe)
-		uart->cr1 |= STM32_USART_CR1_TXEIE;
+	if (idmae)
+		dma->s[priv->ini.stream].cr |= idmae;
 
-	if (irxne)
-		uart->cr1 |= STM32_USART_CR1_RXNEIE;
+	if (iuarte)
+		uart->cr1 |= iuarte;
 
 	if (locked)
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -403,7 +637,7 @@ static int __init stm_console_setup(struct console *co, char *options)
 	}
 
 	port = &stm32_ports[co->index];
-	if (!port->mapbase) {
+	if (!port->private_data) {
 		pr_debug("console on %s%i not present\n", STM32_USART_NAME,
 			 co->index);
 		rv = -ENODEV;
@@ -463,26 +697,21 @@ static void stm32_xmit_char(volatile struct stm32_usart_regs *uart,
 /*
  * Process transmit interrupt event
  */
-static int stm32_transmit(struct uart_port *port)
+static void stm32_transmit(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
 	struct circ_buf				*xmit;
-	int					rv;
-
-	uart = (struct stm32_usart_regs *)port->mapbase;
 
 	if (port->x_char) {
 		stm32_xmit_char(uart, port->x_char);
 		port->x_char = 0;
 		port->icount.tx++;
-		rv = 1;
 		goto out;
 	}
 
 	xmit = &port->state->xmit;
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		stm_port_stop_tx(port);
-		rv = 0;
 		goto out;
 	}
 
@@ -495,96 +724,186 @@ static int stm32_transmit(struct uart_port *port)
 	 */
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
-
-	rv = 1;
 out:
-	return rv;
+	return;
 }
 
 /*
  * Process receive interrupt event
  */
-static int stm32_receive(struct uart_port *port)
+static void stm32_receive(struct uart_port *port)
 {
-	volatile struct stm32_usart_regs	*uart;
-	struct tty_struct			*tty;
-	int					rv, max_count;
-	u16					status;
+	volatile struct stm32_dma_regs		*dma = stm32_dma(port);
+	struct stm32_usart_priv			*priv = stm32_drv_priv(port);
+	struct tty_struct			*tty = port->state->port.tty;
+	u32					new_wbuf, new_wpos, tmp, wrap;
 
-	uart = (struct stm32_usart_regs *)port->mapbase;
+	/*
+	 * Read DMA current buf, counter, and make sure we done this atomic
+	 */
+	new_wbuf = !!(dma->s[priv->ini.stream].cr & STM32_DMA_CR_CT);
+	new_wpos = dma->s[priv->ini.stream].ndtr;
+#if (STM32_DMA_RX_BUF_NUM == 2)
+	tmp = !!(dma->s[priv->ini.stream].cr & STM32_DMA_CR_CT);
+	if (new_wbuf != tmp) {
+		/*
+		 * DMA changed the buffer (maybe between our reads from CR
+		 * and NDTR)
+		 */
+		new_wpos = dma->s[priv->ini.stream].ndtr;
+		new_wbuf = tmp;
+	}
+#endif
 
-	status = uart->sr;
-	if (!(status & STM32_USART_SR_RX_FLAGS)) {
-		rv = 0;
-		goto out;
+	/*
+	 * Convert 'remained space' to 'written bytes'
+	 */
+	new_wpos = STM32_DMA_RX_BUF_LEN - new_wpos;
+
+#if (STM32_DMA_RX_BUF_NUM == 2)
+	/*
+	 * Wrap criteria: DMA switched to another buffer, than we saw
+	 * last time. Otherwise, assume DMA is still ahead the reader.
+	 * Note, actually may use the same criteria as for 1-buf case.
+	 */
+	wrap = likely(new_wbuf == priv->wbuf) ? 0 : 1;
+#else
+	/*
+	 * Wrap criteria: DMA pointer becomes less, that we saw last
+	 * time. Otherwise, assume DMA is still ahead the reader.
+	 */
+	wrap = likely(priv->wpos <= new_wpos) ? 0 : 1;
+#endif
+
+	if (unlikely(wrap)) {
+		if (priv->rpos == STM32_DMA_RX_BUF_LEN) {
+			/*
+			 * Reader completed this buf, switch to the next one
+			 * (or to the beginning of the same, if have 1 buf)
+			 */
+			priv->rpos = 0;
+			priv->wpos = new_wpos;
+			priv->wbuf = priv->rbuf = new_wbuf;
+
+			/*
+			 * We've just wrapped, clear the pending DMA interrupt
+			 * (full buffer complete)
+			 */
+			wrap = 0;
+		} else {
+			/*
+			 * There are unread chars at the end of the buffer
+			 * completed by DMA, read these chars to the end
+			 */
+			priv->wpos = STM32_DMA_RX_BUF_LEN;
+		}
+	} else {
+		/*
+		 * No wrap, just update the writer position
+		 */
+		priv->wpos = new_wpos;
 	}
 
-	tty = port->state->port.tty;
-	max_count = 256;
-	do {
-		unsigned char	ch;
-		char		flag;
+	debug("%s: w:[%d;%d]; r[%d;%d] -> ", __func__, priv->wbuf, priv->wpos,
+		priv->rbuf, priv->rpos);
 
-		ch = uart->dr;
-		port->icount.rx++;
-		flag = TTY_NORMAL;
+	/*
+	 * Fetch rxed data from buffer. Note, we do not control overflows
+	 * here. That is, DMA may catch us, and overwrite data ahead of
+	 * our 'rpos'.
+	 * Do read until catch the writer
+	 */
+	while (priv->rpos < priv->wpos) {
+		tty_insert_flip_char(tty, priv->rx_buf[priv->rbuf][priv->rpos],
+				     TTY_NORMAL);
+		priv->rpos++;
+	}
 
-		if (unlikely(status & STM32_USART_SR_ERRORS)) {
-/*
- * Don't say kernel about overflow to avoid "input overrun(s)" message.
- * TBD: implement rx/tx with DMA
- */
-#if 0
-			if (status & STM32_USART_SR_ORE) {
-				tty_insert_flip_char(tty, ch, flag);
-				port->icount.overrun++;
-				flag = TTY_OVERRUN;
-			}
-#endif
-			if (status & STM32_USART_SR_PE) {
-				port->icount.parity++;
-				flag = TTY_PARITY;
-			}
-			if (status & STM32_USART_SR_FE) {
-				port->icount.frame++;
-				flag = TTY_FRAME;
-			}
-		}
+	debug("w:[%d;%d]; r[%d;%d] [%s,%d,%d,%x/%x,%d/%d]\n", priv->wbuf, priv->wpos,
+		priv->rbuf, priv->rpos);
 
-		tty_insert_flip_char(tty, (flag == TTY_NORMAL) ? ch : 0, flag);
-
-		if (max_count-- <= 0)
-			break;
-
-		status = uart->sr;
-	} while (status & STM32_USART_SR_RX_FLAGS);
+	/*
+	 * Let's DMA interrupt pending to come here again asap, and
+	 * to read data in new buffer (or behind us if have 1 buf) if wrap
+	 * has a place. Otherwise, just ACK DMA
+	 */
+	if (likely(!wrap)) {
+		tmp = *priv->dma_isr & stm32_dma_isr_bit[priv->ini.stream];
+		if (tmp)
+			*priv->dma_ifcr = tmp;
+	}
 
 	tty_flip_buffer_push(tty);
-
-	rv = 1;
-out:
-	return rv;
 }
 
 /*
  * STM32 USART irq handler
  */
-static irqreturn_t stm32_isr(int irq, void *dev_id)
+static irqreturn_t stm32_usart_isr(int irq, void *dev_id)
 {
-	stm32_receive(dev_id);
+	struct uart_port			*port = dev_id;
+	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
+
+	/*
+	 * TBD: without reading DR IDLE interrupt continue pending; check
+	 * if this read don't lead to missing the read char, and it's DMAed
+	 * to buf
+	 */
+	if (uart->sr & STM32_USART_SR_IDLE) {
+		u8	tmp;
+
+		tmp = uart->dr;
+		stm32_receive(dev_id);
+	}
+
 	stm32_transmit(dev_id);
 
 	return IRQ_HANDLED;
 }
 
 /*
- * Register stm32 uart device with the driver
+ * STM32 DMA irq handler
  */
-static int __devinit stm32_assign(struct device *dev, int id,
-				  u32 base, int irq)
+static irqreturn_t stm32_dma_isr(int irq, void *dev_id)
 {
+	stm32_receive(dev_id);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * Remove stm32 uart device
+ */
+static int __devexit stm32_release(struct device *dev)
+{
+	struct uart_port	*port = dev_get_drvdata(dev);
+	struct stm32_usart_priv	*priv;
+	int			rv = 0;
+
+	if (port) {
+		priv = stm32_drv_priv(port);
+		rv = uart_remove_one_port(&stm32_uart_driver, port);
+		dev_set_drvdata(dev, NULL);
+		if (priv) {
+			priv->reg_usart_base = NULL;
+			priv->reg_dma_base = NULL;
+		}
+	}
+
+	return rv;
+}
+
+/*
+ * Platform bus binding
+ */
+static int __devinit stm32_probe(struct platform_device *pdev)
+{
+	struct stm32_usart_priv	*priv;
 	struct uart_port	*port;
-	int			rv;
+	struct resource		*usart_reg_res, *usart_irq_res;
+	struct resource		*dma_reg_res, *dma_irq_res;
+	struct device		*dev = &pdev->dev;
+	int			id = pdev->id, rv;
 
 	if (id >= STM32_NR_UARTS) {
 		dev_err(dev, "%s: bad port id %d\n", __func__, id);
@@ -607,7 +926,21 @@ static int __devinit stm32_assign(struct device *dev, int id,
 		goto out;
 	}
 
-	if (stm32_ports[id].mapbase && stm32_ports[id].mapbase != base) {
+	priv = &stm32_usart_priv[id];
+
+	usart_reg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	dma_reg_res   = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+
+	usart_irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	dma_irq_res   = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
+
+	if (!usart_reg_res || !dma_reg_res || !usart_irq_res || !dma_irq_res) {
+		rv = -ENODEV;
+		goto out;
+	}
+
+	if (stm32_ports[id].mapbase &&
+	    stm32_ports[id].mapbase != usart_reg_res->start) {
 		dev_err(dev, "%s: port %d already in use\n", __func__, id);
 		rv = -EBUSY;
 		goto out;
@@ -615,15 +948,31 @@ static int __devinit stm32_assign(struct device *dev, int id,
 
 	port = &stm32_ports[id];
 
+	priv->reg_usart_base = (struct stm32_usart_regs *)usart_reg_res->start;
+	priv->usart_irq  = usart_irq_res->start;
+
+	priv->reg_dma_base = (struct stm32_dma_regs *)dma_reg_res->start;
+	priv->dma_irq  = dma_irq_res->start;
+
 	spin_lock_init(&port->lock);
 	port->iotype  = SERIAL_IO_MEM,
-	port->irq     = irq;
+	port->irq     = priv->usart_irq;
 	port->flags   = UPF_BOOT_AUTOCONF;
 	port->line    = id;
 	port->ops     = &stm32_uart_ops;
 	port->dev     = dev;
-	port->mapbase = base;
+	port->mapbase = (u32)priv->reg_usart_base;
 
+	priv->ini = stm32_usart_rx_dma[id];
+	if (priv->ini.stream <= STM32_DMA_STREAM_3) {
+		priv->dma_isr  = &priv->reg_dma_base->lisr;
+		priv->dma_ifcr = &priv->reg_dma_base->lifcr;
+	} else {
+		priv->dma_isr  = &priv->reg_dma_base->hisr;
+		priv->dma_ifcr = &priv->reg_dma_base->hifcr;
+	}
+
+	port->private_data = &stm32_usart_priv[id];
 	dev_set_drvdata(dev, port);
 
 	/*
@@ -634,49 +983,10 @@ static int __devinit stm32_assign(struct device *dev, int id,
 		dev_err(dev, "%s: uart_add_one_port failed (%d)\n",
 			__func__, rv);
 		dev_set_drvdata(dev, NULL);
-		port->mapbase = 0;
+		priv->reg_usart_base = NULL;
+		priv->reg_dma_base = NULL;
 		goto out;
 	}
-
-	rv = 0;
-out:
-	return rv;
-}
-
-/*
- * Remove stm32 uart device
- */
-static int __devexit stm32_release(struct device *dev)
-{
-	struct uart_port	*port = dev_get_drvdata(dev);
-	int			rv = 0;
-
-	if (port) {
-		rv = uart_remove_one_port(&stm32_uart_driver, port);
-		dev_set_drvdata(dev, NULL);
-		port->mapbase = 0;
-	}
-
-	return rv;
-}
-
-/*
- * Platform bus binding
- */
-static int __devinit stm32_probe(struct platform_device *pdev)
-{
-	struct resource	*reg_res, *irq_res;
-	int		rv = -ENODEV;
-
-	reg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!reg_res)
-		goto out;
-
-	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!irq_res)
-		goto out;
-
-	rv = stm32_assign(&pdev->dev, pdev->id, reg_res->start, irq_res->start);
 out:
 	return rv;
 }

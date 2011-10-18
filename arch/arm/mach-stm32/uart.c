@@ -30,6 +30,22 @@
 #include <mach/iomux.h>
 
 /*
+ * STM32 DMA bases
+ */
+#define STM32_DMA1_BASE		(STM32_AHB1PERITH_BASE + 0x6000)
+#define STM32_DMA2_BASE		(STM32_AHB1PERITH_BASE + 0x6400)
+
+/*
+ * USART RX DMAs
+ */
+#define STM32_USART1_DMA_BASE	STM32_DMA2_BASE
+#define STM32_USART2_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART3_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART4_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART5_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART6_DMA_BASE	STM32_DMA2_BASE
+
+/*
  * STM32 USART Interrupt numbers
  */
 #define STM32_USART1_IRQ	37
@@ -38,6 +54,16 @@
 #define STM32_USART4_IRQ	52
 #define STM32_USART5_IRQ	53
 #define STM32_USART6_IRQ	71
+
+/*
+ * USART RX DMAs Interrupt numbers
+ */
+#define STM32_USART1_DMA_IRQ	68
+#define STM32_USART2_DMA_IRQ	16
+#define STM32_USART3_DMA_IRQ	12
+#define STM32_USART4_DMA_IRQ	13
+#define STM32_USART5_DMA_IRQ	11
+#define STM32_USART6_DMA_IRQ	58
 
 /*
  * STM32F2 RCC USART specific definitions
@@ -71,7 +97,16 @@ static struct resource			stm_usart_## uid ##_resources[] = {    \
 		.flags	= IORESOURCE_MEM,				       \
 	},								       \
 	{								       \
+		.start	= STM32_USART## uid ##_DMA_BASE,		       \
+		.end	= STM32_USART## uid ##_DMA_BASE + 1,		       \
+		.flags	= IORESOURCE_MEM,				       \
+	},								       \
+	{								       \
 		.start	= STM32_USART## uid ##_IRQ,			       \
+		.flags	= IORESOURCE_IRQ,				       \
+	},								       \
+	{								       \
+		.start	= STM32_USART## uid ##_DMA_IRQ,			       \
 		.flags	= IORESOURCE_IRQ,				       \
 	}								       \
 }
@@ -84,16 +119,20 @@ static struct platform_device		stm_usart_## uid ##_device = {	       \
 	.name			= STM32_USART_DRV_NAME,			       \
 	.id			= uid - 1,				       \
 	.resource		= stm_usart_## uid ##_resources,	       \
-	.num_resources		= 2,					       \
+	.num_resources		= 4,					       \
 }
 
 /*
- * Enable clocks and register platform device
+ * Enable clocks for USART & DMA, and register platform device
  */
 #define usart_init_clocks_and_register(uid) do {			       \
-	volatile u32 *usart_enr;					       \
-	usart_enr = (u32 *)(STM32_RCC_BASE+stm32_uart_rcc_enr_ofs[uid - 1]);   \
+	volatile u32	*usart_enr;					       \
+	usart_enr = (u32 *)(STM32_RCC_BASE + stm32_uart_rcc_enr_ofs[uid - 1]); \
 	*usart_enr |= stm32_uart_rcc_enr_msk[uid - 1];			       \
+	usart_enr = (u32 *)(STM32_RCC_BASE + offsetof(struct stm32_rcc_regs,   \
+						    ahb1enr));		       \
+	*usart_enr |= (STM32_USART## uid ##_DMA_BASE ==			       \
+		       STM32_DMA1_BASE) ? (1 << 21) : (1 << 22);	       \
 	platform_device_register(&stm_usart_## uid ##_device);		       \
 } while (0)
 
