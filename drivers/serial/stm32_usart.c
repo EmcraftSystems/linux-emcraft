@@ -85,9 +85,12 @@ static u32 stm_port_tx_empty(struct uart_port *port)
 static void stm_port_stop_tx(struct uart_port *port)
 {
 	volatile struct stm32_usart_regs	*uart;
+	unsigned long				flags;
 
+	spin_lock_irqsave(&port->lock, flags);
 	uart = (struct stm32_usart_regs *)port->mapbase;
 	uart->cr1 &= ~STM32_USART_CR1_TXEIE;
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /*
@@ -96,9 +99,12 @@ static void stm_port_stop_tx(struct uart_port *port)
 static void stm_port_start_tx(struct uart_port *port)
 {
 	volatile struct stm32_usart_regs	*uart;
+	unsigned long				flags;
 
+	spin_lock_irqsave(&port->lock, flags);
 	uart = (struct stm32_usart_regs *)port->mapbase;
 	uart->cr1 |= STM32_USART_CR1_TXEIE;
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	stm32_transmit(port);
 }
@@ -109,10 +115,12 @@ static void stm_port_start_tx(struct uart_port *port)
 static void stm_port_stop_rx(struct uart_port *port)
 {
 	volatile struct stm32_usart_regs	*uart;
+	unsigned long				flags;
 
+	spin_lock_irqsave(&port->lock, flags);
 	uart = (struct stm32_usart_regs *)port->mapbase;
 	uart->cr1 &= ~STM32_USART_CR1_RXNEIE;
-	uart->sr &= ~STM32_USART_SR_RXNE;
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /*
@@ -134,12 +142,21 @@ static int stm_port_startup(struct uart_port *port)
 
 	uart = (struct stm32_usart_regs *)port->mapbase;
 
-	uart->sr &= ~(STM32_USART_SR_TXE | STM32_USART_SR_RXNE);
+	/*
+	 * Clear status
+	 */
+	uart->sr = 0;
 
-	uart->cr1  = STM32_USART_CR1_TE | STM32_USART_CR1_RE;
-	uart->cr1 |= STM32_USART_CR1_UE;
+	/*
+	 * Enable tx, rx, and UART itself
+	 */
+	uart->cr1  = STM32_USART_CR1_TE | STM32_USART_CR1_RE |
+		     STM32_USART_CR1_UE;
 
-	uart->cr1 |= STM32_USART_CR1_RXNEIE;
+	/*
+	 * Enable RX-not-empty & TX-empty interrupts
+	 */
+	uart->cr1 |= STM32_USART_CR1_RXNEIE | STM32_USART_CR1_TXEIE;
 
 	rv = 0;
 out:
@@ -155,8 +172,8 @@ static void stm_port_shutdown(struct uart_port *port)
 
 	uart = (struct stm32_usart_regs *)port->mapbase;
 
-	uart->cr1 &= ~(STM32_USART_CR1_UE | STM32_USART_CR1_TE |
-		       STM32_USART_CR1_RE);
+	uart->cr1 &= ~(STM32_USART_CR1_TE | STM32_USART_CR1_RE |
+		       STM32_USART_CR1_UE);
 	uart->cr1 &= ~(STM32_USART_CR1_RXNEIE | STM32_USART_CR1_TXEIE);
 
 	uart->sr &= ~(u32)(-1);
@@ -290,10 +307,7 @@ static struct uart_ops stm32_uart_ops = {
  */
 static void stm_console_putchar(struct uart_port *port, int ch)
 {
-	volatile struct stm32_usart_regs	*uart;
-
-	uart = (struct stm32_usart_regs *)port->mapbase;
-	stm32_xmit_char(uart, ch);
+	stm32_xmit_char((struct stm32_usart_regs *)port->mapbase, ch);
 }
 
 /*
@@ -336,6 +350,7 @@ static void stm_console_write(struct console *co, const char *s,
 	 */
 	if (itxe)
 		uart->cr1 |= STM32_USART_CR1_TXEIE;
+
 	if (irxne)
 		uart->cr1 |= STM32_USART_CR1_RXNEIE;
 
@@ -409,9 +424,9 @@ static struct uart_driver	stm32_uart_driver = {
 static void stm32_xmit_char(volatile struct stm32_usart_regs *uart,
 			    unsigned char c)
 {
-	uart->dr = c;
-
 	while (!(uart->sr & STM32_USART_SR_TXE));
+
+	uart->dr = c;
 }
 
 /*
@@ -424,7 +439,6 @@ static int stm32_transmit(struct uart_port *port)
 	int					rv;
 
 	uart = (struct stm32_usart_regs *)port->mapbase;
-	xmit = &port->state->xmit;
 
 	if (port->x_char) {
 		stm32_xmit_char(uart, port->x_char);
@@ -434,6 +448,7 @@ static int stm32_transmit(struct uart_port *port)
 		goto out;
 	}
 
+	xmit = &port->state->xmit;
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
 		stm_port_stop_tx(port);
 		rv = 0;
@@ -462,20 +477,28 @@ static int stm32_receive(struct uart_port *port)
 {
 	volatile struct stm32_usart_regs	*uart;
 	struct tty_struct			*tty;
-	unsigned char				ch;
-	char					flag;
+	int					rv, max_count;
 	u16					status;
 
 	uart = (struct stm32_usart_regs *)port->mapbase;
-	tty  = port->state->port.tty;
 
 	status = uart->sr;
-	while (status & STM32_USART_SR_RXNE) {
-		flag = TTY_NORMAL;
+	if (!(status & STM32_USART_SR_RX_FLAGS)) {
+		rv = 0;
+		goto out;
+	}
+
+	tty = port->state->port.tty;
+	max_count = 256;
+	do {
+		unsigned char	ch;
+		char		flag;
+
 		ch = uart->dr;
 		port->icount.rx++;
+		flag = TTY_NORMAL;
 
-		if (status & STM32_USART_SR_ERRORS) {
+		if (unlikely(status & STM32_USART_SR_ERRORS)) {
 /*
  * Don't say kernel about overflow to avoid "input overrun(s)" message.
  * TBD: implement rx/tx with DMA
@@ -498,12 +521,18 @@ static int stm32_receive(struct uart_port *port)
 		}
 
 		tty_insert_flip_char(tty, (flag == TTY_NORMAL) ? ch : 0, flag);
+
+		if (max_count-- <= 0)
+			break;
+
 		status = uart->sr;
-	}
+	} while (status & STM32_USART_SR_RX_FLAGS);
 
 	tty_flip_buffer_push(tty);
 
-	return 1;
+	rv = 1;
+out:
+	return rv;
 }
 
 /*
@@ -511,26 +540,8 @@ static int stm32_receive(struct uart_port *port)
  */
 static irqreturn_t stm32_isr(int irq, void *dev_id)
 {
-	volatile struct stm32_usart_regs	*uart;
-	struct uart_port			*port;
-
-	port = dev_id;
-	uart = (struct stm32_usart_regs *)port->mapbase;
-
-	if (uart->sr & STM32_USART_SR_RXNE) {
-		/*
-		 * Smth received
-		 */
-		stm32_receive(port);
-	}
-
-	if (uart->sr & STM32_USART_SR_TXE) {
-		/*
-		 * Smth sent
-		 */
-		uart->sr &= ~STM32_USART_SR_TXE;
-		stm32_transmit(port);
-	}
+	stm32_receive(dev_id);
+	stm32_transmit(dev_id);
 
 	return IRQ_HANDLED;
 }
