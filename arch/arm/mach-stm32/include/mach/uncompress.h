@@ -29,13 +29,16 @@
 
 static inline void putc(char c)
 {
-	volatile struct stm32_usart_regs	*uart;
+	volatile u32	*uart_sr = (u32 *)(STM32_DBG_USART_APBX +
+					   STM32_DBG_USART_OFFS +
+					   STM32_UART_SR);
+	volatile u32	*uart_dr = (u32 *)(STM32_DBG_USART_APBX +
+					   STM32_DBG_USART_OFFS +
+					   STM32_UART_DR);
 
-	uart = (struct stm32_usart_regs *)(STM32_DBG_USART_APBX +
-					   STM32_DBG_USART_OFFS);
-	while (!(uart->sr & STM32_USART_SR_TXE))
+	while (!(*uart_sr & STM32_USART_SR_TXE))
 		barrier();
-	uart->dr = c;
+	*uart_dr = c;
 }
 
 static inline void flush(void)

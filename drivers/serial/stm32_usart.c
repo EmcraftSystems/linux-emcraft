@@ -41,13 +41,44 @@
 #define STM32_USART_PORT	"STM32 USART Port"
 
 /*
- * CR1 bit masks
+ * CR1 bits
  */
 #define STM32_USART_CR1_UE	(1 << 13)	/* USART enable		     */
 #define STM32_USART_CR1_TXEIE	(1 <<  7)	/* TXE interrupt enable	     */
 #define STM32_USART_CR1_RXNEIE	(1 <<  5)	/* RXNE interrupt enable     */
 #define STM32_USART_CR1_TE	(1 <<  3)	/* Transmitter enable	     */
 #define STM32_USART_CR1_RE	(1 <<  2)	/* Receiver enable	     */
+
+/*
+ * SR bits (this is not the full list, see the others in uart.h header)
+ */
+#define STM32_USART_SR_RXNE	(1 << 5)	/* Read data reg not empty   */
+#define STM32_USART_SR_ORE	(1 << 3)	/* Overrun error	     */
+#define STM32_USART_SR_FE	(1 << 1)	/* Framing error	     */
+#define STM32_USART_SR_PE	(1 << 0)	/* Parity error		     */
+#define STM32_USART_SR_ERRORS	(STM32_USART_SR_ORE | STM32_USART_SR_FE |     \
+				 STM32_USART_SR_PE)
+#define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_RXNE | STM32_USART_SR_ORE |   \
+				 STM32_USART_SR_PE   | STM32_USART_SR_FE)
+
+/*
+ * USART register map
+ */
+struct stm32_usart_regs {
+	u16	sr;		/* Status				      */
+	u16	rsv0;
+	u16	dr;		/* Data					      */
+	u16	rsv1;
+	u16	brr;		/* Baud rate				      */
+	u16	rsv2;
+	u16	cr1;		/* Control 1				      */
+	u16	rsv3;
+	u16	cr2;		/* Control 2				      */
+	u16	rsv4;
+	u16	cr3;		/* Control 3				      */
+	u16	rsv5;
+	u16	gtpr;		/* Guard time and prescaler		      */
+};
 
 /*
  * Prototypes

@@ -63,54 +63,26 @@
 #define STM32_DBG_USART_OFFS	STM32_USART3_OFFS
 
 /*
- * SR bit masks
+ * SR bit masks (these are only those, which used in debug/uncompress code
+ * also; see stm32_usart.c for the others)
  */
-#define STM32_USART_SR_CTS	(1 << 9)
+#define STM32_USART_SR_CTS	(1 << 9)	/* Clear to send	     */
 #define STM32_USART_SR_TXE	(1 << 7)	/* Transmit data reg empty   */
-#define STM32_USART_SR_RXNE	(1 << 5)	/* Read data reg not empty   */
-#define STM32_USART_SR_ORE	(1 << 3)	/* Overrun error	     */
-#define STM32_USART_SR_FE	(1 << 1)	/* Framing error	     */
-#define STM32_USART_SR_PE	(1 << 0)	/* Parity error		     */
-#define STM32_USART_SR_ERRORS	(STM32_USART_SR_ORE | STM32_USART_SR_FE |     \
-				 STM32_USART_SR_PE)
-#define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_RXNE | STM32_USART_SR_ORE |   \
-				 STM32_USART_SR_PE   | STM32_USART_SR_FE)
+
+
+/*
+ * Register offsets for use in debug-asm, and uncompress prints
+ */
+#define STM32_UART_SR		0
+#define STM32_UART_DR		4
 
 #ifndef __ASSEMBLY__
 
 #include <linux/init.h>
-#include <mach/iomux.h>
 
 #define STM32_USART_DRV_NAME	"stm32serial"
 
-/*
- * USART register map
- */
-struct stm32_usart_regs {
-	u16	sr;		/* Status				      */
-	u16	rsv0;
-	u16	dr;		/* Data					      */
-	u16	rsv1;
-	u16	brr;		/* Baud rate				      */
-	u16	rsv2;
-	u16	cr1;		/* Control 1				      */
-	u16	rsv3;
-	u16	cr2;		/* Control 2				      */
-	u16	rsv4;
-	u16	cr3;		/* Control 3				      */
-	u16	rsv5;
-	u16	gtpr;		/* Guard time and prescaler		      */
-};
-
 void __init stm32_uart_init(void);
-
-#else
-
-/*
- * Register offsets for use in asm
- */
-#define STM32_UART_SR		0
-#define STM32_UART_DR		4
 
 #endif /* __ASSEMBLY__ */
 

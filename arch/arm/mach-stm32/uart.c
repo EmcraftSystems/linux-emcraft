@@ -67,8 +67,7 @@
 static struct resource			stm_usart_## uid ##_resources[] = {    \
 	{								       \
 		.start	= STM32_USART## uid ##_BASE,			       \
-		.end	= STM32_USART## uid ##_BASE +			       \
-			  sizeof(struct stm32_usart_regs) - 1,		       \
+		.end	= STM32_USART## uid ##_BASE + 1,		       \
 		.flags	= IORESOURCE_MEM,				       \
 	},								       \
 	{								       \
