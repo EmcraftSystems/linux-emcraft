@@ -32,7 +32,7 @@
 /*
  * STM32 MAC interrupt
  */
-#define STM32_MAC_IRQ		61
+#define STM32_MAC_IRQ			61
 
 /*
  * STM32 ENR bit
@@ -47,7 +47,7 @@
 static struct resource		eth_resources[] = {
 	{
 		.start	= STM32_MAC_BASE,
-		.end	= STM32_MAC_BASE + sizeof(struct stm32_mac_regs) - 1,
+		.end	= STM32_MAC_BASE + 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
