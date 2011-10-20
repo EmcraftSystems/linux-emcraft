@@ -537,9 +537,14 @@ static int spi_a2f_pio(
 		 * is not done, the SPI controller asserts slave
 		 * select as soon as transmit fifo has been emptied
 		 * regardless of the value in transfer count (which
-		 * cancels a transaction at the slave).
+		 * cancels a transaction at the slave). On the other
+		 * hand, it is important to let the code retrieving
+		 * incoming data (below) run every so frequenly or
+		 * otherwise an RX overflow will happen.
 		 */
-	        while (ti < len && !spi_a2f_hw_txfifo_full(c)) {
+	        for (i = 0; 
+		     i < 2 && ti < len && !spi_a2f_hw_txfifo_full(c);
+		     i ++) {
 
 			/*
  			 * If the trasmit in the current transfer
