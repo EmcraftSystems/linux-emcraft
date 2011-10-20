@@ -13,6 +13,7 @@
 #include <asm/glue.h>
 #include <asm/thread_notify.h>
 
+#include <mach/irqs.h>
 #include <mach/entry-macro.S>
 
 #include "entry-header.S"
@@ -183,7 +184,7 @@ ENDPROC(__switch_to)
 	.data
 	.align	8
 /*
- * Vector table (64 words => 256 bytes natural alignment)
+ * Vector table
  */
 ENTRY(vector_table)
 	.long	0			@ 0 - Reset stack pointer
@@ -206,9 +207,9 @@ ENTRY(vector_table)
 	.long	__invalid_entry		@ 13 - Reserved
 	.long	__pendsv_entry		@ 14 - PendSV
 	.long	__invalid_entry		@ 15 - SysTick
-	.rept	64 - 16
-	.long	__irq_entry		@ 16..64 - External Interrupts
+	.rept	NR_IRQS
+	.long	__irq_entry		@ 16.. - NR_IRQS External Interrupts
 	.endr
-#if defined(CONFIG_ARCH_A2F)
+#if defined(CONFIG_ARCH_A2F) || defined(CONFIG_ARCH_STM32)
 ENTRY(vector_table_end)
 #endif

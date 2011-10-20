@@ -95,7 +95,7 @@ cpu_v7m_name:
 __v7m_setup:
 	@ Configure the vector table base address
 	ldr	r0, =0xe000ed08		@ vector table base address
-#if defined(CONFIG_ARCH_A2F)
+#if defined(CONFIG_ARCH_A2F) || defined(CONFIG_ARCH_STM32)
 	/*
 	 * TO-DO: this probably warrants introduction of a new
 	 * configuration option (platform has a dedicated SRAM)

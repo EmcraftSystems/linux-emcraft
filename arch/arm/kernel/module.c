@@ -224,13 +224,13 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			 * If I disable this particular test, my
 			 * module loads and works just fine.
 			 * ...
-			 * I didn't try to figure the logic in this 
-			 * section of module.c but I suspect that 
+			 * I didn't try to figure the logic in this
+			 * section of module.c but I suspect that
 			 * there are scenarios where a 0 in the first
 			 * bit is a legit scenario. Just in case,
 			 * I disable the test for SmartFision only.
 			 */
-#ifndef CONFIG_ARCH_A2F
+#if !defined(CONFIG_ARCH_A2F) && !defined(CONFIG_ARCH_STM32)
 			/* only Thumb addresses allowed (no interworking) */
 			if (!(offset & 1) ||
 #else
