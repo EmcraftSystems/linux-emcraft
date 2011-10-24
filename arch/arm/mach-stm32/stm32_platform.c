@@ -38,6 +38,7 @@
 #include <mach/platform.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/flash.h>
 
 /*
  * Prototypes
@@ -165,5 +166,6 @@ static void __init stm32_init(void)
 	/*
 	 * Configure external Flash
 	 */
+	stm32_flash_init();
 #endif
 }
