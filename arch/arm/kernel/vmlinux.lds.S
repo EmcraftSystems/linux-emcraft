@@ -19,6 +19,7 @@ jiffies = jiffies_64 + 4;
 
 SECTIONS
 {
+
 #ifdef CONFIG_XIP_KERNEL
 	. = XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR);
 #else
@@ -56,7 +57,7 @@ SECTIONS
 		__init_begin = _stext;
 		INIT_DATA
 #endif
-	}
+	} 
 
 	PERCPU(PAGE_SIZE)
 
@@ -85,6 +86,81 @@ SECTIONS
 		*(__ex_table)
 #endif
 	}
+
+/*
+ * In case we run parts of the kernel in embedded Flash,
+ * relocate critical kernel code to that fast Flash.
+ */
+#ifdef CONFIG_KERNEL_IN_ENVM
+	_envm_loc = .;
+
+
+	.envm  ENVM_PHYS_OFFSET + CONFIG_KERNEL_IN_ENVM_OFFSET * 1024 : {
+		_envm_start = .;
+
+#if CONFIG_KERNEL_IN_ENVM_SIZE>0
+		__exception_text_start = .;
+		*(.exception.text)
+		__exception_text_end = .;
+		SCHED_TEXT
+		LOCK_TEXT
+		KPROBES_TEXT
+
+		usr/built-in.o(.text)
+		usr/built-in.o(.rodata*)
+		init/built-in.o(.text)
+		init/built-in.o(.rodata*)
+		arch/arm/kernel/built-in.o(.text)
+		arch/arm/kernel/built-in.o(.rodata*)
+		arch/arm/mm/built-in.o(.text)
+		arch/arm/mm/built-in.o(.rodata*)
+		arch/arm/common/built-in.o(.text)
+		arch/arm/common/built-in.o(.rodata*)
+		arch/arm/mach-a2f/built-in.o(.text)
+		arch/arm/mach-a2f/built-in.o(.rodata*)
+		mm/built-in.o(.text)
+		mm/built-in.o(.rodata*)
+
+		arch/arm/lib/lib.a(.text)
+		arch/arm/lib/lib.a(.rodata*)
+		lib/lib.a(.text)
+		lib/lib.a(.rodata*)
+		arch/arm/lib/built-in.o(.text)
+		arch/arm/lib/built-in.o(.rodata*)
+		lib/built-in.o(.text)
+		lib/built-in.o(.rodata*)
+
+#if CONFIG_KERNEL_IN_ENVM_SIZE>128
+		kernel/built-in.o(.text)
+		kernel/built-in.o(.rodata*)
+		ipc/built-in.o(.text)
+		ipc/built-in.o(.rodata*)
+		block/built-in.o(.text)
+		block/built-in.o(.rodata*)
+		drivers/built-in.o(.text)
+		drivers/built-in.o(.rodata*)
+		security/built-in.o(.text)
+		security/built-in.o(.rodata*)
+		crypto/built-in.o(.text)
+		crypto/built-in.o(.rodata*)
+		firmware/built-in.o(.text)
+		firmware/built-in.o(.text)
+
+#if CONFIG_KERNEL_IN_ENVM_SIZE>384
+		fs/built-in.o(.text)
+		fs/built-in.o(.rodata*)
+		net/built-in.o(.rodata*)
+		net/built-in.o(.rodata*)
+
+#endif /* CONFIG_KERNEL_IN_ENVM_SIZE>384 */
+#endif /* CONFIG_KERNEL_IN_ENVM_SIZE>128 */
+#endif /* CONFIG_KERNEL_IN_ENVM_SIZE>0 */
+
+		_envm_end = .;
+	} 
+
+	. = _envm_loc;
+#endif /* CONFIG_KERNEL_IN_ENVM */
 
 	.text : {			/* Real text segment		*/
 		_text = .;		/* Text and read-only data	*/

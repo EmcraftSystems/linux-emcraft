@@ -16,6 +16,9 @@ LDFLAGS_vmlinux	+= --be8
 endif
 
 OBJCOPYFLAGS	:=-O binary -R .note -R .note.gnu.build-id -R .comment -S
+ifeq ($(CONFIG_KERNEL_IN_ENVM),y)
+OBJCOPYFLAGS	+=-R .envm
+endif
 GZFLAGS		:=-9
 #KBUILD_CFLAGS	+=-pipe
 # Explicitly specifiy 32-bit ARM ISA since toolchain default can be -mthumb:
@@ -98,6 +101,9 @@ ifeq ($(CONFIG_THUMB2_KERNEL),y)
 AFLAGS_AUTOIT	:=$(call as-option,-Wa$(comma)-mimplicit-it=always,-Wa$(comma)-mauto-it)
 AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
 CFLAGS_THUMB2	:=-mthumb $(AFLAGS_AUTOIT) $(AFLAGS_NOWARN)
+ifeq ($(CONFIG_KERNEL_IN_ENVM),y)
+CFLAGS_THUMB2	+= -mlong-calls
+endif
 AFLAGS_THUMB2	:=$(CFLAGS_THUMB2) -Wa$(comma)-mthumb
 endif
 
