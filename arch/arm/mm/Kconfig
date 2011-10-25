@@ -632,6 +632,39 @@ config IO_36
 
 comment "Processor Features"
 
+config KERNEL_IN_ENVM
+	depends on ARCH_STM32 || ARCH_A2F
+	bool "Run parts of the kernel in built-in eNVM of Cortex-M"
+	default n
+	help
+	  Enable if you want to run parts of the kernel from built-in
+	  eNVM (internal Flash) of Cortex-M3. What it does, it relocates
+          (links) certain parts of the kernel to the free area in eNVM,
+	  while the other parts of the kernel remain relocated to
+	  the default memory (typically, external RAM). By enabling 
+	  this option, you get to run some parts of the kernel from
+	  fast eNVM. For microcontrollers with a 1MB eNVM pretty much
+	  the entire run-time kernel (excluding init sections) fits
+	  into the fast eNVM, so improvements to boot-up times and
+	  overall performance may be substantial. On the cons side,
+	  you must properly install the eNVM-based kernel binary into
+	  appropriate address at eNVM (typically, this would be done
+	  from U-boot).
+
+config KERNEL_IN_ENVM_OFFSET
+	depends on KERNEL_IN_ENVM
+	int "Offset of the kernel area in built-in eNVM (in KBytes)"
+	default 128
+	help
+	  Define offset of the kernel area in built-in eNVM
+
+config KERNEL_IN_ENVM_SIZE
+	depends on KERNEL_IN_ENVM
+	int "Size of the kernel area in built-in eNVM (in KBytes)"
+	default 384
+	help
+	  Define size of the kernel area in built-in eNVM
+
 config ARM_THUMB
 	bool "Support Thumb user binaries"
 	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || \
