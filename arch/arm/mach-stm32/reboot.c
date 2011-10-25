@@ -24,12 +24,25 @@
 
 #include <linux/init.h>
 
+struct cm3_scb {
+	unsigned int	cpuid;
+	unsigned int	icsr;
+	unsigned int	vtor;
+	unsigned int	aircr;
+};
+
+#define CM3_SCB_BASE	0xE000ED00
+#define CM3_SCB		((volatile struct cm3_scb *)(CM3_SCB_BASE))
+
 /*
  * Perform the low-level reboot.
  */
 void stm32_reboot(void)
 {
 	/*
-	 * TBD
+	 * Perform reset but keep priority group unchanged.
 	 */
+	CM3_SCB->aircr  = (0x5FA << 16) |
+                          (CM3_SCB->aircr & (7<<8)) |
+                          (1<<2);
 }
