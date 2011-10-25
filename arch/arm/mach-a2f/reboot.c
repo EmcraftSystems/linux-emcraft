@@ -34,5 +34,5 @@ void a2f_reboot(void)
 	 */
 	A2F_SCB->aircr  = (0x5FA << 16) |
                           (A2F_SCB->aircr & (7<<8)) |
-                          (1<<2); 
+                          (1<<2);
 }
