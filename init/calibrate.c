@@ -119,7 +119,11 @@ static unsigned long __cpuinit calibrate_delay_direct(void) {return 0;}
  */
 #define LPS_PREC 8
 
+#if defined(CONFIG_KERNEL_IN_ENVM)
+void  calibrate_delay(void)
+#else
 void __cpuinit calibrate_delay(void)
+#endif
 {
 	unsigned long ticks, loopbit;
 	int lps_precision = LPS_PREC;
