@@ -445,7 +445,11 @@ unsigned long get_wchan(struct task_struct *p)
 	frame.lr = 0;			/* recovered from the stack */
 	frame.pc = thread_saved_pc(p);
 	do {
+#if defined(CONFIG_ARM_UNWIND)
 		int ret = unwind_frame(&frame);
+#else
+		int ret = -1;
+#endif
 		if (ret < 0)
 			return 0;
 		if (!in_sched_functions(frame.pc))

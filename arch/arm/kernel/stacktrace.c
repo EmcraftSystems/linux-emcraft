@@ -51,7 +51,11 @@ void notrace walk_stackframe(struct stackframe *frame,
 
 		if (fn(frame, data))
 			break;
+#if defined(CONFIG_ARM_UNWIND)
 		ret = unwind_frame(frame);
+#else
+		ret = -1;
+#endif
 		if (ret < 0)
 			break;
 	}

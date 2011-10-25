@@ -5,7 +5,7 @@ config MACH_STM32
 	default y
 	select ARM_NVIC if CPU_V7M
 	help
-	  Include support for the STMicro STM32 SoC
+	  Include support for the STMicro STM32F2 microcontroller
 
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
