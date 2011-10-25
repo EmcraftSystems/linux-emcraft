@@ -27,7 +27,7 @@ INITRD_PHYS := $(initrd_phys-y)
 
 export ZRELADDR INITRD_PHYS PARAMS_PHYS
 
-targets := Image zImage xipImage bootpImage uImage
+targets := Image zImage xipImage bootpImage vImage uImage
 
 ifeq ($(CONFIG_XIP_KERNEL),y)
 
@@ -65,6 +65,9 @@ endif
 
 endif
 
+quiet_cmd_vimage = $(OBJCOPY) -O binary -j .envm -S  vmlinux $@
+      cmd_vimage = $(OBJCOPY) -O binary -j .envm -S  vmlinux $@
+
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A arm -O linux -T kernel \
 		   -C none -a $(LOADADDR) -e $(STARTADDR) \
@@ -84,9 +87,22 @@ $(obj)/uImage: STARTADDR=$(LOADADDR)
 endif
 
 ifeq ($(CONFIG_KERNEL_COMPRESS_NONE),y)
+ifeq ($(CONFIG_KERNEL_IN_ENVM),y)
+$(obj)/vImage:	$(obj)/Image FORCE
+	$(call if_changed,vimage)
+	@echo '  Image $@ is ready'
 $(obj)/uImage:	$(obj)/Image FORCE
 	$(call if_changed,uimage)
 	@echo '  Image $@ is ready'
+else
+$(obj)/vImage: FORCE
+	@echo 'Kernel not configured for CONFIG_KERNEL_IN_ENVM'
+	@false
+$(obj)/uImage:	$(obj)/Image FORCE
+	$(call if_changed,uimage)
+	@echo '  Image $@ is ready'
+endif
+
 else
 $(obj)/uImage:	$(obj)/zImage FORCE
 	$(call if_changed,uimage)
