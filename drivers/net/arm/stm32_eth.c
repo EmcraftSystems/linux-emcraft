@@ -1105,7 +1105,7 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 	}
 	stm->irq = rs->start;
 
-	printk(STM32_INFO ": found STM32 MAC at 0x%x, irq %d\n", stm->regs, stm->irq);
+	printk(STM32_INFO ": found STM32 MAC at 0x%x, irq %d\n", (s32)stm->regs, stm->irq);
 
 	/*
 	 * Setup driver parameters passed by user
