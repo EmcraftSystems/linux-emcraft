@@ -1105,6 +1105,8 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 	}
 	stm->irq = rs->start;
 
+	printk(STM32_INFO ": found STM32 MAC at 0x%x, irq %d\n", stm->regs, stm->irq);
+
 	/*
 	 * Setup driver parameters passed by user
 	 */
@@ -1210,8 +1212,6 @@ static struct platform_driver	stm32_eth_driver = {
  */
 static int __init stm32_eth_drv_init(void)
 {
-	printk(STM32_INFO ": init\n");
-
 	return platform_driver_register(&stm32_eth_driver);
 }
 
