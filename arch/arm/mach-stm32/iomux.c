@@ -275,6 +275,15 @@ void __init stm32_iomux_init(void)
 
 	switch (platform) {
 	case PLATFORM_STM32_STM3220G_EVAL:
+#if defined(CONFIG_STM32_USART1)
+		gpio_dsc.port = 0;
+		gpio_dsc.pin  = 9;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART1);
+
+		gpio_dsc.port = 0;
+		gpio_dsc.pin  = 10;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART1);
+#endif
 #if defined(CONFIG_STM32_USART3)
 		gpio_dsc.port = 2;
 		gpio_dsc.pin  = 10;
