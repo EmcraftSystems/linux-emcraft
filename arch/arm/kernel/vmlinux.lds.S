@@ -118,8 +118,6 @@ SECTIONS
 		arch/arm/common/built-in.o(.rodata*)
 		arch/arm/mach-a2f/built-in.o(.text)
 		arch/arm/mach-a2f/built-in.o(.rodata*)
-		mm/built-in.o(.text)
-		mm/built-in.o(.rodata*)
 
 		arch/arm/lib/lib.a(.text)
 		arch/arm/lib/lib.a(.rodata*)
@@ -131,6 +129,8 @@ SECTIONS
 		lib/built-in.o(.rodata*)
 
 #if CONFIG_KERNEL_IN_ENVM_SIZE>128
+		mm/built-in.o(.text)
+		mm/built-in.o(.rodata*)
 		kernel/built-in.o(.text)
 		kernel/built-in.o(.rodata*)
 		ipc/built-in.o(.text)
