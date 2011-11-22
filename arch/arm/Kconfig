@@ -790,6 +790,16 @@ config ARCH_STM32
 	help
 	  This enables support for the STMicro STM32 SoC
 
+config ARCH_LPC178X
+	bool "NXP LPC178x/7x SoC"
+	depends on !MMU
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for the NXP LPC178x/7x SoCs
+
 endchoice
 
 source "arch/arm/mach-aaec2000/Kconfig"
@@ -905,6 +915,8 @@ source "arch/arm/mach-mps/Kconfig"
 source "arch/arm/mach-a2f/Kconfig"
 
 source "arch/arm/mach-stm32/Kconfig"
+
+source "arch/arm/mach-lpc178x/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
