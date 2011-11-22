@@ -9,6 +9,12 @@ config MACH_LPC178X
 
 menu "LPC178x/7x I/O interfaces"
 	depends on ARCH_LPC178X
+
+config LPC178X_UART0
+	depends on ARCH_LPC178X && SERIAL_8250
+	bool "Enable LPC178x/7x UART0 port"
+	default y
+
 endmenu
 
 endif

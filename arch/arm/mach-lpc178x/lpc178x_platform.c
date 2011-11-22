@@ -35,6 +35,7 @@
 #include <mach/iomux.h>
 #include <mach/platform.h>
 #include <mach/timer.h>
+#include <mach/uart.h>
 
 /*
  * Prototypes
@@ -144,10 +145,11 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_iomux_init();
 
-#if defined(CONFIG_LPC178X_UART)
+#if defined(CONFIG_SERIAL_8250)
 	/*
 	 * Configure the UART devices
 	 */
+	lpc178x_uart_init();
 #endif
 
 #if defined(CONFIG_LPC178X_ETH)
