@@ -216,6 +216,36 @@ input_file() {
 	fi
 }
 
+# Process 'ifarch' commands. These commands have the following format:
+#
+# ifarch <mcu> <str>, where:
+# - <mcu> specifies the processor architecture (eg. A2F, STM32, etc)
+# - <str> is a normal file, dir, node, etc string.
+#
+# If an <mcu> in an 'ifarch' command is the same as the value of
+# the env var ${MCU}, we put the corresponding <str> into
+# the resultant file (i.e. the corresponding file, dir, node, etc
+# gets put into the resultant file system). If not - we remove
+# that line from the resultant file (i.e. the corresponding
+# file, dir, node, etc is not copied into the file system).
+process_ifarch() {
+	local temp_file="$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)"
+	cat "$1" | while read word arch str ; do
+		if [ "$word" == "ifarch" ]; then
+			if [ "$arch" == "${MCU}" ]; then
+				echo "$str" >> ${temp_file}
+			fi
+		else
+			echo "$word $arch $str" >> ${temp_file}
+		fi
+	done
+
+	cp ${temp_file} "$1"
+	rm -f ${temp_file}
+
+	exit 0
+}
+
 prog=$0
 root_uid=0
 root_gid=0
@@ -284,6 +314,8 @@ done
 if [ ! -z ${output_file} ]; then
 	if [ -z ${cpio_file} ]; then
 		cpio_tfile="$(mktemp ${TMPDIR:-/tmp}/cpiofile.XXXXXX)"
+		# Process the 'ifarch' command 
+		process_ifarch ${cpio_list}
 		usr/gen_init_cpio ${cpio_list} > ${cpio_tfile}
 	else
 		cpio_tfile=${cpio_file}
