@@ -240,10 +240,8 @@ process_ifarch() {
 		fi
 	done
 
-	cp ${temp_file} "$1"
+	cp ${temp_file} ${cpio_list}
 	rm -f ${temp_file}
-
-	exit 0
 }
 
 prog=$0
