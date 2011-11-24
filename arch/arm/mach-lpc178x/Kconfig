@@ -1,0 +1,14 @@
+if ARCH_LPC178X
+
+config MACH_LPC178X
+	bool
+	default y
+	select ARM_NVIC if CPU_V7M
+	help
+	  Include support for the NXP LPC178x/7x SoCs
+
+menu "LPC178x/7x I/O interfaces"
+	depends on ARCH_LPC178X
+endmenu
+
+endif
