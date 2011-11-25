@@ -2,6 +2,10 @@
  * (C) Copyright (C) 2009
  * ARM Ltd.
  *
+ * (C) Copyright 2011
+ * Emcraft Systems, <www.emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -24,6 +28,11 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
-#define NR_IRQS		256	/* FIXME: set to the real number of IRQs */
+/*
+ * Number of external interrupts
+ *
+ * See Table 43 in the LPC178x/7x User Manual.
+ */
+#define NR_IRQS		41
 
 #endif
