@@ -36,6 +36,7 @@
 #include <mach/platform.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/eth.h>
 #include <mach/flash.h>
 
 /*
@@ -153,10 +154,11 @@ static void __init lpc178x_init(void)
 	lpc178x_uart_init();
 #endif
 
-#if defined(CONFIG_LPC178X_ETH)
+#if defined(CONFIG_LPC178X_MAC)
 	/*
-	 * Configure the LPC178x/7x Ethernet block
+	 * Configure the LPC178x/7x MAC
 	 */
+	lpc178x_eth_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)
