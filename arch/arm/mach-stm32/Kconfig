@@ -10,11 +10,6 @@ config MACH_STM32
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
 
-config STM32_MAC
-	depends on ARCH_STM32 && STM32_ETHER
-	bool "Enable STM32 Ethernet port"
-	default y
-
 config STM32_USART1
 	depends on ARCH_STM32 && SERIAL_STM32
 	bool "Enable STM32 USART1 port"
@@ -44,6 +39,11 @@ config STM32_USART6
 	depends on ARCH_STM32 && SERIAL_STM32
 	bool "Enable STM32 USART6 port"
 	default n
+
+config STM32_MAC
+	depends on ARCH_STM32 && STM32_ETHER
+	bool "Enable STM32 Ethernet port"
+	default y
 
 endmenu
 
