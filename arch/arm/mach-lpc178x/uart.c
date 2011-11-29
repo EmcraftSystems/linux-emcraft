@@ -34,70 +34,132 @@
  * UARTs are compatible with the 16550 device.
  */
 
-/*
- * UART0
- */
-#ifdef CONFIG_LPC178X_UART0
-
 #define	LPC178X_UART_RGSZ	(0x60 - 1)
 
-/* "Interrupt ID" in Table 43 in the LPC178x/7x User Manual (page 70). */
+/*
+ * "Interrupt ID" in Table 43 in the LPC178x/7x User Manual (page 70).
+ */
 #define LPC178X_UART0_IRQ	5
+#define LPC178X_UART1_IRQ	6
+#define LPC178X_UART2_IRQ	7
+#define LPC178X_UART3_IRQ	8
+#define LPC178X_UART4_IRQ	35
 
-#define LPC178X_UART0_BASE	0x4000C000
+/*
+ * Base addresses of UART registers
+ */
+#define LPC178X_UART0_BASE	(LPC178X_APB0PERIPH_BASE + 0x0000C000)
+#define LPC178X_UART1_BASE	(LPC178X_APB0PERIPH_BASE + 0x00010000)
+#define LPC178X_UART2_BASE	(LPC178X_APB1PERIPH_BASE + 0x00018000)
+#define LPC178X_UART3_BASE	(LPC178X_APB1PERIPH_BASE + 0x0001C000)
+#define LPC178X_UART4_BASE	(LPC178X_APB1PERIPH_BASE + 0x00024000)
 
-static struct resource uart0_resources[] = {
-	{
-		.start          = LPC178X_UART0_BASE,
-		.end            = LPC178X_UART0_BASE + LPC178X_UART_RGSZ,
-		.flags          = IORESOURCE_MEM,
-	},
-	{
-		.start          = LPC178X_UART0_IRQ,
-		.flags          = IORESOURCE_IRQ,
-	},
-};
+/*
+ * UART platform device resources
+ */
+#define UART_PLAT_RESOURCES(uid)					       \
+static struct resource uart## uid ##_resources[] = {			       \
+	{								       \
+		.start	= LPC178X_UART## uid ##_BASE,			       \
+		.end	= LPC178X_UART## uid ##_BASE + LPC178X_UART_RGSZ,      \
+		.flags	= IORESOURCE_MEM,				       \
+	},								       \
+	{								       \
+		.start	= LPC178X_UART## uid ##_IRQ,			       \
+		.flags	= IORESOURCE_IRQ,				       \
+	}								       \
+}
 
-static struct plat_serial8250_port uart0_data[] = {
-	{
-		.membase	= (char *) LPC178X_UART0_BASE,
-		.mapbase	= LPC178X_UART0_BASE,
-		.irq		= LPC178X_UART0_IRQ,
-		.regshift	= 2,
-		.iotype		= UPIO_MEM,
-		.flags		= UPF_SKIP_TEST,
-	},
-	{  },
-};
+const char serial8250_drv_name[] = "serial8250";
 
-static struct platform_device uart0_device = {
-	.name           = "serial8250",
-	.id             = 0,
-	.dev.platform_data = uart0_data,
-	.num_resources  = 2,
-	.resource       = uart0_resources,
-};
-#endif /* CONFIG_LPC178X_UART0 */
+/*
+ * UART platform device instance
+ */
+#define UART_PLAT_DEVICE(uid)						       \
+static struct plat_serial8250_port uart## uid ##_data[] = {		       \
+	{								       \
+		.membase	= (char *) LPC178X_UART## uid ##_BASE,	       \
+		.mapbase	= LPC178X_UART## uid ##_BASE,		       \
+		.irq		= LPC178X_UART## uid ##_IRQ,		       \
+		.regshift	= 2,					       \
+		.iotype		= UPIO_MEM,				       \
+		.flags		= UPF_SKIP_TEST,			       \
+	},								       \
+	{  },								       \
+};									       \
+									       \
+static struct platform_device uart## uid ##_device = {			       \
+	.name			= serial8250_drv_name,			       \
+	.id			= uid,					       \
+	.dev.platform_data	= uart## uid ##_data,			       \
+	.num_resources		= 2,					       \
+	.resource		= uart## uid ##_resources,		       \
+}
+
+/*
+ * Enable power on UART, initialize clock rate and register platform device
+ */
+#define uart_init_and_register(uid) do {				       \
+	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCUART## uid ##_MSK, 1);       \
+	uart## uid ##_data[0].uartclk = lpc178x_clock_get(CLOCK_PCLK);	       \
+	(void) platform_device_register(&uart## uid ##_device);		       \
+} while (0)
+
+
+/*
+ * Declare the platform devices for the enabled ports
+ */
+#if defined(CONFIG_LPC178X_UART0)
+UART_PLAT_RESOURCES(0);
+UART_PLAT_DEVICE(0);
+#endif
+
+#if defined(CONFIG_LPC178X_UART1)
+UART_PLAT_RESOURCES(1);
+UART_PLAT_DEVICE(1);
+#endif
+
+#if defined(CONFIG_LPC178X_UART2)
+UART_PLAT_RESOURCES(2);
+UART_PLAT_DEVICE(2);
+#endif
+
+#if defined(CONFIG_LPC178X_UART3)
+UART_PLAT_RESOURCES(3);
+UART_PLAT_DEVICE(3);
+#endif
+
+#if defined(CONFIG_LPC178X_UART4)
+UART_PLAT_RESOURCES(4);
+UART_PLAT_DEVICE(4);
+#endif
 
 /*
  * Register the LPC178x/7x-specific UART devices with the kernel.
  */
 void __init lpc178x_uart_init(void)
 {
+	/*
+	 * Enable power on UARTs, initialize clock rate
+	 * and register platform devices
+	 */
 #if defined(CONFIG_LPC178X_UART0)
-	/*
-	 * Enable power on UART0
-	 */
-	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCUART0_MSK, 1);
+	uart_init_and_register(0);
+#endif
 
-	/*
-	 * Get the reference clock for this UART port
-	 */
-	uart0_data[0].uartclk = lpc178x_clock_get(CLOCK_PCLK);
+#if defined(CONFIG_LPC178X_UART1)
+	uart_init_and_register(1);
+#endif
 
-	/*
-	 * Register device for UART0
-	 */
-	(void) platform_device_register(&uart0_device);
+#if defined(CONFIG_LPC178X_UART2)
+	uart_init_and_register(2);
+#endif
+
+#if defined(CONFIG_LPC178X_UART3)
+	uart_init_and_register(3);
+#endif
+
+#if defined(CONFIG_LPC178X_UART4)
+	uart_init_and_register(4);
 #endif
 }
