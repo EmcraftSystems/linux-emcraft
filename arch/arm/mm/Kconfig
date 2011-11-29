@@ -633,8 +633,8 @@ config IO_36
 comment "Processor Features"
 
 config KERNEL_IN_ENVM
-	depends on ARCH_STM32 || ARCH_A2F
-	bool "Run parts of the kernel in built-in eNVM of Cortex-M"
+	depends on ARM_CORTEXM3
+	bool "Run parts of the kernel in built-in eNVM of Cortex-M3"
 	default n
 	help
 	  Enable if you want to run parts of the kernel from built-in

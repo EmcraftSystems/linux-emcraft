@@ -1,4 +1,6 @@
 /*
+ *  linux/arch/arm/common/cortexm3.c
+ *
  * (C) Copyright 2011
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
@@ -22,12 +24,35 @@
  * MA 02111-1307 USA
  */
 
+#include <linux/types.h>
 #include <asm/hardware/cortexm3.h>
+
+struct cm3_scb {
+	u32	cpuid;
+	u32	icsr;
+	u32	vtor;
+	u32	aircr;
+};
+
+#define CM3_SCB_BASE	0xE000ED00
+#define CM3_SCB		((volatile struct cm3_scb *)(CM3_SCB_BASE))
+
+#define CM3_AIRCR_VECTKEY		0x5fa
+#define CM3_AIRCR_VECTKEY_SHIFT		16
+#define CM3_AIRCR_PRIGROUP_MSK		0x7
+#define CM3_AIRCR_PRIGROUP_SHIFT	8
+#define CM3_AIRCR_SYSRESET		(1<<2)
 
 /*
  * Perform the low-level reboot.
  */
-void lpc178x_reboot(void)
+void cortex_m3_reboot(void)
 {
-	cortex_m3_reboot();
+	/*
+	 * Perform reset but keep priority group unchanged.
+	 */
+	CM3_SCB->aircr = (CM3_AIRCR_VECTKEY << CM3_AIRCR_VECTKEY_SHIFT) |
+			 (CM3_SCB->aircr &
+			  (CM3_AIRCR_PRIGROUP_MSK << CM3_AIRCR_PRIGROUP_SHIFT))
+			 | CM3_AIRCR_SYSRESET;
 }

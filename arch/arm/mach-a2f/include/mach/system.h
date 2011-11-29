@@ -20,9 +20,7 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <linux/io.h>
-#include <mach/hardware.h>
-#include <mach/platform.h>
-#include <mach/reboot.h>
+#include <asm/hardware/cortexm3.h>
 
 static inline void arch_idle(void)
 {
@@ -31,7 +29,7 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	a2f_reboot();
+	cortex_m3_reboot();
 }
 
 #endif

@@ -18,21 +18,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/init.h>
-#include <linux/platform_device.h>
-
-#include <mach/a2f.h>
-#include <mach/reboot.h>
+#include <asm/hardware/cortexm3.h>
 
 /*
  * Perform the low-level reboot.
  */
 void a2f_reboot(void)
 {
-	/*
-	 * Perform reset but keep priority group unchanged.
-	 */
-	A2F_SCB->aircr  = (0x5FA << 16) |
-                          (A2F_SCB->aircr & (7<<8)) |
-                          (1<<2);
+	cortex_m3_reboot();
 }

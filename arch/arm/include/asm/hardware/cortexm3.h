@@ -22,12 +22,13 @@
  * MA 02111-1307 USA
  */
 
-#include <asm/hardware/cortexm3.h>
+#ifndef _ASM_ARCH_CORTEXM3_H_
+#define _ASM_ARCH_CORTEXM3_H_
 
-/*
- * Perform the low-level reboot.
- */
-void lpc178x_reboot(void)
-{
-	cortex_m3_reboot();
-}
+#ifdef CONFIG_ARM_CORTEXM3
+
+extern void cortex_m3_reboot(void);
+
+#endif /* CONFIG_ARM_CORTEXM3 */
+
+#endif /* _ASM_ARCH_CORTEXM3_H_ */

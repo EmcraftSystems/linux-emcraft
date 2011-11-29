@@ -15,6 +15,13 @@ config ARM_VIC_NR
 config ARM_NVIC
 	bool
 
+config ARM_CORTEXM3
+	bool
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
 config ICST525
 	bool
 

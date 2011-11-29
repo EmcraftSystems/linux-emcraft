@@ -773,30 +773,21 @@ config ARCH_MPS
 config ARCH_A2F
 	bool "Actel A2F (SmartFusion) SoC"
 	depends on !MMU
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
+	select ARM_CORTEXM3
 	help
 	  This enables support for the Actel A2F (SmartFusion) SoC
 
 config ARCH_STM32
 	bool "STMicro STM32 SoC"
 	depends on !MMU
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
+	select ARM_CORTEXM3
 	help
 	  This enables support for the STMicro STM32 SoC
 
 config ARCH_LPC178X
 	bool "NXP LPC178x/7x SoC"
 	depends on !MMU
-	select HAVE_CLK
-	select COMMON_CLKDEV
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
+	select ARM_CORTEXM3
 	help
 	  This enables support for the NXP LPC178x/7x SoCs
 
