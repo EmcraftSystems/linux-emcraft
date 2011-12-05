@@ -1986,6 +1986,13 @@ static int serial8250_startup(struct uart_port *port)
 	(void) serial_inp(up, UART_RX);
 	(void) serial_inp(up, UART_IIR);
 	(void) serial_inp(up, UART_MSR);
+	/*
+	 * The UARTs' controller in the LPC178x/7x SoC requires the following
+	 * manual cleanup of pending interrupts, otherwise we will be flooded
+	 * with interrupts.
+	 */
+	if (up->port.flags & UPF_MANUAL_INT_CLEAR)
+		(void) serial_outp(up, UART_IIR, UART_IIR_NO_INT);
 
 	/*
 	 * At this point, there's no way the LSR could still be 0xff;

@@ -83,7 +83,11 @@ static struct plat_serial8250_port uart## uid ##_data[] = {		       \
 		.irq		= LPC178X_UART## uid ##_IRQ,		       \
 		.regshift	= 2,					       \
 		.iotype		= UPIO_MEM,				       \
-		.flags		= UPF_SKIP_TEST,			       \
+		/* About UPF_MANUAL_INT_CLEAR:				    */ \
+		/* The UARTs' controller in the LPC178x/7x SoC requires	    */ \
+		/* manual cleanup of pending interrupts, otherwise we	    */ \
+		/* will be flooded with interrupts.			    */ \
+		.flags		= UPF_SKIP_TEST | UPF_MANUAL_INT_CLEAR,	       \
 	},								       \
 	{  },								       \
 };									       \
