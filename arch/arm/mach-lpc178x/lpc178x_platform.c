@@ -36,6 +36,7 @@
 #include <mach/platform.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/flash.h>
 
 /*
  * Prototypes
@@ -162,5 +163,6 @@ static void __init lpc178x_init(void)
 	/*
 	 * Configure external Flash
 	 */
+	lpc178x_flash_init();
 #endif
 }
