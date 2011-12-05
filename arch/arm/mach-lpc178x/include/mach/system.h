@@ -26,7 +26,9 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <linux/io.h>
+
 #include <asm/hardware/cortexm3.h>
+#include <mach/reboot.h>
 
 static inline void arch_idle(void)
 {
@@ -35,7 +37,15 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	cortex_m3_reboot();
+	/*
+	 * `lpc178x_reboot()` does not just call `cortex_m3_reboot()`, it also
+	 * resets the Ethernet PHY before doing the SYSRESET of the SoC.
+	 *
+	 * The Ethernet PHY has to be reset immediately before doing a software
+	 * reset of SoC, because otherwise the Ethernet block hangs after
+	 * SYSRESET.
+	 */
+	lpc178x_reboot();
 }
 
 #endif

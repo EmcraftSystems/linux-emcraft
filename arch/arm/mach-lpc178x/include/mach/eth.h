@@ -25,6 +25,8 @@
 #ifndef _MACH_LPC178X_ETH_H_
 #define _MACH_LPC178X_ETH_H_
 
+#include <linux/init.h>
+
 #include <mach/lpc178x.h>
 
 /*
@@ -46,5 +48,10 @@ struct lpc178x_eth_data {
 };
 
 void __init lpc178x_eth_init(void);
+
+/*
+ * Final PHY reset before performing SYSRESET of SoC
+ */
+void lpc178x_phy_final_reset(void);
 
 #endif /* _MACH_LPC178X_ETH_H_ */

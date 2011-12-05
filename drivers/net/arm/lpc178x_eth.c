@@ -1320,6 +1320,13 @@ static const struct net_device_ops lpc_netdev_ops = {
 #endif
 };
 
+/*
+ * Pointer to the private data for the only Ethernet block in our SoC
+ *
+ * Is is only used in `lpc178x_phy_final_reset()`.
+ */
+static struct netdata_local *lpc178x_pldat;
+
 static int lpc_net_drv_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1349,6 +1356,7 @@ static int lpc_net_drv_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	pldat = netdev_priv(ndev);
+	lpc178x_pldat = pldat;
 	pldat->pdev = pdev;
 	pldat->ndev = ndev;
 
@@ -1503,6 +1511,11 @@ static int lpc_net_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct netdata_local *pldat = netdev_priv(ndev);
 
+	/*
+	 * `lpc178x_pldat` is not valid anymore
+	 */
+	lpc178x_pldat = NULL;
+
 	unregister_netdev(ndev);
 	platform_set_drvdata(pdev, NULL);
 
@@ -1587,6 +1600,38 @@ static int __init lpc_net_init(void)
 static void __exit lpc_net_cleanup(void)
 {
 	platform_driver_unregister(&lpc_net_driver);
+}
+
+/*
+ * Final PHY reset before performing SYSRESET of SoC
+ *
+ * We have to reset the PHY immediately before doing a software SoC
+ * reset, because otherwise the Ethernet block of the SoC will hang
+ * after reset.
+ */
+void lpc178x_phy_final_reset(void)
+{
+	/*
+	 * Enable power on the Ethernet block
+	 */
+	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 1);
+
+	/*
+	 * Minimal MAC initialization
+	 */
+	__lpc_mii_mngt_reset(lpc178x_pldat);
+	writel(0, LPC_ENET_MAC1(lpc178x_pldat->net_base));
+	writel(0, LPC_ENET_MAC2(lpc178x_pldat->net_base));
+
+	/*
+	 * Reset PHY
+	 */
+	phy_write(lpc178x_pldat->phy_dev, MII_BMCR, BMCR_RESET);
+
+	/*
+	 * Disable power on the Ethernet block
+	 */
+	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 0);
 }
 
 module_init(lpc_net_init);

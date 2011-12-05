@@ -22,12 +22,27 @@
  * MA 02111-1307 USA
  */
 
+#include <linux/kernel.h>
+
 #include <asm/hardware/cortexm3.h>
+#include <mach/eth.h>
 
 /*
  * Perform the low-level reboot.
  */
 void lpc178x_reboot(void)
 {
+#ifdef CONFIG_LPC178X_ETHER
+	/*
+	 * We have to reset the PHY immediately before doing a software SoC
+	 * reset, because otherwise the Ethernet block of the SoC will hang
+	 * after reset.
+	 */
+	lpc178x_phy_final_reset();
+#endif
+
+	/*
+	 * Perform the software reset (SYSRESET)
+	 */
 	cortex_m3_reboot();
 }
