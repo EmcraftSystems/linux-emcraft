@@ -1440,7 +1440,7 @@ static int lpc_net_drv_probe(struct platform_device *pdev)
 	}
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		pr_info("%s: ethernet address is not set or invalid, "
-		       "using random.\n", ndev->name);
+		       "using random.\n", __func__);
 		random_ether_addr(ndev->dev_addr);
 	}
 
