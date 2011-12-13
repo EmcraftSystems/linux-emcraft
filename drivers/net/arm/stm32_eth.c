@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mii.h>
+#include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
 
@@ -248,6 +249,7 @@ struct stm32_eth_priv {
 	volatile struct stm32_mac_regs	*regs;
 	int				irq;
 
+	struct platform_device		*pdev;
 	struct net_device		*dev;
 	struct napi_struct		napi;
 	struct net_device_stats		stat;
@@ -263,7 +265,12 @@ struct stm32_eth_priv {
 	/*
 	 * MII interface
 	 */
-	struct mii_if_info		mii;
+	struct mii_bus			*mii_bus;
+	struct phy_device		*phy_dev;
+	int				link;
+	int				speed;
+	int				duplex;
+	spinlock_t			lock;
 
 	/*
 	 * DMA buffer descriptors
@@ -310,9 +317,6 @@ static int stm32_eth_hw_start(struct net_device *dev)
 {
 	struct stm32_eth_priv	*stm = netdev_priv(dev);
 	int			i, rv;
-
-	stm->mii.mdio_read(dev, 1, MII_BMCR);
-	stm->mii.mdio_read(dev, 1, MII_BMSR);
 
 	/*
 	 * Reset and configure
@@ -759,17 +763,29 @@ static int stm32_netdev_open(struct net_device *dev)
 	struct stm32_eth_priv	*stm = netdev_priv(dev);
 	int			rv;
 
-	if (stm32_eth_buffers_alloc(dev)) {
-		rv = -ENOMEM;
+	/*
+	 * Start aneg on PHY
+	 */
+	stm->link = 0;
+	stm->duplex = -1;
+	stm->speed = -1;
+
+	phy_start_aneg(stm->phy_dev);
+
+	/* schedule a link state check */
+	phy_start(stm->phy_dev);
+
+	rv = stm32_eth_buffers_alloc(dev);
+	if (rv) {
 		goto out;
 	}
 
 	napi_enable(&stm->napi);
 
-	if (stm32_eth_hw_start(dev)) {
+	rv = stm32_eth_hw_start(dev);
+	if (rv) {
 		napi_disable(&stm->napi);
 		stm32_eth_buffers_free(dev);
-		rv = -EIO;
 		goto out;
 	}
 
@@ -798,8 +814,13 @@ static int stm32_netdev_open(struct net_device *dev)
 			     STM32_MAC_DMASR_NIS | STM32_MAC_DMASR_AIS;
 
 	netif_start_queue(dev);
+
 	rv = 0;
+
 out:
+	if (rv)
+		phy_stop(stm->phy_dev);
+
 	return rv;
 }
 
@@ -923,9 +944,19 @@ static int stm32_netdev_ioctl(struct net_device *dev, struct ifreq *ifr,
 			      int cmd)
 {
 	struct stm32_eth_priv	*stm = netdev_priv(dev);
-	struct mii_ioctl_data	*data = if_mii(ifr);
+	struct phy_device	*phydev = stm->phy_dev;
 
-	return generic_mii_ioctl(&stm->mii, data, cmd, NULL);
+	if (!netif_running(dev))
+	{
+		return -EINVAL;
+	}
+
+	if (!phydev)
+	{
+		return -ENODEV;
+	}
+
+	return phy_mii_ioctl(phydev, if_mii(ifr), cmd);
 }
 
 /*
@@ -950,10 +981,10 @@ static const struct net_device_ops	stm32_netdev_ops = {
 /*
  * Write 'data' to 'reg' of PHY with 'phy_id' address, connected to net device
  */
-static void stm32_mdio_write(struct net_device *dev, int phy_id,
-			     int reg, int data)
+static int stm32_mdio_write(struct mii_bus *bus, int phy_id,
+			     int reg, u16 data)
 {
-	struct stm32_eth_priv	*stm = netdev_priv(dev);
+	struct stm32_eth_priv	*stm = bus->priv;
 	u32			tmp;
 
 	tmp  = stm->regs->macmiiar;
@@ -977,14 +1008,16 @@ static void stm32_mdio_write(struct net_device *dev, int phy_id,
 	}
 	if (tmp == 10)
 		printk(STM32_INFO ": mdio write timeout\n");
+
+	return 0;
 }
 
 /*
  * Read data from 'reg' of PHY with 'phy_id' address, connected to net device
  */
-static int stm32_mdio_read(struct net_device *dev, int phy_id, int reg)
+static int stm32_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 {
-	struct stm32_eth_priv	*stm = netdev_priv(dev);
+	struct stm32_eth_priv	*stm = bus->priv;
 	u32			tmp;
 	int			data;
 
@@ -1015,6 +1048,167 @@ static int stm32_mdio_read(struct net_device *dev, int phy_id, int reg)
 
 	return data;
 }
+/*
+ * Set the MAC configuration based on Duplex/Speed
+ */
+static void stm32_params_setup(struct stm32_eth_priv *stm)
+{
+	u32 tmp = stm->regs->maccr;
+
+	if (stm->duplex == DUPLEX_FULL) {
+		tmp |= STM32_MAC_CR_DM;
+	} else {
+		tmp &= ~STM32_MAC_CR_DM;
+	}
+
+	if (stm->speed == SPEED_100) {
+		tmp |= STM32_MAC_CR_FES;
+	} else {
+		tmp &= ~STM32_MAC_CR_FES;
+	}
+	stm->regs->maccr = tmp;
+}
+/*
+ * The "adjust_link" PHY API callback.
+ */
+static void stm32_handle_link_change(struct net_device *ndev)
+{
+	struct stm32_eth_priv *stm = netdev_priv(ndev);
+	struct phy_device *phydev = stm->phy_dev;
+	u32 flags;
+	s32 status_change = 0;
+
+	spin_lock_irqsave(&stm->lock, flags);
+
+	if (phydev->link) {
+		if ((stm->speed != phydev->speed) ||
+		    (stm->duplex != phydev->duplex)) {
+			stm->speed = phydev->speed;
+			stm->duplex = phydev->duplex;
+			status_change = 1;
+		}
+	}
+
+	if (phydev->link != stm->link) {
+		if (!phydev->link) {
+			stm->speed = 0;
+			stm->duplex = -1;
+		}
+		stm->link = phydev->link;
+
+		status_change = 1;
+	}
+
+	spin_unlock_irqrestore(&stm->lock, flags);
+
+	if (status_change) {
+		phy_print_status(phydev);
+		stm32_params_setup(stm);
+	}
+}
+
+/*
+ * Probe MII bus and attach to PHY.
+ */
+static int stm32_mii_probe(struct net_device *ndev)
+{
+	struct stm32_eth_priv *stm = netdev_priv(ndev);
+	struct phy_device *phydev = NULL;
+	int phy_addr;
+
+	/* find the first phy */
+	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
+		if (stm->mii_bus->phy_map[phy_addr]) {
+			phydev = stm->mii_bus->phy_map[phy_addr];
+			printk(KERN_INFO "found PHY id 0x%x addr %d\n",
+			       phydev->phy_id, phydev->addr);
+			break;
+		}
+	}
+
+	if (!phydev) {
+		printk(KERN_ERR "%s: no PHY found\n", ndev->name);
+		return -ENODEV;
+	}
+
+	/* Attach to the PHY */
+
+	printk(KERN_INFO "%s: using MII interface\n", ndev->name);
+	phydev = phy_connect(ndev, dev_name(&phydev->dev),
+		&stm32_handle_link_change, 0, PHY_INTERFACE_MODE_MII);
+
+	if (IS_ERR(phydev)) {
+		printk(KERN_ERR "%s: Could not attach to PHY\n", ndev->name);
+		return PTR_ERR(phydev);
+	}
+
+	/* mask with MAC supported features */
+	phydev->supported &= PHY_BASIC_FEATURES;
+
+	phydev->advertising = phydev->supported;
+
+	stm->link = 0;
+	stm->speed = 0;
+	stm->duplex = -1;
+	stm->phy_dev = phydev;
+
+	return 0;
+}
+/*
+ * Initialize MII interface
+ */
+static int stm32_mii_init(struct stm32_eth_priv	*stm)
+{
+	int err = -ENOMEM, i;
+
+	stm->mii_bus = mdiobus_alloc();
+	if (!stm->mii_bus) {
+		goto err_out;
+	}
+
+	/* MII mode is already selected in SYSCFG->pmc */
+
+	stm->mii_bus->name = "stm32_mii_bus";
+	stm->mii_bus->read = &stm32_mdio_read;
+	stm->mii_bus->write = &stm32_mdio_write;
+
+	snprintf(stm->mii_bus->id, MII_BUS_ID_SIZE, "%02x", stm->pdev->id);
+	stm->mii_bus->priv = stm;
+	stm->mii_bus->parent = &stm->pdev->dev;
+	stm->mii_bus->phy_mask = 0xFFFFFFF0;
+
+	stm->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
+	if (!stm->mii_bus->irq) {
+		goto err_out_1;
+	}
+
+	for (i = 0; i < PHY_MAX_ADDR; i++)
+		stm->mii_bus->irq[i] = PHY_POLL;
+
+	err = mdiobus_register(stm->mii_bus);
+	if (err) {
+		goto err_out_free_mdio_irq;
+	}
+
+	err = stm32_mii_probe(stm->dev);
+	if (err) {
+		goto err_out_unregister_bus;
+	}
+
+	err = 0;
+	goto err_out;
+
+err_out_unregister_bus:
+	mdiobus_unregister(stm->mii_bus);
+err_out_free_mdio_irq:
+	kfree(stm->mii_bus->irq);
+err_out_1:
+	mdiobus_free(stm->mii_bus);
+err_out:
+	return err;
+}
+
+
 
 /******************************************************************************
  * Platform driver interface
@@ -1029,6 +1223,7 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 	struct stm32_eth_priv	*stm;
 	struct net_device	*dev;
 	struct resource		*rs;
+	struct phy_device	*phydev;
 	char			*p;
 	int			rv;
 
@@ -1051,6 +1246,7 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 		rv = -ENOMEM;
 		goto out;
 	}
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	p = strnstr(boot_command_line, "ethaddr=", COMMAND_LINE_SIZE);
 	if (p) {
@@ -1085,6 +1281,8 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 	stm = netdev_priv(dev);
 
 	stm->dev = dev;
+	stm->pdev = pdev;
+
 	netif_napi_add(dev, &stm->napi, stm32_eth_rx_poll, 64);
 
 	platform_set_drvdata(pdev, dev);
@@ -1138,19 +1336,22 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	stm->mii.phy_id = data->phy_id;
-	stm->mii.phy_id_mask = 0x1F;
-	stm->mii.reg_num_mask = 0x1F;
-	stm->mii.dev = dev;
-	stm->mii.mdio_read  = stm32_mdio_read;
-	stm->mii.mdio_write = stm32_mdio_write;
-
 	rv = register_netdev(dev);
 	if (rv) {
 		printk(STM32_INFO ": netdev registration failed\n");
 		rv = -ENODEV;
 		goto out;
 	}
+
+	if (stm32_mii_init(stm) != 0) {
+		goto out;
+	}
+
+	phydev = stm->phy_dev;
+	printk(KERN_INFO "%s: attached PHY driver [%s] "
+		"(mii_bus:phy_addr=%s, irq=%d)\n",
+		dev->name, phydev->drv->name, dev_name(&phydev->dev),
+		phydev->irq);
 
 	rv = 0;
 out:

@@ -73,7 +73,12 @@ static struct platform_device	eth_device = {
 	.name		= STM32_ETH_DRV_NAME,
 	.resource	= eth_resources,
 	.num_resources	= 2,
-	.id		= -1,
+/*
+ * The .id should be set to -1 to indicate the only instance,
+ * but it results in the "PHY: ffffffff:01 - Link is Down"
+ * ugly printout from the eth driver, so we set it to 0.
+ */
+	.id		= 0,
 };
 #endif /* CONFIG_STM32_MAC */
 
