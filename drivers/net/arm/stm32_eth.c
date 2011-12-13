@@ -1075,7 +1075,7 @@ static void stm32_handle_link_change(struct net_device *ndev)
 {
 	struct stm32_eth_priv *stm = netdev_priv(ndev);
 	struct phy_device *phydev = stm->phy_dev;
-	u32 flags;
+	unsigned long flags;
 	s32 status_change = 0;
 
 	spin_lock_irqsave(&stm->lock, flags);
