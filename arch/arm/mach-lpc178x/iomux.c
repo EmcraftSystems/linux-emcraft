@@ -69,7 +69,23 @@
 	(slew  << LPC178X_GPIO_CONFIG_SLEW_BIT ) | \
 	(od    << LPC178X_GPIO_CONFIG_OD_BITS  ))
 /*
- * TBD: similar macros for other pin types (A, U, I, W)
+ * Type A pins (analog pins)
+ */
+#define LPC178X_GPIO_CONFIG_A(func,mode,inv,admode,filter,od,dacen) \
+	((func  << LPC178X_GPIO_CONFIG_FUNC_BITS ) | \
+	(mode   << LPC178X_GPIO_CONFIG_MODE_BITS ) | \
+	(inv    << LPC178X_GPIO_CONFIG_INV_BIT   ) | \
+	(admode << LPC178X_GPIO_CONFIG_ADMODE_BIT) | \
+	(filter << LPC178X_GPIO_CONFIG_FILTER_BIT) | \
+	(od     << LPC178X_GPIO_CONFIG_OD_BITS   ) | \
+	(dacen  << LPC178X_GPIO_CONFIG_DACEN_BIT ))
+/*
+ * Type U pins (USB D+ or D- function)
+ */
+#define LPC178X_GPIO_CONFIG_U(func) \
+	(func << LPC178X_GPIO_CONFIG_FUNC_BITS)
+/*
+ * TBD: similar macros for other pin types (I, W)
  */
 
 /*
@@ -318,6 +334,42 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 	/* P1.17 (D) = RMII MDIO */
 	{{1, 17}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
 #endif /* CONFIG_LPC178X_ETHER */
+
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+	/*
+	 * Pin configuration for USB
+	 */
+	/* P0.14 (D) = USB_CONNECT2 */
+	{{0, 14}, LPC178X_GPIO_CONFIG_D(3, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.19 (D) = USB_PPWR1 */
+	{{1, 19}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.27 (D) = USB_INT1 */
+	{{1, 27}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.28 (D) = USB_SCL1 */
+	{{1, 28}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.29 (D) = USB_SDA1 */
+	{{1, 29}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+
+	/* P0.12 (A) = USB_PPWR2 */
+	{{0, 12}, LPC178X_GPIO_CONFIG_A(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+	/* P0.13 (A) = USB_UP_LED2 */
+	{{0, 13}, LPC178X_GPIO_CONFIG_A(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+
+	/* P0.29 (U) = USB_D+1 */
+	{{0, 29}, LPC178X_GPIO_CONFIG_U(1)},
+	/* P0.30 (U) = USB_D-1 */
+	{{0, 30}, LPC178X_GPIO_CONFIG_U(1)},
+	/* P0.31 (U) = USB_D+2 */
+	{{0, 31}, LPC178X_GPIO_CONFIG_U(1)},
+
+	/* P1.30 (A) = USB_VBUS */
+	{{1, 30}, LPC178X_GPIO_CONFIG_A(2, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+	/* P1.31 (A) = USB_OVRCR2 */
+	{{1, 31}, LPC178X_GPIO_CONFIG_A(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+
+	/* P1.18 (A) = USB_UP_LED1 */
+	{{1, 18}, LPC178X_GPIO_CONFIG_A(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 };
 
 /*

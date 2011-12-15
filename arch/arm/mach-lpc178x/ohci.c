@@ -21,38 +21,45 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
-
-#ifndef _MACH_LPC178X_ETH_H_
-#define _MACH_LPC178X_ETH_H_
-
 #include <linux/init.h>
+#include <linux/platform_device.h>
 
-#include <mach/lpc178x.h>
-
-/*
- * LPC178x/7x platform Ethernet driver name
- */
-#define LPC178X_ETH_DRV_NAME		"lpc178x-eth"
+#include <mach/ohci.h>
+#include <mach/platform.h>
 
 /*
- * LPC178x/8x MAC register base
+ * LPC178x/7x USB interrupt
  */
-#define LPC178X_MAC_BASE		(LPC178X_AHB_PERIPH_BASE + 0x00004000)
+#define LPC178X_USB_IRQ		24
 
-/*
- * Ethernet platform data
- */
-struct lpc178x_eth_data {
-	int	phy_irq;	/* PHY IRQ number, or -1 for polling */
-	u32	phy_mask;	/* PHY mask value */
+static struct resource ohci_resources[] = {
+	{
+		.start	= LPC178X_USB_BASE,
+		.end	= LPC178X_USB_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= LPC178X_USB_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
-void __init lpc178x_eth_init(void);
-void __init lpc178x_ohci_init(void);
-
 /*
- * Final PHY reset before performing SYSRESET of SoC
+ * OHCI platform device instance
  */
-void lpc178x_phy_final_reset(void);
+static u64 lpc178x_ohci_dma_mask = 0xffffffffUL;
+static struct platform_device lpc178x_ohci_device = {
+	.name = LPC178X_OHCI_DRV_NAME,
+	.id = -1,
+	.dev = {
+		.dma_mask = &lpc178x_ohci_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.resource	= ohci_resources,
+	.num_resources	= ARRAY_SIZE(ohci_resources),
+};
 
-#endif /* _MACH_LPC178X_ETH_H_ */
+void __init lpc178x_ohci_init(void)
+{
+	platform_device_register(&lpc178x_ohci_device);
+}

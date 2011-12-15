@@ -22,37 +22,23 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _MACH_LPC178X_ETH_H_
-#define _MACH_LPC178X_ETH_H_
+#ifndef _MACH_LPC178X_OHCI_H_
+#define _MACH_LPC178X_OHCI_H_
 
 #include <linux/init.h>
 
 #include <mach/lpc178x.h>
 
 /*
- * LPC178x/7x platform Ethernet driver name
+ * LPC178x/7x platform OHCI driver name
  */
-#define LPC178X_ETH_DRV_NAME		"lpc178x-eth"
+#define LPC178X_OHCI_DRV_NAME		"lpc178x-ohci"
 
 /*
- * LPC178x/8x MAC register base
+ * LPC178x/8x USB registers base
  */
-#define LPC178X_MAC_BASE		(LPC178X_AHB_PERIPH_BASE + 0x00004000)
+#define LPC178X_USB_BASE		(LPC178X_AHB_PERIPH_BASE + 0x0000C000)
 
-/*
- * Ethernet platform data
- */
-struct lpc178x_eth_data {
-	int	phy_irq;	/* PHY IRQ number, or -1 for polling */
-	u32	phy_mask;	/* PHY mask value */
-};
-
-void __init lpc178x_eth_init(void);
 void __init lpc178x_ohci_init(void);
 
-/*
- * Final PHY reset before performing SYSRESET of SoC
- */
-void lpc178x_phy_final_reset(void);
-
-#endif /* _MACH_LPC178X_ETH_H_ */
+#endif /* _MACH_LPC178X_OHCI_H_ */

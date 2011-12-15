@@ -167,4 +167,11 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_flash_init();
 #endif
+
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+	/*
+	 * Configure the OHCI USB Host Controller
+	 */
+	lpc178x_ohci_init();
+#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 }
