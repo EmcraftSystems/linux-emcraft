@@ -122,6 +122,45 @@ config A2F_FPGA_UART1_IRQ_SRC
 	  Define the IRQ source within CoreInterrupt of the FPGA-based
 	  Core16650 port 1
 
+config A2F_CUART0
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART0 port"
+	default n
+
+config A2F_CUART1
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART1 port"
+	default n
+
+config A2F_CUART2
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART2 port"
+	default n
+
+config A2F_CUART3
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART3 port"
+	default n
+
+config A2F_CUART4
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART4 port"
+	default n
+
+config A2F_CUART5
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART5 port"
+	default n
+
+config A2F_CUART6
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART6 port"
+	default n
+
+config A2F_CUART7
+	depends on ARCH_A2F && SERIAL_A2F_CORE_UART
+	bool "Enable A2F CoreUART7 port"
+	default n
 
 endmenu
 

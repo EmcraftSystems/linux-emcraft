@@ -188,6 +188,9 @@
 /* Freescale Kinetis UART */
 #define PORT_KINETIS	92
 
+/* A2F CUART */
+#define PORT_A2FCUART	93
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
