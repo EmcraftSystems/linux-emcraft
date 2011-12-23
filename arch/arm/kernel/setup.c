@@ -457,7 +457,18 @@ static int __init arm_add_memory(unsigned long start, unsigned long size)
 static void __init early_mem(char **p)
 {
 	static int usermem __initdata = 0;
+	static int called __initdata = 0;
 	unsigned long size, start;
+
+	/*
+	 * We don't allow to specify more that one region - there is
+	 * a bug in bootmem allocator which leads to double __free() of an
+	 * object when two or more "mem=" options specified with the equal
+	 * start address.
+	 */
+	if (called)
+		return;
+	called = 1;
 
 	/*
 	 * If the user specifies memory size, we
