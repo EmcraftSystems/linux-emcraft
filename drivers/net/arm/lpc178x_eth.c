@@ -1506,6 +1506,7 @@ err_exit:
 	return ret;
 }
 
+#if defined(MODULE)
 static int lpc_net_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -1529,6 +1530,7 @@ static int lpc_net_drv_remove(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 static int lpc_net_drv_suspend(struct platform_device *pdev,
 	pm_message_t state)
