@@ -135,8 +135,6 @@ SECTIONS
 		ipc/built-in.o(.rodata*)
 		block/built-in.o(.text)
 		block/built-in.o(.rodata*)
-		drivers/built-in.o(.text)
-		drivers/built-in.o(.rodata*)
 		security/built-in.o(.text)
 		security/built-in.o(.rodata*)
 		crypto/built-in.o(.text)
@@ -145,6 +143,8 @@ SECTIONS
 		firmware/built-in.o(.text)
 
 #if CONFIG_KERNEL_IN_ENVM_SIZE>384
+		drivers/built-in.o(.text)
+		drivers/built-in.o(.rodata*)
 		fs/built-in.o(.text)
 		fs/built-in.o(.rodata*)
 		net/built-in.o(.rodata*)
