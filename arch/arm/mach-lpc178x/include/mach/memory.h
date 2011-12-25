@@ -28,5 +28,6 @@
 #define __ASM_ARCH_MEMORY_H
 
 #define PHYS_OFFSET		UL(0xA0000000)
+#define ENVM_PHYS_OFFSET	UL(0x00000000)
 
 #endif

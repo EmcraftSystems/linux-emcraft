@@ -116,8 +116,6 @@ SECTIONS
 		arch/arm/mm/built-in.o(.rodata*)
 		arch/arm/common/built-in.o(.text)
 		arch/arm/common/built-in.o(.rodata*)
-		arch/arm/mach-a2f/built-in.o(.text)
-		arch/arm/mach-a2f/built-in.o(.rodata*)
 
 		arch/arm/lib/lib.a(.text)
 		arch/arm/lib/lib.a(.rodata*)
