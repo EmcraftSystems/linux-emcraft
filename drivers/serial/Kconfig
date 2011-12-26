@@ -275,6 +275,14 @@ config SERIAL_8250_RM9K
 	  port hardware found on MIPS RM9122 and similar processors.
 	  If unsure, say N.
 
+config SERIAL_8250_RS485
+	bool "Support for RS485 interface via serial port"
+	default n
+	help
+	  Selecting this option will add support for the serial ports which
+	  provide RS485 interface instead of RS232.
+	  If unsure, say N.
+
 comment "Non-8250 serial port support"
 
 config SERIAL_AMBA_PL010

@@ -38,6 +38,7 @@
 #include <linux/serial_8250.h>
 #include <linux/nmi.h>
 #include <linux/mutex.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -159,6 +160,10 @@ struct uart_8250_port {
 	 */
 	void			(*pm)(struct uart_port *port,
 				      unsigned int state, unsigned int old);
+
+#if defined(CONFIG_SERIAL_8250_RS485)
+	struct serial_rs485	rs485;		/* rs485 mode state */
+#endif
 };
 
 struct irq_info {
@@ -1314,6 +1319,14 @@ static inline void __stop_tx(struct uart_8250_port *p)
 		p->ier &= ~UART_IER_THRI;
 		serial_out(p, UART_IER, p->ier);
 	}
+#if defined(CONFIG_SERIAL_8250_RS485)
+	if (p->rs485.flags & SER_RS485_ENABLED
+			&& serial_in(p, UART_MCR) & UART_MCR_RTS) {
+		while ((serial_in(p, UART_LSR) & BOTH_EMPTY) != BOTH_EMPTY) {}
+		serial_out(p, UART_MCR,
+				serial_in(p, UART_MCR) & ~UART_MCR_RTS);
+	}
+#endif
 }
 
 static void serial8250_stop_tx(struct uart_port *port)
@@ -1477,6 +1490,16 @@ static void transmit_chars(struct uart_8250_port *up)
 		__stop_tx(up);
 		return;
 	}
+
+#if defined(CONFIG_SERIAL_8250_RS485)
+	if (up->rs485.flags & SER_RS485_ENABLED) {
+		int mcr = serial_in(up, UART_MCR);
+		if (!(mcr & UART_MCR_RTS)) {
+			serial_out(up, UART_MCR, mcr | UART_MCR_RTS);
+			udelay(10);
+		}
+	}
+#endif
 
 	count = up->tx_loadsz;
 	do {
@@ -1835,6 +1858,12 @@ static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		mcr |= UART_MCR_LOOP;
 
 	mcr = (mcr & up->mcr_mask) | up->mcr_force | up->mcr;
+
+#if defined(CONFIG_SERIAL_8250_RS485)
+	if (up->rs485.flags & SER_RS485_ENABLED) {
+		mcr &= ~UART_MCR_RTS;
+	}
+#endif
 
 	serial_out(up, UART_MCR, mcr);
 }
@@ -2622,6 +2651,59 @@ serial8250_type(struct uart_port *port)
 	return uart_config[type].name;
 }
 
+#if defined(CONFIG_SERIAL_8250_RS485)
+static void
+serial8250_enable_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
+{
+	struct uart_8250_port *up = container_of(port, struct uart_8250_port, port);
+	unsigned long flags, mcr;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	up->rs485 = *rs485conf;
+
+	if (rs485conf->flags & SER_RS485_ENABLED) {
+		pr_debug("Setting UART to RS485\n");
+		mcr = serial_in(up, UART_MCR);
+		mcr &= ~UART_MCR_RTS;
+		serial_out(up, UART_MCR, mcr);
+	} else {
+		pr_debug("Setting UART to RS232\n");
+	}
+
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
+static int
+serial8250_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
+{
+	struct uart_8250_port *up = container_of(port, struct uart_8250_port, port);
+	struct serial_rs485 rs485conf;
+	int ret = 0;
+
+	switch (cmd) {
+	case TIOCSRS485:
+		if (copy_from_user(&rs485conf, (struct serial_rs485 *)arg,
+				sizeof(rs485conf))) {
+			ret = -EFAULT;
+		} else {
+			serial8250_enable_rs485(port, &rs485conf);
+		}
+		break;
+	case TIOCGRS485:
+		if (copy_to_user((struct serial_rs485 *)arg, &up->rs485,
+				sizeof(rs485conf))) {
+			ret = -EFAULT;
+		}
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	return ret;
+}
+#endif /* CONFIG_SERIAL_8250_RS485 */
+
 static struct uart_ops serial8250_pops = {
 	.tx_empty	= serial8250_tx_empty,
 	.set_mctrl	= serial8250_set_mctrl,
@@ -2640,6 +2722,9 @@ static struct uart_ops serial8250_pops = {
 	.request_port	= serial8250_request_port,
 	.config_port	= serial8250_config_port,
 	.verify_port	= serial8250_verify_port,
+#if defined(CONFIG_SERIAL_8250_RS485)
+	.ioctl		= serial8250_ioctl,
+#endif
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_get_char = serial8250_get_poll_char,
 	.poll_put_char = serial8250_put_poll_char,
