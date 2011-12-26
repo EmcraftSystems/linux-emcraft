@@ -32,6 +32,7 @@ enum lpc178x_clock {
 	CLOCK_SYSTICK,		/* Systimer clock frequency expressed in Hz   */
 	CLOCK_EMCCLK,		/* EMC clock frequency expressed in Hz        */
 	CLOCK_PCLK,		/* Peripheral clock frequency expressed in Hz */
+	CLOCK_USBCLK,		/* USB clock frequency expressed in Hz        */
 	CLOCK_END		/* for internal usage			      */
 };
 

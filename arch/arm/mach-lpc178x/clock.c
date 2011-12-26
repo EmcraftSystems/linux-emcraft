@@ -71,6 +71,23 @@
 #define LPC178X_SCC_EMCCLKSEL_HALFCPU_MSK	(1 << 0)
 
 /*
+ * USB Clock Selection register
+ */
+/* Selects the divide value for creating the USB clock */
+#define LPC178X_SCC_USBCLKSEL_USBDIV_BITS	0
+/* The mask for all bits of USBCLKSEL[USBDIV] */
+#define LPC178X_SCC_USBCLKSEL_USBDIV_MSK \
+	(((1 << 5) - 1) << LPC178X_SCC_USBCLKSEL_USBDIV_BITS)
+/* Selects the input clock for the USB clock divider */
+#define LPC178X_SCC_USBCLKSEL_USBSEL_BITS	8
+/* The mask for all bits of USBCLKSEL[USBSEL] */
+#define LPC178X_SCC_USBCLKSEL_USBSEL_MSK \
+	(3 << LPC178X_SCC_USBCLKSEL_USBSEL_BITS)
+/* The output of the Alt PLL is used as the input to the USB clock divider */
+#define LPC178X_SCC_USBCLKSEL_USBSEL_PLL1_MSK \
+	(2 << LPC178X_SCC_USBCLKSEL_USBSEL_BITS)
+
+/*
  * Clock values
  */
 static u32 clock_val[CLOCK_END];
@@ -148,6 +165,27 @@ void __init lpc178x_clock_init(void)
 	clock_val[CLOCK_EMCCLK] = cclk_input;
 	if (LPC178X_SCC->emcclksel & LPC178X_SCC_EMCCLKSEL_HALFCPU_MSK)
 		clock_val[CLOCK_EMCCLK] /= 2;
+
+	/*
+	 * USB clock
+	 */
+	clock_val[CLOCK_USBCLK] = 0;
+	if ((LPC178X_SCC->usbclksel & LPC178X_SCC_USBCLKSEL_USBSEL_MSK) ==
+	    LPC178X_SCC_USBCLKSEL_USBSEL_PLL1_MSK) {
+		/* External oscillator rate */
+		clock_val[CLOCK_USBCLK] = sysclk;
+
+		/* Rate multiplication in the PLL1 */
+		clock_val[CLOCK_USBCLK] *= 1 +
+			((LPC178X_SCC->pll1.cfg &
+			LPC178X_SCC_PLLCFG_MSEL_MSK) >> LPC178X_SCC_PLLCFG_MSEL_BITS);
+
+		/* USB clock divider */
+		clock_val[CLOCK_USBCLK] /=
+			((LPC178X_SCC->usbclksel &
+			LPC178X_SCC_USBCLKSEL_USBDIV_MSK) >>
+			LPC178X_SCC_USBCLKSEL_USBDIV_BITS);
+	}
 }
 
 /*

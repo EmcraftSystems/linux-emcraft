@@ -26,11 +26,17 @@
 
 #include <mach/ohci.h>
 #include <mach/platform.h>
+#include <mach/clock.h>
 
 /*
  * LPC178x/7x USB interrupt
  */
 #define LPC178X_USB_IRQ		24
+
+/*
+ * The USB block works only with the clock rate of 48 MHz
+ */
+#define REQUIRED_USB_CLK_RATE	48000000
 
 static struct resource ohci_resources[] = {
 	{
@@ -61,5 +67,11 @@ static struct platform_device lpc178x_ohci_device = {
 
 void __init lpc178x_ohci_init(void)
 {
-	platform_device_register(&lpc178x_ohci_device);
+	if (lpc178x_clock_get(CLOCK_USBCLK) == REQUIRED_USB_CLK_RATE) {
+		platform_device_register(&lpc178x_ohci_device);
+	} else {
+		pr_err(LPC178X_OHCI_DRV_NAME ": cannot initialize "
+			"the OHCI USB Host driver since the USB clock "
+			"was not set to 48 MHz by the bootloader\n");
+	}
 }
