@@ -161,10 +161,10 @@ struct uart_8250_port {
 	void			(*pm)(struct uart_port *port,
 				      unsigned int state, unsigned int old);
 
+#if defined(CONFIG_SERIAL_8250_RS485)
 	/*
 	 * RS485 mode state.
 	 */
-#if defined(CONFIG_SERIAL_8250_RS485)
 	struct serial_rs485	rs485;
 #endif
 };
