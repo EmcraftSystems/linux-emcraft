@@ -161,8 +161,11 @@ struct uart_8250_port {
 	void			(*pm)(struct uart_port *port,
 				      unsigned int state, unsigned int old);
 
+	/*
+	 * RS485 mode state.
+	 */
 #if defined(CONFIG_SERIAL_8250_RS485)
-	struct serial_rs485	rs485;		/* rs485 mode state */
+	struct serial_rs485	rs485;
 #endif
 };
 
@@ -1320,6 +1323,11 @@ static inline void __stop_tx(struct uart_8250_port *p)
 		serial_out(p, UART_IER, p->ier);
 	}
 #if defined(CONFIG_SERIAL_8250_RS485)
+	/*
+	 * If RS485 mode is enabled and transmitter is on,
+	 * then wait until both FIFO buffer and shift refister become empty,
+	 * and turn the transmitter off.
+	 */
 	if (p->rs485.flags & SER_RS485_ENABLED
 			&& serial_in(p, UART_MCR) & UART_MCR_RTS) {
 		while ((serial_in(p, UART_LSR) & BOTH_EMPTY) != BOTH_EMPTY) {}
@@ -1492,6 +1500,10 @@ static void transmit_chars(struct uart_8250_port *up)
 	}
 
 #if defined(CONFIG_SERIAL_8250_RS485)
+	/*
+	 * If RS485 mode is enabled and transmitter is off
+	 * then turn the transmitter on and wait 10 usec.
+	 */
 	if (up->rs485.flags & SER_RS485_ENABLED) {
 		int mcr = serial_in(up, UART_MCR);
 		if (!(mcr & UART_MCR_RTS)) {
@@ -2652,6 +2664,10 @@ serial8250_type(struct uart_port *port)
 }
 
 #if defined(CONFIG_SERIAL_8250_RS485)
+/*
+ * Set RS485 configuration to the given port, enable or disable the RS485 mode
+ * according to new configuration.
+ */
 static void
 serial8250_enable_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
 {

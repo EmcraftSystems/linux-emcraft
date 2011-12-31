@@ -276,11 +276,10 @@ config SERIAL_8250_RM9K
 	  If unsure, say N.
 
 config SERIAL_8250_RS485
-	bool "Support for RS485 interface via serial port"
+	bool "Support for the RS485 protocol"
 	default n
 	help
-	  Selecting this option will add support for the serial ports which
-	  provide RS485 interface instead of RS232.
+	  Selecting this option will enable support for the RS485 protocol.
 	  If unsure, say N.
 
 comment "Non-8250 serial port support"
