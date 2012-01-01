@@ -100,7 +100,8 @@ SECTIONS
 
 #if CONFIG_KERNEL_IN_ENVM_SIZE>0
 		__exception_text_start = .;
-		*(.exception.text)
+		*(.exception.text*)
+		*(.exception.rodata*)
 		__exception_text_end = .;
 		SCHED_TEXT
 		LOCK_TEXT
@@ -110,8 +111,8 @@ SECTIONS
 		usr/built-in.o(.rodata*)
 		init/built-in.o(.text)
 		init/built-in.o(.rodata*)
-		arch/arm/kernel/built-in.o(.text)
-		arch/arm/kernel/built-in.o(.rodata*)
+		mm/built-in.o(.text)
+		mm/built-in.o(.rodata*)
 		arch/arm/mm/built-in.o(.text)
 		arch/arm/mm/built-in.o(.rodata*)
 		arch/arm/common/built-in.o(.text)
@@ -119,16 +120,12 @@ SECTIONS
 
 		arch/arm/lib/lib.a(.text)
 		arch/arm/lib/lib.a(.rodata*)
-		lib/lib.a(.text)
-		lib/lib.a(.rodata*)
 		arch/arm/lib/built-in.o(.text)
 		arch/arm/lib/built-in.o(.rodata*)
 		lib/built-in.o(.text)
 		lib/built-in.o(.rodata*)
 
 #if CONFIG_KERNEL_IN_ENVM_SIZE>128
-		mm/built-in.o(.text)
-		mm/built-in.o(.rodata*)
 		kernel/built-in.o(.text)
 		kernel/built-in.o(.rodata*)
 		ipc/built-in.o(.text)
@@ -140,14 +137,14 @@ SECTIONS
 		crypto/built-in.o(.text)
 		crypto/built-in.o(.rodata*)
 		firmware/built-in.o(.text)
-		firmware/built-in.o(.text)
+		firmware/built-in.o(.rodata*)
 
 #if CONFIG_KERNEL_IN_ENVM_SIZE>384
 		drivers/built-in.o(.text)
 		drivers/built-in.o(.rodata*)
 		fs/built-in.o(.text)
 		fs/built-in.o(.rodata*)
-		net/built-in.o(.rodata*)
+		net/built-in.o(.text)
 		net/built-in.o(.rodata*)
 
 #endif /* CONFIG_KERNEL_IN_ENVM_SIZE>384 */
