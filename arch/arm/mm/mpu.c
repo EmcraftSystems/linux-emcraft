@@ -44,6 +44,7 @@
 #include <linux/personality.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
+#include <linux/io.h>
 
 #include <asm/uaccess.h>
 #include <asm/tlb.h>
@@ -80,7 +81,7 @@ struct nvic_regs {
 	unsigned int	reg_base;
 	unsigned int	reg_attr;
 };
-#define NVIC		((volatile struct nvic_regs *)(NVIC_REGS_BASE))
+#define NVIC		((struct nvic_regs *)(NVIC_REGS_BASE))
 
 /*
  * For some Cortex-M processors (LPC1788 being an example, the MPU
@@ -104,8 +105,8 @@ static int mpu_hw_reg_indx = 0;
  */
 static inline void mpu_region_write(int i, unsigned int b, unsigned int a)
 {
-	NVIC->reg_base = b | (1<<4) | i;
-	NVIC->reg_attr = a;
+	writel(b | (1<<4) | i, &NVIC->reg_base);
+	writel(a, &NVIC->reg_attr);
 }
 
 /*
@@ -113,9 +114,9 @@ static inline void mpu_region_write(int i, unsigned int b, unsigned int a)
  */
 static void mpu_region_read(int i, unsigned int *b, unsigned int *a)
 {
-	NVIC->reg_number = i;
-	*b = NVIC->reg_base;
-	*a = NVIC->reg_attr;
+	writel(i, &NVIC->reg_number); 
+	*b = readl(&NVIC->reg_base);
+	*a = readl(&NVIC->reg_attr);
 }
 
 /*
@@ -141,7 +142,8 @@ static void mpu_hw_on(void)
 	/*
 	 * Enable Memory Fault (MemManage) system handler
 	 */
-	NVIC->system_handler_csr |= MEMFAULTENA;
+	writel(readl(&NVIC->system_handler_csr) | MEMFAULTENA,
+		&NVIC->system_handler_csr);
 	
 	/*
  	 * Check if the MPU already on. This will be the case
@@ -156,7 +158,7 @@ static void mpu_hw_on(void)
  	 * valid only for privildged accesses and is disabled for
  	 * user-space applications.
  	 */
-	if (NVIC->mpu_control & MPU_CONTROL_ENABLE) {
+	if (readl(&NVIC->mpu_control) & MPU_CONTROL_ENABLE) {
 		/*
 		 * Make sure the mapping is valid only for the kernel
 		 */
@@ -175,7 +177,8 @@ static void mpu_hw_on(void)
 	 * Turn the MPU on, enable the default map for
 	 * privilidged accesses
 	 */
-	NVIC->mpu_control = MPU_CONTROL_PRIVDEFENA | MPU_CONTROL_ENABLE;
+	writel(MPU_CONTROL_PRIVDEFENA | MPU_CONTROL_ENABLE,
+		&NVIC->mpu_control);
 }
 
 /*
@@ -894,18 +897,18 @@ asmlinkage void __exception do_memmanage(struct pt_regs *regs)
 	/*
  	 * Read the fault status register from the MPU hardware
  	 */
-	fault_status = NVIC->fault_status;
+	fault_status = readl(&NVIC->fault_status);
 
 	/* 
  	 * Calculate a candidate offending address
  	 */
-	mfar = (unsigned long) NVIC->mfar;
+	mfar = readl(&NVIC->mfar);
 	pc = instruction_pointer(regs);
 
 	/*
 	 * Clean up the memory fault status register for a next exception
 	 */
-	NVIC->fault_status = fault_status;
+	writel(fault_status, &NVIC->fault_status);
 
 	/*
 	 * Did we get a valid address in the memory fault address register?
