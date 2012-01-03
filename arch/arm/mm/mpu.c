@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/mm/mpu.c
  *
- *  Copyright (C) 2011 Vladimir Khusainov, Emcraft Systems
+ *  Copyright (C) 2011,2012 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,8 +13,12 @@
  * Both process-to-kernel and process-to-process protection is supported.
  * An optional "stack redzone" feature is provided.
  * ...
- * This code has been tested on the Cortex-M3 core of Microsemi's SmartFusion.
- * Minimally, it should work as is on any Cortex-M3 core.
+ * This code has been tested on the Cortex-M3 core of:
+ * - Microsemi's SmartFusion cSOC
+ * - STmicro's STMF32F2
+ * - NXP's LPC1788.
+ * Minimally, it should work as is on any Cortex-M3/M4 core.
+ * ...
  * Some changes to the MPU h/w handling code may be needed (i.e. I
  * don't know if changes are needed or not; I haven't studied that), in case
  * some ARMv7 processor has an MPU that is different from that of
@@ -79,14 +83,53 @@ struct nvic_regs {
 #define NVIC		((volatile struct nvic_regs *)(NVIC_REGS_BASE))
 
 /*
+ * For some Cortex-M processors (LPC1788 being an example, the MPU
+ * will be already enabled and a first MPU protection region will be
+ * taken when mpu_hw_init() is called. This is needed to allow
+ * accesses to addresses at and above 0xA0000000, where external 
+ * RAM resides for such processors. In other words, unless a bootloader
+ * (such as U-Boot) performs the above-described MPU enabling and
+ * initialization, the region above 0xA0000000 will have an attribute
+ * XN (eXecute Never) and Cortex-M3 will not be able to run code
+ * form external RAM, on such processors. 
+ * ...
+ * To account for such processors, we define a module-wide variable that
+ * will be an index of the first MPU protection region available for
+ * use in this module. 
+ */
+static int mpu_hw_reg_indx = 0;
+
+/*
+ * Set up an MPU protection region 
+ */
+static inline void mpu_region_write(int i, unsigned int b, unsigned int a)
+{
+	NVIC->reg_base = b | (1<<4) | i;
+	NVIC->reg_attr = a;
+}
+
+/*
+ * Read an MPU protection region 
+ */
+static void mpu_region_read(int i, unsigned int *b, unsigned int *a)
+{
+	NVIC->reg_number = i;
+	*b = NVIC->reg_base;
+	*a = NVIC->reg_attr;
+}
+
+/*
  * Set up the MPU and related hardware interfaces.
  */
 static void mpu_hw_on(void)
 {
+	unsigned int b, a;
 
 #define MEMFAULTENA		(1<<16)
 #define MPU_CONTROL_ENABLE	(1<<0)
 #define MPU_CONTROL_PRIVDEFENA	(1<<2)
+#define MPU_ATTR_AP_MSK		(7<<24)
+#define MPU_ATTR_AP_PRVL_RW	(1<<24)
 
 	/*
 	 * As long as software does not attempt to expressly change
@@ -101,33 +144,39 @@ static void mpu_hw_on(void)
 	NVIC->system_handler_csr |= MEMFAULTENA;
 	
 	/*
+ 	 * Check if the MPU already on. This will be the case
+ 	 * for those processors that have external RAM at 0xA0000000
+ 	 * or above. For such processors, the MPU will have 
+ 	 * a single region defined, enabling R|W|X accesses
+ 	 * to the entire 4GB address space.
+ 	 * We must always preserve this mapping!
+ 	 * ...
+ 	 * There is yet another complication here. Not only we must
+ 	 * preserve that mapping we also must make sure that it is
+ 	 * valid only for privildged accesses and is disabled for
+ 	 * user-space applications.
+ 	 */
+	if (NVIC->mpu_control & MPU_CONTROL_ENABLE) {
+		/*
+		 * Make sure the mapping is valid only for the kernel
+		 */
+		mpu_region_read(0, &b, &a);
+		a &= ~MPU_ATTR_AP_MSK;
+		a |= MPU_ATTR_AP_PRVL_RW;
+		mpu_region_write(0, b, a);
+
+		/*
+		 * Make sure the mapping is never affected
+		 */
+		mpu_hw_reg_indx = 1;
+	}
+
+	/*
 	 * Turn the MPU on, enable the default map for
 	 * privilidged accesses
 	 */
-	NVIC->mpu_control = MPU_CONTROL_PRIVDEFENA |
-		 	    MPU_CONTROL_ENABLE;
+	NVIC->mpu_control = MPU_CONTROL_PRIVDEFENA | MPU_CONTROL_ENABLE;
 }
-
-/*
- * Set up an MPU protection region 
- */
-static inline void mpu_region_write(int i, unsigned int b, unsigned int a)
-{
-	NVIC->reg_base = b | (1<<4) | i;
-	NVIC->reg_attr = a;
-}
-
-#ifdef DEBUG
-/*
- * Read an MPU protection region 
- */
-static void mpu_region_read(int i, unsigned int *b, unsigned int *a)
-{
-	NVIC->reg_number = i;
-	* b = NVIC->reg_base;
-	* a = NVIC->reg_attr;
-}
-#endif
 
 /*
  * Address region data structure. This represents a "mappable region".
@@ -306,7 +355,8 @@ static void mpu_addr_region_tbl_print(void)
  */
 static inline void mpu_context_init(struct mm_struct *mm)
 {
-	unsigned long p;
+	unsigned long r;
+	mpu_context_t *p;
 
 	/*
  	 * If this is called for a first time (i.e. first user process),
@@ -319,20 +369,28 @@ static inline void mpu_context_init(struct mm_struct *mm)
 	/*
 	 * Allocate an MPU context structure for the process and
 	 * zero it out. 
-	 * TO-DO - add a check for successful allocation of memory.
 	 */
-	p = __get_free_pages(GFP_KERNEL, mpu_page_tbl_order);
-	if (! p) {
+	r = __get_free_pages(GFP_KERNEL, mpu_page_tbl_order);
+	if (! r) {
 		printk("%s: no free_pages; stopping the kernel\n", __func__);
 		for (;;);
 	}
-
-	memset((void *) p, 0, mpu_page_tbl_len);
+	memset((void *)r, 0, mpu_page_tbl_len);
 
 	/*
 	 * Store a pointer to the MPU context in mm->context.
 	 */
-	mm->context.p = (void *) p;
+	mm->context.p = (void *)r;
+
+	/*
+	 * Get access to the MPU context with an appropriate data pointer
+	 */
+	p = mpu_context_p(mm);
+
+	/*
+	 * Set up the next region to use
+	 */
+	p->indx = mpu_hw_reg_indx;
 }
 
 /*
@@ -523,7 +581,7 @@ static inline void mpu_page_copyall(struct mm_struct *mm)
 	int i;
 	mpu_context_t *p = mpu_context_p(mm);
 
-	for (i = 0; i < 8; i ++) {
+	for (i = mpu_hw_reg_indx; i < 8; i ++) {
 		mpu_region_write(i, p->mpu_regs[i].base, p->mpu_regs[i].attr);
 	}	
 }
@@ -717,7 +775,7 @@ void mpu_switch_mm(struct mm_struct *prev, struct mm_struct *next)
 /*
  * Barrier for the number of 16K pages allocated to the stack
  */
-#define MPU_STACK_BAR	3
+#define MPU_STACK_BAR	4
 
 /*
  * MPU-specific part of start_thread.
@@ -742,7 +800,6 @@ void mpu_start_thread(struct pt_regs * regs)
 	/*
  	 * Set up mappings for the stack.
  	 */
-
 	for (t = mm->start_stack;
 	     mpu_context_addr_valid(mm, t, (VM_READ | VM_WRITE));
 	     t += PAGE_SIZE);
@@ -762,7 +819,8 @@ void mpu_start_thread(struct pt_regs * regs)
 	/*
  	 * Map in the stack pages
  	 */
-	for (i = 0, p = b & PAGE32K_MASK; p <= t && i < MPU_STACK_BAR;
+	for (i = mpu_hw_reg_indx, p = b & PAGE32K_MASK;
+             p <= t && i < MPU_STACK_BAR;
              i ++, p += PAGE32K_SIZE) {
 		mpu_page_map_32k(mm, p, (VM_READ | VM_WRITE));
 #ifdef DEBUG
