@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -22,21 +22,39 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_CORTEXM3_H_
-#define _ASM_ARCH_CORTEXM3_H_
+#include <linux/types.h>
+#include <linux/errno.h>
 
-#ifdef CONFIG_ARM_CORTEXM3
+#include <mach/kinetis.h>
+#include <mach/power.h>
 
-extern void cortex_m3_reboot(void);
-
-#if defined(CONFIG_ARCH_KINETIS)
 /*
- * The SysTick clocksource is not used on other Cortex-M3 targets,
- * they use other timers.
+ * Enable or disable the clock on a peripheral device (timers, UARTs, USB, etc)
  */
-extern void cortex_m3_register_systick_clocksource(u32 systick_clk);
-#endif /* defined(CONFIG_ARCH_KINETIS) */
+int kinetis_periph_enable(kinetis_clock_gate_t gate, int enable)
+{
+	volatile u32 *scgc;
+	u32 mask;
+	int rv;
 
-#endif /* CONFIG_ARM_CORTEXM3 */
+	/*
+	 * Verify the function arguments
+	 */
+	if (KINETIS_CG_REG(gate) >= KINETIS_SIM_CG_NUMREGS ||
+	    KINETIS_CG_IDX(gate) >= KINETIS_SIM_CG_NUMBITS) {
+		rv = -EINVAL;
+		goto out;
+	}
 
-#endif /* _ASM_ARCH_CORTEXM3_H_ */
+	scgc = &KINETIS_SIM->scgc[KINETIS_CG_REG(gate)];
+	mask = 1 << KINETIS_CG_IDX(gate);
+
+	if (enable)
+		*scgc |= mask;
+	else
+		*scgc &= ~mask;
+
+	rv = 0;
+out:
+	return rv;
+}
