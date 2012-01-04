@@ -1,0 +1,14 @@
+if ARCH_KINETIS
+
+config MACH_KINETIS
+	bool
+	default y
+	select ARM_NVIC if CPU_V7M
+	help
+	  Include support for the Freescale Kinetis MCUs
+
+menu "Freescale Kinetis I/O interfaces"
+	depends on ARCH_KINETIS
+endmenu
+
+endif

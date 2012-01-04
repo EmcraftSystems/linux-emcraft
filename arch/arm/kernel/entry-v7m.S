@@ -210,6 +210,6 @@ ENTRY(vector_table)
 	.rept	NR_IRQS
 	.long	__irq_entry		@ 16.. - NR_IRQS External Interrupts
 	.endr
-#if defined(CONFIG_ARCH_A2F) || defined(CONFIG_ARCH_STM32) || defined(CONFIG_ARCH_LPC178X)
+#if defined(CONFIG_ARM_CORTEXM3)
 ENTRY(vector_table_end)
 #endif

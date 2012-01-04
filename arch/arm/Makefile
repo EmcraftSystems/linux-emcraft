@@ -184,6 +184,7 @@ machine-$(CONFIG_ARCH_MPS)		:= mps
 machine-$(CONFIG_ARCH_A2F)		:= a2f
 machine-$(CONFIG_ARCH_STM32)		:= stm32
 machine-$(CONFIG_ARCH_LPC178X)		:= lpc178x
+machine-$(CONFIG_ARCH_KINETIS)		:= kinetis
 
 # Platform directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
