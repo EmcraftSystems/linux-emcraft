@@ -144,8 +144,10 @@ SECTIONS
 		drivers/built-in.o(.rodata*)
 		fs/built-in.o(.text)
 		fs/built-in.o(.rodata*)
+#if 0
 		net/built-in.o(.text)
 		net/built-in.o(.rodata*)
+#endif
 
 #endif /* CONFIG_KERNEL_IN_ENVM_SIZE>384 */
 #endif /* CONFIG_KERNEL_IN_ENVM_SIZE>128 */
