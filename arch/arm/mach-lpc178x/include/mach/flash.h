@@ -19,7 +19,7 @@
  */
 
 #ifndef _MACH_LPC178X_FLASH_H_
-#define _MACH_STM32_FLASH_H_
+#define _MACH_LPC178X_FLASH_H_
 
 extern void __init lpc178x_flash_init(void);
 
