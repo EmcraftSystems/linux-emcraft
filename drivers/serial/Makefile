@@ -83,3 +83,4 @@ obj-$(CONFIG_SERIAL_QE) += ucc_uart.o
 obj-$(CONFIG_SERIAL_TIMBERDALE)	+= timbuart.o
 obj-$(CONFIG_SERIAL_GRLIB_GAISLER_APBUART) += apbuart.o
 obj-$(CONFIG_SERIAL_STM32) += stm32_usart.o
+obj-$(CONFIG_SERIAL_KINETIS) += kinetis_uart.o

@@ -185,6 +185,9 @@
 /* STM32 USART */
 #define PORT_STM32USART	91
 
+/* Freescale Kinetis UART */
+#define PORT_KINETIS	92
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

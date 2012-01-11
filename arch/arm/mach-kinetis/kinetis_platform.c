@@ -35,6 +35,7 @@
 #include <mach/iomux.h>
 #include <mach/platform.h>
 #include <mach/timer.h>
+#include <mach/uart.h>
 
 /*
  * Prototypes
@@ -144,7 +145,14 @@ static void __init kinetis_init(void)
 	 */
 	kinetis_iomux_init();
 
+#if defined(CONFIG_SERIAL_KINETIS)
 	/*
-	 * TBD: UART, Ethernet, NAND flash
+	 * Configure the UART devices
+	 */
+	kinetis_uart_init();
+#endif
+
+	/*
+	 * TBD: Ethernet, NAND flash
 	 */
 }

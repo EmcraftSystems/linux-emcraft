@@ -9,6 +9,37 @@ config MACH_KINETIS
 
 menu "Freescale Kinetis I/O interfaces"
 	depends on ARCH_KINETIS
+
+config KINETIS_UART0
+	depends on ARCH_KINETIS && SERIAL_KINETIS
+	bool "Enable Kinetis UART0 port"
+	default n
+
+config KINETIS_UART1
+	depends on ARCH_KINETIS && SERIAL_KINETIS
+	bool "Enable Kinetis UART1 port"
+	default n
+
+config KINETIS_UART2
+	depends on ARCH_KINETIS && SERIAL_KINETIS
+	bool "Enable Kinetis UART2 port"
+	default y
+
+config KINETIS_UART3
+	depends on ARCH_KINETIS && SERIAL_KINETIS
+	bool "Enable Kinetis UART3 port"
+	default n
+
+config KINETIS_UART4
+	depends on ARCH_KINETIS && SERIAL_KINETIS
+	bool "Enable Kinetis UART4 port"
+	default n
+
+config KINETIS_UART5
+	depends on ARCH_KINETIS && SERIAL_KINETIS
+	bool "Enable Kinetis UART5 port"
+	default n
+
 endmenu
 
 endif

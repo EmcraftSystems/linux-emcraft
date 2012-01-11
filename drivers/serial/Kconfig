@@ -1512,4 +1512,18 @@ config SERIAL_STM32_CONSOLE
 	help
 	  Use STM32 serial port as the system console
 
+config SERIAL_KINETIS
+	tristate "Support for Kinetis on-chip UART"
+	depends on ARCH_KINETIS
+	select SERIAL_CORE
+	help
+	  This driver supports the built-in UART ports of Freescale Kinetis
+
+config SERIAL_KINETIS_CONSOLE
+	bool "Console on Kinetis UART port"
+	depends on SERIAL_KINETIS=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Use a Kinetis UART port as the system console
+
 endmenu
