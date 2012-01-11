@@ -36,6 +36,15 @@
 #include <mach/flash.h>
 
 /*
+  Enable the following define to add a 192Kb partition
+  for a splash screen image at the end of Flash.
+  Note that this will shrink the size of the 3rd partition ("flash_jffs2")
+  and thus corrupt the JFFS2 filesystem residing in that partition
+  (assuming there is a JFFF2 file system in that partition already).
+*/
+#undef ENABLE_SPLASHSCREEN_PARTITION
+
+/*
  * Provide support for the external Flash.
  * This is board specific; STM32 ST-MEM board has a 8MBytes NOR Flash.
  */
@@ -61,12 +70,14 @@ static struct resource flash_resources[] = {
  *
  * Based on these assumptions, we define the following Flash partitions:
  *
- * 0-1ffff:		U-boot environment
- * 20000-2fffff:	Linux bootable image
- * 300000-end of Flash:	JFFS2 filesystem
+ * 0-1ffff:				U-boot environment
+ * 20000-2fffff:			Linux bootable image
+ * 330000-end of Flash or 192Kb less:	JFFS2 filesystem
+ * 192Kb at end of Flash (optional):	Splashscreen image
  */
 #define FLASH_IMAGE_OFFSET	0x20000
 #define FLASH_JFFS2_OFFSET	(3*1024*1024)
+#define FLASH_SPLASH_SIZE	0x30000
 static struct mtd_partition flash_partitions[] = {
 	{
 		.name	= "flash_uboot_env",
@@ -82,6 +93,12 @@ static struct mtd_partition flash_partitions[] = {
 		.name	= "flash_jffs2",
 		.offset = FLASH_JFFS2_OFFSET,
 	},
+#if defined(ENABLE_SPLASHSCREEN_PARTITION)
+	{
+		.name	= "flash_splash_screen",
+		.size	= FLASH_SPLASH_SIZE,
+	},
+#endif
 };
 static struct physmap_flash_data flash_data = {
 	.width		= 2,
@@ -123,8 +140,12 @@ void __init stm32_flash_init(void)
 	}
 
 	flash_resources[0].end = flash_resources[0].start + size - 1;
+#if !defined(ENABLE_SPLASHSCREEN_PARTITION)
 	flash_partitions[2].size = size - FLASH_JFFS2_OFFSET;
-
+#else
+	flash_partitions[2].size = size - FLASH_JFFS2_OFFSET - FLASH_SPLASH_SIZE;
+	flash_partitions[3].offset = size - FLASH_SPLASH_SIZE;
+#endif
 	/*
 	 * Register a platform device for the external Flash.
 	 * If there is no external Flash in your design, or
