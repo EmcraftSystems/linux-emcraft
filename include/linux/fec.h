@@ -14,7 +14,8 @@
 /****************************************************************************/
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARCH_MXC)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
+    defined(CONFIG_ARCH_MXC) || defined(CONFIG_ARCH_KINETIS)
 /*
  *	Just figures, Motorola would have to change the offsets for
  *	registers in the same peripheral device on different models
@@ -140,6 +141,22 @@ struct bufdesc {
 #define BD_ENET_TX_CSL          ((ushort)0x0001)
 #define BD_ENET_TX_STATS        ((ushort)0x03ff)        /* All status bits */
 
+
+/*
+ * This structure is used to pass platform-specific parameters to
+ * the FEC driver.
+ */
+struct fec_platform_data {
+	u32 flags;
+	u32 mac_clk;
+	u32 mii_clk_limit;
+};
+
+/*
+ * Bit descriptions of the `fec_platform_data::flags` bit field
+ */
+/* Whether the Ethernet module uses RMII to communicate with the PHY */
+#define FEC_FLAGS_RMII	(1 << 0)
 
 /****************************************************************************/
 #endif /* FEC_H */

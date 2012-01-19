@@ -202,6 +202,11 @@ void __init kinetis_clock_init(void)
 	clock_val[CLOCK_PCLK] = mcgout /
 		(((KINETIS_SIM->clkdiv1 & KINETIS_SIM_CLKDIV1_OUTDIV2_MSK) >>
 		KINETIS_SIM_CLKDIV1_OUTDIV2_BITS) + 1);
+
+	/*
+	 * Ethernet clock
+	 */
+	clock_val[CLOCK_MACCLK] = CONFIG_KINETIS_EXTAL0_RATE;
 }
 
 /*

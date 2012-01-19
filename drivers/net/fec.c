@@ -42,16 +42,19 @@
 #include <linux/platform_device.h>
 
 #include <asm/cacheflush.h>
+#include <asm/setup.h>
 
-#ifndef CONFIG_ARCH_MXC
+#if !defined(CONFIG_ARCH_MXC) && !defined(CONFIG_ARCH_KINETIS)
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #endif
 
-#include "fec.h"
+#include <linux/fec.h>
 
-#ifdef CONFIG_ARCH_MXC
+#if defined(CONFIG_ARCH_MXC)
 #include <mach/hardware.h>
+#define FEC_ALIGNMENT	0xf
+#elif defined(CONFIG_ARCH_KINETIS)
 #define FEC_ALIGNMENT	0xf
 #else
 #define FEC_ALIGNMENT	0x3
@@ -147,11 +150,37 @@ typedef struct {
  * account when setting it.
  */
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARCH_MXC)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
+    defined(CONFIG_ARCH_MXC) || defined(CONFIG_ARCH_KINETIS)
 #define	OPT_FRAME_SIZE	(PKT_MAXBUF_SIZE << 16)
 #else
 #define	OPT_FRAME_SIZE	0
 #endif
+
+/*
+ * RCR register bits
+ */
+/* Half duplex */
+#define FEC_RCR_DRT		(1 << 1)
+/* MII or RMII mode */
+#define FEC_RCR_MII_MODE	(1 << 2)
+/* RMII mode */
+#define FEC_RCR_RMII_MODE	(1 << 8)
+
+/*
+ * The MSCR[MII_SPEED] bit field consists of 6 bits, therefore the maximum
+ * possible value for this field is 63.
+ */
+#define FEC_MII_SPEED_MAX		63
+
+/*
+ * Default config if platform config is not defined
+ */
+static struct fec_platform_data fep_default_pldat = {
+	.flags = 0,
+	.mac_clk = 0,
+	.mii_clk_limit = 0,
+};
 
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
  * tx_bd_base always point to the base of the buffer descriptors.  The
@@ -209,6 +238,8 @@ struct fec_enet_private {
 	int	link;
 	int	old_link;
 	int	full_duplex;
+
+	struct fec_platform_data *pldat;
 };
 
 static void fec_enet_mii(struct net_device *dev);
@@ -218,6 +249,7 @@ static void fec_enet_rx(struct net_device *dev);
 static int fec_enet_close(struct net_device *dev);
 static void fec_restart(struct net_device *dev, int duplex);
 static void fec_stop(struct net_device *dev);
+static void fec_update_mac_address_hw(struct net_device *dev);
 
 
 /* MII processing.  We keep this as simple as possible.  Requests are
@@ -298,7 +330,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Fill in a Tx ring entry */
 	bdp = fep->cur_tx;
 
-	status = bdp->cbd_sc;
+	status = ntohs(bdp->cbd_sc);
 
 	if (status & BD_ENET_TX_READY) {
 		/* Ooops.  All transmit buffers are full.  Bail out.
@@ -314,7 +346,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Set buffer length and buffer pointer */
 	bufaddr = skb->data;
-	bdp->cbd_datlen = skb->len;
+	bdp->cbd_datlen = htons(skb->len);
 
 	/*
 	 * On some FEC implementations data must be aligned on
@@ -337,15 +369,15 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
 	 */
-	bdp->cbd_bufaddr = dma_map_single(&dev->dev, bufaddr,
-			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
+	bdp->cbd_bufaddr = htonl(dma_map_single(&dev->dev, bufaddr,
+			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE));
 
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
 	 * it's the last BD of the frame, and to put the CRC on the end.
 	 */
 	status |= (BD_ENET_TX_READY | BD_ENET_TX_INTR
 			| BD_ENET_TX_LAST | BD_ENET_TX_TC);
-	bdp->cbd_sc = status;
+	bdp->cbd_sc = htons(status);
 
 	dev->trans_start = jiffies;
 
@@ -411,7 +443,6 @@ fec_enet_interrupt(int irq, void * dev_id)
 			ret = IRQ_HANDLED;
 			fec_enet_mii(dev);
 		}
-
 	} while (int_events);
 
 	return ret;
@@ -430,11 +461,12 @@ fec_enet_tx(struct net_device *dev)
 	spin_lock(&fep->hw_lock);
 	bdp = fep->dirty_tx;
 
-	while (((status = bdp->cbd_sc) & BD_ENET_TX_READY) == 0) {
+	while (((status = ntohs(bdp->cbd_sc)) & BD_ENET_TX_READY) == 0) {
 		if (bdp == fep->cur_tx && fep->tx_full == 0)
 			break;
 
-		dma_unmap_single(&dev->dev, bdp->cbd_bufaddr, FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
+		dma_unmap_single(&dev->dev, ntohl(bdp->cbd_bufaddr),
+			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE);
 		bdp->cbd_bufaddr = 0;
 
 		skb = fep->tx_skbuff[fep->skb_dirty];
@@ -516,8 +548,7 @@ fec_enet_rx(struct net_device *dev)
 	 */
 	bdp = fep->cur_rx;
 
-	while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) {
-
+	while (!((status = ntohs(bdp->cbd_sc)) & BD_ENET_RX_EMPTY)) {
 		/* Since we have allocated space to hold a complete frame,
 		 * the last indicator should be set.
 		 */
@@ -555,12 +586,13 @@ fec_enet_rx(struct net_device *dev)
 
 		/* Process the incoming frame. */
 		dev->stats.rx_packets++;
-		pkt_len = bdp->cbd_datlen;
+		pkt_len = ntohs(bdp->cbd_datlen);
 		dev->stats.rx_bytes += pkt_len;
-		data = (__u8*)__va(bdp->cbd_bufaddr);
+		data = (__u8*)__va(ntohl(bdp->cbd_bufaddr));
 
-	        dma_unmap_single(NULL, bdp->cbd_bufaddr, bdp->cbd_datlen,
-        			DMA_FROM_DEVICE);
+		dma_unmap_single(
+			NULL, ntohl(bdp->cbd_bufaddr), ntohs(bdp->cbd_datlen),
+			DMA_FROM_DEVICE);
 
 		/* This does 16 byte alignment, exactly what we need.
 		 * The packet length includes FCS, but we don't want to
@@ -581,15 +613,16 @@ fec_enet_rx(struct net_device *dev)
 			netif_rx(skb);
 		}
 
-        	bdp->cbd_bufaddr = dma_map_single(NULL, data, bdp->cbd_datlen,
-			DMA_FROM_DEVICE);
+		bdp->cbd_bufaddr = htonl(dma_map_single(
+			NULL, data, ntohs(bdp->cbd_datlen),
+			DMA_FROM_DEVICE));
 rx_processing_done:
 		/* Clear the status flags for this buffer */
 		status &= ~BD_ENET_RX_STATS;
 
 		/* Mark the buffer empty */
 		status |= BD_ENET_RX_EMPTY;
-		bdp->cbd_sc = status;
+		bdp->cbd_sc = htons(status);
 
 		/* Update BD pointer to next entry */
 		if (status & BD_ENET_RX_WRAP)
@@ -1070,6 +1103,22 @@ static phy_info_t const phy_info_ks8721bl = {
 };
 
 /* ------------------------------------------------------------------------- */
+/* Micrel KSZ8041NL phy                                                      */
+
+/*
+ * The Micrel KSZ8041NL PHY is compatible with KS8721BL at least with respect
+ * to those functions that we will use.
+ */
+static phy_info_t const phy_info_ksz8041nl = {
+	.id = 0x00022151,
+	.name = "KSZ8041NL",
+	.config = phy_cmd_ks8721bl_config,
+	.startup = phy_cmd_ks8721bl_startup,
+	.ack_int = phy_cmd_ks8721bl_ack_int,
+	.shutdown = phy_cmd_ks8721bl_shutdown
+};
+
+/* ------------------------------------------------------------------------- */
 /* register definitions for the DP83848 */
 
 #define MII_DP8384X_PHYSTST    16  /* PHY Status Register */
@@ -1136,6 +1185,7 @@ static phy_info_t const * const phy_info[] = {
 	&phy_info_qs6612,
 	&phy_info_am79c874,
 	&phy_info_ks8721bl,
+	&phy_info_ksz8041nl,
 	&phy_info_dp83848,
 	NULL
 };
@@ -1191,6 +1241,36 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 		 dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
 }
 #endif
+
+#ifdef CONFIG_ARCH_KINETIS
+/*
+ * The FEC driver calls this function to determine the MAC address
+ */
+static void __inline__ fec_get_mac(struct net_device *dev)
+{
+	char *ptr, *ptr_end;
+	u8 ethaddr[18];
+	u8 *mac_addr = dev->dev_addr;
+
+	memset(mac_addr, 0, sizeof(ETH_ALEN));
+
+	if ((ptr = strnstr(boot_command_line, "ethaddr=", COMMAND_LINE_SIZE))) {
+		int i;
+		memcpy(ethaddr, ptr + strlen("ethaddr="), sizeof(ethaddr));
+		ptr_end = ethaddr;
+		for (i = 0; i <= 5; i++) {
+			mac_addr[i] = simple_strtol(ptr_end, &ptr_end, 16) |
+				simple_strtol(ptr_end, &ptr_end, 16) << 4;
+			ptr_end++; /* skip ":" in  ethaddr */
+		}
+	}
+
+	if (!is_valid_ether_addr(mac_addr)) {
+		pr_err("MAC address is not set or invalid, using random.\n");
+		random_ether_addr(mac_addr);
+	}
+}
+#endif /* CONFIG_ARCH_KINETIS */
 
 /* ------------------------------------------------------------------------- */
 
@@ -1420,7 +1500,7 @@ static void fec_enet_free_buffers(struct net_device *dev)
 		skb = fep->rx_skbuff[i];
 
 		if (bdp->cbd_bufaddr)
-			dma_unmap_single(&dev->dev, bdp->cbd_bufaddr,
+			dma_unmap_single(&dev->dev, ntohl(bdp->cbd_bufaddr),
 					FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
 		if (skb)
 			dev_kfree_skb(skb);
@@ -1448,15 +1528,15 @@ static int fec_enet_alloc_buffers(struct net_device *dev)
 		}
 		fep->rx_skbuff[i] = skb;
 
-		bdp->cbd_bufaddr = dma_map_single(&dev->dev, skb->data,
-				FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
-		bdp->cbd_sc = BD_ENET_RX_EMPTY;
+		bdp->cbd_bufaddr = htonl(dma_map_single(&dev->dev, skb->data,
+				FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE));
+		bdp->cbd_sc = htons(BD_ENET_RX_EMPTY);
 		bdp++;
 	}
 
 	/* Set the last buffer to wrap. */
 	bdp--;
-	bdp->cbd_sc |= BD_SC_WRAP;
+	bdp->cbd_sc |= htons(BD_SC_WRAP);
 
 	bdp = fep->tx_bd_base;
 	for (i = 0; i < TX_RING_SIZE; i++) {
@@ -1469,7 +1549,7 @@ static int fec_enet_alloc_buffers(struct net_device *dev)
 
 	/* Set the last buffer to wrap. */
 	bdp--;
-	bdp->cbd_sc |= BD_SC_WRAP;
+	bdp->cbd_sc |= htons(BD_SC_WRAP);
 
 	return 0;
 }
@@ -1519,6 +1599,7 @@ fec_enet_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 	fep->opened = 1;
+
 	return 0;
 }
 
@@ -1618,23 +1699,30 @@ static void set_multicast_list(struct net_device *dev)
 	}
 }
 
-/* Set a MAC change in hardware. */
-static int
-fec_set_mac_address(struct net_device *dev, void *p)
+/* Write the MAC address from `dev->dev_addr` into the hardware */
+static void fec_update_mac_address_hw(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
-	struct sockaddr *addr = p;
-
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	writel(dev->dev_addr[3] | (dev->dev_addr[2] << 8) |
 		(dev->dev_addr[1] << 16) | (dev->dev_addr[0] << 24),
 		fep->hwp + FEC_ADDR_LOW);
 	writel((dev->dev_addr[5] << 16) | (dev->dev_addr[4] << 24),
 		fep->hwp + FEC_ADDR_HIGH);
+}
+
+/* Set a MAC change in hardware. */
+static int
+fec_set_mac_address(struct net_device *dev, void *p)
+{
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	fec_update_mac_address_hw(dev);
+
 	return 0;
 }
 
@@ -1676,7 +1764,7 @@ static int fec_enet_init(struct net_device *dev, int index)
 	fep->netdev = dev;
 
 	/* Set the Ethernet address */
-#ifdef CONFIG_M5272
+#if defined(CONFIG_M5272) || defined(CONFIG_ARCH_KINETIS)
 	fec_get_mac(dev);
 #else
 	{
@@ -1708,8 +1796,17 @@ static int fec_enet_init(struct net_device *dev, int index)
 	mii_free = mii_cmds;
 
 	/* Set MII speed to 2.5 MHz */
-	fep->phy_speed = ((((clk_get_rate(fep->clk) / 2 + 4999999)
-					/ 2500000) / 2) & 0x3F) << 1;
+#if defined(CONFIG_ARCH_KINETIS)
+	fep->phy_speed = (fep->pldat->mac_clk - 1) /
+		(2 * fep->pldat->mii_clk_limit);
+#else
+	fep->phy_speed = ((clk_get_rate(fep->clk) / 2 + 4999999)
+					/ 2500000) / 2;
+#endif /* CONFIG_ARCH_KINETIS */
+	if (fep->phy_speed > FEC_MII_SPEED_MAX)
+		fep->phy_speed = FEC_MII_SPEED_MAX;
+	fep->phy_speed <<= 1;	/* Prepare for loading the MSCR register */
+
 	fec_restart(dev, 0);
 
 	/* Queue up command to detect the PHY and initialize the
@@ -1732,6 +1829,7 @@ fec_restart(struct net_device *dev, int duplex)
 	struct fec_enet_private *fep = netdev_priv(dev);
 	struct bufdesc *bdp;
 	int i;
+	u32 r_cntrl, x_cntrl;
 
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
@@ -1773,13 +1871,13 @@ fec_restart(struct net_device *dev, int duplex)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 
 		/* Initialize the BD for every fragment in the page. */
-		bdp->cbd_sc = BD_ENET_RX_EMPTY;
+		bdp->cbd_sc = htons(BD_ENET_RX_EMPTY);
 		bdp++;
 	}
 
 	/* Set the last buffer to wrap */
 	bdp--;
-	bdp->cbd_sc |= BD_SC_WRAP;
+	bdp->cbd_sc |= htons(BD_SC_WRAP);
 
 	/* ...and the same for transmit */
 	bdp = fep->tx_bd_base;
@@ -1793,18 +1891,23 @@ fec_restart(struct net_device *dev, int duplex)
 
 	/* Set the last buffer to wrap */
 	bdp--;
-	bdp->cbd_sc |= BD_SC_WRAP;
+	bdp->cbd_sc |= htons(BD_SC_WRAP);
 
 	/* Enable MII mode */
+	r_cntrl = OPT_FRAME_SIZE | FEC_RCR_MII_MODE;
+	if (fep->pldat->flags & FEC_FLAGS_RMII)
+		r_cntrl |= FEC_RCR_RMII_MODE;
 	if (duplex) {
 		/* MII enable / FD enable */
-		writel(OPT_FRAME_SIZE | 0x04, fep->hwp + FEC_R_CNTRL);
-		writel(0x04, fep->hwp + FEC_X_CNTRL);
+		x_cntrl = 0x04;
 	} else {
 		/* MII enable / No Rcv on Xmit */
-		writel(OPT_FRAME_SIZE | 0x06, fep->hwp + FEC_R_CNTRL);
-		writel(0x0, fep->hwp + FEC_X_CNTRL);
+		r_cntrl |= FEC_RCR_DRT;
+		x_cntrl = 0x0;
 	}
+	writel(r_cntrl, fep->hwp + FEC_R_CNTRL);
+	writel(x_cntrl, fep->hwp + FEC_X_CNTRL);
+
 	fep->full_duplex = duplex;
 
 	/* Set MII speed */
@@ -1817,6 +1920,11 @@ fec_restart(struct net_device *dev, int duplex)
 	/* Enable interrupts we wish to service */
 	writel(FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII,
 			fep->hwp + FEC_IMASK);
+
+#if defined(CONFIG_ARCH_KINETIS)
+	/* Initialize the MAC address in hardware */
+	fec_update_mac_address_hw(dev);
+#endif /* CONFIG_ARCH_KINETIS */
 }
 
 static void
@@ -1870,6 +1978,14 @@ fec_probe(struct platform_device *pdev)
 	fep = netdev_priv(ndev);
 	memset(fep, 0, sizeof(*fep));
 
+	/*
+	 * Initialize the pointer to the platform-specific parameters. If the
+	 * pointer is NULL, initialize the driver with default parameters.
+	 */
+	fep->pldat = (struct fec_platform_data *)pdev->dev.platform_data;
+	if (!fep->pldat)
+		fep->pldat = &fep_default_pldat;
+
 	ndev->base_addr = (unsigned long)ioremap(r->start, resource_size(r));
 
 	if (!ndev->base_addr) {
@@ -1895,12 +2011,14 @@ fec_probe(struct platform_device *pdev)
 		}
 	}
 
+#if !defined(CONFIG_ARCH_KINETIS)
 	fep->clk = clk_get(&pdev->dev, "fec_clk");
 	if (IS_ERR(fep->clk)) {
 		ret = PTR_ERR(fep->clk);
 		goto failed_clk;
 	}
 	clk_enable(fep->clk);
+#endif /* !CONFIG_ARCH_KINETIS */
 
 	ret = fec_enet_init(ndev, 0);
 	if (ret)
@@ -1914,9 +2032,11 @@ fec_probe(struct platform_device *pdev)
 
 failed_register:
 failed_init:
+#if !defined(CONFIG_ARCH_KINETIS)
 	clk_disable(fep->clk);
 	clk_put(fep->clk);
 failed_clk:
+#endif /* !CONFIG_ARCH_KINETIS */
 	for (i = 0; i < 3; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq > 0)
@@ -1934,13 +2054,17 @@ static int __devexit
 fec_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+#if !defined(CONFIG_ARCH_KINETIS)
 	struct fec_enet_private *fep = netdev_priv(ndev);
+#endif /* !CONFIG_ARCH_KINETIS */
 
 	platform_set_drvdata(pdev, NULL);
 
 	fec_stop(ndev);
+#if !defined(CONFIG_ARCH_KINETIS)
 	clk_disable(fep->clk);
 	clk_put(fep->clk);
+#endif /* !CONFIG_ARCH_KINETIS */
 	iounmap((void __iomem *)ndev->base_addr);
 	unregister_netdev(ndev);
 	free_netdev(ndev);

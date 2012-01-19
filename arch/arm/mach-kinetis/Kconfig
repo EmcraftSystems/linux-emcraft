@@ -40,6 +40,11 @@ config KINETIS_UART5
 	bool "Enable Kinetis UART5 port"
 	default n
 
+config KINETIS_MAC
+	depends on ARCH_KINETIS && FEC
+	bool "Enable Freescale Kinetis Ethernet port"
+	default y
+
 endmenu
 
 endif

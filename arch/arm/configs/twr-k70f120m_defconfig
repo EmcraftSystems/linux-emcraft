@@ -225,6 +225,7 @@ CONFIG_KINETIS_UART2=y
 # CONFIG_KINETIS_UART3 is not set
 # CONFIG_KINETIS_UART4 is not set
 # CONFIG_KINETIS_UART5 is not set
+CONFIG_KINETIS_MAC=y
 
 #
 # Processor Type
@@ -433,26 +434,7 @@ CONFIG_NETDEVICES=y
 # CONFIG_EQUALIZER is not set
 # CONFIG_TUN is not set
 # CONFIG_VETH is not set
-CONFIG_PHYLIB=y
-
-#
-# MII PHY device drivers
-#
-# CONFIG_MARVELL_PHY is not set
-# CONFIG_DAVICOM_PHY is not set
-# CONFIG_QSEMI_PHY is not set
-# CONFIG_LXT_PHY is not set
-# CONFIG_CICADA_PHY is not set
-# CONFIG_VITESSE_PHY is not set
-# CONFIG_SMSC_PHY is not set
-# CONFIG_BROADCOM_PHY is not set
-# CONFIG_ICPLUS_PHY is not set
-# CONFIG_REALTEK_PHY is not set
-# CONFIG_NATIONAL_PHY is not set
-# CONFIG_STE10XP is not set
-# CONFIG_LSI_ET1011C_PHY is not set
-# CONFIG_FIXED_PHY is not set
-CONFIG_MDIO_BITBANG=y
+# CONFIG_PHYLIB is not set
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
 # CONFIG_AX88796 is not set
@@ -472,6 +454,8 @@ CONFIG_MII=y
 # CONFIG_B44 is not set
 # CONFIG_KS8842 is not set
 # CONFIG_KS8851_MLL is not set
+CONFIG_FEC=y
+# CONFIG_FEC2 is not set
 # CONFIG_NETDEV_1000 is not set
 # CONFIG_NETDEV_10000 is not set
 # CONFIG_WLAN is not set

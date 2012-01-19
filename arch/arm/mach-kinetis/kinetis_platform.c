@@ -36,6 +36,7 @@
 #include <mach/platform.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/eth.h>
 
 /*
  * Prototypes
@@ -152,7 +153,14 @@ static void __init kinetis_init(void)
 	kinetis_uart_init();
 #endif
 
+#if defined(CONFIG_KINETIS_MAC)
 	/*
-	 * TBD: Ethernet, NAND flash
+	 * Configure the Freescale Kinetis MAC
+	 */
+	kinetis_eth_init();
+#endif
+
+	/*
+	 * TBD: NAND flash
 	 */
 }
