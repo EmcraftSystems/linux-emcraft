@@ -37,6 +37,7 @@
 #include <mach/timer.h>
 #include <mach/uart.h>
 #include <mach/eth.h>
+#include <mach/nand.h>
 
 /*
  * Prototypes
@@ -160,7 +161,10 @@ static void __init kinetis_init(void)
 	kinetis_eth_init();
 #endif
 
+#if defined(CONFIG_MTD_NAND_FSL_NFC)
 	/*
-	 * TBD: NAND flash
+	 * Configure the external NAND Flash
 	 */
+	kinetis_nand_init();
+#endif
 }

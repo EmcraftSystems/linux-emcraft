@@ -16,45 +16,6 @@
 #define MPC5125_NFC_H
 
 
-/* NFC PAD Define */
-#define PAD_NFC_IO                	PAD_FUNC0
-#define PAD_NFC_ALE               	PAD_FUNC0
-#define PAD_NFC_CLE               	PAD_FUNC0
-#define PAD_NFC_WE                	PAD_FUNC0
-#define PAD_NFC_RE                	PAD_FUNC0
-#define PAD_NFC_CE0               	PAD_FUNC0
-#define PAD_NFC_CE1               	PAD_FUNC1
-#define PAD_NFC_CE2               	PAD_FUNC2
-#define PAD_NFC_CE3               	PAD_FUNC2
-#define PAD_NFC_RB0               	PAD_FUNC0
-#define PAD_NFC_RB1               	PAD_FUNC2
-#define PAD_NFC_RB2               	PAD_FUNC2
-#define PAD_NFC_RB3               	PAD_FUNC2
-
-/* NFC Control PAD Define */
-#define BALL_NFC_CE0			IOCTL_NFC_CE0_B
-#define BALL_NFC_CE1			IOCTL_SDHC1_CLK
-#define BALL_NFC_CE2			IOCTL_PSC1_4
-#define BALL_NFC_CE3			IOCTL_J1850_TX
-#define BALL_NFC_RB0			IOCTL_NFC_RB
-#define BALL_NFC_RB1			IOCTL_FEC1_TXD_0
-#define BALL_NFC_RB2			IOCTL_PSC1_3
-#define BALL_NFC_RB3			IOCTL_J1850_RX
-#define BALL_NFC_ALE			IOCTL_EMB_AD19
-#define BALL_NFC_CLE			IOCTL_EMB_AD18
-#define BALL_NFC_WE			IOCTL_EMB_AD16
-#define BALL_NFC_RE			IOCTL_EMB_AD17
-
-/* NFC IO Pad Define */
-#define BALL_NFC_IO0			IOCTL_EMB_AD00
-#define BALL_NFC_IO1			IOCTL_EMB_AD01
-#define BALL_NFC_IO2			IOCTL_EMB_AD02
-#define BALL_NFC_IO3			IOCTL_EMB_AD03
-#define BALL_NFC_IO4			IOCTL_EMB_AD04
-#define BALL_NFC_IO5			IOCTL_EMB_AD05
-#define BALL_NFC_IO6			IOCTL_EMB_AD06
-#define BALL_NFC_IO7			IOCTL_EMB_AD07
-
 /* Addresses for NFC MAIN RAM BUFFER areas */
 #define NFC_MAIN_AREA(n)		((n) *  0x1000)
 
@@ -63,8 +24,8 @@
 #define NFC_SPARE_LEN			0x10
 #define NFC_SPARE_AREA(n)		(0x800 + ((n) * NFC_SPARE_LEN))
 
-#define PAGE_2K                   	0x0800
-#define PAGE_64                   	0x0040
+#define PAGE_2K				0x0800
+#define PAGE_64				0x0040
 
 /* MPC5125 NFC registers */
 /* Typical Flash Commands */
@@ -104,7 +65,7 @@
 
 /***************** Module-Relative Register Offsets *************************/
 #define NFC_SRAM_BUFFER			0x0000
-#define NFC_FLASH_CMD1 			0x3F00
+#define NFC_FLASH_CMD1			0x3F00
 #define NFC_FLASH_CMD2			0x3F04
 #define NFC_COL_ADDR			0x3F08
 #define NFC_ROW_ADDR			0x3F0c
@@ -121,8 +82,8 @@
 #define NFC_IRQ_STATUS			0x3F38
 
 /***************** Module-Relative Register Reset Value *********************/
-#define NFC_SRAM_BUFFER_RSTVAL                	0x00000000
-#define NFC_FLASH_CMD1_RSTVAL 			0x30FF0000
+#define NFC_SRAM_BUFFER_RSTVAL			0x00000000
+#define NFC_FLASH_CMD1_RSTVAL			0x30FF0000
 #define NFC_FLASH_CMD2_RSTVAL			0x007EE000
 #define NFC_COL_ADDR_RSTVAL			0x00000000
 #define NFC_ROW_ADDR_RSTVAL			0x11000000
@@ -143,16 +104,16 @@
 /* NFC_FLASH_CMD1 Field */
 #define CMD1_MASK				0xFFFF0000
 #define CMD1_SHIFT				0
-#define CMD_BYTE2_MASK    			0xFF000000
-#define CMD_BYTE2_SHIFT   			24
-#define CMD_BYTE3_MASK    			0x00FF0000
-#define CMD_BYTE3_SHIFT   			16
+#define CMD_BYTE2_MASK				0xFF000000
+#define CMD_BYTE2_SHIFT				24
+#define CMD_BYTE3_MASK				0x00FF0000
+#define CMD_BYTE3_SHIFT				16
 
 /* NFC_FLASH_CM2 Field */
 #define CMD2_MASK				0xFFFFFF07
 #define CMD2_SHIFT				0
-#define CMD_BYTE1_MASK			    	0xFF000000
-#define CMD_BYTE1_SHIFT   			24
+#define CMD_BYTE1_MASK				0xFF000000
+#define CMD_BYTE1_SHIFT				24
 #define CMD_CODE_MASK				0x00FFFF00
 #define CMD_CODE_SHIFT				8
 #define BUFNO_MASK				0x00000006

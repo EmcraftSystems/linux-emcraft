@@ -10,6 +10,10 @@
  *
  * Based on original driver mpc5121_nfc.c.
  *
+ * (C) Copyright 2012
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ * Add support for Freescale Kinetis, used by TWR-K70F120M
+ *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -27,11 +31,15 @@
 #include <linux/mtd/partitions.h>
 #include <linux/platform_device.h>
 
-#include <asm/fsl_nfc.h>
+#ifdef CONFIG_M68K
 #include <asm/mcfsim.h>
+#endif
+
+#include <linux/mtd/fsl_nfc.h>
+#include "fsl_nfc.h"
 
 #define	DRV_NAME		"fsl_nfc"
-#define	DRV_VERSION		"0.5"
+#define	DRV_VERSION		"1.0"
 
 /* Timeouts */
 #define NFC_RESET_TIMEOUT	1000		/* 1 ms */
@@ -93,15 +101,6 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 #ifdef CONFIG_MTD_PARTITIONS
 static const char *fsl_nfc_pprobes[] = { "cmdlinepart", NULL };
 #endif
-static struct nand_ecclayout nand_hw_eccoob_512 = {
-	.eccbytes = 8,
-	.eccpos = {
-		8, 9, 10, 11, 12, 13, 14, 15,
-	},
-	.oobfree = {
-		{0, 5} /* byte 5 is factory bad block marker */
-	},
-};
 
 static struct nand_ecclayout fsl_nfc_ecc45 = {
 	.eccbytes = 45,
@@ -112,44 +111,20 @@ static struct nand_ecclayout fsl_nfc_ecc45 = {
 		   48, 49, 50, 51, 52, 53, 54, 55,
 		   56, 57, 58, 59, 60, 61, 62, 63},
 	.oobfree = {
-		{.offset = 8,
-		 .length = 11} }
-};
-
-
-static struct nand_ecclayout nand_hw_eccoob_2k = {
-	.eccbytes = 32,
-	.eccpos = {
-		/* 8 bytes of ecc for each 512 bytes of data */
-		8, 9, 10, 11, 12, 13, 14, 15,
-		24, 25, 26, 27, 28, 29, 30, 31,
-		40, 41, 42, 43, 44, 45, 46, 47,
-		56, 57, 58, 59, 60, 61, 62, 63,
-	},
-	.oobfree = {
-		{2, 5}, /* bytes 0 and 1 are factory bad block markers */
-		{16, 7},
-		{32, 7},
-		{48, 7},
-	},
-};
-
-
-/* ecc struct for nand 5125 */
-static struct nand_ecclayout nand5125_hw_eccoob_2k = {
-	.eccbytes = 60,
-	.eccpos = {
-		/* 60 bytes of ecc for one page bytes of data */
-		4, 5,
-		6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-		16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-		26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
-		36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
-		46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-		56, 57, 58, 59, 60, 61, 62, 63,
-	},
-	.oobfree = {
-		{2, 2}, /* bytes 0 and 1 are factory bad block markers */
+		{
+			.offset = 8,
+			/*
+			 * 11 bytes are actually available for a client to
+			 * place data into the out of band area (OOB.)
+			 *
+			 * We write "2" here though to make the JFFS2 code
+			 * happy. See how the function `jffs2_check_oob_empty()`
+			 * checks if a block is empty.
+			 *
+			 * TBD: Properly fix this JFFS2 problem.
+			 */
+			.length = 2,
+		},
 	},
 };
 
@@ -158,7 +133,7 @@ static inline u32 nfc_read(struct mtd_info *mtd, uint reg)
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_nfc_prv *prv = chip->priv;
 
-	return in_be32(prv->regs + reg);
+	return __raw_readl(prv->regs + reg);
 }
 
 /* Write NFC register */
@@ -167,7 +142,7 @@ static inline void nfc_write(struct mtd_info *mtd, uint reg, u32 val)
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_nfc_prv *prv = chip->priv;
 
-	out_be32(prv->regs + reg, val);
+	__raw_writel(val, prv->regs + reg);
 }
 
 /* Set bits in NFC register */
@@ -188,9 +163,8 @@ nfc_set_field(struct mtd_info *mtd, u32 reg, u32 mask, u32 shift, u32 val)
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_nfc_prv *prv = chip->priv;
 
-	out_be32(prv->regs + reg,
-			(in_be32(prv->regs + reg) & (~mask))
-			| val << shift);
+	__raw_writel((__raw_readl(prv->regs + reg) & (~mask)) | val << shift,
+		prv->regs + reg);
 }
 
 static inline int
@@ -199,7 +173,7 @@ nfc_get_field(struct mtd_info *mtd, u32 reg, u32 field_mask)
 	struct nand_chip *chip = mtd->priv;
 	struct fsl_nfc_prv *prv = chip->priv;
 
-	return in_be32(prv->regs + reg) & field_mask;
+	return __raw_readl(prv->regs + reg) & field_mask;
 }
 
 static inline u8 nfc_check_status(struct mtd_info *mtd)
@@ -241,24 +215,18 @@ static void fsl_nfc_done(struct mtd_info *mtd)
 
 static inline u8 fsl_nfc_get_id(struct mtd_info *mtd, int col)
 {
-	u32 flash_id1 = 0;
-	u8 *pid;
-
-	flash_id1 = nfc_read(mtd, NFC_FLASH_STATUS1);
-	pid = (u8 *)&flash_id1;
-
-	return *(pid + col);
+	/*
+	 * Get the (col+1)th byte from the Flash Status Register 1
+	 */
+	return (u8)(nfc_read(mtd, NFC_FLASH_STATUS1) >> ((3 - col) * 8));
 }
 
 static inline u8 fsl_nfc_get_status(struct mtd_info *mtd)
 {
-	u32 flash_status = 0;
-	u8 *pstatus;
-
-	flash_status = nfc_read(mtd, NFC_FLASH_STATUS2);
-	pstatus = (u8 *)&flash_status;
-
-	return *(pstatus + 3);
+	/*
+	 * Get the byte returned by the read status command
+	 */
+	return (u8)nfc_read(mtd, NFC_FLASH_STATUS2);
 }
 
 /* Invoke command cycle */
@@ -343,6 +311,7 @@ fsl_nfc_addr_cycle(struct mtd_info *mtd, int column, int page)
 static void
 m54418twr_select_chip(struct mtd_info *mtd, int chip)
 {
+#ifdef CONFIG_M68K
 	if (chip < 0) {
 		MCF_GPIO_PAR_FBCTL &= (MCF_GPIO_PAR_FBCTL_ALE_MASK &
 				   MCF_GPIO_PAR_FBCTL_TA_MASK);
@@ -368,6 +337,7 @@ m54418twr_select_chip(struct mtd_info *mtd, int chip)
 	MCF_GPIO_PAR_CS &= (MCF_GPIO_PAR_BE_BE3_MASK & MCF_GPIO_PAR_BE_BE2_MASK);
 	MCF_GPIO_PAR_CS = MCF_GPIO_PAR_CS_CS1_NFC_CE;
 	return;
+#endif /* CONFIG_M68K */
 }
 
 /* Read NAND Ready/Busy signal */
@@ -640,24 +610,6 @@ fsl_nfc_read_word(struct mtd_info *mtd)
 	return tmp;
 }
 
-static void fsl_nfc_check_ecc_status(struct mtd_info *mtd)
-{
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_nfc_prv *prv = chip->priv;
-	u8 ecc_status, ecc_count;
-
-	ecc_status = *(u8 *)(prv->regs + ECC_SRAM_ADDR * 8 + 7);
-	ecc_count = ecc_status & ECC_ERR_COUNT;
-	if (ecc_status & ECC_STATUS_MASK) {
-		/*mtd->ecc_stats.failed++;*/
-		printk("ECC failed to correct all errors!\n");
-	} else if (ecc_count) {
-		/*mtd->ecc_stats.corrected += ecc_count;*/
-		printk(KERN_INFO"ECC corrected %d errors\n", ecc_count);
-	}
-
-}
-
 static void
 copy_from_to_spare(struct mtd_info *mtd, void *pbuf, int len, int wr)
 {
@@ -721,10 +673,9 @@ static int fsl_nfc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int fsl_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-					uint8_t *buf)
+					uint8_t *buf, int page)
 {
 	struct fsl_nfc_prv *prv = chip->priv;
-	/*fsl_nfc_check_ecc_status(mtd);*/
 
 	memcpy_fromio((void *)buf, prv->regs + NFC_MAIN_AREA(0),
 			mtd->writesize);
@@ -763,6 +714,7 @@ fsl_nfc_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 #ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts;
+	struct fsl_nfc_nand_platform_data *pdata = pdev->dev.platform_data;
 #endif
 	struct nand_chip *chip;
 	unsigned long regs_paddr, regs_size;
@@ -915,11 +867,12 @@ fsl_nfc_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	printk(KERN_DEBUG "parse partition: partnr = %d\n", retval);
-
 	if (retval > 0)
 		retval = add_mtd_partitions(mtd, parts, retval);
-	else
+	else if (pdata && pdata->nr_parts) {
+		retval = add_mtd_partitions(
+			mtd, pdata->parts, pdata->nr_parts);
+	} else
 #endif
 		retval = add_mtd_device(mtd);
 
@@ -978,7 +931,7 @@ static void __exit fsl_nfc_cleanup(void)
 module_init(fsl_nfc_init);
 module_exit(fsl_nfc_cleanup);
 
-MODULE_AUTHOR("Freescale Semiconductor, Inc.");
+MODULE_AUTHOR("Alexander Potashev <aspotashev@emcraft.com>");
 MODULE_DESCRIPTION("FSL NFC NAND MTD driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

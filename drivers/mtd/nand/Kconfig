@@ -443,11 +443,11 @@ config MTD_NAND_FSL_UPM
 	  processor localbus with User-Programmable Machine support.
 
 config MTD_NAND_FSL_NFC
-	tristate "Support for NAND on Freescale ColdFire NFC"
-	depends on MTD_NAND && M5441X
+	tristate "Support for NAND on Freescale ColdFire and Kinetis"
+	depends on MTD_NAND && (M5441X || ARCH_KINETIS)
 	help
-	  Enables support for NAND Flash chips wired onto Freescale PowerPC
-	  processor localbus with User-Programmable Machine support.
+	  This enables the driver for the NAND Flash Controller (NFC) on
+	  the Freescale Kinetis and ColdFire MCUs.
 
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
