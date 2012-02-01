@@ -93,6 +93,5 @@ void __init lpc178x_eth_init(void)
 	}
 
 	platform_device_register(&lpc178x_net_device);
-	printk("platform_device_registered\n");
 #endif
 }
