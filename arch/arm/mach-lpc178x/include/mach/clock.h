@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -29,6 +29,7 @@
  * Clocks enumeration
  */
 enum lpc178x_clock {
+	CLOCK_CCLK,		/* CPU clock frequency expressed in Hz        */
 	CLOCK_SYSTICK,		/* Systimer clock frequency expressed in Hz   */
 	CLOCK_EMCCLK,		/* EMC clock frequency expressed in Hz        */
 	CLOCK_PCLK,		/* Peripheral clock frequency expressed in Hz */

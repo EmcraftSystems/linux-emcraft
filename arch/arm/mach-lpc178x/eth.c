@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -63,7 +63,7 @@ static struct lpc178x_eth_data ea_lpc1788_eth_data = {
 static u64 lpc178x_mac_dma_mask = 0xffffffffUL;
 static struct platform_device lpc178x_net_device = {
 	.name = LPC178X_ETH_DRV_NAME,
-	.id = -1,
+	.id = 0,
 	.dev = {
 		.dma_mask = &lpc178x_mac_dma_mask,
 		.coherent_dma_mask = 0xffffffffUL,

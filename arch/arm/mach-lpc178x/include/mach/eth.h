@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -32,7 +32,7 @@
 /*
  * LPC178x/7x platform Ethernet driver name
  */
-#define LPC178X_ETH_DRV_NAME		"lpc178x-eth"
+#define LPC178X_ETH_DRV_NAME		"lpc-net"
 
 /*
  * LPC178x/8x MAC register base

@@ -6,7 +6,7 @@
  * Copyright (C) 2010 NXP Semiconductors
  *
  * Customized for LPC178x/7x by:
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
+#include <linux/clk.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -340,7 +341,7 @@ struct rx_status_t {
  */
 #define LPC_POWERDOWN_MACAHB			(1 << 31)
 
-#define MODNAME LPC178X_ETH_DRV_NAME
+#define MODNAME "lpc-net"
 #define DRV_VERSION "$Revision: 1.00 $"
 
 #define ENET_MAXF_SIZE 1536	/* up to 2k */
@@ -390,6 +391,7 @@ struct netdata_local {
 	unsigned int		num_used_tx_buffs;
 	struct mii_bus		*mii_bus;
 	struct phy_device	*phy_dev;
+	struct clk		*clk;
 	u32			dma_buff_base_p;
 	u32			dma_buff_base_v;
 	u32			dma_buff_size;
@@ -452,6 +454,15 @@ static void __lpc_set_mac(struct netdata_local *pldat, u8 *mac)
 
 	pr_debug("Ethernet MAC address %02x:%02x:%02x:%02x:%02x:%02x\n",
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+static void __lpc_net_clock_enable(struct netdata_local *pldat,
+	int enable)
+{
+	if (enable)
+		clk_enable(pldat->clk);
+	else
+		clk_disable(pldat->clk);
 }
 
 static void __lpc_params_setup(struct netdata_local *pldat)
@@ -1049,7 +1060,7 @@ static int lpc_net_close(struct net_device *ndev)
 	writel(0, LPC_ENET_MAC2(pldat->net_base));
 	spin_unlock_irqrestore(&pldat->lock, flags);
 
-	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 0);
+	__lpc_net_clock_enable(pldat, 0);
 
 	return 0;
 }
@@ -1229,7 +1240,7 @@ static int lpc_net_open(struct net_device *ndev)
 		return -EADDRNOTAVAIL;
 	}
 
-	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 1);
+	__lpc_net_clock_enable(pldat, 1);
 
 	/* Reset and initialize */
 	__lpc_eth_reset(pldat);
@@ -1367,8 +1378,16 @@ static int lpc_net_drv_probe(struct platform_device *pdev)
 	pldat->net_region_size = res->end - res->start + 1;
 	ndev->irq = irq;
 
+	/* Get clock for the device */
+	pldat->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pldat->clk)) {
+		dev_err(&pdev->dev, "error getting clock.\n");
+		ret = PTR_ERR(pldat->clk);
+		goto err_out_free_dev;
+	}
+
 	/* Enable network clock */
-	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 1);
+	__lpc_net_clock_enable(pldat, 1);
 
 	/* Map IO space */
 	pldat->net_base = ioremap(pldat->net_region_start, pldat->net_region_size);
@@ -1499,7 +1518,9 @@ err_out_free_irq:
 err_out_iounmap:
 	iounmap(pldat->net_base);
 err_out_disable_clocks:
-	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 0);
+	clk_disable(pldat->clk);
+	clk_put(pldat->clk);
+err_out_free_dev:
 	free_netdev(ndev);
 err_exit:
 	pr_err("%s: not found (%d).\n", MODNAME, ret);
@@ -1525,7 +1546,8 @@ static int lpc_net_drv_remove(struct platform_device *pdev)
 		(dma_addr_t) pldat->dma_buff_base_p);
 	free_irq(ndev->irq, ndev);
 	iounmap(pldat->net_base);
-	lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 0);
+	clk_disable(pldat->clk);
+	clk_put(pldat->clk);
 	free_netdev(ndev);
 
 	return 0;
@@ -1545,7 +1567,7 @@ static int lpc_net_drv_suspend(struct platform_device *pdev,
 		if (netif_running(ndev)) {
 			netif_device_detach(ndev);
 			__lpc_net_shutdown(pldat);
-			lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 0);
+			clk_disable(pldat->clk);
 
 			/*
 			 * Reset again now clock is disable to be sure
@@ -1571,7 +1593,7 @@ static int lpc_net_drv_resume(struct platform_device *pdev)
 			pldat = netdev_priv(ndev);
 
 			/* Enable interface clock */
-			lpc178x_periph_enable(LPC178X_SCC_PCONP_PCENET_MSK, 1);
+			clk_enable(pldat->clk);
 
 			/* Reset and initialize */
 			__lpc_eth_reset(pldat);

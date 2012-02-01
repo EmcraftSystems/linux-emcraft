@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -24,11 +24,15 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/io.h>
+
+#include <asm/clkdev.h>
 
 #include <mach/platform.h>
 #include <mach/clock.h>
 #include <mach/lpc178x.h>
+#include <mach/power.h>
 
 /*
  * Internal oscillator value
@@ -88,7 +92,120 @@
 	(2 << LPC178X_SCC_USBCLKSEL_USBSEL_BITS)
 
 /*
- * Clock values
+ * The structure that holds the information about a clock
+ */
+struct clk {
+	unsigned long rate;	/* Clock rate, the only possible value of */
+	u32 pconp_mask;		/* For `lpc178x_periph_enable()` */
+
+	unsigned int enabled;	/* Reference count */
+};
+
+static DEFINE_SPINLOCK(clocks_lock);
+
+/*
+ * Enable the clock via the Power Control for Peripherals register
+ */
+static void local_clk_enable(struct clk *clk)
+{
+	lpc178x_periph_enable(clk->pconp_mask, 1);
+}
+
+/*
+ * Disable the clock via the Power Control for Peripherals register
+ */
+static void local_clk_disable(struct clk *clk)
+{
+	lpc178x_periph_enable(clk->pconp_mask, 0);
+}
+
+/*
+ * clk_enable - inform the system when the clock source should be running.
+ */
+int clk_enable(struct clk *clk)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&clocks_lock, flags);
+	if (clk->enabled++ == 0)
+		local_clk_enable(clk);
+	spin_unlock_irqrestore(&clocks_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+/*
+ * clk_disable - inform the system when the clock source is no longer required
+ */
+void clk_disable(struct clk *clk)
+{
+	unsigned long flags;
+
+	WARN_ON(clk->enabled == 0);
+
+	spin_lock_irqsave(&clocks_lock, flags);
+	if (--clk->enabled == 0)
+		local_clk_disable(clk);
+	spin_unlock_irqrestore(&clocks_lock, flags);
+}
+EXPORT_SYMBOL(clk_disable);
+
+/*
+ * clk_get_rate - obtain the current clock rate (in Hz) for a clock source
+ */
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return clk->rate;
+}
+EXPORT_SYMBOL(clk_get_rate);
+
+/*
+ * clk_set_rate - set the clock rate for a clock source
+ *
+ * We do not support this, because we assume that all clock rates are fixed.
+ */
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(clk_set_rate);
+
+/*
+ * clk_round_rate - adjust a rate to the exact rate a clock can provide
+ *
+ * We return the actual clock rate, because we assume that all clock rates
+ * are fixed.
+ */
+long clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk->rate;
+}
+EXPORT_SYMBOL(clk_round_rate);
+
+/*
+ * Clock for the Ethernet module of the MCU. The clock rate is initialized
+ * in `lpc178x_clock_init()`.
+ */
+static struct clk clk_net = {
+	.pconp_mask	= LPC178X_SCC_PCONP_PCENET_MSK,
+};
+
+/*
+ * Array of all clock to register with the `clk_*` infrastructure
+ */
+#define INIT_CLKREG(_clk,_devname,_conname)		\
+	{						\
+		.clk		= _clk,			\
+		.dev_id		= _devname,		\
+		.con_id		= _conname,		\
+	}
+static struct clk_lookup lpc178x_clkregs[] = {
+	INIT_CLKREG(&clk_net, "lpc-net.0", NULL),
+};
+
+/*
+ * Clock rate values
  */
 static u32 clock_val[CLOCK_END];
 
@@ -97,6 +214,7 @@ static u32 clock_val[CLOCK_END];
  */
 void __init lpc178x_clock_init(void)
 {
+	int i;
 	int platform;
 
 	/* External or internal oscillator frequency */
@@ -148,7 +266,7 @@ void __init lpc178x_clock_init(void)
 	/*
 	 * CPU clock
 	 */
-	clock_val[CLOCK_SYSTICK] = cclk_input /
+	clock_val[CLOCK_CCLK] = clock_val[CLOCK_SYSTICK] = cclk_input /
 		((LPC178X_SCC->cclksel & LPC178X_SCC_CCLKSEL_CCLKDIV_MSK) >>
 		LPC178X_SCC_CCLKSEL_CCLKDIV_BITS);
 
@@ -186,10 +304,23 @@ void __init lpc178x_clock_init(void)
 			LPC178X_SCC_USBCLKSEL_USBDIV_MSK) >>
 			LPC178X_SCC_USBCLKSEL_USBDIV_BITS);
 	}
+
+	/*
+	 * Initialize the `clk_*` structures
+	 */
+	clk_net.rate = clock_val[CLOCK_CCLK];	/* AHB clock = CPU clock */
+	/*
+	 * Register clocks with the `clk_*` infrastructure
+	 */
+	for (i = 0; i < ARRAY_SIZE(lpc178x_clkregs); i++)
+		clkdev_add(&lpc178x_clkregs[i]);
 }
 
 /*
  * Return a clock value for the specified clock.
+ *
+ * This is the legacy way to get a clock rate, independent
+ * from `clk_get_rate()`.
  */
 unsigned int lpc178x_clock_get(enum lpc178x_clock clk)
 {
