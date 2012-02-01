@@ -58,6 +58,29 @@
 	(((1 << 5) - 1) << KINETIS_MCG_C6_VDIV_BITS)
 /* PLL Select */
 #define KINETIS_MCG_C6_PLLS_MSK		(1 << 6)
+/*
+ * MCG Control 11 Register
+ */
+/* PLL1 External Reference Divider */
+#define KINETIS_MCG_C11_PRDIV_BITS	0
+#define KINETIS_MCG_C11_PRDIV_MSK \
+	(((1 << 3) - 1) << KINETIS_MCG_C11_PRDIV_BITS)
+/* PLL Clock Select: PLL0 or PLL1 */
+#define KINETIS_MCG_C11_PLLCS_MSK	(1 << 4)
+/* PLL1 Stop Enable */
+#define KINETIS_MCG_C11_PLLSTEN1_MSK	(1 << 5)
+/* PLL1 Clock Enable */
+#define KINETIS_MCG_C11_PLLCLKEN1_MSK	(1 << 6)
+/* PLL1 External Reference Select (for K70@120MHz) */
+#define KINETIS_MCG_C11_PLLREFSEL1_BIT	7
+#define KINETIS_MCG_C11_PLLREFSEL1_MSK	(1 << KINETIS_MCG_C11_PLLREFSEL1_BIT)
+/*
+ * MCG Control 12 Register
+ */
+/* VCO1 Divider */
+#define KINETIS_MCG_C12_VDIV1_BITS	0
+#define KINETIS_MCG_C12_VDIV1_MSK \
+	(((1 << 5) - 1) << KINETIS_MCG_C12_VDIV1_BITS)
 
 /*
  * SIM registers
@@ -168,15 +191,31 @@ void __init kinetis_clock_init(void)
 	mcgout = CONFIG_KINETIS_EXTAL0_RATE;
 
 	/*
-	 * PLL0 internal divider
+	 * Check whether PLL0 or PLL1 is used for MCGOUTCLK
 	 */
-	mcgout /= ((KINETIS_MCG->c5 & KINETIS_MCG_C5_PRDIV_MSK) >>
-		KINETIS_MCG_C5_PRDIV_BITS) + 1;
-	/*
-	 * PLL0 multiplication factor
-	 */
-	mcgout *= ((KINETIS_MCG->c6 & KINETIS_MCG_C6_VDIV_MSK) >>
-		KINETIS_MCG_C6_VDIV_BITS) + vdiv_min;
+	if (KINETIS_MCG->c11 & KINETIS_MCG_C11_PLLCS_MSK) {
+		/*
+		 * PLL1 internal divider
+		 */
+		mcgout /= ((KINETIS_MCG->c11 & KINETIS_MCG_C11_PRDIV_MSK) >>
+			KINETIS_MCG_C11_PRDIV_BITS) + 1;
+		/*
+		 * PLL1 multiplication factor
+		 */
+		mcgout *= ((KINETIS_MCG->c12 & KINETIS_MCG_C12_VDIV1_MSK) >>
+			KINETIS_MCG_C12_VDIV1_BITS) + vdiv_min;
+	} else {
+		/*
+		 * PLL0 internal divider
+		 */
+		mcgout /= ((KINETIS_MCG->c5 & KINETIS_MCG_C5_PRDIV_MSK) >>
+			KINETIS_MCG_C5_PRDIV_BITS) + 1;
+		/*
+		 * PLL0 multiplication factor
+		 */
+		mcgout *= ((KINETIS_MCG->c6 & KINETIS_MCG_C6_VDIV_MSK) >>
+			KINETIS_MCG_C6_VDIV_BITS) + vdiv_min;
+	}
 
 	/*
 	 * Apply the PLL0 output divider
