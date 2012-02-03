@@ -370,6 +370,27 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 	/* P1.18 (A) = USB_UP_LED1 */
 	{{1, 18}, LPC178X_GPIO_CONFIG_A(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
 #endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
+
+#if defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE)
+	/*
+	 * Pin configuration for the SD Card Interface
+	 */
+	/* P1.2 (D) = MCI_CLK */
+	{{1,  2}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.3 (D) = MCI_CMD */
+	{{1,  3}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.5 (D) = MCI_PWR */
+	{{1,  5}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+
+	/* P1.6 (D) = MCI_DAT0 */
+	{{1,  6}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.7 (D) = MCI_DAT1 */
+	{{1,  7}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.11 (D) = MCI_DAT2 */
+	{{1, 11}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.12 (D) = MCI_DAT3 */
+	{{1, 12}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+#endif /* defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE) */
 };
 
 /*

@@ -192,6 +192,14 @@ static struct clk clk_net = {
 };
 
 /*
+ * Clock for the SD Card Interface module of the MCU. The clock rate
+ * is initialized in `lpc178x_clock_init()`.
+ */
+static struct clk clk_mci = {
+	.pconp_mask	= LPC178X_SCC_PCONP_PCSDC_MSK,
+};
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -202,6 +210,7 @@ static struct clk clk_net = {
 	}
 static struct clk_lookup lpc178x_clkregs[] = {
 	INIT_CLKREG(&clk_net, "lpc-net.0", NULL),
+	INIT_CLKREG(&clk_mci, "dev:mmc0", NULL),
 };
 
 /*
@@ -309,6 +318,7 @@ void __init lpc178x_clock_init(void)
 	 * Initialize the `clk_*` structures
 	 */
 	clk_net.rate = clock_val[CLOCK_CCLK];	/* AHB clock = CPU clock */
+	clk_mci.rate = clock_val[CLOCK_PCLK];
 	/*
 	 * Register clocks with the `clk_*` infrastructure
 	 */

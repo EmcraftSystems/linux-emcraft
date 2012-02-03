@@ -38,6 +38,7 @@
 #include <mach/uart.h>
 #include <mach/eth.h>
 #include <mach/flash.h>
+#include <mach/sdcard.h>
 
 /*
  * Prototypes
@@ -174,4 +175,11 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_ohci_init();
 #endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
+
+#if defined(CONFIG_MMC_ARMMMCI)
+	/*
+	 * Configure the SD Card Interface
+	 */
+	lpc178x_sdcard_init();
+#endif
 }

@@ -788,6 +788,7 @@ config ARCH_LPC178X
 	bool "NXP LPC178x/7x SoC"
 	depends on !MMU
 	select ARM_CORTEXM3
+	select ARM_AMBA
 	help
 	  This enables support for the NXP LPC178x/7x SoCs
 
