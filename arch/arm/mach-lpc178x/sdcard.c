@@ -69,7 +69,11 @@ static struct amba_device lpc178x_mci_device = {
 static struct mmci_platform_data lpc178x_mci_data = {
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34,
 	.capabilities = MMC_CAP_4_BIT_DATA,
+#ifdef CONFIG_LPC178X_SD_DMA
+	.f_max = 25000000,
+#else
 	.f_max = 100000,
+#endif /* CONFIG_LPC178X_SD_DMA */
 	.gpio_cd = -1,
 	.gpio_wp = -1,
 	.status = mmc_card_detect,

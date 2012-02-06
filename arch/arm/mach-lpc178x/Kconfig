@@ -40,6 +40,11 @@ config LPC178X_MAC
 	bool "Enable LPC178x/7x Ethernet port"
 	default y
 
+config LPC178X_SD_DMA
+	depends on ARCH_LPC178X && MMC_ARMMMCI
+	bool "Use DMA for the SD Card Interface"
+	default y
+
 endmenu
 
 endif
