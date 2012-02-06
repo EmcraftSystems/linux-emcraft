@@ -1,9 +1,16 @@
 /*
- * asm-arm/arch-lpc32xx/dmac.h
+ * arch/arm/mach-lpc178x/include/mach/dma.h
+ *
+ * (was named asm-arm/arch-lpc32xx/dmac.h)
  *
  * Author: Kevin Wells <kevin.wells@nxp.com>
  *
  * Copyright (C) 2008 NXP Semiconductors
+ *
+ * Customized for LPC178x/7x by:
+ * (C) Copyright 2012
+ * Emcraft Systems, <www.emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +27,22 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef __ASM_ARCH_DMAC_H
-#define __ASM_ARCH_DMAC_H
+#ifndef _MACH_LPC178X_DMAC_H_
+#define _MACH_LPC178X_DMAC_H_
+
+#include <mach/lpc178x.h>
+
+/*
+ * DMA registers base
+ */
+#define LPC178X_DMA_BASE	(LPC178X_AHB_PERIPH_BASE + 0x00000000)
+/*
+ * "Interrupt ID" in Table 43 in the LPC178x/7x User Manual (page 70)
+ */
+#define LPC178X_DMA_IRQ		26
+
+#define _BIT(n)		(1 << n)
+#define io_p2v(x)	((volatile void __iomem *)x)
 
 /**********************************************************************
 * DMA register offsets
@@ -167,12 +188,6 @@
 /* Bit for enabling automatic source increment */
 #define DMAC_CHAN_SRC_AUTOINC       _BIT(26)
 
-/* Bit for using AHB1 master for destination transfer */
-#define DMAC_CHAN_DEST_AHB1         _BIT(25)
-
-/* Bit for using AHB1 master for source transfer */
-#define DMAC_CHAN_SRC_AHB1          _BIT(24)
-
 /* Destination data width selection defines */
 #define DMAC_CHAN_DEST_WIDTH_8      0x0
 #define DMAC_CHAN_DEST_WIDTH_16     _BIT(21)
@@ -261,25 +276,10 @@
 * config_ch register definitions (source and destination
 * peripheral ID numbers). These can be used with the DMAC_DEST_PERIP
 * and DMAC_SRC_PERIP macros.
+*
+* For the correct values for these macros see section
+* `34.4.2.3 DMA request connections` of the LPC178x/7x User Manual.
 **********************************************************************/
-#define DMA_PERID_I2S0_DMA0         0
-#define DMA_PERID_NAND1             1
-#define DMA_PERID_I2S1_DMA0         2
-#define DMA_PERID_SPI2_TXRX         3
-#define DMA_PERID_SSP1_RX           3
-#define DMA_PERID_SDCARD            4
-#define DMA_PERID_HSUART1_TX        5
-#define DMA_PERID_HSUART1_RX        6
-#define DMA_PERID_HSUART2_TX        7
-#define DMA_PERID_HSUART2_RX        8
-#define DMA_PERID_HSUART7_TX        9
-#define DMA_PERID_HSUART7_RX        10
-#define DMA_PERID_I2S1_DMA1         10
-#define DMA_PERID_SPI1_TXRX         11
-#define DMA_PERID_SSP1_TX           11
-#define DMA_PERID_NAND2             12
-#define DMA_PERID_I2S0_DMA1         13
-#define DMA_PERID_SSP0_RX           14
-#define DMA_PERID_SSP0_TX           15
+#define DMA_PERID_SDCARD            1
 
-#endif /* __ASM_ARCH_DMAC_H */
+#endif /* _MACH_LPC178X_DMAC_H_ */

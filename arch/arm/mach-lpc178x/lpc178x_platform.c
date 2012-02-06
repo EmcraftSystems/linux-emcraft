@@ -38,6 +38,7 @@
 #include <mach/uart.h>
 #include <mach/eth.h>
 #include <mach/flash.h>
+#include <mach/dma.h>
 #include <mach/sdcard.h>
 
 /*
@@ -147,6 +148,11 @@ static void __init lpc178x_init(void)
 	 * Configure the IOMUXes of LPC178x/7x
 	 */
 	lpc178x_iomux_init();
+
+	/*
+	 * Initialize the General Purpose DMA controller
+	 */
+	lpc178x_dma_init();
 
 #if defined(CONFIG_SERIAL_8250)
 	/*
