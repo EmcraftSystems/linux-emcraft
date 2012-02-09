@@ -55,17 +55,18 @@
  * specific. However, the default U-boot does make some assumptions
  * about Flash partitioning, specifically:
  *
- * 0-1ffff:		U-boot environment
- * 20000-end of Flash:	Linux bootable image + whatever else.
+ * 0-fffff:			U-boot environment (4 blocks to work around bad
+ *				blocks and a redundant copy of the same size)
+ * 100000-end of Flash:		Linux bootable image + whatever else.
  *
  * Based on these assumptions, we define the following Flash partitions:
  *
- * 0-1ffff:		U-boot environment
- * 20000-2fffff:	Linux bootable image
- * 300000-end of Flash:	JFFS2 filesystem
+ * 0-fffff:			U-boot environment
+ * 100000-1ffffff:		Linux bootable image
+ * 2000000-end of Flash:	JFFS2 filesystem
  */
-#define FLASH_IMAGE_OFFSET	0x20000
-#define FLASH_JFFS2_OFFSET	(3*1024*1024)
+#define FLASH_IMAGE_OFFSET	0x100000
+#define FLASH_JFFS2_OFFSET	(32*1024*1024)
 static struct mtd_partition flash_partitions[] = {
 	{
 		.name	= "flash_uboot_env",
