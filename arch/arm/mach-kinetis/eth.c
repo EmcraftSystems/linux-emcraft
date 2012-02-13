@@ -29,7 +29,6 @@
 #include <mach/platform.h>
 #include <mach/kinetis.h>
 #include <mach/eth.h>
-#include <mach/clock.h>
 
 /*
  * Freescale Kinetis MAC register base
@@ -80,8 +79,6 @@ static struct resource kinetis_eth_resources[] = {
 static struct fec_platform_data kinetis_twr_fec_platform_data = {
 	/* Use RMII to communicate with the PHY */
 	.flags = FEC_FLAGS_RMII,
-	/* Will be set to `kinetis_clock_get(CLOCK_MACCLK)` in run-time */
-	.mac_clk = 0,
 	/* MDIO clock rate limit */
 	.mii_clk_limit = KINETIS_MII_SPEED_LIMIT,
 };
@@ -106,8 +103,6 @@ void __init kinetis_eth_init(void)
 	platform = kinetis_platform_get();
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
-		kinetis_twr_fec_platform_data.mac_clk =
-			kinetis_clock_get(CLOCK_MACCLK);
 		kinetis_net_device.dev.platform_data =
 			&kinetis_twr_fec_platform_data;
 		break;

@@ -148,7 +148,6 @@ struct bufdesc {
  */
 struct fec_platform_data {
 	u32 flags;
-	u32 mac_clk;
 	u32 mii_clk_limit;
 };
 

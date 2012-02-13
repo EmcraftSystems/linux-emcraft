@@ -178,7 +178,6 @@ typedef struct {
  */
 static struct fec_platform_data fep_default_pldat = {
 	.flags = 0,
-	.mac_clk = 0,
 	.mii_clk_limit = 0,
 };
 
@@ -1599,7 +1598,6 @@ fec_enet_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 	fep->opened = 1;
-
 	return 0;
 }
 
@@ -1795,11 +1793,12 @@ static int fec_enet_init(struct net_device *dev, int index)
 		mii_cmds[i].mii_next = &mii_cmds[i+1];
 	mii_free = mii_cmds;
 
-	/* Set MII speed to 2.5 MHz */
 #if defined(CONFIG_ARCH_KINETIS)
-	fep->phy_speed = (fep->pldat->mac_clk - 1) /
+	/* Set MII speed to the desired value */
+	fep->phy_speed = (clk_get_rate(fep->clk) - 1) /
 		(2 * fep->pldat->mii_clk_limit);
 #else
+	/* Set MII speed to 2.5 MHz */
 	fep->phy_speed = ((clk_get_rate(fep->clk) / 2 + 4999999)
 					/ 2500000) / 2;
 #endif /* CONFIG_ARCH_KINETIS */
@@ -2011,14 +2010,12 @@ fec_probe(struct platform_device *pdev)
 		}
 	}
 
-#if !defined(CONFIG_ARCH_KINETIS)
 	fep->clk = clk_get(&pdev->dev, "fec_clk");
 	if (IS_ERR(fep->clk)) {
 		ret = PTR_ERR(fep->clk);
 		goto failed_clk;
 	}
 	clk_enable(fep->clk);
-#endif /* !CONFIG_ARCH_KINETIS */
 
 	ret = fec_enet_init(ndev, 0);
 	if (ret)
@@ -2032,11 +2029,9 @@ fec_probe(struct platform_device *pdev)
 
 failed_register:
 failed_init:
-#if !defined(CONFIG_ARCH_KINETIS)
 	clk_disable(fep->clk);
 	clk_put(fep->clk);
 failed_clk:
-#endif /* !CONFIG_ARCH_KINETIS */
 	for (i = 0; i < 3; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq > 0)
@@ -2054,17 +2049,13 @@ static int __devexit
 fec_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-#if !defined(CONFIG_ARCH_KINETIS)
 	struct fec_enet_private *fep = netdev_priv(ndev);
-#endif /* !CONFIG_ARCH_KINETIS */
 
 	platform_set_drvdata(pdev, NULL);
 
 	fec_stop(ndev);
-#if !defined(CONFIG_ARCH_KINETIS)
 	clk_disable(fep->clk);
 	clk_put(fep->clk);
-#endif /* !CONFIG_ARCH_KINETIS */
 	iounmap((void __iomem *)ndev->base_addr);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
