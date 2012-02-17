@@ -72,6 +72,8 @@ typedef u32 kinetis_clock_gate_t;
 #define KINETIS_CG_ENET		KINETIS_MKCG(1, 0)	/* SIM_SCGC2[0] */
 /* Periodic Interrupt Timer (PIT) */
 #define KINETIS_CG_PIT		KINETIS_MKCG(5, 23)	/* SIM_SCGC6[23] */
+/* LCD Controller */
+#define KINETIS_CG_LCDC		KINETIS_MKCG(2, 22)	/* SIM_SCGC3[22] */
 
 #ifndef __ASSEMBLY__
 

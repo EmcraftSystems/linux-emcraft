@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -22,29 +22,11 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _MACH_KINETIS_CLOCK_H_
-#define _MACH_KINETIS_CLOCK_H_
+#ifndef _MACH_KINETIS_FB_H_
+#define _MACH_KINETIS_FB_H_
 
-/*
- * Clocks enumeration
- */
-enum kinetis_clock {
-	CLOCK_SYSTICK,		/* Systimer clock frequency expressed in Hz   */
-	CLOCK_CCLK,		/* Core clock frequency expressed in Hz       */
-	CLOCK_PCLK,		/* Bus clock frequency expressed in Hz        */
-	CLOCK_MACCLK,		/* MAC module clock frequency expressed in Hz */
-	CLOCK_LCDCLK,		/* LCDC clock frequency expressed in Hz       */
-	CLOCK_END		/* for internal usage			      */
-};
+#include <linux/init.h>
 
-/*
- * Initialize the MCG (Multipurpose Clock Generator) of the Kinetis MCU
- */
-void __init kinetis_clock_init(void);
+void __init kinetis_fb_init(void);
 
-/*
- * Return a clock value for the specified clock
- */
-unsigned int kinetis_clock_get(enum kinetis_clock clk);
-
-#endif /* _MACH_KINETIS_CLOCK_H_ */
+#endif /* _MACH_KINETIS_FB_H_ */

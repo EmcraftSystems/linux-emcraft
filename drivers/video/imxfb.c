@@ -32,8 +32,12 @@
 #include <linux/io.h>
 #include <linux/math64.h>
 
+#ifndef CONFIG_ARCH_KINETIS
 #include <mach/imxfb.h>
 #include <mach/hardware.h>
+#endif
+
+#include <linux/imxfb.h>
 
 /*
  * Complain if VAR is out of range.
@@ -373,14 +377,21 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	switch (var->bits_per_pixel) {
 	case 32:
+#ifdef CONFIG_ARCH_KINETIS
+		pcr |= PCR_BPIX_24;
+#else
 		pcr |= PCR_BPIX_18;
+#endif /* CONFIG_ARCH_KINETIS */
+
 		rgb = &def_rgb_18;
 		break;
 	case 16:
 	default:
+#ifndef CONFIG_ARCH_KINETIS
 		if (cpu_is_mx1())
 			pcr |= PCR_BPIX_12;
 		else
+#endif /* !CONFIG_ARCH_KINETIS */
 			pcr |= PCR_BPIX_16;
 
 		if (imxfb_mode->pcr & PCR_TFT)

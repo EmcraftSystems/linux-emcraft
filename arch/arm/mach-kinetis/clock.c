@@ -102,6 +102,28 @@
 	(((1 << 4) - 1) << KINETIS_SIM_CLKDIV1_OUTDIV2_BITS)
 
 /*
+ * System Clock Divider Register 3
+ */
+/* LCD Controller clock divider divisor */
+#define KINETIS_SIM_CLKDIV3_LCDCDIV_BITS	16
+#define KINETIS_SIM_CLKDIV3_LCDCDIV_BITWIDTH	12
+#define KINETIS_SIM_CLKDIV3_LCDCDIV_MSK \
+	(((1 << KINETIS_SIM_CLKDIV3_LCDCDIV_BITWIDTH) - 1) << \
+	KINETIS_SIM_CLKDIV3_LCDCDIV_BITS)
+/* LCD Controller clock divider fraction */
+#define KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS	8
+#define KINETIS_SIM_CLKDIV3_LCDCFRAC_BITWIDTH	8
+#define KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK \
+	(((1 << KINETIS_SIM_CLKDIV3_LCDCFRAC_BITWIDTH) - 1) << \
+	KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS)
+
+/*
+ * Misc Control Register
+ */
+/* Start LCDC display */
+#define KINETIS_SIM_MCR_LCDSTART_MSK	(1 << 16)
+
+/*
  * Multipurpose Clock Generator (MCG) register map
  *
  * See Chapter 24 of the K60 Reference Manual (page 559)
@@ -139,10 +161,17 @@ struct kinetis_mcg_regs {
  * The structure that holds the information about a clock
  */
 struct clk {
-	unsigned long rate;	/* Clock rate, the only possible value of */
-	kinetis_clock_gate_t gate;	/* For `kinetis_periph_enable()` */
+	/* Clock rate, the only possible value of */
+	unsigned long rate;
+	/* For `kinetis_periph_enable()` */
+	kinetis_clock_gate_t gate;
 
-	unsigned int enabled;	/* Reference count */
+	/* Reference count */
+	unsigned int enabled;
+
+	/* Custom `clk_*` functions */
+	void (*clk_enable)(struct clk *clk);
+	void (*clk_disable)(struct clk *clk);
 };
 
 static DEFINE_SPINLOCK(clocks_lock);
@@ -164,6 +193,22 @@ static void local_clk_disable(struct clk *clk)
 }
 
 /*
+ * Enable the LCDC clock
+ */
+static void lcdc_clk_enable(struct clk *clk)
+{
+	KINETIS_SIM->mcr |= KINETIS_SIM_MCR_LCDSTART_MSK;
+}
+
+/*
+ * Disable the LCDC clock
+ */
+static void lcdc_clk_disable(struct clk *clk)
+{
+	KINETIS_SIM->mcr &= ~KINETIS_SIM_MCR_LCDSTART_MSK;
+}
+
+/*
  * clk_enable - inform the system when the clock source should be running.
  */
 int clk_enable(struct clk *clk)
@@ -171,8 +216,12 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 
 	spin_lock_irqsave(&clocks_lock, flags);
-	if (clk->enabled++ == 0)
-		local_clk_enable(clk);
+	if (clk->enabled++ == 0) {
+		if (clk->clk_enable)
+			clk->clk_enable(clk);
+		else
+			local_clk_enable(clk);
+	}
 	spin_unlock_irqrestore(&clocks_lock, flags);
 
 	return 0;
@@ -189,8 +238,12 @@ void clk_disable(struct clk *clk)
 	WARN_ON(clk->enabled == 0);
 
 	spin_lock_irqsave(&clocks_lock, flags);
-	if (--clk->enabled == 0)
-		local_clk_disable(clk);
+	if (--clk->enabled == 0) {
+		if (clk->clk_disable)
+			clk->clk_disable(clk);
+		else
+			local_clk_disable(clk);
+	}
 	spin_unlock_irqrestore(&clocks_lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);
@@ -236,6 +289,16 @@ static struct clk clk_net = {
 };
 
 /*
+ * Clock for the LCD Controller module of the MCU. The clock rate is initialized
+ * in `kinetis_clock_init()`.
+ */
+static struct clk clk_lcdc = {
+	.gate = KINETIS_CG_LCDC,
+	.clk_enable = lcdc_clk_enable,
+	.clk_disable = lcdc_clk_disable,
+};
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -246,6 +309,7 @@ static struct clk clk_net = {
 	}
 static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_net, NULL, "fec_clk"),
+	INIT_CLKREG(&clk_lcdc, "imx-fb.0", NULL),
 };
 
 /*
@@ -264,6 +328,7 @@ void __init kinetis_clock_init(void)
 	/* MCU-specific parameters */
 	int vco_div;
 	int vdiv_min;
+	int have_lcd;
 	/* Frequency at the MCGOUTCLK output of the MCG */
 	int mcgout;
 
@@ -272,6 +337,7 @@ void __init kinetis_clock_init(void)
 	 */
 	vco_div = 1;
 	vdiv_min = 24;
+	have_lcd = 0;
 
 	/*
 	 * Initialize the MCU-specific parameters
@@ -288,6 +354,8 @@ void __init kinetis_clock_init(void)
 		 */
 		vco_div = 2;
 		vdiv_min = 16;
+
+		have_lcd = 1;
 		break;
 	default:
 		/*
@@ -366,9 +434,24 @@ void __init kinetis_clock_init(void)
 	clock_val[CLOCK_MACCLK] = CONFIG_KINETIS_EXTAL0_RATE;
 
 	/*
+	 * LCD Controller clock
+	 */
+	clock_val[CLOCK_LCDCLK] = 0;
+	if (have_lcd) {
+		clock_val[CLOCK_LCDCLK] = mcgout /
+			(((KINETIS_SIM->clkdiv3 &
+				KINETIS_SIM_CLKDIV3_LCDCDIV_MSK) >>
+			KINETIS_SIM_CLKDIV3_LCDCDIV_BITS) + 1) *
+			(((KINETIS_SIM->clkdiv3 &
+				KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK) >>
+			KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1);
+	}
+
+	/*
 	 * Initialize the `clk_*` structures
 	 */
 	clk_net.rate = clock_val[CLOCK_MACCLK];
+	clk_lcdc.rate = clock_val[CLOCK_LCDCLK];
 	/*
 	 * Register clocks with the `clk_*` infrastructure
 	 */

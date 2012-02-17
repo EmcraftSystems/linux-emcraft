@@ -45,6 +45,11 @@ config KINETIS_MAC
 	bool "Enable Freescale Kinetis Ethernet port"
 	default y
 
+config KINETIS_FB
+	depends on ARCH_KINETIS && FB_IMX
+	bool "Enable Freescale Kinetis framebuffer"
+	default n
+
 endmenu
 
 endif

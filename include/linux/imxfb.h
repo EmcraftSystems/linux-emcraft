@@ -17,6 +17,7 @@
 #define PCR_BPIX_12	(4 << 25)
 #define PCR_BPIX_16	(5 << 25)
 #define PCR_BPIX_18	(6 << 25)
+#define PCR_BPIX_24	(7 << 25)
 #define PCR_PIXPOL	(1 << 24)
 #define PCR_FLMPOL	(1 << 23)
 #define PCR_LPPOL	(1 << 22)

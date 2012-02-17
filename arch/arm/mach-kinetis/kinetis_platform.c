@@ -38,6 +38,7 @@
 #include <mach/uart.h>
 #include <mach/eth.h>
 #include <mach/nand.h>
+#include <mach/fb.h>
 
 /*
  * Prototypes
@@ -166,5 +167,12 @@ static void __init kinetis_init(void)
 	 * Configure the external NAND Flash
 	 */
 	kinetis_nand_init();
+#endif
+
+#if defined(CONFIG_KINETIS_FB)
+	/*
+	 * Configure the Freescale Kinetis LCD Controller
+	 */
+	kinetis_fb_init();
 #endif
 }
