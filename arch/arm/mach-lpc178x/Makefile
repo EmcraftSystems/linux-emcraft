@@ -11,3 +11,4 @@ obj-$(CONFIG_USB_OHCI_HCD)	+= ohci.o
 obj-$(CONFIG_MMC_ARMMMCI)	+= sdcard.o
 obj-$(CONFIG_I2C_LPC2K)		+= i2c.o
 obj-$(CONFIG_I2C_GPIO)		+= i2c-gpio.o
+obj-$(CONFIG_FB_ARMCLCD)	+= fb.o

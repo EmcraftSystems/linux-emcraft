@@ -42,6 +42,7 @@
 #include <mach/sdcard.h>
 #include <mach/i2c.h>
 #include <mach/i2c-gpio.h>
+#include <mach/fb.h>
 
 /*
  * Prototypes
@@ -205,4 +206,11 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_i2c_gpio_init();
 #endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+
+#if defined(CONFIG_FB_ARMCLCD)
+	/*
+	 * Configure the LPC178x/7x LCD Controller
+	 */
+	lpc178x_fb_init();
+#endif /* defined(CONFIG_FB_ARMCLCD) */
 }

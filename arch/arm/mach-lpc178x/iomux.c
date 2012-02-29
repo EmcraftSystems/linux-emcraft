@@ -425,6 +425,57 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 #endif /* defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE) */
 
 #endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+
+#if defined(CONFIG_FB_ARMCLCD) || defined(CONFIG_FB_ARMCLCD_MODULE)
+	/*
+	 * Pin configuration for the LCD interface
+	 */
+	/* P2.0 (D) = LCDPWR */
+	{{2,  0}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.1 (D) = LCDLE */
+	{{2,  1}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.2 (D) = LCDDCLK */
+	{{2,  2}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.3 (D) = LCDFP */
+	{{2,  3}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.4 (D) = LCDENAB */
+	{{2,  4}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.5 (D) = LCDLP */
+	{{2,  5}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+
+	/* P1.20 (D) = LCD D10 */
+	{{1, 20}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.21 (D) = LCD D11 */
+	{{1, 21}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.22 (D) = LCD D12 */
+	{{1, 22}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.23 (D) = LCD D13 */
+	{{1, 23}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.24 (D) = LCD D14 */
+	{{1, 24}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.25 (D) = LCD D15 */
+	{{1, 25}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.26 (D) = LCD D20 */
+	{{1, 26}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.27 (D) = LCD D21 */
+	{{1, 27}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.28 (D) = LCD D22 */
+	{{1, 28}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.29 (D) = LCD D23 */
+	{{1, 29}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.6 (D) = LCD D4 */
+	{{2,  6}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.7 (D) = LCD D5 */
+	{{2,  7}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.8 (D) = LCD D6 */
+	{{2,  8}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.9 (D) = LCD D7 */
+	{{2,  9}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.12 (D) = LCD D3 */
+	{{2, 12}, LPC178X_GPIO_CONFIG_D(5, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P2.13 (D) = LCD D19 */
+	{{2, 13}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+#endif /* defined(CONFIG_FB_ARMCLCD) || defined(CONFIG_FB_ARMCLCD_MODULE) */
 };
 
 /*

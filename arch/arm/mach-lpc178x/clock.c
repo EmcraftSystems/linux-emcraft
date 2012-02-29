@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/amba/clcd.h>
 
 #include <asm/clkdev.h>
 
@@ -33,6 +34,7 @@
 #include <mach/clock.h>
 #include <mach/lpc178x.h>
 #include <mach/power.h>
+#include <mach/fb.h>
 
 /*
  * Internal oscillator value
@@ -95,10 +97,17 @@
  * The structure that holds the information about a clock
  */
 struct clk {
-	unsigned long rate;	/* Clock rate, the only possible value of */
-	u32 pconp_mask;		/* For `lpc178x_periph_enable()` */
+	/* Clock rate, the only possible value of */
+	unsigned long rate;
+	/* For `lpc178x_periph_enable()` */
+	u32 pconp_mask;
 
-	unsigned int enabled;	/* Reference count */
+	/* Reference count */
+	unsigned int enabled;
+
+	/* Custom `clk_*` functions */
+	int (*clk_set_rate)(struct clk *clk, unsigned long rate);
+	unsigned long (*clk_get_rate)(struct clk *clk);
 };
 
 static DEFINE_SPINLOCK(clocks_lock);
@@ -156,7 +165,14 @@ EXPORT_SYMBOL(clk_disable);
  */
 unsigned long clk_get_rate(struct clk *clk)
 {
-	return clk->rate;
+	unsigned long rate;
+
+	if (clk->clk_get_rate)
+		rate = clk->clk_get_rate(clk);
+	else
+		rate = clk->rate;
+
+	return rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
 
@@ -167,7 +183,14 @@ EXPORT_SYMBOL(clk_get_rate);
  */
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return -EINVAL;
+	int ret;
+
+	if (clk->clk_set_rate)
+		ret = clk->clk_set_rate(clk, rate);
+	else
+		ret = -EINVAL;
+
+	return ret;
 }
 EXPORT_SYMBOL(clk_set_rate);
 
@@ -182,6 +205,68 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	return clk->rate;
 }
 EXPORT_SYMBOL(clk_round_rate);
+
+/*
+ * The `amba-clcd` driver expects this function to configure the LCD clock
+ * divider and set the desired pixel clock rate.
+ *
+ * The code in this function is based on the code from
+ * `linux-2.6.34-lpc32xx/arch/arm/mach-lpc32xx/clock.c` from
+ * `http://lpclinux.com/`.
+ */
+static int lcd_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 tmp, prate, div;
+
+	tmp = __raw_readl(LPC178X_LCD_BASE + CLCD_TIM2) | TIM2_BCD;
+	/* CPU clock is the source clock for the LCD controller */
+	prate = lpc178x_clock_get(CLOCK_CCLK);
+
+	if (rate < prate) {
+		/* Find closest divider */
+		div = prate / rate;
+		if (div >= 2) {
+			div -= 2;
+			tmp &= ~TIM2_BCD;
+		}
+
+		tmp &= ~(0xF800001F);
+		tmp |= (div & 0x1F);
+		tmp |= (((div >> 5) & 0x1F) << 27);
+	}
+
+	__raw_writel(tmp, LPC178X_LCD_BASE + CLCD_TIM2);
+
+	return 0;
+}
+
+/*
+ * The `amba-clcd` driver does not really call this function, but we implement
+ * just in case. Similarly to `lcd_clk_set_rate()`, this function returns
+ * the actual pixel clock rate.
+ *
+ * The code in this function is based on the code from
+ * `linux-2.6.34-lpc32xx/arch/arm/mach-lpc32xx/clock.c` from
+ * `http://lpclinux.com/`.
+ */
+unsigned long lcd_clk_get_rate(struct clk *clk)
+{
+	u32 tmp, div, rate;
+
+	/* The LCD clock must be on when accessing an LCD register */
+	tmp = __raw_readl(LPC178X_LCD_BASE + CLCD_TIM2);
+
+	/* CPU clock is the source clock for the LCD controller */
+	rate = lpc178x_clock_get(CLOCK_CCLK);
+
+	/* Only supports internal clocking */
+	if (!(tmp & TIM2_BCD)) {
+		div = (tmp & 0x1F) | ((tmp & 0xF8) >> 22);
+		rate /= (2 + div);
+	}
+
+	return rate;
+}
 
 /*
  * Clock for the Ethernet module of the MCU. The clock rate is initialized
@@ -218,6 +303,19 @@ static struct clk clk_i2c[3] = {
 };
 
 /*
+ * Clock for the LCD contoller module of the MCU.
+ *
+ * The `amba-clcd` framebuffer driver that we use for LPC178x/7x requires the
+ * LCD clock driver to be able to control the pixel clock by using
+ * `clk_set_rate()`.
+ */
+static struct clk clk_lcd = {
+	.pconp_mask	= LPC178X_SCC_PCONP_PCLCD_MSK,
+	.clk_set_rate	= lcd_clk_set_rate,
+	.clk_get_rate	= lcd_clk_get_rate,
+};
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -233,6 +331,7 @@ static struct clk_lookup lpc178x_clkregs[] = {
 	INIT_CLKREG(&clk_i2c[0], "lpc2k-i2c.0", NULL),
 	INIT_CLKREG(&clk_i2c[1], "lpc2k-i2c.1", NULL),
 	INIT_CLKREG(&clk_i2c[2], "lpc2k-i2c.2", NULL),
+	INIT_CLKREG(&clk_lcd, "dev:clcd", NULL),
 };
 
 /*

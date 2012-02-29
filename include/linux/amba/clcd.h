@@ -11,6 +11,7 @@
  * for more details.
  */
 #include <linux/fb.h>
+#include <linux/amba/bus.h>
 
 /*
  * CLCD Controller Internal Register addresses
@@ -22,7 +23,8 @@
 #define CLCD_UBAS 		0x00000010
 #define CLCD_LBAS 		0x00000014
 
-#if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW) && !defined(CONFIG_ARCH_VEXPRESS)
+#if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW) && \
+    !defined(CONFIG_ARCH_VEXPRESS) && !defined(CONFIG_ARCH_LPC178X)
 /*
  * PL110
  */
