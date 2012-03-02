@@ -548,9 +548,6 @@ static int ptrace_read_user(struct task_struct *tsk, unsigned long off,
 {
 	unsigned long tmp;
 
-	if (off & 3 || off >= sizeof(struct user))
-		return -EIO;
-
 	tmp = 0;
 	if (off == PT_TEXT_ADDR)
 		tmp = tsk->mm->start_code;
@@ -560,6 +557,8 @@ static int ptrace_read_user(struct task_struct *tsk, unsigned long off,
 		tmp = tsk->mm->end_code;
 	else if (off < sizeof(struct pt_regs))
 		tmp = get_user_reg(tsk, off >> 2);
+	else
+		return -EIO;
 
 	return put_user(tmp, ret);
 }
@@ -825,7 +824,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		case PTRACE_GETFPREGS:
 			ret = ptrace_getfpregs(child, (void __user *)data);
 			break;
-		
+
 		case PTRACE_SETFPREGS:
 			ret = ptrace_setfpregs(child, (void __user *)data);
 			break;
