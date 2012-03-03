@@ -417,6 +417,16 @@ config I2C_IXP2000
 	  This driver is deprecated and will be dropped soon. Use i2c-gpio
 	  instead.
 
+config I2C_LPC2K
+	tristate "I2C bus support for NXP LPC2K and LPC178x targets"
+	depends on ARCH_LPC2K || ARCH_LPC178X
+	help
+	  This driver supports the I2C interface in the NXP LPC2K and
+	  the NXP LPC178x/7x MCUs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-lpc2k.
+
 config I2C_MPC
 	tristate "MPC107/824x/85xx/52xx/86xx"
 	depends on PPC32
