@@ -85,7 +85,15 @@
 #define LPC178X_GPIO_CONFIG_U(func) \
 	(func << LPC178X_GPIO_CONFIG_FUNC_BITS)
 /*
- * TBD: similar macros for other pin types (I, W)
+ * Type I pins (I2C pins)
+ */
+#define LPC178X_GPIO_CONFIG_I(func,inv,hs,hidrive) \
+	((func   << LPC178X_GPIO_CONFIG_FUNC_BITS  ) | \
+	(inv     << LPC178X_GPIO_CONFIG_INV_BIT    ) | \
+	(hs      << LPC178X_GPIO_CONFIG_HS_BIT     ) | \
+	(hidrive << LPC178X_GPIO_CONFIG_HIDRIVE_BIT))
+/*
+ * TBD: similar macros for other pin types (W)
  */
 
 /*
@@ -391,6 +399,17 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 	/* P1.12 (D) = MCI_DAT3 */
 	{{1, 12}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
 #endif /* defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE) */
+
+#if defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE)
+	/*
+	 * Pin configuration for the I2C0 interface. I2C1 and I2C2 are not used
+	 * on EA-LPC1788.
+	 */
+	/* P0.27 (I) = I2C0_SDA */
+	{{0, 27}, LPC178X_GPIO_CONFIG_I(1, 0, 1, 1)},
+	/* P0.28 (I) = I2C0_SDL */
+	{{0, 28}, LPC178X_GPIO_CONFIG_I(1, 0, 1, 1)},
+#endif /* defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE) */
 };
 
 /*

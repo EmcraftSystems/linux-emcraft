@@ -208,6 +208,16 @@ static struct clk clk_mci = {
 };
 
 /*
+ * Clocks for each of the three I2C interfaces supported by the LPC178x/7x MCU.
+ * The clock rate is initialized in `lpc178x_clock_init()`.
+ */
+static struct clk clk_i2c[3] = {
+	{ .pconp_mask = LPC178X_SCC_PCONP_PCI2C0_MSK },
+	{ .pconp_mask = LPC178X_SCC_PCONP_PCI2C1_MSK },
+	{ .pconp_mask = LPC178X_SCC_PCONP_PCI2C2_MSK },
+};
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -220,6 +230,9 @@ static struct clk_lookup lpc178x_clkregs[] = {
 	INIT_CLKREG(&clk_net, "lpc-net.0", NULL),
 	INIT_CLKREG(&clk_dma, NULL, "clk_dmac"),
 	INIT_CLKREG(&clk_mci, "dev:mmc0", NULL),
+	INIT_CLKREG(&clk_i2c[0], "lpc2k-i2c.0", NULL),
+	INIT_CLKREG(&clk_i2c[1], "lpc2k-i2c.1", NULL),
+	INIT_CLKREG(&clk_i2c[2], "lpc2k-i2c.2", NULL),
 };
 
 /*
@@ -329,6 +342,8 @@ void __init lpc178x_clock_init(void)
 	clk_net.rate = clock_val[CLOCK_CCLK];	/* AHB clock = CPU clock */
 	clk_dma.rate = clock_val[CLOCK_CCLK];	/* AHB clock = CPU clock */
 	clk_mci.rate = clock_val[CLOCK_PCLK];
+	for (i = 0; i < ARRAY_SIZE(clk_i2c); i++)
+		clk_i2c[i].rate = clock_val[CLOCK_PCLK];
 	/*
 	 * Register clocks with the `clk_*` infrastructure
 	 */

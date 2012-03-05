@@ -40,6 +40,7 @@
 #include <mach/flash.h>
 #include <mach/dma.h>
 #include <mach/sdcard.h>
+#include <mach/i2c.h>
 
 /*
  * Prototypes
@@ -188,4 +189,11 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_sdcard_init();
 #endif
+
+#if defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE)
+	/*
+	 * Configure the available I2C interfaces
+	 */
+	lpc178x_i2c_init();
+#endif /* defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE) */
 }
