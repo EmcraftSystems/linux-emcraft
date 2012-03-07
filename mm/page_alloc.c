@@ -173,8 +173,9 @@ int page_group_by_mobility_disabled __read_mostly;
 
 static void set_pageblock_migratetype(struct page *page, int migratetype)
 {
-
+#ifdef CONFIG_MMU
 	if (unlikely(page_group_by_mobility_disabled))
+#endif
 		migratetype = MIGRATE_UNMOVABLE;
 
 	set_pageblock_flags_group(page, (unsigned long)migratetype,
