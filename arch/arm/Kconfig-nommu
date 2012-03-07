@@ -11,6 +11,7 @@ config SET_MEM_PARAM
 
 config DRAM_BASE
 	hex '(S)DRAM Base Address' if SET_MEM_PARAM
+	depends on !ARCH_A2F
 	default 0x00800000
 
 config DRAM_SIZE
