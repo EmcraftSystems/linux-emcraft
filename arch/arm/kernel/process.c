@@ -135,7 +135,7 @@ static void default_idle(void)
 {
 	if (!need_resched())
 		arch_idle();
-#if defined(ARCH_KINETIS)
+#if defined(CONFIG_ARCH_KINETIS)
 	/*
 	 * This is a dirty hack that invalidates the I/D bus cache
 	 * on Kinetis K70. This must be done after arch idle for some reason.
