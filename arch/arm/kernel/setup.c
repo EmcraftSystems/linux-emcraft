@@ -539,6 +539,20 @@ request_standard_resources(struct meminfo *mi, struct machine_desc *mdesc)
 	int i;
 
 #if defined(PHYS_ALIAS_OFFSET)
+	/*
+	 * This is for a new memory model specific to Kinetis K70.
+	 * There are two separate caches on K70 each corresponding
+	 * to the two non-overlapping address regions. DDRAM is
+	 * aliased in both of those address regions. 
+	 *
+	 * To make sure that we use both caches we link the kernel
+	 * to run from the DDRAM alias cacheable in the I/D bus,
+	 * while the run-time kernel memory resides in the DDRAM region
+	 * cacheable in the System bus regions.
+	 *
+	 * This is the same physical memory of course. 
+	 * Hence, all that trickery specific to PHYS_ALIAS_OFFSET.
+	 */
 	kernel_code.start   = PHYS_ALIAS_ADDR(virt_to_phys(_text));
 	kernel_code.end     = PHYS_ALIAS_ADDR(virt_to_phys(_etext - 1));
 	kernel_data.start   = PHYS_ALIAS_ADDR(virt_to_phys(_data));

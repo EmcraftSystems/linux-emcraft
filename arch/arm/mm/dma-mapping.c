@@ -300,6 +300,21 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 
 	if (addr)
 		*handle = page_to_dma(dev, page);
+	/*
+	 * On Kinetis K70, consistent DMA memory resides in a special
+	 * DDRAM alias region (non-cacheable DDRAM at 0x80000000). 
+	 *
+	 * This of course is the same physical DDRAM that is available
+	 * as a cacheable alias at 0x70000000. Kernel allocates memory
+	 * in that cacheable `alias. 
+	 *
+	 * Being uClinux, on K70 "virtual" addresses in that DMA region
+	 * are of course the same as physical addresses in the Cortex-M3
+	 * space. 
+	 *
+	 * Hence, the trickery below to get correct "virtual" addresses
+	 * for coherent DMA memory.
+	 */
 #if defined(PHYS_DMA_OFFSET)
 	addr = (void *) (*handle);
 #endif
