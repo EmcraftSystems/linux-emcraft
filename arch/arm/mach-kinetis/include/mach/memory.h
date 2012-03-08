@@ -77,7 +77,7 @@
 	((dma_addr_t) DMA_ALIAS_ADDR(a))
 
 #define __arch_dma_to_page(dev, addr)					\
-	phys_to_page(PHYS_ALIAS_ADDR(addr))
+	((void *) phys_to_page(PHYS_ALIAS_ADDR(addr)))
 
 #define __arch_page_to_dma(dev, page)					\
 	((dma_addr_t) DMA_ALIAS_ADDR(page_to_phys(page)))

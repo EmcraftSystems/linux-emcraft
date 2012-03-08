@@ -1776,15 +1776,6 @@ static int fec_enet_init(struct net_device *dev, int index)
 		return -ENOMEM;
 	}
 
-	/*
-	 * On Kinetis K70, we must access the buffers using 
-	 * an address in a non-cached DRAM aliased region to ensure
-	 * coherency
-	 */
-#if defined(CONFIG_ARCH_KINETIS)
-	cbd_base = (void *) virt_to_dma((struct device *) dev, cbd_base);
-#endif
-
 	spin_lock_init(&fep->hw_lock);
 	spin_lock_init(&fep->mii_lock);
 

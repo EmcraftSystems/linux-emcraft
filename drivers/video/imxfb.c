@@ -745,16 +745,6 @@ static int __init imxfb_probe(struct platform_device *pdev)
 			goto failed_map;
 		}
 
-		/*
-		 * For Kinetis K70, with its DDRAM aliasing and cache
-		 * architecture, we must actually pass to user-space
-		 * applications the DMA address in the non-cached region
-		 */
-#if defined(PHYS_DMA_OFFSET)
-		fbi->map_cpu = (void *) DMA_ALIAS_ADDR(fbi->map_cpu);
-		fbi->map_dma = (dma_addr_t) fbi->map_cpu;
-#endif
-
 		info->screen_base = fbi->map_cpu;
 		fbi->screen_cpu = fbi->map_cpu;
 		fbi->screen_dma = fbi->map_dma;
@@ -810,15 +800,8 @@ failed_cmap:
 		pdata->exit(fbi->pdev);
 failed_platform_init:
 	if (!pdata->fixed_screen_cpu)
-#if defined(PHYS_DMA_OFFSET)
-		dma_free_writecombine(&pdev->dev,fbi->map_size,
-			(void *) PHYS_ALIAS_ADDR(fbi->map_cpu),
-			(dma_addr_t) PHYS_ALIAS_ADDR(fbi->map_dma));
-#else
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
-#endif
-
 failed_map:
 	clk_put(fbi->clk);
 failed_getclock:

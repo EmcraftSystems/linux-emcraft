@@ -300,6 +300,9 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 
 	if (addr)
 		*handle = page_to_dma(dev, page);
+#if defined(PHYS_DMA_OFFSET)
+	addr = (void *) (*handle);
+#endif
 
 	return addr;
 }
@@ -384,6 +387,10 @@ EXPORT_SYMBOL(dma_mmap_writecombine);
  */
 void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
 {
+#if defined(PHYS_DMA_OFFSET)
+	cpu_addr = dma_to_virt(dev, handle);
+#endif
+
 	WARN_ON(irqs_disabled());
 
 	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
