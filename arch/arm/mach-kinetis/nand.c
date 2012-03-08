@@ -33,7 +33,6 @@
 #include <mach/platform.h>
 #include <mach/nand.h>
 
-
 /*
  * Provide support for the external Flash.
  * This is board specific; TWR-K70F120M board has a 256 MBytes NAND Flash.

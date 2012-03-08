@@ -17,6 +17,14 @@
  *
  * Bug fixes and cleanup by Philippe De Muyter (phdm@macqel.be)
  * Copyright (c) 2004-2006 Macq Electronique SA.
+ *
+ * Port to Freescale Kinetis K70
+ * Copyright (c) 2012
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ *
+ * Changes to enable the driver with the caches on Kinetis K70
+ * Copyright (c) 2012
+ * Vladimir Khusainov, Emcraft Systems, vlad@emcraft.com
  */
 
 #include <linux/module.h>
@@ -368,6 +376,18 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
 	 */
+
+	/*
+	 * On Kinetis with its DRAM aliasing and cache regions,
+	 * it is enough to copy the buffer from its address in
+	 * the cached region to a corresponding address in
+	 * a non-cacheable region to push the buffer from cache to memory.
+	 */
+#if defined(CONFIG_ARCH_KINETIS)
+	memcpy((void *) virt_to_dma((struct device *) dev, bufaddr),
+		bufaddr, skb->len);
+#endif
+
 	bdp->cbd_bufaddr = htonl(dma_map_single(&dev->dev, bufaddr,
 			FEC_ENET_TX_FRSIZE, DMA_TO_DEVICE));
 
@@ -613,7 +633,9 @@ fec_enet_rx(struct net_device *dev)
 		}
 
 		bdp->cbd_bufaddr = htonl(dma_map_single(
-			NULL, data, ntohs(bdp->cbd_datlen),
+			NULL, 
+			dma_to_virt((struct device *) dev, (dma_addr_t) data),
+			ntohs(bdp->cbd_datlen),
 			DMA_FROM_DEVICE));
 rx_processing_done:
 		/* Clear the status flags for this buffer */
@@ -1753,6 +1775,15 @@ static int fec_enet_init(struct net_device *dev, int index)
 		printk("FEC: allocate descriptor memory failed?\n");
 		return -ENOMEM;
 	}
+
+	/*
+	 * On Kinetis K70, we must access the buffers using 
+	 * an address in a non-cached DRAM aliased region to ensure
+	 * coherency
+	 */
+#if defined(CONFIG_ARCH_KINETIS)
+	cbd_base = (void *) virt_to_dma((struct device *) dev, cbd_base);
+#endif
 
 	spin_lock_init(&fep->hw_lock);
 	spin_lock_init(&fep->mii_lock);

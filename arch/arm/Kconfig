@@ -1026,9 +1026,9 @@ source "arch/arm/common/Kconfig"
 
 config FORCE_MAX_ZONEORDER
 	int
-	depends on SA1111 || ARCH_A2F
+	depends on SA1111 || ARCH_A2F || ARCH_KINETIS
 	default "9" if SA1111
-	default "12" if ARCH_A2F
+	default "12" if ARCH_A2F || ARCH_KINETIS
 
 menu "Bus support"
 

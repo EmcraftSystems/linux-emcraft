@@ -23,7 +23,11 @@ SECTIONS
 #ifdef CONFIG_XIP_KERNEL
 	. = XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR);
 #else
+#if defined(PHYS_ALIAS_OFFSET)
+	. = PHYS_ALIAS_OFFSET + TEXT_OFFSET;
+#else
 	. = PAGE_OFFSET + TEXT_OFFSET;
+#endif
 #endif
 
 	.init : {			/* Init code and data		*/

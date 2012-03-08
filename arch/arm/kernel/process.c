@@ -135,6 +135,7 @@ static void default_idle(void)
 {
 	if (!need_resched())
 		arch_idle();
+	*(volatile u32 *)0xe0082000 |= 0x85000000;
 	local_irq_enable();
 }
 

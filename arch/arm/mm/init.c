@@ -694,9 +694,15 @@ void free_initmem(void)
 #endif
 
 	if (!machine_is_integrator() && !machine_is_cintegrator())
+#if defined(PHYS_ALIAS_OFFSET)
+		totalram_pages += 
+			free_area(__phys_to_pfn(PHYS_ALIAS_ADDR(__init_begin)),
+			__phys_to_pfn(PHYS_ALIAS_ADDR(__init_end)), "init");
+#else
 		totalram_pages += free_area(__phys_to_pfn(__pa(__init_begin)),
 					    __phys_to_pfn(__pa(__init_end)),
 					    "init");
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD

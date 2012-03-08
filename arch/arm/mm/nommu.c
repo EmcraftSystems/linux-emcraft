@@ -31,8 +31,13 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	reserve_bootmem_node(pgdat, __pa(_data), _end - _data,
 			BOOTMEM_DEFAULT);
 #else
+#if defined(PHYS_ALIAS_OFFSET)
+	reserve_bootmem_node(pgdat, PHYS_ALIAS_ADDR(_stext), _end - _stext,
+			BOOTMEM_DEFAULT);
+#else
 	reserve_bootmem_node(pgdat, __pa(_stext), _end - _stext,
 			BOOTMEM_DEFAULT);
+#endif
 #endif
 
 #ifndef CONFIG_CPU_V7M

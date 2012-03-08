@@ -538,10 +538,17 @@ request_standard_resources(struct meminfo *mi, struct machine_desc *mdesc)
 	struct resource *res;
 	int i;
 
+#if defined(PHYS_ALIAS_OFFSET)
+	kernel_code.start   = PHYS_ALIAS_ADDR(virt_to_phys(_text));
+	kernel_code.end     = PHYS_ALIAS_ADDR(virt_to_phys(_etext - 1));
+	kernel_data.start   = PHYS_ALIAS_ADDR(virt_to_phys(_data));
+	kernel_data.end     = PHYS_ALIAS_ADDR(virt_to_phys(_end - 1));
+#else
 	kernel_code.start   = virt_to_phys(_text);
 	kernel_code.end     = virt_to_phys(_etext - 1);
 	kernel_data.start   = virt_to_phys(_data);
 	kernel_data.end     = virt_to_phys(_end - 1);
+#endif
 
 	for (i = 0; i < mi->nr_banks; i++) {
 		if (mi->bank[i].size == 0)
@@ -773,10 +780,17 @@ void __init setup_arch(char **cmdline_p)
 		parse_tags(tags);
 	}
 
+#if defined(PHYS_ALIAS_OFFSET)
+	init_mm.start_code = PHYS_ALIAS_ADDR((unsigned long) _text);
+	init_mm.end_code   = PHYS_ALIAS_ADDR((unsigned long) _etext);
+	init_mm.end_data   = PHYS_ALIAS_ADDR((unsigned long) _edata);
+	init_mm.brk	   = PHYS_ALIAS_ADDR((unsigned long) _end);
+#else
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code   = (unsigned long) _etext;
 	init_mm.end_data   = (unsigned long) _edata;
 	init_mm.brk	   = (unsigned long) _end;
+#endif
 
 	memcpy(boot_command_line, from, COMMAND_LINE_SIZE);
 	boot_command_line[COMMAND_LINE_SIZE-1] = '\0';
