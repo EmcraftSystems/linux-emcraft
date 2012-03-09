@@ -271,6 +271,10 @@ static void __init cacheid_init(void)
 		cache_is_vipt_aliasing() ? "VIPT aliasing" :
 		cache_is_vipt_nonaliasing() ? "VIPT nonaliasing" : "unknown");
 #else
+#if defined(CONFIG_ARCH_KINETIS)
+		* (volatile u32 *) 0xE0082800 & 0x1 ? "WRITE-BACK" : "NO",
+		* (volatile u32 *) 0xE0082000 & 0x1 ? "WRITE-THROUGH" : "NO");
+#else
 		/*
 		 * There appears to be something wrong with the cache ID
 		 * parsing code above. On ARMv7M it reads CPUID Base Register,
@@ -285,6 +289,7 @@ static void __init cacheid_init(void)
 		 * a better way of fixing, anyhow.
 		 */
 		"NO", "NO");
+#endif
 		cacheid = 0;
 #endif
 }
