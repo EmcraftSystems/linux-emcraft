@@ -41,6 +41,7 @@
 #include <mach/dma.h>
 #include <mach/sdcard.h>
 #include <mach/i2c.h>
+#include <mach/i2c-gpio.h>
 
 /*
  * Prototypes
@@ -196,4 +197,12 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_i2c_init();
 #endif /* defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE) */
+
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+	/*
+	 * Configure some of the I2C interfaces to be controlled by
+	 * the `i2c-gpio` GPIO-emulated I2C driver.
+	 */
+	lpc178x_i2c_gpio_init();
+#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
 }
