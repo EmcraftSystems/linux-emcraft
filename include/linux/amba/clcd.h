@@ -17,33 +17,33 @@
  * CLCD Controller Internal Register addresses
  */
 #define CLCD_TIM0		0x00000000
-#define CLCD_TIM1 		0x00000004
-#define CLCD_TIM2 		0x00000008
-#define CLCD_TIM3 		0x0000000c
-#define CLCD_UBAS 		0x00000010
-#define CLCD_LBAS 		0x00000014
+#define CLCD_TIM1		0x00000004
+#define CLCD_TIM2		0x00000008
+#define CLCD_TIM3		0x0000000c
+#define CLCD_UBAS		0x00000010
+#define CLCD_LBAS		0x00000014
 
 #if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW) && \
     !defined(CONFIG_ARCH_VEXPRESS) && !defined(CONFIG_ARCH_LPC178X)
 /*
  * PL110
  */
-#define CLCD_IENB 		0x00000018
-#define CLCD_CNTL 		0x0000001c
+#define CLCD_IENB		0x00000018
+#define CLCD_CNTL		0x0000001c
 #else
 /*
  * Someone rearranged these two registers on the PL111
  * for Versatile and later platforms...
  */
-#define CLCD_IENB 		0x0000001c
-#define CLCD_CNTL 		0x00000018
+#define CLCD_IENB		0x0000001c
+#define CLCD_CNTL		0x00000018
 #endif
 
-#define CLCD_STAT 		0x00000020
-#define CLCD_INTR 		0x00000024
-#define CLCD_UCUR 		0x00000028
-#define CLCD_LCUR 		0x0000002C
-#define CLCD_PALL 		0x00000200
+#define CLCD_STAT		0x00000020
+#define CLCD_INTR		0x00000024
+#define CLCD_UCUR		0x00000028
+#define CLCD_LCUR		0x0000002C
+#define CLCD_PALL		0x00000200
 #define CLCD_PALETTE		0x00000200
 
 #define TIM2_CLKSEL		(1 << 5)
