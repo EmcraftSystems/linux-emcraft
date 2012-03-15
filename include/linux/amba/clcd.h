@@ -11,37 +11,39 @@
  * for more details.
  */
 #include <linux/fb.h>
+#include <linux/amba/bus.h>
 
 /*
  * CLCD Controller Internal Register addresses
  */
 #define CLCD_TIM0		0x00000000
-#define CLCD_TIM1 		0x00000004
-#define CLCD_TIM2 		0x00000008
-#define CLCD_TIM3 		0x0000000c
-#define CLCD_UBAS 		0x00000010
-#define CLCD_LBAS 		0x00000014
+#define CLCD_TIM1		0x00000004
+#define CLCD_TIM2		0x00000008
+#define CLCD_TIM3		0x0000000c
+#define CLCD_UBAS		0x00000010
+#define CLCD_LBAS		0x00000014
 
-#if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW) && !defined(CONFIG_ARCH_VEXPRESS)
+#if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW) && \
+    !defined(CONFIG_ARCH_VEXPRESS) && !defined(CONFIG_ARCH_LPC178X)
 /*
  * PL110
  */
-#define CLCD_IENB 		0x00000018
-#define CLCD_CNTL 		0x0000001c
+#define CLCD_IENB		0x00000018
+#define CLCD_CNTL		0x0000001c
 #else
 /*
  * Someone rearranged these two registers on the PL111
  * for Versatile and later platforms...
  */
-#define CLCD_IENB 		0x0000001c
-#define CLCD_CNTL 		0x00000018
+#define CLCD_IENB		0x0000001c
+#define CLCD_CNTL		0x00000018
 #endif
 
-#define CLCD_STAT 		0x00000020
-#define CLCD_INTR 		0x00000024
-#define CLCD_UCUR 		0x00000028
-#define CLCD_LCUR 		0x0000002C
-#define CLCD_PALL 		0x00000200
+#define CLCD_STAT		0x00000020
+#define CLCD_INTR		0x00000024
+#define CLCD_UCUR		0x00000028
+#define CLCD_LCUR		0x0000002C
+#define CLCD_PALL		0x00000200
 #define CLCD_PALETTE		0x00000200
 
 #define TIM2_CLKSEL		(1 << 5)
@@ -153,6 +155,7 @@ struct clcd_fb {
 	void __iomem		*regs;
 	u32			clcd_cntl;
 	u32			cmap[16];
+	bool			clk_enabled;
 };
 
 static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
@@ -235,17 +238,32 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 
 static inline int clcdfb_check(struct clcd_fb *fb, struct fb_var_screeninfo *var)
 {
+	u32 hbp, hfp, hsw;
+
+	/*
+	 * These clock constraints are for the pl11x DMA latency. TFT mode
+	 * is slightly faster than STN
+	 */
+	if (fb->panel->cntl & CNTL_LCDTFT) {
+		/* No TFT constraint given for min TFT HFP clocks in TRM */
+		hbp = hfp = (2 + 1);
+		hsw = (2 + 1);
+	} else {
+		hbp = hfp = (5 + 1);
+		hsw = (3 + 1);
+	}
+
 	var->xres_virtual = var->xres = (var->xres + 15) & ~15;
 	var->yres_virtual = var->yres = (var->yres + 1) & ~1;
 
 #define CHECK(e,l,h) (var->e < l || var->e > h)
-	if (CHECK(right_margin, (5+1), 256) ||	/* back porch */
-	    CHECK(left_margin, (5+1), 256) ||	/* front porch */
-	    CHECK(hsync_len, (5+1), 256) ||
-	    var->xres > 4096 ||
+	if (CHECK(right_margin, hbp, 256) ||	/* back porch */
+	    CHECK(left_margin, hfp, 256) ||	/* front porch */
+	    CHECK(hsync_len, hsw, 256) ||
+	    var->xres > 1024 ||
 	    var->lower_margin > 255 ||		/* back porch */
 	    var->upper_margin > 255 ||		/* front porch */
-	    var->vsync_len > 32 ||
+	    var->vsync_len > 64 ||
 	    var->yres > 1024)
 		return -EINVAL;
 #undef CHECK

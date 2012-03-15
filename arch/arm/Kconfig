@@ -789,6 +789,7 @@ config ARCH_LPC178X
 	depends on !MMU
 	select ARM_CORTEXM3
 	select ARM_AMBA
+	select GENERIC_GPIO
 	help
 	  This enables support for the NXP LPC178x/7x SoCs
 

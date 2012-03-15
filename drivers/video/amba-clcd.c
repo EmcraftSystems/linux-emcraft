@@ -25,6 +25,7 @@
 #include <linux/amba/clcd.h>
 #include <linux/clk.h>
 #include <linux/hardirq.h>
+#include <linux/console.h>
 
 #include <asm/sizes.h>
 
@@ -77,10 +78,15 @@ static void clcdfb_disable(struct clcd_fb *fb)
 		writel(val, fb->regs + CLCD_CNTL);
 	}
 
+	clcdfb_sleep(20);
+
 	/*
 	 * Disable CLCD clock source.
 	 */
-	clk_disable(fb->clk);
+	if (fb->clk_enabled) {
+		fb->clk_enabled = false;
+		clk_disable(fb->clk);
+	}
 }
 
 static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
@@ -88,7 +94,12 @@ static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
 	/*
 	 * Enable the CLCD clock source.
 	 */
-	clk_enable(fb->clk);
+	if (!fb->clk_enabled) {
+		fb->clk_enabled = true;
+		clk_enable(fb->clk);
+	}
+
+	clcdfb_sleep(20);
 
 	/*
 	 * Bring up by first enabling..
@@ -467,9 +478,10 @@ static int clcdfb_probe(struct amba_device *dev, struct amba_id *id)
 	if (ret)
 		goto free_fb;
 
-	ret = clcdfb_register(fb); 
+	ret = clcdfb_register(fb);
 	if (ret == 0) {
 		amba_set_drvdata(dev, fb);
+		clcdfb_set_par(&fb->fb);
 		goto out;
 	}
 
@@ -504,6 +516,34 @@ static int clcdfb_remove(struct amba_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int clcdfb_suspend(struct amba_device *dev, pm_message_t msg)
+{
+	struct clcd_fb *fb = amba_get_drvdata(dev);
+	acquire_console_sem();
+	fb_set_suspend(&fb->fb,1);
+	clcdfb_disable(fb);
+          release_console_sem();
+
+	return 0;
+}
+
+static int clcdfb_resume(struct amba_device *dev)
+{
+	struct clcd_fb *fb = amba_get_drvdata(dev);
+
+	acquire_console_sem();
+	clcdfb_enable(fb, fb->clcd_cntl);
+	fb_set_suspend(&fb->fb,0);
+          release_console_sem();
+
+	return 0;
+}
+#else
+#define clcdfb_suspend	NULL
+#define clcdfb_resume	NULL
+#endif
+
 static struct amba_id clcdfb_id_table[] = {
 	{
 		.id	= 0x00041110,
@@ -513,11 +553,13 @@ static struct amba_id clcdfb_id_table[] = {
 };
 
 static struct amba_driver clcd_driver = {
-	.drv 		= {
+	.drv		= {
 		.name	= "clcd-pl11x",
 	},
 	.probe		= clcdfb_probe,
 	.remove		= clcdfb_remove,
+	.suspend	= clcdfb_suspend,
+	.resume		= clcdfb_resume,
 	.id_table	= clcdfb_id_table,
 };
 
