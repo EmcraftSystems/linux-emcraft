@@ -36,9 +36,22 @@ SECTIONS
 			HEAD_TEXT
 			INIT_TEXT
 		_einittext = .;
+#if !defined(CONFIG_INITRAMFS_IS_LARGE)
+		/*
+		 * In case the kernel links in a built-in initramfs
+		 * and that initramfs is large enough, there is a symbol
+		 * in .proc.info.init that makes a relative reference
+		 * (in an assembly-level file) to a symbol in the kernel text.
+		 * The initramfs being large, that relative reference 
+		 * doesn't work because the linker is not able to fit
+		 * in the relative offset into the 24 bit offset field.
+		 * The solution (well, part of it) is to move .proc.info.init
+		 * closer to the kernel text section.
+		 */
 		__proc_info_begin = .;
 			*(.proc.info.init)
 		__proc_info_end = .;
+#endif
 		__arch_info_begin = .;
 			*(.arch.info.init)
 		__arch_info_end = .;
@@ -168,6 +181,11 @@ SECTIONS
 			__exception_text_start = .;
 			*(.exception.text)
 			__exception_text_end = .;
+#if defined(CONFIG_INITRAMFS_IS_LARGE)
+		__proc_info_begin = .;
+			*(.proc.info.init)
+		__proc_info_end = .;
+#endif
 			TEXT_TEXT
 			SCHED_TEXT
 			LOCK_TEXT

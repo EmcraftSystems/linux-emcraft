@@ -108,6 +108,9 @@ CFLAGS_THUMB2	:=-mthumb $(AFLAGS_AUTOIT) $(AFLAGS_NOWARN)
 ifeq ($(CONFIG_KERNEL_IN_ENVM),y)
 CFLAGS_THUMB2	+= -mlong-calls
 endif
+ifeq ($(CONFIG_INITRAMFS_IS_LARGE),y)
+CFLAGS_THUMB2	+= -mlong-calls
+endif
 AFLAGS_THUMB2	:=$(CFLAGS_THUMB2) -Wa$(comma)-mthumb
 endif
 

@@ -45,6 +45,19 @@ config INITRAMFS_ROOT_GID
 
 	  If you are not sure, leave it set to "0".
 
+config INITRAMFS_IS_LARGE
+	bool "Support a large initramfs" 
+	depends on INITRAMFS_SOURCE!=""
+	default n
+	help
+	  Support an initrams with a lots of files and directories
+	  that is so large that different pieces of the kernel are
+	  not able to reach each other using relative addressing.
+
+	  Enable it only when you kernel with an embedded initramfs
+	  doesn't build and you suspect that it might be due to
+	  the initramfs being too large. 
+
 config RD_GZIP
 	bool "Support initial ramdisks compressed using gzip" if EMBEDDED
 	default y
