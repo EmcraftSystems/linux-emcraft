@@ -115,7 +115,6 @@ void __init a2f_flash_init(void)
 	}
 	else if (a2f_platform_get() == PLATFORM_A2F200_SOM ||
 		 a2f_platform_get() == PLATFORM_A2F500_SOM) {
-	{
 		size = 8*1024*1024;
 	}
 	else if (a2f_platform_get() == PLATFORM_A2F_ACTEL_DEV_BRD) {
