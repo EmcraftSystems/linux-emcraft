@@ -266,15 +266,18 @@ static struct i2c_driver ealcd004_pca9532_driver = {
 void __init lpc178x_fb_init(void)
 {
 	int platform;
+	int have_lcd;
 	int ret;
 
 	/*
 	 * Run board-specific code
 	 */
+	have_lcd = 0;
 	ret = 0;
 	platform = lpc178x_platform_get();
 	switch (platform) {
 	case PLATFORM_LPC178X_EA_LPC1788:
+		have_lcd = 1;
 		/*
 		 * This code finally makes the function
 		 * `ealcd004_pca9532_probe()` to execute.
@@ -286,9 +289,15 @@ void __init lpc178x_fb_init(void)
 		if (ret < 0)
 			goto out;
 		break;
+	case PLATFORM_LPC178X_LNX_EVB:
+		/* Do not configure LCD on LPC-LNX-EVB for now */
+		break;
 	default:
 		break;
 	}
+
+	if (!have_lcd)
+		goto out;
 
 	/*
 	 * Enable the power on the LCD controller module of the MCU

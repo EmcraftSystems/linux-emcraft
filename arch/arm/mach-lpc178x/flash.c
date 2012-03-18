@@ -1,9 +1,10 @@
 /*
- * Flash resource initialization for EA-LPC1788 board
+ * Flash resource initialization for LPC178x/7x-based boards
  *
- * Copyright (C) 2011
+ * Copyright (C) 2011, 2012
  * Vladimir Khusainov, Emcraft Systems, vlad@emcraft.com
  * Sergei Poselenov, Emcraft Systems, sposelenov@emcraft.com
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +38,9 @@
 
 /*
  * Provide support for the external Flash.
- * This is board specific; EA-LPC1788 board has a 4MBytes NOR Flash (located on the Base Board).
+ * This is board specific:
+ *   1. EA-LPC1788 board has a 4MBytes NOR Flash (located on the Base Board).
+ *   2. Emcraft LPC-LNX-EVB has a 16 MBytes NOR Flash.
  */
 
 /*
@@ -115,6 +118,9 @@ void __init lpc178x_flash_init(void)
 	switch (lpc178x_platform_get()) {
 	case PLATFORM_LPC178X_EA_LPC1788:
 		size = 4*1024*1024;
+		break;
+	case PLATFORM_LPC178X_LNX_EVB:
+		size = 16*1024*1024;
 		break;
 	default:
 		printk(KERN_ERR "%s: Unknown platform %#x, exit\n", __func__,

@@ -50,9 +50,11 @@ static struct resource		eth_resources[] = {
 };
 
 /*
- * EA-LPC1788-32 board ethernet platform data
+ * This platform data structure supports the following boards:
+ *   1. Embedded Artists LPC1788-32
+ *   2. Emcraft LPC-LNX-EVB
  */
-static struct lpc178x_eth_data ea_lpc1788_eth_data = {
+static struct lpc178x_eth_data lpc178x_common_eth_data = {
 	.phy_irq        = -1,
 	.phy_mask       = 0xFFFFFFF0,
 };
@@ -67,7 +69,6 @@ static struct platform_device lpc178x_net_device = {
 	.dev = {
 		.dma_mask = &lpc178x_mac_dma_mask,
 		.coherent_dma_mask = 0xffffffffUL,
-		.platform_data = &ea_lpc1788_eth_data,
 	},
 	.num_resources = ARRAY_SIZE(eth_resources),
 	.resource = eth_resources,
@@ -86,7 +87,8 @@ void __init lpc178x_eth_init(void)
 	platform = lpc178x_platform_get();
 	switch (platform) {
 	case PLATFORM_LPC178X_EA_LPC1788:
-		lpc178x_net_device.dev.platform_data = &ea_lpc1788_eth_data;
+	case PLATFORM_LPC178X_LNX_EVB:
+		lpc178x_net_device.dev.platform_data = &lpc178x_common_eth_data;
 		break;
 	default:
 		break;

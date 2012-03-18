@@ -56,6 +56,9 @@ void __init lpc178x_i2c_gpio_init(void)
 		lpc178x_gpio_i2c_device.dev.platform_data =
 			&ea_lpc1788_i2c_gpio_data;
 		break;
+	case PLATFORM_LPC178X_LNX_EVB:
+		/* Do not use I2C for now on LPC-LNX-EVB */
+		break;
 	default:
 		break;
 	}

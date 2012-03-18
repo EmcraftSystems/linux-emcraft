@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -479,6 +479,47 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 };
 
 /*
+ * GPIO pin configuration table for the Emcraft LPC-LNX-EVB board
+ */
+static const struct lpc178x_gpio_pin_config lpc_lnx_evb_gpio[] = {
+#ifdef CONFIG_LPC178X_UART0
+	/*
+	 * GPIO configuration for UART0
+	 */
+	/* P0.2 (D) = UART0 TXD */
+	{{0,  2}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P0.3 (D) = UART0 RXD */
+	{{0,  3}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+#endif /* CONFIG_LPC178X_UART0 */
+
+#ifdef CONFIG_LPC178X_ETHER
+	/*
+	 * GPIO configuration for Ethernet
+	 */
+	/* P1.0 (D) = RMII ENET_TXD0 */
+	{{1,  0}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 1, 0)},
+	/* P1.1 (D) = RMII ENET_TXD1 */
+	{{1,  1}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 1, 0)},
+	/* P1.4 (D) = RMII ENET_TX_EN */
+	{{1,  4}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 1, 0)},
+	/* P1.8 (D) = RMII CRS */
+	{{1,  8}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 1, 0)},
+	/* P1.9 (D) = RMII RXD0 */
+	{{1,  9}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 1, 0)},
+	/* P1.10 (D) = RMII RXD1 */
+	{{1, 10}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 1, 0)},
+	/* P1.14 (D) = RMII RXER */
+	{{1, 14}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.15 (D) = RMII CLK */
+	{{1, 15}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.16 (D) = RMII MCD */
+	{{1, 16}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P1.17 (D) = RMII MDIO */
+	{{1, 17}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+#endif /* CONFIG_LPC178X_ETHER */
+};
+
+/*
  * Initialize the GPIO Alternative Functions of the LPC178x/7x.
  */
 void __init lpc178x_iomux_init(void)
@@ -503,6 +544,10 @@ void __init lpc178x_iomux_init(void)
 	case PLATFORM_LPC178X_EA_LPC1788:
 		lpc178x_gpio_config_table(
 			ea_lpc1788_gpio, ARRAY_SIZE(ea_lpc1788_gpio));
+		break;
+	case PLATFORM_LPC178X_LNX_EVB:
+		lpc178x_gpio_config_table(
+			lpc_lnx_evb_gpio, ARRAY_SIZE(lpc_lnx_evb_gpio));
 		break;
 	default:
 		printk(KERN_WARNING "%s: unsupported platform %d\n", __func__,

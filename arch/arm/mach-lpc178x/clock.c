@@ -369,6 +369,16 @@ void __init lpc178x_clock_init(void)
 			 */
 			sysclk = 12000000;	/* 12 MHz */
 			break;
+		case PLATFORM_LPC178X_LNX_EVB:
+			/*
+			 * This frequency should be set to the same value as
+			 * in U-Boot for this board.
+			 *
+			 * See CONFIG_LPC178X_EXTOSC_RATE in
+			 * u-boot/include/configs/lpc-lnx-evb.h
+			 */
+			sysclk = 12000000;	/* 12 MHz */
+			break;
 		default:
 			/*
 			 * Let's assume smth in this case; maybe things

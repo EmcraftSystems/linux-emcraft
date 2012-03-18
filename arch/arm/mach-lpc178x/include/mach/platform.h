@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -26,10 +26,12 @@
 #define __ASM_ARCH_PLATFORM_H
 
 #define PLATFORM_LPC178X_EA_LPC1788	0
+#define PLATFORM_LPC178X_LNX_EVB	1
 
 int lpc178x_platform_get(void);
 
 #define DEVICE_EA_LPC1788		0
+#define DEVICE_EMCRAFT_LPC_LNX_EVB	1
 
 int lpc178x_device_get(void);
 

@@ -82,6 +82,7 @@ static struct mmci_platform_data lpc178x_mci_data = {
 void __init lpc178x_sdcard_init(void)
 {
 	int platform;
+	int have_sd;
 	/* Active level of the SD card interface signal SD_PWR */
 	int pwr_high;
 
@@ -89,15 +90,22 @@ void __init lpc178x_sdcard_init(void)
 	 * Initialize platform-specific parameters
 	 */
 	platform = lpc178x_platform_get();
+	have_sd = 0;
 	switch (platform) {
 	case PLATFORM_LPC178X_EA_LPC1788:
+		have_sd = 1;
 		/* SD_PWR: active low */
 		pwr_high = 0;
 		break;
+	case PLATFORM_LPC178X_LNX_EVB:
+		/* SD Card interface is not supported on LPC-LNX-EVB */
+		break;
 	default:
-		pwr_high = 0;
 		break;
 	}
+
+	if (!have_sd)
+		goto out;
 
 	/*
 	 * Enable the power on the SD Card Interface module of the MCU
@@ -115,4 +123,7 @@ void __init lpc178x_sdcard_init(void)
 
 	lpc178x_mci_device.dev.platform_data = &lpc178x_mci_data;
 	amba_device_register(&lpc178x_mci_device, &iomem_resource);
+
+out:
+	;
 }

@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -81,6 +81,8 @@ int lpc178x_device_get(void)
 	int r;
 
 	switch (lpc178x_platform) {
+	case PLATFORM_LPC178X_LNX_EVB:
+		r = DEVICE_EMCRAFT_LPC_LNX_EVB;
 	case PLATFORM_LPC178X_EA_LPC1788:
 	default:
 		r = DEVICE_EA_LPC1788;
@@ -94,9 +96,10 @@ int lpc178x_device_get(void)
  */
 static int __init lpc178x_platform_parse(char *s)
 {
-	if (!strcmp(s, "ea-lpc1788")) {
+	if (!strcmp(s, "ea-lpc1788"))
 		lpc178x_platform = PLATFORM_LPC178X_EA_LPC1788;
-	}
+	else if (!strcmp(s, "lpc-lnx-evb"))
+		lpc178x_platform = PLATFORM_LPC178X_LNX_EVB;
 
 	return 1;
 }
