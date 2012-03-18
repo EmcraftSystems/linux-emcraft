@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-a2f/flash.c
  *
- * Copyright (C) 2011 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2011,2012 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,6 +111,11 @@ void __init a2f_flash_init(void)
 	 * Calculate Flash and partition sizes at run time
 	 */
 	if (a2f_platform_get() == PLATFORM_A2F_LNX_EVB) {
+		size = 8*1024*1024;
+	}
+	else if (a2f_platform_get() == PLATFORM_A2F200_SOM ||
+		 a2f_platform_get() == PLATFORM_A2F500_SOM) {
+	{
 		size = 8*1024*1024;
 	}
 	else if (a2f_platform_get() == PLATFORM_A2F_ACTEL_DEV_BRD) {

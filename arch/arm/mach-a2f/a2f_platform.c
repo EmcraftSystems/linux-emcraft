@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-a2f/a2f_platform.c
  *
- * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2010,2011,2012 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,6 +84,12 @@ int a2f_device_get(void)
 	case PLATFORM_A2F_HOERMANN_BRD:
 		r = DEVICE_A2F_500;
 		break;
+	case PLATFORM_A2F500_SOM:
+		r = DEVICE_A2F_500;
+		break;
+	case PLATFORM_A2F200_SOM:
+		r = DEVICE_A2F_200;
+		break;
 	case PLATFORM_A2F_LNX_EVB:
 	default:
 		r = DEVICE_A2F_200;
@@ -99,6 +105,12 @@ static int __init a2f_platform_parse(char *s)
 {
 	if (!strcmp(s, "a2f-lnx-evb")) {
 		a2f_platform = PLATFORM_A2F_LNX_EVB;
+	}
+	else if (!strcmp(s, "a2f200-som")) {
+		a2f_platform = PLATFORM_A2F200_SOM;
+	}
+	else if (!strcmp(s, "a2f500-som")) {
+		a2f_platform = PLATFORM_A2F500_SOM;
 	}
 	else if (!strcmp(s, "a2f-actel-dev-brd")) {
 		a2f_platform = PLATFORM_A2F_ACTEL_DEV_BRD;

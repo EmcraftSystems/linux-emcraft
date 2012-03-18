@@ -25,6 +25,8 @@
 #define PLATFORM_A2F_LNX_EVB		0
 #define PLATFORM_A2F_ACTEL_DEV_BRD	1
 #define PLATFORM_A2F_HOERMANN_BRD	2
+#define PLATFORM_A2F200_SOM		3
+#define PLATFORM_A2F500_SOM		4
 
 extern int a2f_platform_get(void);
 
