@@ -942,11 +942,10 @@ config ARM_V7M_NO_UNALIGN_TRP
 	depends on CPU_V7M
 	default n
 	help
-	  Disable the 'Unaligned access' exception which raises
-	  by default when the processor tried to access data not
-	  aligned on a word boundary. This option may be useful
-	  to support running of application programs that do not
-	  respect data alignment.
+	  Disable the 'Unaligned access' exception raised on an
+	  unaligned data access by default. This option may be
+	  useful to support running of application programs that
+	  do not respect data alignment.
 
 config IWMMXT
 	bool "Enable iWMMXt support"
