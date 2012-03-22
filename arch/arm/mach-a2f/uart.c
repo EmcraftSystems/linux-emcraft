@@ -366,6 +366,7 @@ void __init a2f_uart_init(void)
 	 */
 	(void) platform_device_register(&fpga_uart1_device);
 #endif
+#if defined(CONFIG_SERIAL_A2F_CORE_UART)
 	a2f_cuart_clk = a2f_clock_get(CLCK_FPGA);
 #if defined(CONFIG_A2F_CUART0)
 	a2f_fpga_demux_irq_source_enable(A2F_CUART_0_IRQ);
@@ -398,5 +399,6 @@ void __init a2f_uart_init(void)
 #if defined(CONFIG_A2F_CUART7)
 	a2f_fpga_demux_irq_source_enable(A2F_CUART_7_IRQ);
 	(void) platform_device_register(&a2f_cuart7_device);
+#endif
 #endif
 }
