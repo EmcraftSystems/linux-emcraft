@@ -119,7 +119,11 @@ static struct traps traps[] = {
 void traps_v7m_init(void){
 	writel(readl(&NVIC->system_handler_csr) | USGFAULTENA | BUSFAULTENA,
 			&NVIC->system_handler_csr);
-	writel(readl(&NVIC->config_control) | UNALIGN_TRP | DIV_0_TRP,
+	writel(
+#ifndef CONFIG_ARM_V7M_NO_UNALIGN_TRP
+		UNALIGN_TRP |
+#endif
+		DIV_0_TRP | readl(&NVIC->config_control),
 			&NVIC->config_control);
 }
 

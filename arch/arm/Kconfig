@@ -937,6 +937,16 @@ config PLAT_PXA
 
 source arch/arm/mm/Kconfig
 
+config ARM_V7M_NO_UNALIGN_TRP
+	bool "Disable the Unaligned Access exception on ARMv7-M"
+	depends on CPU_V7M
+	default n
+	help
+	  Disable the 'Unaligned access' exception raised on an
+	  unaligned data access by default. This option may be
+	  useful to support running of application programs that
+	  do not respect data alignment.
+
 config IWMMXT
 	bool "Enable iWMMXt support"
 	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK

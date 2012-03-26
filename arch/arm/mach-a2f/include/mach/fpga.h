@@ -34,7 +34,7 @@
  * if CoreInterrupt IRQ source 0 is triggered;
  * this is the IRQ base for any source within CoreInterrupt
  */
-#define A2F_FPGA_DEMUX_IRQ_BASE		(256 - 32)
+#define A2F_FPGA_DEMUX_IRQ_BASE		(NR_IRQS - 32)
 
 /*
  * If the demultiplexer is used then each CoreInterrupt IRQ source (0..31)
