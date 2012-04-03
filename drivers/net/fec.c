@@ -571,8 +571,10 @@ fec_enet_rx(struct net_device *dev)
 		/* Since we have allocated space to hold a complete frame,
 		 * the last indicator should be set.
 		 */
+/*
 		if ((status & BD_ENET_RX_LAST) == 0)
 			printk("FEC ENET: rcv is not +last\n");
+*/
 
 		if (!fep->opened)
 			goto rx_processing_done;
