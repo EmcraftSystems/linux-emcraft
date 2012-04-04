@@ -134,6 +134,14 @@ static u32 clocksource_hz2shift(u32 bits, u32 hz)
 void cortex_m3_register_systick_clocksource(u32 systick_clk)
 {
 	/*
+	 * Configure and enable the SysTick timer if it was not enabled
+	 * in the bootloader.
+	 */
+	CM3_SYSTICK->load = CM3_SYSTICK_LOAD_RELOAD_MSK;
+	CM3_SYSTICK->val = 0;
+	CM3_SYSTICK->ctrl |= CM3_SYSTICK_CTRL_EN;
+
+	/*
 	 * Finalize clocksource initialization and register it
 	 */
 	clocksource_systick.shift = clocksource_hz2shift(
