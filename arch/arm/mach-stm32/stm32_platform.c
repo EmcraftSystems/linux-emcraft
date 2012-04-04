@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -50,7 +51,13 @@ static void __init stm32_init(void);
 /*
  * Define a particular platform (board)
  */
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1 default platform */
+static int stm32_platform = PLATFORM_STM32_SWISSEMBEDDED_COMM;
+#else
+/* STM32F2 default platform */
 static int stm32_platform = PLATFORM_STM32_STM3220G_EVAL;
+#endif
 
 /*
  * Data structure for the timer system.
@@ -77,9 +84,23 @@ int stm32_device_get(void)
 	int r;
 
 	switch (stm32_platform) {
+#ifdef CONFIG_ARCH_STM32F1
+	/* STM32F1-based platforms */
+	case PLATFORM_STM32_SWISSEMBEDDED_COMM:
+		r = DEVICE_STM32F103ZE;
+		break;
+#else
+	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM3220G_EVAL:
-	default:
 		r = DEVICE_STM32F207IG;
+		break;
+#endif
+	default:
+#ifdef CONFIG_ARCH_STM32F1
+		r = DEVICE_STM32F103ZE;
+#else
+		r = DEVICE_STM32F207IG;
+#endif
 		break;
 	}
 	return r;
@@ -90,9 +111,15 @@ int stm32_device_get(void)
  */
 static int __init stm32_platform_parse(char *s)
 {
-	if (!strcmp(s, "stm3220g-eval")) {
+#ifdef CONFIG_ARCH_STM32F1
+	/* STM32F1-based platforms */
+	if (!strcmp(s, "stm32f1-se-comm"))
+		stm32_platform = PLATFORM_STM32_SWISSEMBEDDED_COMM;
+#else
+	/* STM32F2-based platforms */
+	if (!strcmp(s, "stm3220g-eval"))
 		stm32_platform = PLATFORM_STM32_STM3220G_EVAL;
-	}
+#endif
 
 	return 1;
 }

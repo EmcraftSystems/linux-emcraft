@@ -32,18 +32,35 @@
 /*
  * STM32 DMA bases
  */
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1 */
+#define STM32_DMA1_BASE		(STM32_AHB1PERITH_BASE + 0x0000)
+#define STM32_DMA2_BASE		(STM32_AHB1PERITH_BASE + 0x0400)
+#else
+/* STM32F2 */
 #define STM32_DMA1_BASE		(STM32_AHB1PERITH_BASE + 0x6000)
 #define STM32_DMA2_BASE		(STM32_AHB1PERITH_BASE + 0x6400)
+#endif
 
 /*
  * USART RX DMAs
  */
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1 */
+#define STM32_USART1_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART2_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART3_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART4_DMA_BASE	STM32_DMA2_BASE
+#else
+/* STM32F2 */
 #define STM32_USART1_DMA_BASE	STM32_DMA2_BASE
 #define STM32_USART2_DMA_BASE	STM32_DMA1_BASE
 #define STM32_USART3_DMA_BASE	STM32_DMA1_BASE
 #define STM32_USART4_DMA_BASE	STM32_DMA1_BASE
+/* USART5 and USART6 with DMA support are available only on STM32F2 */
 #define STM32_USART5_DMA_BASE	STM32_DMA1_BASE
 #define STM32_USART6_DMA_BASE	STM32_DMA2_BASE
+#endif
 
 /*
  * STM32 USART Interrupt numbers
@@ -53,24 +70,41 @@
 #define STM32_USART3_IRQ	39
 #define STM32_USART4_IRQ	52
 #define STM32_USART5_IRQ	53
+/* USART6 is available only on STM32F2 */
+#ifndef CONFIG_ARCH_STM32F1
 #define STM32_USART6_IRQ	71
+#endif
 
 /*
  * USART RX DMAs Interrupt numbers
  */
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1 */
+#define STM32_USART1_DMA_IRQ	15	/* DMA1 Channel5 */
+#define STM32_USART2_DMA_IRQ	16	/* DMA1 Channel6 */
+#define STM32_USART3_DMA_IRQ	13	/* DMA1 Channel3 */
+#define STM32_USART4_DMA_IRQ	58	/* DMA2 Channel3 */
+#else
+/* STM32F2 */
 #define STM32_USART1_DMA_IRQ	68
 #define STM32_USART2_DMA_IRQ	16
 #define STM32_USART3_DMA_IRQ	12
 #define STM32_USART4_DMA_IRQ	13
 #define STM32_USART5_DMA_IRQ	11
 #define STM32_USART6_DMA_IRQ	58
+#endif
 
 /*
  * STM32F2 RCC USART specific definitions
  */
 #define STM32_RCC_ENR_USART1	offsetof(struct stm32_rcc_regs, apb2enr)
-#define STM32_RCC_MSK_USART1	(1 <<  4)
+#ifdef CONFIG_ARCH_STM32F1
+#define STM32_RCC_MSK_USART1	(1 << 14)	/* STM32F1 */
+#else
+#define STM32_RCC_MSK_USART1	(1 <<  4)	/* STM32F2 */
+#endif
 
+/* Positions of USART_EN bits for USARTs#2..5 are the same on STM32F1 and STM32F2 */
 #define STM32_RCC_ENR_USART2	offsetof(struct stm32_rcc_regs, apb1enr)
 #define STM32_RCC_MSK_USART2	(1 << 17)
 
@@ -83,8 +117,24 @@
 #define STM32_RCC_ENR_USART5	offsetof(struct stm32_rcc_regs, apb1enr)
 #define STM32_RCC_MSK_USART5	(1 << 20)
 
+/* USART6 is available only on STM32F2 */
+#ifndef CONFIG_ARCH_STM32F1
 #define STM32_RCC_ENR_USART6	offsetof(struct stm32_rcc_regs, apb2enr)
 #define STM32_RCC_MSK_USART6	(1 <<  5)
+#endif
+
+/*
+ * Masks for the DMA{1,2}_EN bits in the RCC_AHB1ENR register
+ */
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1 */
+#define STM32_RCC_AHB1ENR_DMA1_MSK	(1 << 0)
+#define STM32_RCC_AHB1ENR_DMA2_MSK	(1 << 1)
+#else
+/* STM32F2 */
+#define STM32_RCC_AHB1ENR_DMA1_MSK	(1 << 21)
+#define STM32_RCC_AHB1ENR_DMA2_MSK	(1 << 22)
+#endif
 
 /*
  * USART platform device resources
@@ -132,7 +182,8 @@ static struct platform_device		stm_usart_## uid ##_device = {	       \
 	usart_enr = (u32 *)(STM32_RCC_BASE + offsetof(struct stm32_rcc_regs,   \
 						    ahb1enr));		       \
 	*usart_enr |= (STM32_USART## uid ##_DMA_BASE ==			       \
-		       STM32_DMA1_BASE) ? (1 << 21) : (1 << 22);	       \
+		       STM32_DMA1_BASE) ? STM32_RCC_AHB1ENR_DMA1_MSK :	       \
+					  STM32_RCC_AHB1ENR_DMA2_MSK;	       \
 	platform_device_register(&stm_usart_## uid ##_device);		       \
 } while (0)
 
@@ -174,7 +225,10 @@ USART_PLAT_DEVICE(6);
  */
 static const unsigned long stm32_uart_rcc_enr_ofs[] = {
 	STM32_RCC_ENR_USART1, STM32_RCC_ENR_USART2, STM32_RCC_ENR_USART3,
-	STM32_RCC_ENR_USART4, STM32_RCC_ENR_USART5, STM32_RCC_ENR_USART6
+	STM32_RCC_ENR_USART4,
+#ifndef CONFIG_ARCH_STM32F1
+	STM32_RCC_ENR_USART5, STM32_RCC_ENR_USART6
+#endif
 };
 
 /*
@@ -182,7 +236,10 @@ static const unsigned long stm32_uart_rcc_enr_ofs[] = {
  */
 static const unsigned long stm32_uart_rcc_enr_msk[] = {
 	STM32_RCC_MSK_USART1, STM32_RCC_MSK_USART2, STM32_RCC_MSK_USART3,
-	STM32_RCC_MSK_USART4, STM32_RCC_MSK_USART5, STM32_RCC_MSK_USART6
+	STM32_RCC_MSK_USART4,
+#ifndef CONFIG_ARCH_STM32F1
+	STM32_RCC_MSK_USART5, STM32_RCC_MSK_USART6
+#endif
 };
 
 /*

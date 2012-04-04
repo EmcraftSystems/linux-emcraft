@@ -39,14 +39,26 @@
 #define STM32_USART3_APBX	STM32_APB1PERITH_BASE
 #define STM32_USART4_APBX	STM32_APB1PERITH_BASE
 #define STM32_USART5_APBX	STM32_APB1PERITH_BASE
+/* USART6 is available only on STM32F2 */
+#ifndef CONFIG_ARCH_STM32F1
 #define STM32_USART6_APBX	STM32_APB2PERITH_BASE
+#endif
 
-#define STM32_USART1_OFFS	0x1000
+/* Different offsets on STM32F1 and STM32F2 */
+#ifdef CONFIG_ARCH_STM32F1
+#define STM32_USART1_OFFS	0x3800	/* STM32F1 */
+#else
+#define STM32_USART1_OFFS	0x1000	/* STM32F2 */
+#endif
+/* Offsets of registers for USARTs#2..5 are the same on STM32F1 and STM32F2 */
 #define STM32_USART2_OFFS	0x4400
 #define STM32_USART3_OFFS	0x4800
 #define STM32_USART4_OFFS	0x4C00
 #define STM32_USART5_OFFS	0x5000
+/* USART6 is available only on STM32F2 */
+#ifndef CONFIG_ARCH_STM32F1
 #define STM32_USART6_OFFS	0x1400
+#endif
 
 /*
  * USART registers bases
@@ -63,8 +75,13 @@
  * that this USART had been previously configured, and inited in boot-
  * loader
  */
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1 hardware reference is the SwissEmbedded Comm board */
+#define STM32_DBG_USART_BASE	STM32_USART1_BASE
+#else
 /* STM32F2 hardware reference is the STM3220G-EVAL board */
 #define STM32_DBG_USART_BASE	STM32_USART3_BASE
+#endif
 
 /*
  * SR bit masks (these are only those, which used in debug/uncompress code

@@ -165,6 +165,7 @@ static const enum stm32f2_gpio_role usart_gpio_role[] = {
 /*
  * Configure the specified GPIO for the specified role
  */
+#ifndef CONFIG_ARCH_STM32F1
 static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 			       enum stm32f2_gpio_role role)
 {
@@ -255,6 +256,7 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 out:
 	return rv;
 }
+#endif /* !CONFIG_ARCH_STM32F1 */
 
 /*
  * Initialize the GPIO Alternative Functions of the STM32.
@@ -272,8 +274,9 @@ void __init stm32_iomux_init(void)
 	 * the warning message will be printed-out)
 	 */
 	platform = stm32_platform_get();
-
 	switch (platform) {
+#ifndef CONFIG_ARCH_STM32F1
+	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM3220G_EVAL:
 #if defined(CONFIG_STM32_USART1)
 		gpio_dsc.port = 0;
@@ -312,6 +315,14 @@ void __init stm32_iomux_init(void)
 		} while (0);
 #endif
 		break;
+#else
+	/* STM32F1-based platforms */
+	case PLATFORM_STM32_SWISSEMBEDDED_COMM:
+		/*
+		 * Rely on the IOMUX configuration initialized by the bootloader
+		 */
+		break;
+#endif
 	default:
 		printk(KERN_WARNING "%s: unsupported platform %d\n", __func__,
 			platform);

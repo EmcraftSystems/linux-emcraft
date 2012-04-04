@@ -38,7 +38,12 @@
 /*
  * Driver settings
  */
-#define STM32_NR_UARTS		6
+#ifdef CONFIG_ARCH_STM32F1
+#define STM32_NR_UARTS		4	/* STM32F1 */
+#else
+#define STM32_NR_UARTS		6	/* STM32F2 */
+#endif
+
 #define STM32_USART_NAME	"ttyS"
 
 #define STM32_USART_PORT	"STM32 USART Port"
@@ -51,8 +56,16 @@
  * interrupts (from DMA) will be generated at half, and full levels of these
  * buffers.
  */
-#define STM32_DMA_RX_BUF_LEN	512		/* 512 chars		      */
-#define STM32_DMA_RX_BUF_NUM	2		/* 2 buffers		      */
+/* 512 chars */
+#define STM32_DMA_RX_BUF_LEN	512
+
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1: Double buffer mode is not supported */
+#define STM32_DMA_RX_BUF_NUM	1
+#else
+/* STM32F2: Use double buffer mode */
+#define STM32_DMA_RX_BUF_NUM	2
+#endif
 
 #if (STM32_DMA_RX_BUF_NUM != 2) && (STM32_DMA_RX_BUF_NUM != 1)
 # error "Incorrect RX BUF Number configuration."
@@ -95,15 +108,35 @@
 /*
  * DMA CR bits
  */
+#ifndef CONFIG_ARCH_STM32F1
+/* Streams and Double Buffer Mode are not supported on STM32F1 */
 #define STM32_DMA_CR_CHSEL_BIT	25		/* Channel selection	      */
 #define STM32_DMA_CR_CT		(1 << 19)	/* Current target	      */
 #define STM32_DMA_CR_DBM	(1 << 18)	/* Double buffer mode	      */
-#define STM32_DMA_CR_PL_BIT	16		/* Priority level	      */
+#endif
+
+/* Priority level */
+#ifdef CONFIG_ARCH_STM32F1
+#define STM32_DMA_CR_PL_BIT	12		/* STM32F1 */
+#else
+#define STM32_DMA_CR_PL_BIT	16		/* STM32F2 */
+#endif
 #define STM32_DMA_CR_PL_HIGH	0x2
+
+#ifdef CONFIG_ARCH_STM32F1
+/* STM32F1 */
+#define STM32_DMA_CR_MINC	(1 << 7)	/* Memory increment mode      */
+#define STM32_DMA_CR_CIRC	(1 << 5)	/* Circular mode	      */
+#define STM32_DMA_CR_TCIE	(1 << 1)	/* Transfer complete irq ena  */
+#define STM32_DMA_CR_HTIE	(1 << 2)	/* Half transfer irq ena      */
+#else
+/* STM32F2 */
 #define STM32_DMA_CR_MINC	(1 << 10)	/* Memory increment mode      */
 #define STM32_DMA_CR_CIRC	(1 << 8)	/* Circular mode	      */
 #define STM32_DMA_CR_TCIE	(1 << 4)	/* Transfer complete irq ena  */
 #define STM32_DMA_CR_HTIE	(1 << 3)	/* Half transfer irq ena      */
+#endif
+
 #define STM32_DMA_CR_EN		(1 << 0)	/* Stream enable	      */
 
 /*
@@ -136,19 +169,29 @@ struct stm32_usart_regs {
  */
 struct stm32_dma_regs {
 	u32	lisr;			/* low interrupt status		      */
+#ifndef CONFIG_ARCH_STM32F1
 	u32	hisr;			/* high interrupt status	      */
+#endif
 	u32	lifcr;			/* low interrupt flag clear	      */
+#ifndef CONFIG_ARCH_STM32F1
 	u32	hifcr;			/* high interrupt flag clear	      */
+#endif
+
 	struct {
 		u32		cr;	/* configuration		      */
 		u32		ndtr;	/* number of data		      */
 		volatile void	*par;	/* peripheral address		      */
 		volatile void	*m0ar;	/* memory 0 address		      */
+#ifdef CONFIG_ARCH_STM32F1
+		u32		rsv0;
+#else
 		volatile void	*m1ar;	/* memory 1 address		      */
 		u32		fcr;	/* FIFO control			      */
+#endif
 	} s[8];
 };
 
+#ifndef CONFIG_ARCH_STM32F1
 /*
  * DMA streams and channels
  */
@@ -164,10 +207,15 @@ enum stm32_dma_stream {
 
 	STM32_DMA_STREAM_LAST
 };
+#endif /* !CONFIG_ARCH_STM32F1 */
 
 enum stm32_dma_chan {
+#ifdef CONFIG_ARCH_STM32F1
+	STM32_DMA_CHAN_1		= 0,
+#else
 	STM32_DMA_CHAN_0		= 0,
 	STM32_DMA_CHAN_1,
+#endif
 	STM32_DMA_CHAN_2,
 	STM32_DMA_CHAN_3,
 	STM32_DMA_CHAN_4,
@@ -182,8 +230,16 @@ enum stm32_dma_chan {
  * DMA initiator
  */
 struct stm32_dma_ini {
+#ifdef CONFIG_ARCH_STM32F1
+	/*
+	 * We call DMA channels on STM32F1 `streams` to minimize differences
+	 * in the code.
+	 */
+	enum stm32_dma_chan		stream;
+#else
 	enum stm32_dma_stream		stream;
 	enum stm32_dma_chan		chan;
+#endif
 };
 
 /*
@@ -233,8 +289,23 @@ static irqreturn_t stm32_dma_isr(int irq, void *dev_id);
 static struct uart_port		stm32_ports[STM32_NR_UARTS];
 static struct stm32_usart_priv	stm32_usart_priv[STM32_NR_UARTS];
 
+#ifdef CONFIG_ARCH_STM32F1
 /*
- * DMA peripheral streams & channels (USART1/6 - DMA2, others - DMA1)
+ * STM32F1: DMA peripheral channels (USART1,2,3 - DMA1, UART4 - DMA2)
+ */
+static struct stm32_dma_ini	stm32_usart_rx_dma[STM32_NR_UARTS] = {
+	/* USART1 */
+	{STM32_DMA_CHAN_5},
+	/* USART2 */
+	{STM32_DMA_CHAN_6},
+	/* USART3 */
+	{STM32_DMA_CHAN_3},
+	/* UART4 */
+	{STM32_DMA_CHAN_3},
+};
+#else
+/*
+ * STM32F2: DMA peripheral streams & channels (USART1/6 - DMA2, others - DMA1)
  */
 static struct stm32_dma_ini	stm32_usart_rx_dma[STM32_NR_UARTS] = {
 	/* USART1 */
@@ -250,9 +321,24 @@ static struct stm32_dma_ini	stm32_usart_rx_dma[STM32_NR_UARTS] = {
 	/* USART6 */
 	{STM32_DMA_STREAM_2, STM32_DMA_CHAN_5}
 };
+#endif
 
+#ifdef CONFIG_ARCH_STM32F1
 /*
- * Stream ISR bits for half[0]/complete[1] transfers
+ * STM32F1: Channel ISR bits for half[0]/complete[1] transfers
+ */
+static u32			stm32_dma_isr_bit[STM32_DMA_CHAN_LAST] = {
+	(1 <<  1) | (1 <<  2), /* Channel 1 */
+	(1 <<  5) | (1 <<  6),
+	(1 <<  9) | (1 << 10),
+	(1 << 13) | (1 << 14),
+	(1 << 17) | (1 << 18),
+	(1 << 21) | (1 << 22),
+	(1 << 25) | (1 << 26), /* Channel 7 */
+};
+#else
+/*
+ * STM32F2: Stream ISR bits for half[0]/complete[1] transfers
  */
 static u32			stm32_dma_isr_bit[STM32_DMA_STREAM_LAST] = {
 	(1 <<  4) | (1 <<  5),
@@ -264,6 +350,7 @@ static u32			stm32_dma_isr_bit[STM32_DMA_STREAM_LAST] = {
 	(1 << 20) | (1 << 21),
 	(1 << 26) | (1 << 27)
 };
+#endif
 
 /*
  * Check if transmitter in idle (tx reg empty)
@@ -368,10 +455,13 @@ static int stm_port_startup(struct uart_port *port)
 	 * - high priority,
 	 * - full/half interrupts enable
 	 */
-	tmp = (priv->ini.chan << STM32_DMA_CR_CHSEL_BIT) |
-	      (STM32_DMA_CR_PL_HIGH << STM32_DMA_CR_PL_BIT) |
-	      STM32_DMA_CR_CIRC | STM32_DMA_CR_MINC |
-	      STM32_DMA_CR_TCIE | STM32_DMA_CR_HTIE;
+	tmp =
+#ifndef CONFIG_ARCH_STM32F1
+		(priv->ini.chan << STM32_DMA_CR_CHSEL_BIT) |
+#endif
+		(STM32_DMA_CR_PL_HIGH << STM32_DMA_CR_PL_BIT) |
+		STM32_DMA_CR_CIRC | STM32_DMA_CR_MINC |
+		STM32_DMA_CR_TCIE | STM32_DMA_CR_HTIE;
 #if (STM32_DMA_RX_BUF_NUM == 2)
 	/*
 	 * Double buffers
@@ -741,7 +831,12 @@ static void stm32_receive(struct uart_port *port)
 	/*
 	 * Read DMA current buf, counter, and make sure we done this atomic
 	 */
+#ifdef CONFIG_ARCH_STM32F1
+	/* Double Buffer Mode is not supported on STM32F1 */
+	new_wbuf = 0;
+#else
 	new_wbuf = !!(dma->s[priv->ini.stream].cr & STM32_DMA_CR_CT);
+#endif
 	new_wpos = dma->s[priv->ini.stream].ndtr;
 #if (STM32_DMA_RX_BUF_NUM == 2)
 	tmp = !!(dma->s[priv->ini.stream].cr & STM32_DMA_CR_CT);
@@ -964,13 +1059,24 @@ static int __devinit stm32_probe(struct platform_device *pdev)
 	port->mapbase = (u32)priv->reg_usart_base;
 
 	priv->ini = stm32_usart_rx_dma[id];
+
+	/*
+	 * STM32F1: Use the only available pair of ISR and IFCR registers
+	 *
+	 * STM32F2: Choose the pair of ISR and IFCR register relevent
+	 * to the DMA stream.
+	 */
+#ifndef CONFIG_ARCH_STM32F1
 	if (priv->ini.stream <= STM32_DMA_STREAM_3) {
+#endif
 		priv->dma_isr  = &priv->reg_dma_base->lisr;
 		priv->dma_ifcr = &priv->reg_dma_base->lifcr;
+#ifndef CONFIG_ARCH_STM32F1
 	} else {
 		priv->dma_isr  = &priv->reg_dma_base->hisr;
 		priv->dma_ifcr = &priv->reg_dma_base->hifcr;
 	}
+#endif
 
 	port->private_data = &stm32_usart_priv[id];
 	dev_set_drvdata(dev, port);

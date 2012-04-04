@@ -7,6 +7,13 @@ config MACH_STM32
 	help
 	  Include support for the STMicro STM32F2 microcontroller
 
+config ARCH_STM32F1
+	bool "Support STM32F1 instead of STM32F2"
+	default n
+	depends on ARCH_STM32
+	help
+	  Build kernel for the STMicro STM32F1 MCU instead of STM32F2
+
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
 
@@ -31,12 +38,12 @@ config STM32_USART4
 	default n
 
 config STM32_USART5
-	depends on ARCH_STM32 && SERIAL_STM32
+	depends on ARCH_STM32 && SERIAL_STM32 && !ARCH_STM32F1
 	bool "Enable STM32 USART5 port"
 	default n
 
 config STM32_USART6
-	depends on ARCH_STM32 && SERIAL_STM32
+	depends on ARCH_STM32 && SERIAL_STM32 && !ARCH_STM32F1
 	bool "Enable STM32 USART6 port"
 	default n
 

@@ -213,6 +213,11 @@ static struct irqaction	tick_tmr_irqaction = {
 	.handler	= tick_tmr_irq_handler,
 };
 
+#ifdef CONFIG_ARCH_STM32F1
+#define TICK_TIM_COUNTER_BITWIDTH	16	/* STM32F1: 16-bit timer */
+#else
+#define TICK_TIM_COUNTER_BITWIDTH	32	/* STM32F2: 32-bit timer */
+#endif
 
 /*
  * Clockevents init (sys timer)
@@ -222,6 +227,20 @@ static void tick_tmr_init(void)
 	volatile struct stm32_tim_regs	*tim;
 	volatile u32			*rcc_enr, *rcc_rst;
 	struct clock_event_device	*evt = &tick_tmr_clockevent;
+
+	/* The target total timer divider (including the prescaler) */
+	u32 div;
+	/* The prescaler value will be (1 << psc_pwr) */
+	int psc_pwr;
+
+	/*
+	 * If the timer is 16-bit, then (div >> psc_pwr) must not exceed
+	 * (2**16 - 1).
+	 */
+	div = tick_tmr_clk / HZ;
+	psc_pwr = ilog2(div) - TICK_TIM_COUNTER_BITWIDTH + 1;
+	if (psc_pwr < 0)
+		psc_pwr = 0;
 
 	/*
 	 * Setup reg bases
@@ -241,14 +260,10 @@ static void tick_tmr_init(void)
 	 * Select the counter mode:
 	 * - upcounter;
 	 * - auto-reload
-	 * Set autoreload value:
-	 * - value ~ 1 HZ (10 ms)
-	 * Set prescaler:
-	 * - no
 	 */
 	tim->cr1 = STM32_TIM_CR1_ARPE;
-	tim->arr = tick_tmr_clk / HZ;
-	tim->psc = 0;
+	tim->arr = (div >> psc_pwr);
+	tim->psc = (1 << psc_pwr) - 1;
 
 	/*
 	 * Generate an update event to reload the Prescaler value immediately
