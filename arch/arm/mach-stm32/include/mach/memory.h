@@ -2,9 +2,10 @@
  * (C) Copyright 2009
  * ARM Ltd.
  *
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -27,7 +28,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#define PHYS_OFFSET		UL(0x64000000)
 #define ENVM_PHYS_OFFSET	UL(0x08000000)
 
 #endif
