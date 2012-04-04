@@ -31,12 +31,10 @@
 #include <mach/uart.h>
 
 	/*
-	 * UART base addresses are not well aligned, so set them
-	 * with 'add' op.
+	 * Use the `ldr` instruction to load an arbitrary 32-bit value to \rx
 	 */
 	.macro	addruart, rx
-	mov	\rx, STM32_DBG_USART_APBX
-	add	\rx, \rx, STM32_DBG_USART_OFFS
+	ldr	\rx, =STM32_DBG_USART_BASE
 	.endm
 
 	.macro	senduart, rd, rx

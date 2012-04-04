@@ -3,6 +3,10 @@
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  *
+ * Add support for STM32F1
+ * (C) Copyright 2012
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -59,8 +63,8 @@
  * that this USART had been previously configured, and inited in boot-
  * loader
  */
-#define STM32_DBG_USART_APBX	STM32_USART3_APBX
-#define STM32_DBG_USART_OFFS	STM32_USART3_OFFS
+/* STM32F2 hardware reference is the STM3220G-EVAL board */
+#define STM32_DBG_USART_BASE	STM32_USART3_BASE
 
 /*
  * SR bit masks (these are only those, which used in debug/uncompress code
