@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -27,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
+#include <asm/hardware/cortexm3.h>
 #include <mach/clock.h>
 #include <mach/stm32.h>
 #include <mach/timer.h>
@@ -141,15 +143,6 @@ struct stm32_tim_regs {
 #define TICK_TIM_CLOCK		CLOCK_PTMR1
 
 /*
- * System Source timer settings
- */
-#define SRC_TIM_BASE		STM32_TIM5_BASE
-#define SRC_TIM_RCC_RST		STM32_RCC_RST_TIM5
-#define SRC_TIM_RCC_ENR		STM32_RCC_ENR_TIM5
-#define SRC_TIM_RCC_MSK		STM32_RCC_MSK_TIM5
-#define SRC_TIM_CLOCK		CLOCK_PTMR1
-
-/*
  * Reference clocks for the Timers
  */
 static unsigned int	tick_tmr_clk, src_tmr_clk;
@@ -220,28 +213,6 @@ static struct irqaction	tick_tmr_irqaction = {
 	.handler	= tick_tmr_irq_handler,
 };
 
-/*
- * Get current clock source timer value
- */
-static cycle_t src_tmr_value_get(struct clocksource *c)
-{
-	volatile struct stm32_tim_regs	*tim;
-
-	tim = (struct stm32_tim_regs *)SRC_TIM_BASE;
-
-	return tim->cnt;
-}
-
-/*
- * STM32 clock source device
- */
-static struct clocksource	src_tmr_clocksource = {
-	.name		= "STM32 Source Clock",
-	.rating		= 200,
-	.read		= src_tmr_value_get,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
 
 /*
  * Clockevents init (sys timer)
@@ -305,77 +276,14 @@ static void tick_tmr_init(void)
 }
 
 /*
- * Calculates a clocksource shift from hz and # of bits a clock uses.
- * Taken from A2F code, and there it had been taken from some kernel
- * patch
- */
-static u32 clocksource_hz2shift(u32 bits, u32 hz)
-{
-	u64	temp;
-
-	for (; bits > 0; bits--) {
-		temp = (u64)NSEC_PER_SEC << bits;
-		do_div(temp, hz);
-		if ((temp >> 32) == 0)
-			break;
-	}
-
-	return bits;
-}
-
-/*
  * Source clock init
  */
 static void src_tmr_init(void)
 {
-	volatile struct stm32_tim_regs	*tim;
-	volatile u32			*rcc_enr, *rcc_rst;
-	struct clocksource		*src = &src_tmr_clocksource;
-
 	/*
-	 * Setup reg bases
+	 * Use the Cortex-M3 SysTick timer
 	 */
-	tim = (struct stm32_tim_regs *)SRC_TIM_BASE;
-	rcc_enr = (u32 *)SRC_TIM_RCC_ENR;
-	rcc_rst = (u32 *)SRC_TIM_RCC_RST;
-
-	/*
-	 * Enable timer clock, and deinit registers
-	 */
-	*rcc_enr |= SRC_TIM_RCC_MSK;
-	*rcc_rst |= SRC_TIM_RCC_MSK;
-	*rcc_rst &= ~SRC_TIM_RCC_MSK;
-
-	/*
-	 * Select the counter mode and clock division:
-	 * - upcounter;
-	 * - autoreload enable
-	 * Set autoreload value:
-	 * - maximum
-	 * Set prescaler:
-	 * - no
-	 */
-	tim->cr1 = STM32_TIM_CR1_ARPE;
-	tim->arr = 0xFFFFFFFF;
-	tim->psc = 0;
-
-	/*
-	 * Generate an update event to reload the Prescaler value immediately
-	 */
-	tim->egr = STM32_TIM_EGR_UG;
-
-	/*
-	 * Finalize clocksource initialization and register it
-	 */
-	src->shift = clocksource_hz2shift(32, src_tmr_clk);
-	src->mult  = clocksource_hz2mult(src_tmr_clk, src->shift);
-
-	clocksource_register(src);
-
-	/*
-	 * Enable timer
-	 */
-	tim->cr1 |= STM32_TIM_CR1_CEN;
+	cortex_m3_register_systick_clocksource(src_tmr_clk);
 }
 
 /*
@@ -388,7 +296,7 @@ void __init stm32_timer_init(void)
 	 */
 	stm32_clock_init();
 	tick_tmr_clk = stm32_clock_get(TICK_TIM_CLOCK);
-	src_tmr_clk  = stm32_clock_get(SRC_TIM_CLOCK);
+	src_tmr_clk  = stm32_clock_get(CLOCK_HCLK) / 8;
 
 	/*
 	 * Init clockevents (sys timer)
