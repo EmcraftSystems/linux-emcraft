@@ -29,8 +29,9 @@
  * STM32 Device (microcontroller) identifiers
  */
 #ifndef CONFIG_ARCH_STM32F1
-/* STM32F2-based */
+/* STM32F2-based and STM32F4-based */
 #define DEVICE_STM32F207IG		0
+#define DEVICE_STM32F407IG		1
 #else
 /* STM32F1-based */
 #define DEVICE_STM32F103ZE		1000
@@ -42,6 +43,7 @@
 #ifndef CONFIG_ARCH_STM32F1
 /* STM32F2-based */
 #define PLATFORM_STM32_STM3220G_EVAL		0
+#define PLATFORM_STM32_STM3240G_EVAL		1
 #else
 /* STM32F1-based */
 #define PLATFORM_STM32_SWISSEMBEDDED_COMM	1000

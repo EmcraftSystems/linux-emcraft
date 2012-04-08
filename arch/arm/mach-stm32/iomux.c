@@ -278,6 +278,7 @@ void __init stm32_iomux_init(void)
 #ifndef CONFIG_ARCH_STM32F1
 	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM3220G_EVAL:
+	case PLATFORM_STM32_STM3240G_EVAL:
 #if defined(CONFIG_STM32_USART1)
 		gpio_dsc.port = 0;
 		gpio_dsc.pin  = 9;

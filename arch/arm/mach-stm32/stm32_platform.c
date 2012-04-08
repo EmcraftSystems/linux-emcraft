@@ -94,6 +94,9 @@ int stm32_device_get(void)
 	case PLATFORM_STM32_STM3220G_EVAL:
 		r = DEVICE_STM32F207IG;
 		break;
+	case PLATFORM_STM32_STM3240G_EVAL:
+		r = DEVICE_STM32F407IG;
+		break;
 #endif
 	default:
 #ifdef CONFIG_ARCH_STM32F1
@@ -119,6 +122,8 @@ static int __init stm32_platform_parse(char *s)
 	/* STM32F2-based platforms */
 	if (!strcmp(s, "stm3220g-eval"))
 		stm32_platform = PLATFORM_STM32_STM3220G_EVAL;
+	else if (!strcmp(s, "stm3240g-eval"))
+		stm32_platform = PLATFORM_STM32_STM3240G_EVAL;
 #endif
 
 	return 1;

@@ -131,6 +131,8 @@ void __init stm32_flash_init(void)
 	 */
 	switch (stm32_platform_get()) {
 	case PLATFORM_STM32_STM3220G_EVAL:
+	case PLATFORM_STM32_STM3240G_EVAL:
+		/* Size of NOR Flash on the STM-MEM add-on module */
 		size = 8*1024*1024;
 		break;
 	default:

@@ -134,6 +134,7 @@ void __init stm32_clock_init(void)
 		break;
 #else
 	case PLATFORM_STM32_STM3220G_EVAL:
+	case PLATFORM_STM32_STM3240G_EVAL:
 		hse_hz = 25000000;
 		break;
 #endif

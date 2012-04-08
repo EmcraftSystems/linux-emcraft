@@ -57,7 +57,10 @@ static struct resource		eth_resources[] = {
 };
 
 /*
- * STM3220G-EVAL board ethernet platform data
+ * STM3220G-EVAL board Ethernet platform data.
+ *
+ * Use the same platform data also for the STM3240G-EVAL board since these two
+ * boards are compatible.
  */
 static struct stm32_eth_data	stm3220g_eval_eth_data = {
 	.frame_max_size	= 2044,
@@ -100,6 +103,7 @@ void __init stm32_eth_init(void)
 	platform = stm32_platform_get();
 	switch (platform) {
 	case PLATFORM_STM32_STM3220G_EVAL:
+	case PLATFORM_STM32_STM3240G_EVAL:
 		eth_device.dev.platform_data = &stm3220g_eval_eth_data;
 		break;
 	default:
