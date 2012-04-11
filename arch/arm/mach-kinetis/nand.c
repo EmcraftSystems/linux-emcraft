@@ -1,5 +1,5 @@
 /*
- * NAND Flash resource initialization for the TWR-K70F120M board
+ * NAND Flash resource initialization for the Kinetis-based boards
  *
  * Copyright (C) 2011
  * Vladimir Khusainov, Emcraft Systems, vlad@emcraft.com
@@ -35,7 +35,9 @@
 
 /*
  * Provide support for the external Flash.
- * This is board specific; TWR-K70F120M board has a 256 MBytes NAND Flash.
+ * This is board specific:
+ *    TWR-K70F120M board has a 256 MBytes NAND flash.
+ *    K70-SOM board has a 128 MBytes NAND flash.
  */
 
 /*
@@ -101,15 +103,16 @@ static struct resource nfc_resources[] = {
 	},
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
 /*
  * Platform-specific data for the FSL NAND Flash driver
  */
 static struct fsl_nfc_nand_platform_data flash_data = {
+#ifdef CONFIG_MTD_PARTITIONS
 	.nr_parts	= ARRAY_SIZE(flash_partitions),
 	.parts		= flash_partitions,
-};
 #endif /* CONFIG_MTD_PARTITIONS */
+	.flags		= 0,
+};
 
 /*
  * Platform device for the NAND Flash Controller
@@ -119,11 +122,9 @@ static struct platform_device nfc_device = {
 	.id             = -1,
 	.resource       = nfc_resources,
 	.num_resources  = ARRAY_SIZE(nfc_resources),
-#ifdef CONFIG_MTD_PARTITIONS
 	.dev		= {
 		.platform_data = &flash_data,
 	},
-#endif /* CONFIG_MTD_PARTITIONS */
 };
 
 /*
@@ -139,6 +140,11 @@ void __init kinetis_nand_init(void)
 	switch (kinetis_platform_get()) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
 		size = 256*1024*1024;
+		break;
+	case PLATFORM_KINETIS_K70_SOM:
+		size = 128*1024*1024;
+		/* The NAND flash chip is 8-bit */
+		flash_data.flags |= FSL_NFC_NAND_FLAGS_BUSWIDTH_8;
 		break;
 	default:
 		printk(KERN_ERR "%s: Unknown platform %#x, exit\n", __func__,

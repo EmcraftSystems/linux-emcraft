@@ -346,7 +346,7 @@ void __init kinetis_clock_init(void)
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
 		/*
-		 * The PLL0 in a 120 MHz K70 MCU divides its output rate by 2.
+		 * The PLL0 in a PK70FN1M0VMJ12 divides its output rate by 2.
 		 * This does not apply to 100 MHz K60 MCUs.
 		 *
 		 * The minimum value for VDIV is also different
@@ -356,6 +356,13 @@ void __init kinetis_clock_init(void)
 		vdiv_min = 16;
 
 		have_lcd = 1;
+		break;
+	case PLATFORM_KINETIS_K70_SOM:
+		/* Same as for TWR-K70F120M, but without LCD support */
+		vco_div = 2;
+		vdiv_min = 16;
+
+		have_lcd = 0;
 		break;
 	default:
 		/*

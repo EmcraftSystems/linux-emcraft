@@ -78,8 +78,9 @@ int kinetis_device_get(void)
 
 	switch (kinetis_platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
+	case PLATFORM_KINETIS_K70_SOM:
 	default:
-		r = DEVICE_TWR_K70F120M;
+		r = DEVICE_PK70FN1M0VMJ12;
 		break;
 	}
 	return r;
@@ -92,6 +93,8 @@ static int __init kinetis_platform_parse(char *s)
 {
 	if (!strcmp(s, "twr-k70f120m")) {
 		kinetis_platform = PLATFORM_KINETIS_TWR_K70F120M;
+	} else if (!strcmp(s, "k70-som")) {
+		kinetis_platform = PLATFORM_KINETIS_K70_SOM;
 	}
 
 	return 1;

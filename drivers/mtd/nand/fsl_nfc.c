@@ -12,7 +12,7 @@
  *
  * (C) Copyright 2012
  * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
- * Add support for Freescale Kinetis, used by TWR-K70F120M
+ * Add support for Freescale Kinetis, used by TWR-K70F120M and K70-SOM
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by
@@ -714,8 +714,8 @@ fsl_nfc_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 #ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts;
-	struct fsl_nfc_nand_platform_data *pdata = pdev->dev.platform_data;
 #endif
+	struct fsl_nfc_nand_platform_data *pdata = pdev->dev.platform_data;
 	struct nand_chip *chip;
 	unsigned long regs_paddr, regs_size;
 	int retval = 0;
@@ -772,7 +772,9 @@ fsl_nfc_probe(struct platform_device *pdev)
 	chip->read_buf = fsl_nfc_read_buf;
 	chip->write_buf = fsl_nfc_write_buf;
 	chip->verify_buf = fsl_nfc_verify_buf;
-	chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT | NAND_BUSWIDTH_16 | NAND_CACHEPRG;
+	chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT | NAND_CACHEPRG;
+	if (!pdata || !(pdata->flags & FSL_NFC_NAND_FLAGS_BUSWIDTH_8))
+		chip->options |= NAND_BUSWIDTH_16;
 
 	chip->select_chip = m54418twr_select_chip;
 
@@ -842,9 +844,15 @@ fsl_nfc_probe(struct platform_device *pdev)
 			CONFIG_FAST_FLASH_SHIFT, 1);
 #endif
 
+	/*
+	 * Set this field to 1 for a 16-bit NAND flash.
+	 * Set this field to 0 for a 8-bit NAND flash.
+	 */
 	nfc_set_field(mtd, NFC_FLASH_CONFIG,
 			CONFIG_16BIT_MASK,
-			CONFIG_16BIT_SHIFT, 1);
+			CONFIG_16BIT_SHIFT,
+			!(pdata && (pdata->flags &
+				FSL_NFC_NAND_FLAGS_BUSWIDTH_8)));
 
 
 	/* Detect NAND chips */

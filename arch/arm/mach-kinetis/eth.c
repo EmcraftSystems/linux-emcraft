@@ -75,6 +75,8 @@ static struct resource kinetis_eth_resources[] = {
 /*
  * The FEC driver platform-specific configuration for the Freescale TWR-K60N512
  * and TWR-K70F120M boards.
+ *
+ * This configuration is compatible with the Emcraft K70-SOM board.
  */
 static struct fec_platform_data kinetis_twr_fec_platform_data = {
 	/* Use RMII to communicate with the PHY */
@@ -103,6 +105,7 @@ void __init kinetis_eth_init(void)
 	platform = kinetis_platform_get();
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
+	case PLATFORM_KINETIS_K70_SOM:
 		kinetis_net_device.dev.platform_data =
 			&kinetis_twr_fec_platform_data;
 		break;

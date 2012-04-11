@@ -1142,6 +1142,22 @@ static phy_info_t const phy_info_ksz8041nl = {
 };
 
 /* ------------------------------------------------------------------------- */
+/* Micrel KSZ8051RNL phy                                                      */
+
+/*
+ * The Micrel KSZ8051RNL PHY is compatible with KSZ8041NL (and therefore
+ * KS8721BL) at least with respect to those functions that we will use.
+ */
+static phy_info_t const phy_info_ksz8051rnl = {
+	.id = 0x00022155,
+	.name = "KSZ8051RNL",
+	.config = phy_cmd_ks8721bl_config,
+	.startup = phy_cmd_ks8721bl_startup,
+	.ack_int = phy_cmd_ks8721bl_ack_int,
+	.shutdown = phy_cmd_ks8721bl_shutdown
+};
+
+/* ------------------------------------------------------------------------- */
 /* register definitions for the DP83848 */
 
 #define MII_DP8384X_PHYSTST    16  /* PHY Status Register */

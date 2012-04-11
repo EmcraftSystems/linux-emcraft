@@ -25,17 +25,22 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
-#ifdef CONFIG_MTD_PARTITIONS
-
 /*
- * Use this structure in order to pass the partition table
+ * Use this structure in order to pass the partition table and other options
  * from the platform-specific code to the FSL NAND Flash driver.
  */
 struct fsl_nfc_nand_platform_data {
+#ifdef CONFIG_MTD_PARTITIONS
 	unsigned int		nr_parts;
 	struct mtd_partition	*parts;
+#endif /* CONFIG_MTD_PARTITIONS */
+	unsigned int		flags;
 };
 
-#endif /* CONFIG_MTD_PARTITIONS */
+/*
+ * Bit descriptions of the `fec_platform_data::flags` bit field
+ */
+/* Whether the NAND flash device is 8-bit */
+#define FSL_NFC_NAND_FLAGS_BUSWIDTH_8	(1 << 0)
 
 #endif /* __LINUX_MTD_FSL_NFC__ */

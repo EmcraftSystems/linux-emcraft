@@ -288,6 +288,9 @@ void __init kinetis_iomux_init(void)
 		kinetis_gpio_config_table(
 			twr_k70f120m_gpio, ARRAY_SIZE(twr_k70f120m_gpio));
 		break;
+	case PLATFORM_KINETIS_K70_SOM:
+		/* All pins for this board are already configured by U-Boot */
+		break;
 	default:
 		printk(KERN_WARNING "%s: unsupported platform %d\n", __func__,
 			platform);

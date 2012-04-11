@@ -138,6 +138,9 @@ void __init kinetis_fb_init(void)
 		have_lcd = 1;
 		kinetis_fb_device.dev.platform_data = &twr_k70f120m_fb_data;
 		break;
+	case PLATFORM_KINETIS_K70_SOM:
+		have_lcd = 0;
+		break;
 	default:
 		break;
 	}
