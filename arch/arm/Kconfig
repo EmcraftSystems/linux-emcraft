@@ -1038,9 +1038,9 @@ source "arch/arm/common/Kconfig"
 
 config FORCE_MAX_ZONEORDER
 	int
-	depends on SA1111 || ARCH_A2F || ARCH_KINETIS || ARCH_STM32 || ARCH_LPC178X
+	depends on SA1111 || ARM_CORTEXM3
 	default "9" if SA1111
-	default "12" if ARCH_A2F || ARCH_KINETIS || ARCH_STM32 || ARCH_LPC178X
+	default "12" if ARM_CORTEXM3
 
 menu "Bus support"
 
