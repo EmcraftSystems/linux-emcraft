@@ -29,14 +29,15 @@
 
 extern void cortex_m3_reboot(void);
 
-#if defined(CONFIG_ARCH_KINETIS) || defined(CONFIG_ARCH_STM32)
+#if defined(CONFIG_ARCH_KINETIS) || defined(CONFIG_ARCH_STM32) || \
+    defined(CONFIG_ARCH_LPC178X)
 /*
  * The SysTick clocksource is not used on other Cortex-M3 targets,
  * they use other timers.
  */
 #include <linux/types.h>
 extern void cortex_m3_register_systick_clocksource(u32 systick_clk);
-#endif /* defined(CONFIG_ARCH_KINETIS) || defined(CONFIG_ARCH_STM32) */
+#endif /* defined(CONFIG_ARCH_XXX) */
 
 #endif /* CONFIG_ARM_CORTEXM3 */
 
