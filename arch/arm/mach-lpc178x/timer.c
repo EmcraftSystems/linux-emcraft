@@ -27,6 +27,8 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
+#include <asm/hardware/lpc_clockevents.h>
+
 #include <mach/lpc178x.h>
 #include <mach/power.h>
 #include <mach/clock.h>
@@ -230,108 +232,6 @@ static void clocksource_tmr_init(void)
 }
 
 /*
- * Clockevent device
- */
-/*
- * Clock event device set mode function
- */
-static void clockevent_tmr_set_mode(
-	enum clock_event_mode mode, struct clock_event_device *clk)
-{
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		lpc178x_timer_enable(LPC178X_CLOCKEVENT_TIMER, 1);
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	default:
-		lpc178x_timer_enable(LPC178X_CLOCKEVENT_TIMER, 0);
-		break;
-	}
-}
-
-/*
- * LPC178x/7x System Timer device
- */
-static struct clock_event_device clockevent_tmr = {
-	.name		= "lpc178x-timer0",
-	.rating		= 200,
-	.irq		= LPC178X_TIMER0_IRQ,
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.set_mode	= clockevent_tmr_set_mode,
-	.cpumask	= cpu_all_mask,
-};
-
-/*
- * Timer IRQ handler
- */
-static irqreturn_t clockevent_tmr_irq_handler(int irq, void *dev_id)
-{
-	volatile struct lpc178x_timer_regs *timer_regs;
-	timer_regs = (volatile struct lpc178x_timer_regs *)timer_base[LPC178X_CLOCKEVENT_TIMER];
-
-	/*
-	 * Clear the interrupt
-	 */
-	timer_regs->ir = LPC178X_TIMER_IR_MR0_MSK;
-
-	/*
-	 * Handle Event
-	 */
-	clockevent_tmr.event_handler(&clockevent_tmr);
-
-	return IRQ_HANDLED;
-}
-
-/*
- * System timer IRQ action
- */
-static struct irqaction	clockevent_tmr_irqaction = {
-	.name		= "LPC178x/7x Kernel Time Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= clockevent_tmr_irq_handler,
-};
-
-/*
- * Clockevents init (sys timer)
- */
-static void clockevents_tmr_init(void)
-{
-	volatile struct lpc178x_timer_regs *timer_regs;
-	timer_regs = (volatile struct lpc178x_timer_regs *)timer_base[LPC178X_CLOCKEVENT_TIMER];
-
-	/* Initialize TIMER0 */
-	lpc178x_timer_reset(LPC178X_CLOCKEVENT_TIMER);
-
-	/*
-	 * Initialize match channel 0
-	 */
-	/* Set match register */
-	timer_regs->mr0 = periph_clk / HZ - 1;
-	/* Enable necessary match channels and operations for them */
-	timer_regs->mcr = LPC178X_TIMER_MCR_MR0I | LPC178X_TIMER_MCR_MR0R;
-
-	/* Enable TIMER0 */
-	lpc178x_timer_enable(LPC178X_CLOCKEVENT_TIMER, 1);
-
-	/* Setup, and enable IRQ */
-	setup_irq(LPC178X_TIMER0_IRQ, &clockevent_tmr_irqaction);
-
-	/*
-	 * For system timer we don't provide set_next_event method,
-	 * so, I guess, setting mult, shift, max_delta_ns, min_delta_ns
-	 * makes no sense (I verified that kernel works well without these).
-	 * Nevertheless, some clocksource drivers with periodic-mode only do
-	 * this. So, let's set them to some values too.
-	 */
-	clockevents_calc_mult_shift(&clockevent_tmr, periph_clk / HZ, 5);
-	clockevent_tmr.max_delta_ns = clockevent_delta2ns(0xFFFFFFF0, &clockevent_tmr);
-	clockevent_tmr.min_delta_ns = clockevent_delta2ns(0xF, &clockevent_tmr);
-
-	clockevents_register_device(&clockevent_tmr);
-}
-
-/*
  * Initialize the timer systems of the LPC178x/7x
  */
 void __init lpc178x_timer_init(void)
@@ -353,7 +253,14 @@ void __init lpc178x_timer_init(void)
 	clocksource_tmr_init();
 
 	/*
+	 * Enable power on TIMER0 for the clockevents timer
+	 */
+	lpc178x_periph_enable(timer_pconp_msk[LPC178X_CLOCKEVENT_TIMER], 1);
+
+	/*
 	 * Init clockevents (sys timer)
 	 */
-	clockevents_tmr_init();
+	lpc_clockevents_tmr_init(
+		timer_base[LPC178X_CLOCKEVENT_TIMER],
+		periph_clk, LPC178X_TIMER0_IRQ);
 }
