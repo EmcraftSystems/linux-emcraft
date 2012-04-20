@@ -1225,6 +1225,7 @@ static phy_info_t const * const phy_info[] = {
 	&phy_info_am79c874,
 	&phy_info_ks8721bl,
 	&phy_info_ksz8041nl,
+	&phy_info_ksz8051rnl,
 	&phy_info_dp83848,
 	NULL
 };
