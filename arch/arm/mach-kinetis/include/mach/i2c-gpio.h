@@ -22,26 +22,11 @@
  * MA 02111-1307 USA
  */
 
-#ifndef __ASM_ARCH_PLATFORM_H
-#define __ASM_ARCH_PLATFORM_H
+#ifndef _MACH_KINETIS_I2C_GPIO_H_
+#define _MACH_KINETIS_I2C_GPIO_H_
 
-/* Freescale TWR-K70F120M + Freescale TWR-SER */
-#define PLATFORM_KINETIS_TWR_K70F120M	0
-/* Emcraft K70-SOM + Emcraft SOM-BSB */
-#define PLATFORM_KINETIS_K70_SOM	1
+#include <mach/kinetis.h>
 
-int kinetis_platform_get(void);
+void __init kinetis_i2c_gpio_init(void);
 
-/* Freescale Kinetis K70 with maximum core frequency of 120 MHz */
-#define DEVICE_PK70FN1M0VMJ12		0
-
-int kinetis_device_get(void);
-
-int kinetis_lcdtype_get(void);
-
-/* Freescale TWR-LCD-RGB */
-#define LCD_TWR_LCD_RGB			0
-/* Embedded Artists EA-LCD-004 */
-#define LCD_EA_LCD_004			1
-
-#endif /* __ASM_ARCH_PLATFORM_H */
+#endif /* _MACH_KINETIS_I2C_GPIO_H_ */

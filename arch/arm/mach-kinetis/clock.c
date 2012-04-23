@@ -328,7 +328,6 @@ void __init kinetis_clock_init(void)
 	/* MCU-specific parameters */
 	int vco_div;
 	int vdiv_min;
-	int have_lcd;
 	/* Frequency at the MCGOUTCLK output of the MCG */
 	int mcgout;
 
@@ -337,7 +336,6 @@ void __init kinetis_clock_init(void)
 	 */
 	vco_div = 1;
 	vdiv_min = 24;
-	have_lcd = 0;
 
 	/*
 	 * Initialize the MCU-specific parameters
@@ -345,8 +343,10 @@ void __init kinetis_clock_init(void)
 	platform = kinetis_platform_get();
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
+	case PLATFORM_KINETIS_K70_SOM:
 		/*
-		 * The PLL0 in a PK70FN1M0VMJ12 divides its output rate by 2.
+		 * The PLL0 in a PK70FN1M0VMJ12 and PK70FN1M0VMJ15 divides
+		 * its output rate by 2.
 		 * This does not apply to 100 MHz K60 MCUs.
 		 *
 		 * The minimum value for VDIV is also different
@@ -354,15 +354,6 @@ void __init kinetis_clock_init(void)
 		 */
 		vco_div = 2;
 		vdiv_min = 16;
-
-		have_lcd = 1;
-		break;
-	case PLATFORM_KINETIS_K70_SOM:
-		/* Same as for TWR-K70F120M, but without LCD support */
-		vco_div = 2;
-		vdiv_min = 16;
-
-		have_lcd = 0;
 		break;
 	default:
 		/*
@@ -443,16 +434,13 @@ void __init kinetis_clock_init(void)
 	/*
 	 * LCD Controller clock
 	 */
-	clock_val[CLOCK_LCDCLK] = 0;
-	if (have_lcd) {
-		clock_val[CLOCK_LCDCLK] = mcgout /
-			(((KINETIS_SIM->clkdiv3 &
-				KINETIS_SIM_CLKDIV3_LCDCDIV_MSK) >>
-			KINETIS_SIM_CLKDIV3_LCDCDIV_BITS) + 1) *
-			(((KINETIS_SIM->clkdiv3 &
-				KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK) >>
-			KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1);
-	}
+	clock_val[CLOCK_LCDCLK] = mcgout /
+		(((KINETIS_SIM->clkdiv3 &
+			KINETIS_SIM_CLKDIV3_LCDCDIV_MSK) >>
+		KINETIS_SIM_CLKDIV3_LCDCDIV_BITS) + 1) *
+		(((KINETIS_SIM->clkdiv3 &
+			KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK) >>
+		KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1);
 
 	/*
 	 * Initialize the `clk_*` structures

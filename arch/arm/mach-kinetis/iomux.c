@@ -206,7 +206,7 @@ out:
 /*
  * GPIO pin configuration table for TWR-K70F120M + TWR-SER + TWR-LCD-RGB
  */
-static const struct kinetis_gpio_pin_config twr_k70f120m_gpio[] = {
+static const struct kinetis_gpio_pin_config twr_lcd_rgb_iomux[] = {
 #if defined(CONFIG_KINETIS_FB)
 	/* F.0 = GLCD_PCLK */
 	{{KINETIS_GPIO_PORT_F,  0}, KINETIS_GPIO_CONFIG_DSE(7)},
@@ -269,11 +269,82 @@ static const struct kinetis_gpio_pin_config twr_k70f120m_gpio[] = {
 };
 
 /*
- * Initialize the GPIO Alternative Functions of the Freescale Kinetis MCU
+ * LCD pin configuration table for K70-SOM + SOM-BSB + EA-LCD-004
+ */
+static const struct kinetis_gpio_pin_config k70som_ealcd004_iomux[] = {
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+	/* E.18 = GPIO (for I2C_SDA) */
+	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* E.19 = GPIO (for I2C_SCL) */
+	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+
+#if defined(CONFIG_KINETIS_FB)
+	/*
+	 * Control signals
+	 */
+	/* F.0 = GLCD_PCLK */
+	{{KINETIS_GPIO_PORT_F,  0}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.1 = GLCD_DE */
+	{{KINETIS_GPIO_PORT_F,  1}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.2 = GLCD_HFS */
+	{{KINETIS_GPIO_PORT_F,  2}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.3 = GLCD_VFS */
+	{{KINETIS_GPIO_PORT_F,  3}, KINETIS_GPIO_CONFIG_DSE(7)},
+
+	/*
+	 * Blue
+	 */
+	/* F.5 = GLCD_D1 */
+	{{KINETIS_GPIO_PORT_F,  5}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.6 = GLCD_D2 */
+	{{KINETIS_GPIO_PORT_F,  6}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.7 = GLCD_D3 */
+	{{KINETIS_GPIO_PORT_F,  7}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.8 = GLCD_D4 */
+	{{KINETIS_GPIO_PORT_F,  8}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.9 = GLCD_D5 */
+	{{KINETIS_GPIO_PORT_F,  9}, KINETIS_GPIO_CONFIG_DSE(7)},
+
+	/*
+	 * Green
+	 */
+	/* F.10 = GLCD_D6 */
+	{{KINETIS_GPIO_PORT_F, 10}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.11 = GLCD_D7 */
+	{{KINETIS_GPIO_PORT_F, 11}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.12 = GLCD_D8 */
+	{{KINETIS_GPIO_PORT_F, 12}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.13 = GLCD_D9 */
+	{{KINETIS_GPIO_PORT_F, 13}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.14 = GLCD_D10 */
+	{{KINETIS_GPIO_PORT_F, 14}, KINETIS_GPIO_CONFIG_DSE(7)},
+	/* F.15 = GLCD_D11 */
+	{{KINETIS_GPIO_PORT_F, 15}, KINETIS_GPIO_CONFIG_DSE(7)},
+
+	/*
+	 * Red
+	 */
+	/* F.17 = GLCD_D13 */
+	{{KINETIS_GPIO_PORT_F, 17}, KINETIS_GPIO_CONFIG_DSE(5)},
+	/* F.18 = GLCD_D14 */
+	{{KINETIS_GPIO_PORT_F, 18}, KINETIS_GPIO_CONFIG_DSE(5)},
+	/* F.19 = GLCD_D15 */
+	{{KINETIS_GPIO_PORT_F, 19}, KINETIS_GPIO_CONFIG_DSE(5)},
+	/* F.20 = GLCD_D16 */
+	{{KINETIS_GPIO_PORT_F, 20}, KINETIS_GPIO_CONFIG_DSE(5)},
+	/* F.21 = GLCD_D17 */
+	{{KINETIS_GPIO_PORT_F, 21}, KINETIS_GPIO_CONFIG_DSE(7)},
+#endif /* CONFIG_KINETIS_FB */
+};
+
+/*
+ * Initialize the IOMUX Alternative Functions of the Freescale Kinetis MCU
  */
 void __init kinetis_iomux_init(void)
 {
 	int platform;
+	int lcdtype;
 
 	/*
 	 * Configure IOs depending on the board we're running on, and
@@ -283,17 +354,21 @@ void __init kinetis_iomux_init(void)
 	 * the warning message will be printed-out)
 	 */
 	platform = kinetis_platform_get();
-	switch (platform) {
-	case PLATFORM_KINETIS_TWR_K70F120M:
+	lcdtype = kinetis_lcdtype_get();
+	if (lcdtype == LCD_TWR_LCD_RGB) {
 		kinetis_gpio_config_table(
-			twr_k70f120m_gpio, ARRAY_SIZE(twr_k70f120m_gpio));
-		break;
-	case PLATFORM_KINETIS_K70_SOM:
-		/* All pins for this board are already configured by U-Boot */
-		break;
-	default:
-		printk(KERN_WARNING "%s: unsupported platform %d\n", __func__,
-			platform);
-		break;
+			twr_lcd_rgb_iomux, ARRAY_SIZE(twr_lcd_rgb_iomux));
+	} else if (lcdtype == LCD_EA_LCD_004 &&
+		 platform == PLATFORM_KINETIS_K70_SOM) {
+		kinetis_gpio_config_table(
+			k70som_ealcd004_iomux,
+			ARRAY_SIZE(k70som_ealcd004_iomux));
+	} else if (lcdtype == LCD_EA_LCD_004 &&
+		 platform == PLATFORM_KINETIS_TWR_K70F120M) {
+		pr_err("%s: Configuration of TWR-K70F120M with EA-LCD-004 "
+		       "is not supported yet.", __func__);
+	} else {
+		pr_err("%s: unsupported platform (%d) or type of LCD (%d)\n",
+		       __func__, platform, lcdtype);
 	}
 }

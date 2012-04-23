@@ -39,6 +39,7 @@
 #include <mach/eth.h>
 #include <mach/nand.h>
 #include <mach/fb.h>
+#include <mach/i2c-gpio.h>
 
 /*
  * Prototypes
@@ -48,9 +49,10 @@ static void __init kinetis_init_irq(void);
 static void __init kinetis_init(void);
 
 /*
- * Define a particular platform (board)
+ * Define a particular platform (board) and other default parameters
  */
 static int kinetis_platform = PLATFORM_KINETIS_TWR_K70F120M;
+static int kinetis_lcdtype = LCD_TWR_LCD_RGB;
 
 /*
  * Data structure for the timer system.
@@ -87,6 +89,15 @@ int kinetis_device_get(void)
 }
 
 /*
+ * Interface to get the type of LCD screen to the Kinetis-based board
+ */
+EXPORT_SYMBOL(kinetis_lcdtype_get);
+int kinetis_lcdtype_get(void)
+{
+	return kinetis_lcdtype;
+}
+
+/*
  * User can (and should) define the platform from U-Boot
  */
 static int __init kinetis_platform_parse(char *s)
@@ -100,6 +111,21 @@ static int __init kinetis_platform_parse(char *s)
 	return 1;
 }
 __setup("kinetis_platform=", kinetis_platform_parse);
+
+/*
+ * User can define the type of connected LCD from U-Boot
+ */
+static int __init kinetis_lcdtype_parse(char *s)
+{
+	if (!strcmp(s, "twr-lcd-rgb")) {
+		kinetis_lcdtype = LCD_TWR_LCD_RGB;
+	} else if (!strcmp(s, "ea-lcd-004")) {
+		kinetis_lcdtype = LCD_EA_LCD_004;
+	}
+
+	return 1;
+}
+__setup("platform_lcd=", kinetis_lcdtype_parse);
 
 /*
  * Freescale Kinetis platform machine description
@@ -171,6 +197,14 @@ static void __init kinetis_init(void)
 	 */
 	kinetis_nand_init();
 #endif
+
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+	/*
+	 * Configure some of the I2C interfaces to be controlled by
+	 * the `i2c-gpio` GPIO-emulated I2C driver.
+	 */
+	kinetis_i2c_gpio_init();
+#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
 
 #if defined(CONFIG_KINETIS_FB)
 	/*
