@@ -111,25 +111,6 @@ static struct clocksource clocksource_systick = {
 };
 
 /*
- * Calculates a clocksource shift from hz and # of bits a clock uses.
- * Taken from A2F code, and there it had been taken from some kernel
- * patch
- */
-static u32 clocksource_hz2shift(u32 bits, u32 hz)
-{
-	u64	temp;
-
-	for (; bits > 0; bits--) {
-		temp = (u64)NSEC_PER_SEC << bits;
-		do_div(temp, hz);
-		if ((temp >> 32) == 0)
-			break;
-	}
-
-	return bits;
-}
-
-/*
  * Register the SysTick timer as a clocksource
  */
 void cortex_m3_register_systick_clocksource(u32 systick_clk)
@@ -145,10 +126,7 @@ void cortex_m3_register_systick_clocksource(u32 systick_clk)
 	/*
 	 * Finalize clocksource initialization and register it
 	 */
-	clocksource_systick.shift = clocksource_hz2shift(
-		CM3_SYSTICK_LOAD_RELOAD_BITWIDTH, systick_clk);
-	clocksource_systick.mult = clocksource_hz2mult(
-		systick_clk, clocksource_systick.shift);
+	clocksource_calc_mult_shift(&clocksource_systick, systick_clk, 4);
 	clocksource_register(&clocksource_systick);
 }
 #endif /* defined(CONFIG_ARCH_XXX) */
