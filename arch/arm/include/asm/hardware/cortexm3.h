@@ -30,7 +30,7 @@
 extern void cortex_m3_reboot(void);
 
 #if defined(CONFIG_ARCH_KINETIS) || defined(CONFIG_ARCH_STM32) || \
-    defined(CONFIG_ARCH_LPC178X)
+    defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
 /*
  * The SysTick clocksource is not used on other Cortex-M3 targets,
  * they use other timers.

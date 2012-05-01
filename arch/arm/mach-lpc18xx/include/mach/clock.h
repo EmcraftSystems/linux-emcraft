@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -22,15 +22,26 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#ifndef _MACH_LPC18XX_CLOCK_H_
+#define _MACH_LPC18XX_CLOCK_H_
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+/*
+ * Clocks enumeration
+ */
+enum lpc18xx_clock {
+	CLOCK_CCLK,		/* CPU clock frequency expressed in Hz        */
+	CLOCK_SYSTICK,		/* Systimer clock frequency expressed in Hz   */
+	CLOCK_END		/* for internal usage			      */
+};
 
-#include <linux/types.h>
+/*
+ * Initialize the clock section of the LPC18xx/LPC43xx
+ */
+void __init lpc18xx_clock_init(void);
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
+/*
+ * Return a clock value for the specified clock
+ */
+unsigned int lpc18xx_clock_get(enum lpc18xx_clock clk);
 
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif	/*_MACH_LPC18XX_CLOCK_H_ */

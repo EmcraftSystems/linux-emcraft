@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2011
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -22,15 +22,23 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#include <asm/types.h>
+#include <linux/serial_reg.h>
+#include <mach/hardware.h>
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+static inline void putc(char c)
+{
+	/*
+	 * TBD
+	 */
+}
 
-#include <linux/types.h>
+static inline void flush(void)
+{
+}
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
-
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+/*
+ * nothing to do
+ */
+#define arch_decomp_setup()
+#define arch_decomp_wdog()

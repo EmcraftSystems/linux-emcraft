@@ -1,7 +1,6 @@
 /*
- * (C) Copyright 2012
- * Emcraft Systems, <www.emcraft.com>
- * Alexander Potashev <aspotashev@emcraft.com>
+ * (C) Copyright 2009
+ * ARM Ltd.
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -22,15 +21,10 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#ifndef __ASM_MACH_CLKDEV_H
+#define __ASM_MACH_CLKDEV_H
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+#define __clk_get(clk) ({ 1; })
+#define __clk_put(clk) do { } while (0)
 
-#include <linux/types.h>
-
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
-
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif

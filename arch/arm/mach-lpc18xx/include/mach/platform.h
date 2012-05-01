@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -22,15 +22,15 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#ifndef __ASM_ARCH_PLATFORM_H
+#define __ASM_ARCH_PLATFORM_H
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+#define PLATFORM_LPC18XX_HITEX_LPC4350_EVAL	0
 
-#include <linux/types.h>
+int lpc18xx_platform_get(void);
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
+#define DEVICE_LPC4350				0
 
-#endif /* CONFIG_ARCH_XXX */
+int lpc18xx_device_get(void);
 
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif /* __ASM_ARCH_PLATFORM_H */

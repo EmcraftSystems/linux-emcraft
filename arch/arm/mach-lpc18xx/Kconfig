@@ -1,0 +1,35 @@
+if ARCH_LPC18XX
+
+config MACH_LPC18XX
+	bool
+	default y
+	select ARM_NVIC if CPU_V7M
+	help
+	  Include support for the NXP LPC18xx MCUs and successors
+
+menu "LPC18xx I/O interfaces"
+	depends on ARCH_LPC18XX
+
+config LPC18XX_UART0
+	depends on ARCH_LPC18XX && SERIAL_8250
+	bool "Enable LPC18xx USART0 port"
+	default y
+
+config LPC18XX_UART1
+	depends on ARCH_LPC18XX && SERIAL_8250
+	bool "Enable LPC18xx UART1 port"
+	default n
+
+config LPC18XX_UART2
+	depends on ARCH_LPC18XX && SERIAL_8250
+	bool "Enable LPC18xx USART2 port"
+	default n
+
+config LPC18XX_UART3
+	depends on ARCH_LPC18XX && SERIAL_8250
+	bool "Enable LPC18xx USART3 port"
+	default n
+
+endmenu
+
+endif

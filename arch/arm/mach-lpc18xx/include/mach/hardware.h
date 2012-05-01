@@ -1,4 +1,7 @@
 /*
+ * (C) Copyright 2009
+ * ARM Ltd.
+ *
  * (C) Copyright 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
@@ -21,16 +24,16 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
+#ifndef __ASM_ARCH_HARDWARE_H
+#define __ASM_ARCH_HARDWARE_H
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#include <asm/sizes.h>
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+#ifdef CONFIG_MMU
+#error "ARM LPC18xx/43xx platform only support !MMU"
+#endif
 
-#include <linux/types.h>
+#define IO_ADDRESS(x)		(x)
+#define __io_address(n)		__io(IO_ADDRESS(n))
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
-
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif

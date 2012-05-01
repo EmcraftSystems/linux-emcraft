@@ -1,10 +1,7 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
- *
- * See file CREDITS for list of people who contributed to this
- * project.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -22,15 +19,23 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+/*
+ * LPC18xx/43xx processor definitions
+ */
+#ifndef _MACH_LPC18XX_H_
+#define _MACH_LPC18XX_H_
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+#include <asm/byteorder.h>
 
-#include <linux/types.h>
+/*
+ * This LPC18XX port assumes that the CPU works in little-endian mode.
+ * Switching to big-endian will require different bit offsets in peripheral
+ * devices' registers. Also, some bit groups may lay on byte edges, so issue
+ * with big-endian cannot be fixed only by defining bit offsets differently
+ * for the big-endian mode.
+ */
+#ifndef __LITTLE_ENDIAN
+#error This LPC18XX port assumes that the CPU works in little-endian mode
+#endif
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
-
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif /* _MACH_LPC18XX_H_ */

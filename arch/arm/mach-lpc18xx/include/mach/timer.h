@@ -22,15 +22,9 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#ifndef _MACH_LPC18XX_TIMER_H_
+#define _MACH_LPC18XX_TIMER_H_
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+void __init lpc18xx_timer_init(void);
 
-#include <linux/types.h>
-
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
-
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif	/*_MACH_LPC18XX_TIMER_H_ */

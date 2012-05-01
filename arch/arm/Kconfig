@@ -793,6 +793,13 @@ config ARCH_LPC178X
 	help
 	  This enables support for the NXP LPC178x/7x SoCs
 
+config ARCH_LPC18XX
+	bool "NXP LPC18xx/43xx MCU"
+	depends on !MMU
+	select ARM_CORTEXM3
+	help
+	  This enables support for the NXP LPC18xx/43xx MCUs
+
 config ARCH_KINETIS
 	bool "Freescale Kinetis MCU"
 	depends on !MMU
@@ -918,6 +925,8 @@ source "arch/arm/mach-a2f/Kconfig"
 source "arch/arm/mach-stm32/Kconfig"
 
 source "arch/arm/mach-lpc178x/Kconfig"
+
+source "arch/arm/mach-lpc18xx/Kconfig"
 
 source "arch/arm/mach-kinetis/Kconfig"
 

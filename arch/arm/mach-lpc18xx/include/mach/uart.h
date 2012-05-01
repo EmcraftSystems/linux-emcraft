@@ -22,15 +22,19 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#ifndef _MACH_LPC18XX_UART_H_
+#define _MACH_LPC18XX_UART_H_
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+/*
+ * Base addresses of UART registers
+ */
+#define LPC18XX_UART0_BASE	0x40081000
+#define LPC18XX_UART1_BASE	0x40082000
+#define LPC18XX_UART2_BASE	0x400C1000
+#define LPC18XX_UART3_BASE	0x400C2000
 
-#include <linux/types.h>
+#ifndef __ASSEMBLY__
+void __init lpc18xx_uart_init(void);
+#endif /* __ASSEMBLY__ */
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
-
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif /*_MACH_LPC18XX_UART_H_ */

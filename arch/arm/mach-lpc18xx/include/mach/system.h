@@ -22,15 +22,20 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#ifndef __ASM_ARCH_SYSTEM_H
+#define __ASM_ARCH_SYSTEM_H
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+#include <linux/io.h>
+#include <asm/hardware/cortexm3.h>
 
-#include <linux/types.h>
+static inline void arch_idle(void)
+{
+	cpu_do_idle();
+}
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
+static inline void arch_reset(char mode, const char *cmd)
+{
+	cortex_m3_reboot();
+}
 
-#endif /* CONFIG_ARCH_XXX */
-
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#endif

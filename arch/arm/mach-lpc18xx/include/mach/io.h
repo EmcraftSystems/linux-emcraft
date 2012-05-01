@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2011
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
@@ -21,16 +21,42 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  * MA 02111-1307 USA
  */
+#ifndef __ASM_ARM_ARCH_IO_H
+#define __ASM_ARM_ARCH_IO_H
 
-#ifndef _ASM_ARCH_LPC_CLOCKEVENTS_H_
-#define _ASM_ARCH_LPC_CLOCKEVENTS_H_
+#include <linux/mm.h>
 
-#if defined(CONFIG_ARCH_LPC178X) || defined(CONFIG_ARCH_LPC18XX)
+#define IO_SPACE_LIMIT 0xffffffff
 
-#include <linux/types.h>
+static inline void __iomem *__io(unsigned long addr)
+{
+        return (void __iomem *)addr;
+}
 
-extern void lpc_clockevents_tmr_init(u32 timer_regs_base, u32 src_clk, int irq);
+#define __io(a)                 __io(a)
+#define __mem_pci(a)            (a)
 
-#endif /* CONFIG_ARCH_XXX */
+#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 
-#endif /* _ASM_ARCH_LPC_CLOCKEVENTS_H_ */
+#ifndef __ASSEMBLY__
+
+static inline int valid_phys_addr_range(unsigned long addr, size_t size)
+{
+	if (addr + size <= __pa(high_memory))
+		return 1;
+
+	/*
+	 * TBD
+	 */
+
+	return 0;
+}
+
+static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
+{
+	return 1;
+}
+
+#endif
+
+#endif
