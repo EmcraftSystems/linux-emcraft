@@ -269,11 +269,11 @@ static struct clk clk_net;
 		.con_id		= _conname,		\
 	}
 static struct clk_lookup lpc18xx_clkregs[] = {
-	INIT_CLKREG(&clk_net, "lpc-net.0", NULL),
 	INIT_CLKREG(&clk_uart[0], NULL, "lpc18xx-uart.0"),
 	INIT_CLKREG(&clk_uart[1], NULL, "lpc18xx-uart.1"),
 	INIT_CLKREG(&clk_uart[2], NULL, "lpc18xx-uart.2"),
 	INIT_CLKREG(&clk_uart[3], NULL, "lpc18xx-uart.3"),
+	INIT_CLKREG(&clk_net, "eth0", NULL),
 };
 
 /*

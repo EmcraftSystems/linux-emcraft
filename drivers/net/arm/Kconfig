@@ -75,7 +75,7 @@ config W90P910_ETH
 
 config STM32_ETHER
 	tristate "STM32 Ethernet support"
-	depends on ARM && ARCH_STM32
+	depends on ARM && (ARCH_STM32 || ARCH_LPC18XX)
 	select MII
 	help
 	  Say Y here if you want to use the built-in Ethernet port

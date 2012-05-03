@@ -29,6 +29,10 @@
 #include <linux/platform_device.h>
 #include <linux/stm32_eth.h>
 
+#if defined(CONFIG_ARCH_LPC18XX)
+#include <linux/clk.h>
+#endif /* CONFIG_ARCH_LPC18XX */
+
 #include <asm/setup.h>
 
 #include <mach/eth.h>
@@ -254,6 +258,9 @@ struct stm32_eth_priv {
 	struct net_device		*dev;
 	struct napi_struct		napi;
 	struct net_device_stats		stat;
+#if defined(CONFIG_ARCH_LPC18XX)
+	struct clk			*clk;
+#endif /* CONFIG_ARCH_LPC18XX */
 
 	spinlock_t			rx_lock;
 	spinlock_t			tx_lock;
@@ -399,6 +406,80 @@ static void stm32_eth_hw_stop(struct net_device *dev)
 	 */
 	stm->regs->dmaomr &= ~(STM32_MAC_DMAOMR_SR | STM32_MAC_DMAOMR_ST);
 }
+
+#if defined(CONFIG_ARCH_LPC18XX)
+/*
+ * Acquire the Ethernet MAC clock and configure the MDIO clock divider
+ * according to its rate.
+ */
+static int stm32_eth_get_mdio_clock(struct net_device *dev)
+{
+	struct stm32_eth_priv *stm = netdev_priv(dev);
+	int rv;
+	unsigned long rate;
+	int div_sel;
+
+	/*
+	 * Get MAC clock rate
+	 */
+	stm->clk = clk_get(&dev->dev, NULL);
+	if (IS_ERR(stm->clk)) {
+		pr_err("%s: Error getting clock\n", __func__);
+		stm->clk = NULL;
+		rv = -ENODEV;
+		goto out;
+	}
+	clk_enable(stm->clk);
+	rate = clk_get_rate(stm->clk);
+
+	/*
+	 * Select MDIO clock divider
+	 */
+	if (rate <= 35000000)
+		div_sel = 2;	/* /16 */
+	else if (rate <= 60000000)
+		div_sel = 3;	/* /26 */
+	else if (rate <= 100000000)
+		div_sel = 0;	/* /42 */
+	else if (rate <= 150000000)
+		div_sel = 1;	/* /62 */
+	else if (rate <= 250000000)
+		div_sel = 4;	/* /102 */
+	else if (rate <= 300000000)
+		div_sel = 5;	/* /124 */
+	else {
+		pr_err("%s: Ethernet MAC clock rate is too high\n", __func__);
+		rv = -ERANGE;
+		goto err_rate;
+	}
+
+	stm->regs->macmiiar = div_sel << STM32_MAC_MIIAR_CR_BIT;
+
+	rv = 0;
+	goto out;
+
+err_rate:
+	clk_disable(stm->clk);
+	clk_put(stm->clk);
+out:
+	return rv;
+}
+
+/*
+ * Release the Ethernet MAC clock
+ */
+static void stm32_eth_put_mdio_clock(struct net_device *dev)
+{
+	struct stm32_eth_priv *stm = netdev_priv(dev);
+
+	if (stm->clk) {
+		clk_disable(stm->clk);
+		clk_put(stm->clk);
+
+		stm->clk = NULL;
+	}
+}
+#endif /* CONFIG_ARCH_LPC18XX */
 
 /*
  * Allocate buffer and descriptors necessary for net device
@@ -764,6 +845,14 @@ static int stm32_netdev_open(struct net_device *dev)
 	struct stm32_eth_priv	*stm = netdev_priv(dev);
 	int			rv;
 
+#if defined(CONFIG_ARCH_LPC18XX)
+	rv = stm32_eth_get_mdio_clock(dev);
+	if (rv < 0) {
+		dev_err(&dev->dev, "Failed to configure MDIO clock divider\n");
+		goto out;
+	}
+#endif /* CONFIG_ARCH_LPC18XX */
+
 	/*
 	 * Start aneg on PHY
 	 */
@@ -778,7 +867,7 @@ static int stm32_netdev_open(struct net_device *dev)
 
 	rv = stm32_eth_buffers_alloc(dev);
 	if (rv) {
-		goto out;
+		goto init_err;
 	}
 
 	napi_enable(&stm->napi);
@@ -787,7 +876,7 @@ static int stm32_netdev_open(struct net_device *dev)
 	if (rv) {
 		napi_disable(&stm->napi);
 		stm32_eth_buffers_free(dev);
-		goto out;
+		goto init_err;
 	}
 
 	spin_lock_init(&stm->rx_lock);
@@ -805,7 +894,7 @@ static int stm32_netdev_open(struct net_device *dev)
 		napi_disable(&stm->napi);
 		stm32_eth_hw_stop(dev);
 		stm32_eth_buffers_free(dev);
-		goto out;
+		goto init_err;
 	}
 
 	/*
@@ -818,10 +907,14 @@ static int stm32_netdev_open(struct net_device *dev)
 
 	rv = 0;
 
-out:
+init_err:
 	if (rv)
 		phy_stop(stm->phy_dev);
 
+#if defined(CONFIG_ARCH_LPC18XX)
+	stm32_eth_put_mdio_clock(dev);
+out:
+#endif /* CONFIG_ARCH_LPC18XX */
 	return rv;
 }
 
@@ -841,6 +934,10 @@ static int stm32_netdev_close(struct net_device *dev)
 
 	stm32_eth_hw_stop(dev);
 	stm32_eth_buffers_free(dev);
+
+#if defined(CONFIG_ARCH_LPC18XX)
+	stm32_eth_put_mdio_clock(dev);
+#endif /* CONFIG_ARCH_LPC18XX */
 
 	return 0;
 }
@@ -1304,7 +1401,7 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 	}
 	stm->irq = rs->start;
 
-	printk(STM32_INFO ": found STM32 MAC at 0x%x, irq %d\n", (s32)stm->regs, stm->irq);
+	printk(STM32_INFO ": found MAC at 0x%x, irq %d\n", (s32)stm->regs, stm->irq);
 
 	/*
 	 * Setup driver parameters passed by user

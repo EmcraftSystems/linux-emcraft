@@ -36,6 +36,7 @@
 #include <mach/platform.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/eth.h>
 
 /*
  * Prototypes
@@ -150,5 +151,12 @@ static void __init lpc18xx_init(void)
 	 * Configure the UART devices
 	 */
 	lpc18xx_uart_init();
+#endif
+
+#if defined(CONFIG_LPC18XX_MAC)
+	/*
+	 * Configure the LPC18xx MAC
+	 */
+	lpc18xx_eth_init();
 #endif
 }

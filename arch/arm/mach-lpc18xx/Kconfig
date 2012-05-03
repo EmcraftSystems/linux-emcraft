@@ -30,6 +30,11 @@ config LPC18XX_UART3
 	bool "Enable LPC18xx USART3 port"
 	default n
 
+config LPC18XX_MAC
+	depends on ARCH_LPC18XX && STM32_ETHER
+	bool "Enable LPC18xx Ethernet port"
+	default y
+
 endmenu
 
 endif
