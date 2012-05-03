@@ -37,6 +37,7 @@
 #include <mach/timer.h>
 #include <mach/uart.h>
 #include <mach/eth.h>
+#include <mach/nor-flash.h>
 
 /*
  * Prototypes
@@ -158,5 +159,12 @@ static void __init lpc18xx_init(void)
 	 * Configure the LPC18xx MAC
 	 */
 	lpc18xx_eth_init();
+#endif
+
+#if defined(CONFIG_MTD_PHYSMAP)
+	/*
+	 * Configure external NOR flash
+	 */
+	lpc18xx_nor_flash_init();
 #endif
 }
