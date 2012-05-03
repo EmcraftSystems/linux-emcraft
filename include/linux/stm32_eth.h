@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -22,16 +23,23 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _MACH_STM32_ETH_H_
-#define _MACH_STM32_ETH_H_
-
-#include <mach/stm32.h>
+#ifndef _STM32_ETH_H_
+#define _STM32_ETH_H_
 
 /*
- * STM32 MAC register base
+ * STM32 platform Ethernet driver name
  */
-#define STM32_MAC_BASE			(STM32_AHB1PERITH_BASE + 0x8000)
+#define STM32_ETH_DRV_NAME		"blackfin-eth"
 
-void __init stm32_eth_init(void);
+/*
+ * Ethernet platform data
+ */
+struct stm32_eth_data {
+	unsigned int	frame_max_size;	/* Max eth frame size (up to 0x3FFC)  */
+	unsigned int	rx_buf_num;	/* Max frames num simulateously rxed  */
+	unsigned int	tx_buf_num;	/* Max frames num simulateously txed  */
+	unsigned char	mac_addr[6];	/* MAC address to use by default      */
+	unsigned char	phy_id;		/* PHY address (identifier)	      */
+};
 
-#endif /* _MACH_STM32_ETH_H_ */
+#endif /* _STM32_ETH_H_ */

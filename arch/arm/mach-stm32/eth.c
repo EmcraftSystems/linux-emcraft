@@ -23,6 +23,7 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/stm32_eth.h>
 
 #include <mach/eth.h>
 #include <mach/platform.h>

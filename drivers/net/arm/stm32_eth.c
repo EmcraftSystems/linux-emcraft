@@ -27,6 +27,7 @@
 #include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
+#include <linux/stm32_eth.h>
 
 #include <asm/setup.h>
 
@@ -1168,7 +1169,7 @@ static int stm32_mii_init(struct stm32_eth_priv	*stm)
 
 	/* MII mode is already selected in SYSCFG->pmc */
 
-	stm->mii_bus->name = "stm32_mii_bus";
+	stm->mii_bus->name = "blackfin_mii_bus";
 	stm->mii_bus->read = &stm32_mdio_read;
 	stm->mii_bus->write = &stm32_mdio_write;
 
