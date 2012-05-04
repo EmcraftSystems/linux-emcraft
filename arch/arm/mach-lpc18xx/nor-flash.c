@@ -65,24 +65,17 @@ static struct resource flash_resources[] = {
  *
  * Based on these assumptions, we define the following Flash partitions:
  *
- * 0-1ffff:		U-boot image
- * 20000-3ffff:		U-boot environment
+ * 0-3ffff:		U-boot image and environment
  * 40000-2fffff:	Linux bootable image
  * 300000-end of Flash:	JFFS2 filesystem
  */
-#define FLASH_ENV_OFFSET	0x20000
 #define FLASH_IMAGE_OFFSET	0x40000
 #define FLASH_JFFS2_OFFSET	(3*1024*1024)
 static struct mtd_partition flash_partitions[] = {
 	{
-		.name	= "flash_uboot_image",
+		.name	= "flash_uboot",
 		.offset = 0,
-		.size	= FLASH_ENV_OFFSET,
-	},
-	{
-		.name	= "flash_uboot_env",
-		.offset = FLASH_ENV_OFFSET,
-		.size	= (FLASH_IMAGE_OFFSET - FLASH_ENV_OFFSET),
+		.size	= FLASH_IMAGE_OFFSET,
 	},
 	{
 		.name	= "flash_linux_image",
@@ -134,7 +127,7 @@ void __init lpc18xx_nor_flash_init(void)
 	}
 
 	flash_resources[0].end = flash_resources[0].start + size - 1;
-	flash_partitions[3].size = size - FLASH_JFFS2_OFFSET;
+	flash_partitions[2].size = size - FLASH_JFFS2_OFFSET;
 
 	/*
 	 * Register a platform device for the external NOR flash
