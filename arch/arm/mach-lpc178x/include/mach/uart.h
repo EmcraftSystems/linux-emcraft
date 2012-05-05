@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011, 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Sergei Poselenov <sposelenov@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -25,8 +26,16 @@
 #ifndef _MACH_LPC178X_UART_H_
 #define _MACH_LPC178X_UART_H_
 
-#ifndef __ASSEMBLY__
+/*
+ * Base addresses of UART registers
+ */
+#define LPC178X_UART0_BASE	0x4000C000
+#define LPC178X_UART1_BASE	0x40010000
+#define LPC178X_UART2_BASE	0x40098000
+#define LPC178X_UART3_BASE	0x4009C000
+#define LPC178X_UART4_BASE	0x400A4000
 
+#ifndef __ASSEMBLY__
 void __init lpc178x_uart_init(void);
 
 #endif /* __ASSEMBLY__ */

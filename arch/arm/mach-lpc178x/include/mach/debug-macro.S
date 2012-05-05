@@ -5,9 +5,10 @@
  * (C) Copyright 2009
  * ARM Ltd.
  *
- * (C) Copyright 2011
+ * (C) Copyright 2011-2012
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
+ * Sergei Poselenov <sposelenov@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -31,7 +32,7 @@
 #include <mach/uart.h>
 
 	.macro		addruart,rx
-	mov		\rx, 0 ;/* FIXME */
+	ldr		\rx, =LPC178X_UART0_BASE
 	.endm
 
 #define UART_SHIFT      2
