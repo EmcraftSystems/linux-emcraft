@@ -34,6 +34,7 @@
 #include <linux/tty.h>
 
 #include <mach/uart.h>
+#include <mach/clock.h>
 
 /*
  * Driver settings
@@ -104,6 +105,15 @@
 				 STM32_USART_SR_PE)
 #define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_ORE | STM32_USART_SR_PE |      \
 				 STM32_USART_SR_FE)
+
+/*
+ * BRR reg fields
+ */
+#define STM32_USART_BRR_F_BIT	0		/* fraction of USARTDIV */
+#define STM32_USART_BRR_F_MSK	0x0F
+
+#define STM32_USART_BRR_M_BIT	4		/* mantissa of USARTDIV */
+#define STM32_USART_BRR_M_MSK	0xFFF
 
 /*
  * DMA CR bits
@@ -270,8 +280,8 @@ struct stm32_usart_priv {
 #define stm32_drv_regs(port, name)  (struct stm32_##name##_regs *)	       \
 				    ((stm32_drv_priv(port))->reg_##name##_base)
 
-#define stm32_usart(port)	stm32_drv_regs(port, usart)
-#define stm32_dma(port)		stm32_drv_regs(port, dma)
+#define stm32_usart(port)	(stm32_drv_regs(port, usart))
+#define stm32_dma(port)		(stm32_drv_regs(port, dma))
 
 /*
  * Prototypes
@@ -420,6 +430,28 @@ static void stm_port_stop_rx(struct uart_port *port)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
+static void stm_set_baud_rate(struct uart_port *port, int baudrate)
+{
+	u32 apb_clock, int_div, frac_div;
+	u16 tmp;
+
+	if (port->line == 0 || port->line == 5)
+		apb_clock = stm32_clock_get(CLOCK_PCLK2);
+	else
+		apb_clock = stm32_clock_get(CLOCK_PCLK1);
+
+	/*
+	 * Assume oversampling mode of 16 Samples
+	 */
+	int_div = (25 * apb_clock) / (4 * baudrate);
+
+	tmp = (int_div / 100) << STM32_USART_BRR_M_BIT;
+	frac_div = int_div - (100 * (tmp >> 4));
+	tmp |= (((frac_div * 16) + 50) / 100) & STM32_USART_BRR_F_MSK;
+
+	stm32_usart(port)->brr = tmp;
+}
+
 /*
  * Open the port
  */
@@ -496,10 +528,15 @@ static int stm_port_startup(struct uart_port *port)
 	uart->sr = 0;
 
 	/*
-	 * Enable tx, rx, and UART itself
+	 * Enable Tx and Rx
 	 */
-	uart->cr1  = STM32_USART_CR1_TE | STM32_USART_CR1_RE |
-		     STM32_USART_CR1_UE;
+	uart->cr1 = STM32_USART_CR1_TE | STM32_USART_CR1_RE;
+
+	/*
+	 * CR2:
+	 * - 1 Stop bit
+	 */
+	uart->cr2 = 0;
 
 	/*
 	 * Read SR & DR to clear IDLE
@@ -510,12 +547,26 @@ static int stm_port_startup(struct uart_port *port)
 	/*
 	 * Enable DMA access to USART
 	 */
-	uart->cr3 |= STM32_USART_CR3_DMAR;
+	uart->cr3 = STM32_USART_CR3_DMAR;
 
 	/*
 	 * Enable RX-idle & TX-empty interrupts
 	 */
 	uart->cr1 |= STM32_USART_CR1_IDLIE | STM32_USART_CR1_TXEIE;
+
+	/*
+	 * Set baudrate to the default value of 115200 if the baudrate
+	 * was not set yet.
+	 */
+	if ((stm32_usart(port)->brr &
+	     ((STM32_USART_BRR_F_MSK << STM32_USART_BRR_F_BIT) |
+	      (STM32_USART_BRR_M_MSK << STM32_USART_BRR_M_BIT))) == 0)
+		stm_set_baud_rate(port, 115200);
+
+	/*
+	 * Enable USART
+	 */
+	uart->cr1 |= STM32_USART_CR1_UE;
 
 	rv = 0;
 out:
