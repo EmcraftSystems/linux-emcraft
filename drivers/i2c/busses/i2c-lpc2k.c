@@ -3,6 +3,10 @@
  *
  * Code portions referenced from the i2x-pxa and i2c-pnx drivers
  *
+ * Make SMBus byte and word transactions work on LPC178x/7x
+ * Copyright (c) 2012
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -151,7 +155,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 
 		i2c_writel((unsigned long) data,
 			i2c->reg_base + LPC24XX_I2DAT);
-		i2c_writel(LPC24XX_SI | LPC24XX_STA,
+		i2c_writel(LPC24XX_STA,
 			i2c->reg_base + LPC24XX_I2CONCLR);
 
 		dev_dbg(&i2c->adap.dev, "Start sent, sending address "
@@ -176,6 +180,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 				i2c->reg_base + LPC24XX_I2CONSET);
 			i2c->msg_status = 0;
 			dev_dbg(&i2c->adap.dev, "ACK ok, sending stop\n");
+			disable_irq_nosync(i2c->irq);
 		} else {
 			i2c->msg_status = 0;
 			dev_dbg(&i2c->adap.dev, "ACK ok, idling until "
@@ -183,9 +188,24 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 			disable_irq_nosync(i2c->irq);
 		}
 
-		i2c_writel(LPC24XX_SI,
-			i2c->reg_base + LPC24XX_I2CONCLR);
 		i2c->msg_idx++;
+		break;
+
+	case mr_addr_r_ack:
+		/*
+		 * Receive first byte from slave
+		 */
+		if (i2c->msg->len == 1) {
+			/* Last byte, return NACK */
+			i2c_writel(LPC24XX_AA,
+				i2c->reg_base + LPC24XX_I2CONCLR);
+		} else {
+			/* Not last byte, return ACK */
+			i2c_writel(LPC24XX_AA,
+				i2c->reg_base + LPC24XX_I2CONSET);
+		}
+
+		i2c_writel(LPC24XX_STA, i2c->reg_base + LPC24XX_I2CONCLR);
 		break;
 
 	case mr_data_r_nack:
@@ -194,31 +214,52 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		 * the NACK as an ACK here. This should be ok, as the real
 		 * BACK would of been caught on the address write.
 		 */
-	case mr_addr_r_ack:
 	case mr_data_r_ack:
 		/*
-		 * Address was sent out or data was received with an ACK. If
-		 * there is more data to receive, get it now
+		 * Data was received
 		 */
 		if (i2c->msg_idx < i2c->msg->len) {
 			i2c->msg->buf[i2c->msg_idx] =
 				i2c_readl(i2c->reg_base + LPC24XX_I2DAT);
 			dev_dbg(&i2c->adap.dev, "ACK ok, received "
 				"(0x%02x)\n", i2c->msg->buf[i2c->msg_idx]);
-		} else if (i2c->is_last) {
-			/* Transfer is done */
+		}
+
+		/*
+		 * If transfer is done, send STOP
+		 */
+		if (i2c->msg_idx >= i2c->msg->len - 1 && i2c->is_last) {
 			i2c_writel(LPC24XX_STO,
 				i2c->reg_base + LPC24XX_I2CONSET);
 			i2c->msg_status = 0;
 			dev_dbg(&i2c->adap.dev, "ACK ok, sending stop\n");
-		} else {
+		}
+
+		/*
+		 * Message is done
+		 */
+		if (i2c->msg_idx >= i2c->msg->len - 1) {
 			i2c->msg_status = 0;
 			dev_dbg(&i2c->adap.dev, "ACK ok, idling until "
 				"next message start\n");
 			disable_irq_nosync(i2c->irq);
 		}
 
-		i2c_writel(LPC24XX_SI,
+		/*
+		 * One pre-last data input, send NACK to tell the slave that
+		 * this is going to be the last data byte to be transferred.
+		 */
+		if (i2c->msg_idx >= i2c->msg->len - 2) {
+			/* One byte left to receive - NACK */
+			i2c_writel(LPC24XX_AA,
+				i2c->reg_base + LPC24XX_I2CONCLR);
+		} else {
+			/* More than one byte left to receive - ACK */
+			i2c_writel(LPC24XX_AA,
+				i2c->reg_base + LPC24XX_I2CONSET);
+		}
+
+		i2c_writel(LPC24XX_STA,
 			i2c->reg_base + LPC24XX_I2CONCLR);
 		i2c->msg_idx++;
 		break;
@@ -231,24 +272,45 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		 */
 		i2c_writel(LPC24XX_STO | LPC24XX_AA,
 			i2c->reg_base + LPC24XX_I2CONSET);
-		i2c_writel(LPC24XX_SI, i2c->reg_base + LPC24XX_I2CONCLR);
 		i2c->msg_status = -ENODEV;
 		dev_dbg(&i2c->adap.dev, "Device NACKed, error\n");
+		disable_irq_nosync(i2c->irq);
+		break;
+
+	case m_data_arb_lost:
+		/*
+		 * Arbitration lost
+		 */
+		i2c->msg_status = -EIO;
+		dev_dbg(&i2c->adap.dev, "Arbitration lost, error\n");
+
+		/*
+		 * Release the I2C bus
+		 */
+		i2c_writel(LPC24XX_STA | LPC24XX_STO,
+			i2c->reg_base + LPC24XX_I2CONCLR);
+		disable_irq_nosync(i2c->irq);
 		break;
 
 	default:
 		/* Unexpected statuses */
-		i2c_writel(LPC24XX_SI,
-			i2c->reg_base + LPC24XX_I2CONCLR);
 		i2c->msg_status = -EIO;
 		dev_err(&i2c->adap.dev, "Unexpected status, error (%x)\n",
 			(unsigned int) status);
+		disable_irq_nosync(i2c->irq);
 		break;
 	}
 
 	/* Exit on failure or all bytes transferred */
 	if (i2c->msg_status != -EBUSY)
 		wake_up(&i2c->wait);
+
+	/*
+	 * If `msg_status` is zero, then `lpc2k_process_msg()` is responsible
+	 * for clearing the SI flag.
+	 */
+	if (i2c->msg_status != 0)
+		i2c_writel(LPC24XX_SI, i2c->reg_base + LPC24XX_I2CONCLR);
 }
 
 static int lpc2k_process_msg(struct lpc2k_i2c *i2c, int msgidx)
@@ -291,8 +353,9 @@ static int lpc2k_process_msg(struct lpc2k_i2c *i2c, int msgidx)
 
 		i2c_writel(LPC24XX_SI,
 			i2c->reg_base + LPC24XX_I2CONCLR);
-		enable_irq(i2c->irq);
 	}
+
+	enable_irq(i2c->irq);
 
 	/* Wait for transfer completion */
 	if (wait_event_timeout(i2c->wait, i2c->msg_status != -EBUSY,
@@ -350,9 +413,14 @@ static int i2c_lpc2k_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 static irqreturn_t i2c_lpc2k_handler(int this_irq, void *dev_id)
 {
-	i2c_lpc2k_pump_msg((struct lpc2k_i2c *) dev_id);
+	struct lpc2k_i2c *i2c = (struct lpc2k_i2c *) dev_id;
 
-	return IRQ_HANDLED;
+	if (i2c_readl(i2c->reg_base + LPC24XX_I2CONSET) & LPC24XX_SI) {
+		i2c_lpc2k_pump_msg(i2c);
+		return IRQ_HANDLED;
+	} else {
+		return IRQ_NONE;
+	}
 }
 
 static u32 i2c_lpc2k_functionality(struct i2c_adapter *adap)
@@ -429,6 +497,8 @@ static int i2c_lpc2k_probe(struct platform_device *dev)
 		i2c->adap.name, i2c);
 	if (ret)
 		goto ereqirq;
+
+	disable_irq_nosync(irq);
 
 	i2c_lpc2k_reset(i2c);
 
