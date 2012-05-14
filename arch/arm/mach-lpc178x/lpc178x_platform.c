@@ -41,8 +41,12 @@
 #include <mach/dma.h>
 #include <mach/sdcard.h>
 #include <mach/i2c.h>
-#include <mach/i2c-gpio.h>
 #include <mach/fb.h>
+
+#if defined(CONFIG_GPIOLIB)
+#include <mach/i2c-gpio.h>
+#include <mach/gpio.h>
+#endif /* CONFIG_GPIOLIB */
 
 /*
  * Prototypes
@@ -201,6 +205,13 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_i2c_init();
 #endif /* defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE) */
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Register LPC178x GPIO lines
+	 */
+	lpc178x_gpio_init();
+#endif /* CONFIG_GPIOLIB */
 
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	/*

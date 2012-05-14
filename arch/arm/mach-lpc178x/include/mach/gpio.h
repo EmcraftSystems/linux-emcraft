@@ -25,6 +25,8 @@
 #ifndef _MACH_LPC178X_GPIO_H_
 #define _MACH_LPC178X_GPIO_H_
 
+#include <linux/errno.h>
+
 #include <mach/lpc178x.h>
 
 /*
@@ -53,105 +55,27 @@
 	(number / LPC178X_GPIO_NORMAL_PORT_PINS)
 
 /*
- * GPIO register map
- * Should be mapped at (0x20098000 + port * 0x20).
+ * GPIO index map
  */
-struct lpc178x_gpio_regs {
-	u32 fiodir;	/* Fast GPIO Port Direction control register */
-	u32 rsv0[3];
-	u32 fiomask;	/* Fast Mask register for port */
-	u32 fiopin;	/* Fast Port Pin value register using FIOMASK */
-	u32 fioset;	/* Fast Port Output Set register using FIOMASK */
-	u32 fioclr;	/* Fast Port Output Clear register using FIOMASK */
-};
+/* LPC178x GPIOs */
+#define LPC178X_GPIO_OFF_MCU	0
+#define LPC178X_GPIO_LEN_MCU \
+	LPC178X_GPIO_MKPIN(LPC178X_GPIO_PORTS - 1, LPC178X_GPIO_LAST_PORT_PINS)
+/* GPIOs on the PCA9532 chip on Embedded Artists OEM Base Board */
+#define LPC178X_GPIO_OFF_EA_LPC1788_PCA9532	LPC178X_GPIO_LEN_MCU
+#define LPC178X_GPIO_LEN_EA_LPC1788_PCA9532	16
 
-/*
- * GPIO registers base
- */
-#define LPC178X_GPIO_BASE		(LPC178X_AHB_PERIPH_BASE + 0x00018000)
-#define LPC178X_GPIO_PORT_ADDR(port)	(LPC178X_GPIO_BASE + (port) * 0x20)
-#define LPC178X_GPIO(port) \
-	((volatile struct lpc178x_gpio_regs *)LPC178X_GPIO_PORT_ADDR(port))
+#define ARCH_NR_GPIOS \
+	(LPC178X_GPIO_OFF_EA_LPC1788_PCA9532 + \
+	LPC178X_GPIO_LEN_EA_LPC1788_PCA9532)
 
-/*
- * Get the current state of a GPIO input pin
- */
-static inline int gpio_get_value(unsigned gpio)
-{
-	return (LPC178X_GPIO(LPC178X_GPIO_GETPORT(gpio))->fiopin >>
-		LPC178X_GPIO_GETPIN(gpio)) & 1;
-}
+#define gpio_get_value	__gpio_get_value
+#define gpio_set_value	__gpio_set_value
+#define gpio_to_irq	__gpio_to_irq
+#define gpio_cansleep	__gpio_cansleep
 
-/*
- * Change the direction of a GPIO pin to input
- */
-static inline int gpio_direction_input(unsigned gpio)
-{
-	LPC178X_GPIO(LPC178X_GPIO_GETPORT(gpio))->fiodir &=
-		~(1 << LPC178X_GPIO_GETPIN(gpio));
+#include <asm-generic/gpio.h>
 
-	return 0;
-}
-
-/*
- * Set the state of a GPIO output pin
- */
-static inline void gpio_set_value(unsigned gpio, int value)
-{
-	if (value) {
-		LPC178X_GPIO(LPC178X_GPIO_GETPORT(gpio))->fioset =
-			(1 << LPC178X_GPIO_GETPIN(gpio));
-	} else {
-		LPC178X_GPIO(LPC178X_GPIO_GETPORT(gpio))->fioclr =
-			(1 << LPC178X_GPIO_GETPIN(gpio));
-	}
-}
-
-/*
- * Change the direction of a GPIO pin to output and
- * set the level on this pin.
- */
-static inline int gpio_direction_output(unsigned gpio, int level)
-{
-	LPC178X_GPIO(LPC178X_GPIO_GETPORT(gpio))->fiodir |=
-		(1 << LPC178X_GPIO_GETPIN(gpio));
-
-	gpio_set_value(gpio, level);
-
-	return 0;
-}
-
-/*
- * We do not support GPIO configuration for now
- */
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-	return 0;
-}
-
-/*
- * We do not support GPIO configuration for now
- */
-static inline void gpio_free(unsigned gpio)
-{
-	might_sleep();
-}
-
-/*
- * Verify that the pin number identifies an existing pin
- */
-static inline int gpio_is_valid(int number)
-{
-	return number >= 0 && number <= LPC178X_GPIO_MKPIN(
-		LPC178X_GPIO_PORTS - 1, LPC178X_GPIO_LAST_PORT_PINS - 1);
-}
-
-/*
- * We do not support GPIO interrupts
- */
-static inline int gpio_to_irq(int gpio)
-{
-	return -EINVAL;
-}
+void __init lpc178x_gpio_init(void);
 
 #endif /* _MACH_LPC178X_GPIO_H_ */
