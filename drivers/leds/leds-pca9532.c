@@ -394,6 +394,15 @@ static int pca9532_configure(struct i2c_client *client,
 			dev_info(&client->dev, "gpios %i...%i\n",
 				data->gpio.base, data->gpio.base +
 				data->gpio.ngpio - 1);
+
+			if (pdata->setup_gpio) {
+				err = pdata->setup_gpio(
+					data->gpio.base, data->gpio.ngpio);
+				if (err < 0) {
+					dev_warn(&client->dev,
+						"setup failed, %d\n", err);
+				}
+			}
 		}
 	}
 #endif

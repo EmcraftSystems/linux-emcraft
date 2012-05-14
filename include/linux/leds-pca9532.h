@@ -42,6 +42,14 @@ struct pca9532_platform_data {
 	u8 pwm[2];
 	u8 psc[2];
 	int gpio_base;
+
+	/*
+	 * This callback runs after device is probed, only for devices
+	 * with at least one GPIO line declared.
+	 *
+	 * Similar to the `setup` callback from `include/linux/i2c/pca953x.h`.
+	 */
+	int (*setup_gpio)(unsigned gpio, unsigned ngpio);
 };
 
 #endif /* __LINUX_PCA9532_H */
