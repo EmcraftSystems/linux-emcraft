@@ -46,6 +46,7 @@
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
 #include <mach/gpio.h>
+#include <mach/ea-lpc1788-pca9532.h>
 #endif /* CONFIG_GPIOLIB */
 
 /*
@@ -227,4 +228,9 @@ static void __init lpc178x_init(void)
 	 */
 	lpc178x_fb_init();
 #endif /* defined(CONFIG_FB_ARMCLCD) */
+
+#if defined(CONFIG_LEDS_PCA9532) && defined(CONFIG_LEDS_PCA9532_GPIO)
+	if (lpc178x_platform_get() == PLATFORM_LPC178X_EA_LPC1788)
+		ea_lpc1788_pca9532_init();
+#endif /* CONFIG_LEDS_PCA9532 && CONFIG_LEDS_PCA9532_GPIO */
 }
