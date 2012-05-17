@@ -431,6 +431,15 @@ static int stm_port_startup(struct uart_port *port)
 	u32					tmp;
 	int					rv;
 
+	/*
+	 * Reinitialize offsets in DMA buffers, otherwise wrong data will be
+	 * received after second `open()` system call operation.
+	 */
+	priv->wbuf = 0;
+	priv->wpos = 0;
+	priv->rbuf = 0;
+	priv->rpos = 0;
+
 	rv = request_irq(priv->usart_irq, stm32_usart_isr,
 			 IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 			 STM32_USART_PORT, port);
