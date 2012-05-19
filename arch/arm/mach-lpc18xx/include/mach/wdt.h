@@ -22,25 +22,11 @@
  * MA 02111-1307 USA
  */
 
-#ifndef __ASM_ARCH_SYSTEM_H
-#define __ASM_ARCH_SYSTEM_H
+#ifndef _MACH_LPC18XX_WDT_H_
+#define _MACH_LPC18XX_WDT_H_
 
-#include <linux/io.h>
+#include <linux/init.h>
 
-#include <mach/wdt.h>
+void lpc18xx_wdt_reset(void);
 
-static inline void arch_idle(void)
-{
-	cpu_do_idle();
-}
-
-static inline void arch_reset(char mode, const char *cmd)
-{
-	/*
-	 * The Cortex-M3 reset method does not work for some reason,
-	 * this is why we use the Watchdog reset.
-	 */
-	lpc18xx_wdt_reset();
-}
-
-#endif
+#endif /* _MACH_LPC18XX_WDT_H_ */
