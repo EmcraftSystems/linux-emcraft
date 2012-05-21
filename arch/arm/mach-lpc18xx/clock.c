@@ -349,6 +349,7 @@ void __init lpc18xx_clock_init(void)
 	platform = lpc18xx_platform_get();
 	switch (platform) {
 	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
+	case PLATFORM_LPC18XX_HITEX_LPC1850_EVAL:
 		extosc = 12000000;	/* 12 MHz */
 		break;
 	default:

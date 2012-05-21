@@ -26,10 +26,12 @@
 #define __ASM_ARCH_PLATFORM_H
 
 #define PLATFORM_LPC18XX_HITEX_LPC4350_EVAL	0
+#define PLATFORM_LPC18XX_HITEX_LPC1850_EVAL	1
 
 int lpc18xx_platform_get(void);
 
 #define DEVICE_LPC4350				0
+#define DEVICE_LPC1850				1
 
 int lpc18xx_device_get(void);
 

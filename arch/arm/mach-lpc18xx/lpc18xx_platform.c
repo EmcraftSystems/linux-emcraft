@@ -78,6 +78,10 @@ int lpc18xx_device_get(void)
 	switch (lpc18xx_platform) {
 	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
 		r = DEVICE_LPC4350;
+		break;
+	case PLATFORM_LPC18XX_HITEX_LPC1850_EVAL:
+		r = DEVICE_LPC1850;
+		break;
 	default:
 		r = DEVICE_LPC4350;
 		break;
@@ -92,6 +96,8 @@ static int __init lpc18xx_platform_parse(char *s)
 {
 	if (!strcmp(s, "hitex-lpc4350"))
 		lpc18xx_platform = PLATFORM_LPC18XX_HITEX_LPC4350_EVAL;
+	else if (!strcmp(s, "hitex-lpc1850"))
+		lpc18xx_platform = PLATFORM_LPC18XX_HITEX_LPC1850_EVAL;
 
 	return 1;
 }

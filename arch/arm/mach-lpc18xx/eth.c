@@ -353,6 +353,7 @@ void __init lpc18xx_eth_init(void)
 	platform = lpc18xx_platform_get();
 	switch (platform) {
 	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
+	case PLATFORM_LPC18XX_HITEX_LPC1850_EVAL:
 		eth_device.dev.platform_data = &hitex_lpc4350_eth_data;
 		break;
 	default:

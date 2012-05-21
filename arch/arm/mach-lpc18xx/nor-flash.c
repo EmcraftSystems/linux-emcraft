@@ -118,6 +118,7 @@ void __init lpc18xx_nor_flash_init(void)
 	 */
 	switch (lpc18xx_platform_get()) {
 	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
+	case PLATFORM_LPC18XX_HITEX_LPC1850_EVAL:
 		size = 4*1024*1024;
 		break;
 	default:
