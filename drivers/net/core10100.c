@@ -32,10 +32,20 @@
 
 #include <asm/io.h>
 #include <asm/setup.h>
-/* Use A2F internal RAM for descriptors and buffers.
- * Undef for external RAM.
-*/
-#define USE_INTRAM		0x20008000
+
+#if defined(CONFIG_CORE10100_BUF_IN_ESRAM)
+/* 
+ * Use the SmartFusion embedded RAM for descriptors and buffers
+ */
+#define USE_INTRAM	(0x20000000 + CONFIG_CORE10100_BUF_IN_ESRAM_BASE)
+
+#else
+/*
+ * Use the external RAM for descriptors and buffer
+ */
+#undef USE_INTRAM
+#endif
+
 #undef DEBUG /* define to enable debugging msgs */
 #include "core10100.h"
 
@@ -310,13 +320,13 @@ static int core10100_check_rxframe(struct net_device *dev,
 	*/
 	if (!(rx_desc->own_stat & DESC_RFS) ||
 		!(rx_desc->own_stat & DESC_RLS)) {
-		debug("%s:receive_frame error: not whole packet\n", __func__);
+		printk("%s: receive error: not whole packet\n", __func__);
 		dev->stats.rx_errors++;
 		return 1;
 	}
 
 	if (rx_desc->own_stat & DESC_RTL) {
-		debug("%s: Too long frame\n", __func__);
+		printk("%s: received frame too long\n", __func__);
 		dev->stats.rx_length_errors++;
 		return 1;
 	}
@@ -325,39 +335,42 @@ static int core10100_check_rxframe(struct net_device *dev,
 		/* The DESC_RES bit is valid only when the DESC_RLS is set */
 #if 0
 		if((rx_desc->own_stat & DESC_RES)) {
-			printk(KERN_INFO "receive_frame error: DESC_RES flag is set, len %d\n", (rx_desc->own_stat >> 16) & 0x3fff);
+			printk(KERN_INFO "receive_frame error: "
+				"DESC_RES flag is set, len %d\n", 
+				(rx_desc->own_stat >> 16) & 0x3fff);
 			dump_desc(rx_desc, "RX", 1);
 			badframe = 1;
 		}
 #endif
 		if (rx_desc->own_stat & DESC_RDE) {
-			debug("%s: Descriptor Error (no Rx buffer avail)\n", __func__);
+			printk("%s: descriptor error (no Rx buffer avail)\n",
+				 __func__);
 			dev->stats.rx_fifo_errors++;
 			badframe = 1;
 		}
 		if (rx_desc->own_stat & DESC_RRF) {
-			debug("%s: Runt Frame (damaged)\n", __func__);
+			printk("%s: runt frame (damaged)\n", __func__);
 			dev->stats.rx_frame_errors++;
 			badframe = 1;
 		}
 
 		if (rx_desc->own_stat & DESC_RCS) {
-			debug("%s: Collision\n", __func__);
+			debug("%s: collision\n", __func__);
 			dev->stats.collisions++;
-			badframe = 1;
+			badframe = 0;
 		}
 
 		if (rx_desc->own_stat & DESC_RRE) {
-			debug("%s: RMII error\n", __func__);
+			printk("%s: RMII error\n", __func__);
 			badframe = 1;
 		}
 		if (rx_desc->own_stat & DESC_RDB) {
-			debug("%s: Frame is not byte-aligned\n", __func__);
+			printk("%s: frame is not byte-aligned\n", __func__);
 			dev->stats.rx_frame_errors++;
 			badframe = 1;
 		}
 		if (rx_desc->own_stat & DESC_RCE) {
-			debug("%s: Frame CRC err\n", __func__);
+			printk("%s: frame CRC error\n", __func__);
 			dev->stats.rx_crc_errors++;
 			badframe = 1;
 		}
@@ -366,7 +379,7 @@ static int core10100_check_rxframe(struct net_device *dev,
 	}
 	
 	if (rx_desc->own_stat & DESC_RZERO) {
-		printk("%s: Bad frame len\n", __func__);
+		printk("%s: frame len error\n", __func__);
 		dev->stats.rx_frame_errors++;
 		return 1;
 	}
@@ -376,9 +389,10 @@ static int core10100_check_rxframe(struct net_device *dev,
 		if (rx_desc->own_stat & DESC_RMF) {
 			printk("%s: Multicast Frame\n", __func__);
 		}
- /* always set? */
+		/* always set? */
 		if (rx_desc->own_stat & DESC_RFT) {
-			printk("%s: Not 802.3 frame type, len %d\n", __func__, (rx_desc->own_stat >> 16) & 0x3fff);
+			printk("%s: Not 802.3 frame type, len %d\n", 
+				__func__, (rx_desc->own_stat >> 16) & 0x3fff);
 		}
 	}
 #endif
@@ -395,29 +409,30 @@ static void core10100_check_txframe(struct net_device *dev,
 					 DESC_TEC | DESC_TUF | DESC_TDE)) {
 			dev->stats.tx_errors++;
 			if (tx_desc->own_stat & DESC_TLO) {
-				debug("%s: Carrier lost\n", __func__);
+				printk("%s: carrier lost\n", __func__);
 				dev->stats.tx_carrier_errors++;
 			}
-#if 0 /* Always set??? */
+#if 0			/* Always set ??? */
 			if (tx_desc->own_stat & DESC_TNC) {
 				debug("%s: No Carrier\n", __func__);
 				dev->stats.tx_carrier_errors++;
 			}
 #endif
 			if (tx_desc->own_stat & DESC_TLC) {
-				debug("%s: Late collision\n", __func__);
+				printk("%s: late collision\n", __func__);
 				dev->stats.tx_window_errors++;
 			}
 			if (tx_desc->own_stat & DESC_TEC) {
-				debug("%s: Excessive collisions\n", __func__);
+				printk("%s: excessive collisions\n", __func__);
 				dev->stats.tx_window_errors++;
 			}
 			if (tx_desc->own_stat & DESC_TUF) {
-				debug("%s: Buffer underflow\n", __func__);
+				printk("%s: buffer underflow\n", __func__);
 				dev->stats.tx_fifo_errors++;
 			}
-			if (tx_desc->own_stat & DESC_TDE) { /* TBD - don't free skb? */
-				debug("%s: Frame deferred\n", __func__);
+			if (tx_desc->own_stat & DESC_TDE) {
+				/* TBD - don't free skb? */
+				printk("%s: frame deferred\n", __func__);
 				dev->stats.collisions++;
 			}
 		} else {
@@ -436,7 +451,7 @@ static void tx_handler(struct net_device *dev)
 	spin_lock(&bp->lock);
 
 	for (i = 0; i < TX_RING_SIZE; i++,
-	bp->tx_dirty = find_next_desc(bp->tx_dirty, TX_RING_SIZE)) {
+		bp->tx_dirty = find_next_desc(bp->tx_dirty, TX_RING_SIZE)) {
 		if (bp->tx_descs[bp->tx_dirty].own_stat & DESC_OWN) {
 			debug("%s: %d not ready, exiting, try %d\n",
 				__func__, bp->tx_dirty, i);
@@ -444,29 +459,34 @@ static void tx_handler(struct net_device *dev)
 		}
 
 		if (bp->tx_cur == bp->tx_dirty && !bp->tx_full) {
-			debug("%s: No more Tx descs, TX not full\n", __func__);
+			debug("%s: no more Tx descs, TX not full\n", __func__);
 			break;
 		}
 #ifdef DEBUG
-		dump_desc((struct rxtx_desc *)&bp->tx_descs[bp->tx_dirty], "TX");
+		dump_desc((struct rxtx_desc *)&bp->tx_descs[bp->tx_dirty],
+			"TX");
 #endif
 		/* Update counters */
-		core10100_check_txframe(dev, (struct rxtx_desc *)&bp->tx_descs[bp->tx_dirty]);
+		core10100_check_txframe(dev, 
+			(struct rxtx_desc *)&bp->tx_descs[bp->tx_dirty]);
 		
 		/* Free the skb buffer associated with the frame */
-		debug("%s: freeing %d, tx_cur %d\n", __func__, bp->tx_dirty, bp->tx_cur);
+		debug("%s: freeing %d, tx_cur %d\n", 
+			__func__, bp->tx_dirty, bp->tx_cur);
 		dev_kfree_skb_any(bp->tx_skbs[bp->tx_dirty]);
 		bp->tx_skbs[bp->tx_dirty] = NULL;
 		/* Check and clear the "TX Full" condition */
 		if (bp->tx_full) {
-			debug("%s: Clearing TX full, starting TX queue\n", __func__);
+			debug("%s: Clearing TX full, starting TX queue\n",
+				 __func__);
 			bp->tx_full = 0;
 			if (netif_queue_stopped(dev)) {
 				netif_wake_queue(dev);
 			}
 		}
 	}
-	debug("%s: exiting, cur %d, dirty %d\n", __func__, bp->tx_cur, bp->tx_dirty);
+	debug("%s: exiting, cur %d, dirty %d\n", 
+		__func__, bp->tx_cur, bp->tx_dirty);
 	spin_unlock(&bp->lock);
 }
 
@@ -490,12 +510,14 @@ static short rx_handler(struct net_device *dev)
 	for (j = 0; j < RX_RING_SIZE;
 		j++, bp->rx_cur = find_next_desc(bp->rx_cur, RX_RING_SIZE)) {
 		if (bp->rx_descs[bp->rx_cur].own_stat & DESC_OWN) {
-			debug("%s: %d not ready, exiting, try %d\n", __func__, bp->rx_cur, j);
+			debug("%s: %d not ready, exiting, try %d\n", 
+				__func__, bp->rx_cur, j);
 			break;
 		}
 		debug("rx_cur = %d, i %d\n", bp->rx_cur, j);
 
-		if (core10100_check_rxframe(dev, (struct rxtx_desc *)&bp->rx_descs[bp->rx_cur])) {
+		if (core10100_check_rxframe(dev, 
+			(struct rxtx_desc *)&bp->rx_descs[bp->rx_cur])) {
 			goto end_alloc;
 		}
 
@@ -510,7 +532,7 @@ static short rx_handler(struct net_device *dev)
 		}
 
 		if (size < sizeof(struct ethhdr)) {
-			printk("%s: packet too small: %d ??\n", __func__, size);
+			printk("%s: packet too small: %d\n", __func__, size);
 			dev->stats.rx_dropped++;
 			goto end_alloc;
 		}
@@ -519,7 +541,7 @@ static short rx_handler(struct net_device *dev)
 		/* from fec.c */
 		skb = dev_alloc_skb(size - 4 + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
-			printk("%s: Memory squeeze, dropping packet.\n",
+			printk("%s: insufficient memory, dropping packet.\n",
 					dev->name);
 			dev->stats.rx_dropped++;
 			goto end_alloc;
@@ -527,7 +549,8 @@ static short rx_handler(struct net_device *dev)
 			skb_reserve(skb, NET_IP_ALIGN);
 			debug("%s:skb_put(%d-4)\n", __func__, size);
 			skb_put(skb, size - 4);	/* Make room */
-			skb_copy_to_linear_data(skb, bp->rx_buffs[bp->rx_cur], size - 4);
+			skb_copy_to_linear_data(skb, 
+				bp->rx_buffs[bp->rx_cur], size - 4);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
 		}
@@ -624,7 +647,8 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 
 	/* Take the next free Tx desc */
 	if (bp->tx_descs[bp->tx_cur].own_stat & DESC_OWN) {
-		debug("%s: Tx queue full, tx_cur %d, tx_dirty %d, exiting\n", __func__, bp->tx_cur, bp->tx_dirty);
+		debug("%s: Tx queue full, tx_cur %d, tx_dirty %d, exiting\n", 
+			__func__, bp->tx_cur, bp->tx_dirty);
 		spin_unlock_irqrestore(&bp->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
@@ -633,14 +657,17 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 
 	if (skb->len > 0x7ff) {
 		/* TBD - allocate more than one Tx desc for such packets */
-		printk("%s: Data len %d > desc max len %d???\n", __func__, skb->len, 0x7ff);
+		printk("%s: Data len %d > desc max len %d???\n", 
+			__func__, skb->len, 0x7ff);
 		spin_unlock_irqrestore(&bp->lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
 	if (1 && (int)skb->data & 0x3) {
-		debug("%s: data buffer not aligned, using internal buffer\n", __func__);
-		skb_copy_from_linear_data(skb, bp->tx_buffs[bp->tx_dirty], skb->len);
+		debug("%s: data buffer not aligned, using internal buffer\n", 
+			__func__);
+		skb_copy_from_linear_data(skb, bp->tx_buffs[bp->tx_dirty], 
+					skb->len);
 		p = bp->tx_buffs[bp->tx_dirty];
 	}
 
@@ -653,9 +680,11 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 	 - set the packet length
 	*/
 
-	bp->tx_descs[bp->tx_cur].cntl_size = /*DESC_TIC |*/ DESC_TCH | DESC_TLS | DESC_TFS | skb->len;
+	bp->tx_descs[bp->tx_cur].cntl_size = 
+		/*DESC_TIC |*/ DESC_TCH | DESC_TLS | DESC_TFS | skb->len;
 
-	/* make descriptor pointer to point to skb buf. No alignment restrictions for Tx buffers. */
+	/* make descriptor pointer to point to skb buf. 
+	 * No alignment restrictions for Tx buffers. */
 	bp->tx_descs[bp->tx_cur].buf1 = p;
 
 	/* Save the skb being sent */
@@ -677,8 +706,9 @@ static netdev_tx_t core10100_start_xmit(struct sk_buff *skb,
 	/* Advance ptr to next free Tx descriptor */
 	bp->tx_cur = find_next_desc(bp->tx_cur, TX_RING_SIZE);
 	if (bp->tx_cur == bp->tx_dirty) {
-		debug("%s: TX full, stop Tx queue, curr %d, dirty %d\n", __func__,
-			   bp->tx_cur, bp->tx_dirty);
+		debug("%s: TX full, stop Tx queue, curr %d, dirty %d\n", 
+			__func__,
+			bp->tx_cur, bp->tx_dirty);
 		bp->tx_full = 1;
 		netif_stop_queue(dev);
 	}
@@ -863,7 +893,8 @@ static int __init core10100_probe(struct platform_device *pd)
 
 	bp->base = ioremap(mem_base, mem_size);
 	
-	printk(KERN_INFO "Found CORE10100 MAC at 0x%x, irq %d\n", (unsigned int) bp->base, dev->irq);
+	printk(KERN_INFO "Found Core10100 MAC at 0x%x, irq %d\n", 
+		(unsigned int) bp->base, dev->irq);
 
 	bp->core10100_mdio_ctrl.ops = &core10100_mdio_ops;
 

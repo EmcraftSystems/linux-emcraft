@@ -1311,6 +1311,35 @@ config CORE10100
 	  To compile this driver as a module, choose M here: the module
 	  will be called core10100.
 
+config CORE10100_RX_NUM
+	int "Number of RX buffers in Core 10/100"
+	depends on CORE10100
+	default "4"
+	help
+	  Specify the number of RX buffers for Core 10/100
+
+config CORE10100_TX_NUM
+	int "Number of TX buffers in Core 10/100"
+	depends on CORE10100
+	default "4"
+	help
+	  Specify the number of TX buffers for Core 10/100
+
+config CORE10100_BUF_IN_ESRAM
+	bool "Whether Core10100 buffers reside in eSRAM"
+	depends on CORE10100
+	default y
+	help
+	  Specify Y if you want for the RX / TX buffer and decriptors
+	  to reside in the SmartFusion embedded SRAM
+
+config CORE10100_BUF_IN_ESRAM_BASE
+	hex "Base address of Core10100 buffers in eSRAM"
+	depends on CORE10100_BUF_IN_ESRAM
+	default "0x8000"
+	help
+	  Specify base address of the RX/ TX buffers and descriptors
+	  in the SmartFusion embedded SRAM
 
 source "drivers/net/ibm_newemac/Kconfig"
 

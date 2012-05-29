@@ -188,10 +188,8 @@
 #define BSR_LS			(1 << 2)
 #define BSR_ANC			(1 << 5)
 
-
-#define RX_RING_SIZE		4
-#define TX_RING_SIZE		4
-
+#define RX_RING_SIZE		CONFIG_CORE10100_RX_NUM
+#define TX_RING_SIZE		CONFIG_CORE10100_TX_NUM
 
 /*
  * CSR0_DSL:
