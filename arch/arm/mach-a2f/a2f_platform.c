@@ -186,6 +186,11 @@ static void __init a2f_init(void)
 	 */
 	a2f_iomux_init();
 
+	/*
+	 * Enable DMA-style accesses from FPGA-based IP
+	 */
+	a2f_fpga_dma_init();
+
 #if defined(CONFIG_A2F_FPGA_DEMUX)
 	/*
 	 * Configure the FPGA IRQ demultiplexer

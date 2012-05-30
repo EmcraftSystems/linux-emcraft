@@ -1,8 +1,11 @@
 /*
  * linux/arch/arm/mach-a2f/fpga.c
- * The demultiplexer for IRQs triggered by FPGA CoreInterrupt
+ * SmartFusion FPGA managent code. Includes:
+ * - Generic set-up to allow DMA-style accessed to MSS memory by FPGA IP
+ * - Demultiplexer for IRQs triggered by FPGA CoreInterrupt
  *
  * Copyright (C) 2011 Dmitry Cherukhin, Emcraft Systems
+ * Copyright (C) 2012 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +29,38 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/spinlock.h>
+#include <mach/a2f.h>
 #include <mach/fpga.h>
+
+/*
+ * Set up the MSS / FPGA interfaces to allow DMA-style accesses
+ * to the MSS memory by an FPGA-based IP
+ * @returns		0 (success) or -1 (failure)
+ */
+int a2f_fpga_dma_init(void)
+{
+	uint32_t v;
+	int ret = -1;
+
+#define PERIPHERAL_DMA_ENABLE	(1<<2)
+#define FPGA_MASTER_ENABLE	(1<<0)
+	v = readl(&A2F_SYSREG->ahb_matrix_cr) |
+		PERIPHERAL_DMA_ENABLE |
+		FPGA_MASTER_ENABLE;
+	writel(v, &A2F_SYSREG->ahb_matrix_cr);
+
+#define PROT_REGION_ENABLE	(1<<0)
+	v = readl(&A2F_SYSREG->fab_prot_base_cr) &
+		~PROT_REGION_ENABLE;
+	writel(v, &A2F_SYSREG->fab_prot_base_cr);
+
+	/*
+	 * Here. means success
+	 */
+	ret = 0;
+
+	return ret;
+}
 
 /*
  * CoreInterrupt registers
