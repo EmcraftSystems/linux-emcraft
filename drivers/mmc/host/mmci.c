@@ -63,6 +63,7 @@ struct LPC178X_SDDRV_DATA {
 	dma_addr_t dma_handle_tx;
 	void *dma_v_base;
 	int mapped;
+	int preallocated_tx_buf;
 };
 static struct LPC178X_SDDRV_DATA lpc178x_drvdat;
 
@@ -72,7 +73,7 @@ static struct LPC178X_SDDRV_DATA lpc178x_drvdat;
 	MCI_DATATIMEOUTMASK | MCI_TXUNDERRUNMASK | MCI_RXOVERRUNMASK| \
 	MCI_CMDRESPENDMASK | MCI_CMDSENTMASK | MCI_DATAENDMASK)
 
-static int mmc_dma_setup(void)
+static int mmc_dma_setup(struct mmci_platform_data *plat)
 {
 	u32 llptrrx, llptrtx;
 	int ret = 0;
@@ -89,9 +90,18 @@ static int mmc_dma_setup(void)
 	 * contiguous copy of the TX data and it will be used instead.
 	 */
 
-	/* Allocate a chunk of memory for the DMA TX buffers */
-	lpc178x_drvdat.dma_v_base = dma_alloc_coherent(lpc178x_drvdat.dev,
-		DMA_BUFF_SIZE, &lpc178x_drvdat.dma_handle_tx, GFP_KERNEL);
+	if (plat->dma_tx_size) {
+		/* Use pre-allocated memory for the DMA Tx buffer */
+		lpc178x_drvdat.dma_handle_tx = (dma_addr_t)plat->dma_tx_v_base;
+		lpc178x_drvdat.dma_v_base = plat->dma_tx_v_base;
+		lpc178x_drvdat.preallocated_tx_buf = 1;
+	} else {
+		/* Allocate a chunk of memory for the DMA TX buffers */
+		lpc178x_drvdat.dma_v_base = dma_alloc_coherent(lpc178x_drvdat.dev,
+			DMA_BUFF_SIZE, &lpc178x_drvdat.dma_handle_tx, GFP_KERNEL);
+		lpc178x_drvdat.preallocated_tx_buf = 0;
+	}
+
 	if (lpc178x_drvdat.dma_v_base == NULL) {
 		dev_err(lpc178x_drvdat.dev, "error getting DMA region\n");
 		ret = -ENOMEM;
@@ -176,8 +186,11 @@ dma_no_txlist:
 	lpc178x_dma_ch_put(lpc178x_drvdat.dmacfgtx.ch);
 	lpc178x_drvdat.dmacfgtx.ch = -1;
 dma_no_txch:
-	dma_free_coherent(lpc178x_drvdat.dev, DMA_BUFF_SIZE,
-		lpc178x_drvdat.dma_v_base, lpc178x_drvdat.dma_handle_tx);
+	if (!lpc178x_drvdat.preallocated_tx_buf) {
+		dma_free_coherent(lpc178x_drvdat.dev, DMA_BUFF_SIZE,
+			lpc178x_drvdat.dma_v_base,
+			lpc178x_drvdat.dma_handle_tx);
+	}
 dma_no_tx_buff:
 	return ret;
 }
@@ -190,8 +203,11 @@ static void mmc_dma_dealloc(void)
 	lpc178x_dma_dealloc_llist(lpc178x_drvdat.dmacfgtx.ch);
 	lpc178x_dma_ch_put(lpc178x_drvdat.dmacfgtx.ch);
 	lpc178x_drvdat.dmacfgtx.ch = -1;
-	dma_free_coherent(lpc178x_drvdat.dev, DMA_BUFF_SIZE,
-		lpc178x_drvdat.dma_v_base, lpc178x_drvdat.dma_handle_tx);
+	if (!lpc178x_drvdat.preallocated_tx_buf) {
+		dma_free_coherent(lpc178x_drvdat.dev, DMA_BUFF_SIZE,
+			lpc178x_drvdat.dma_v_base,
+			lpc178x_drvdat.dma_handle_tx);
+	}
 }
 
 /* Supports scatter/gather */
@@ -253,8 +269,8 @@ static void mmc_dma_tx_start(struct mmci_host *host)
 	sg = reqdata->sg;
 	len = reqdata->sg_len;
 
-	/* Only 1 segment? */
-	if (len == 1) {
+	/* Only 1 segment and no need to copy? */
+	if (len == 1 && !lpc178x_drvdat.preallocated_tx_buf) {
 		dma_len = dma_map_sg(mmc_dev(host->mmc), reqdata->sg,
 			reqdata->sg_len, DMA_TO_DEVICE);
 		if (dma_len == 0)
@@ -262,8 +278,7 @@ static void mmc_dma_tx_start(struct mmci_host *host)
 
 		dmaaddr = (void *) sg_dma_address(&sg[0]);
 		lpc178x_drvdat.mapped = 1;
-	}
-	else {
+	} else {
 		/* Move data to contiguous buffer first, then transfer it */
 		dst_buffer = (char *) lpc178x_drvdat.dma_v_base;
 		do
@@ -1081,8 +1096,16 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	 * The LPC32x0 DMA controller can handle up to a 16383 byte DMA
 	 * transfer. We'll rely on the mmc core to make sure the passed
 	 * size for a request is block aligned.
+	 *
+	 * We configure the peripheral (i.e. the SD card controller)
+	 * as the flow controller for the DMA transmit requests, therefore
+	 * the transfer size value in the DMA channel control register
+	 * is ignored and the DMA transmit buffer may have unlimited size.
 	 */
-	mmc->max_seg_size = 65535;
+	if (plat->dma_tx_size)
+		mmc->max_seg_size = plat->dma_tx_size;
+	else
+		mmc->max_seg_size = DMA_BUFF_SIZE - 1;
 #else
 	/*
 	 * Set the maximum segment size.  Since we aren't doing DMA
@@ -1106,7 +1129,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	 * Setup DMA for the interface
 	 */
 	lpc178x_drvdat.dev = &dev->dev;
-	if (mmc_dma_setup())
+	if (mmc_dma_setup(plat))
 		goto err_dma_setup;
 #endif /* CONFIG_LPC178X_SD_DMA */
 

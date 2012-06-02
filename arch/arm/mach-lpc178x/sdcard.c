@@ -96,6 +96,10 @@ void __init lpc178x_sdcard_init(void)
 		have_sd = 1;
 		/* SD_PWR: active low */
 		pwr_high = 0;
+
+		/* Use the largest SRAM region for SD card DMA Tx buffer */
+		lpc178x_mci_data.dma_tx_v_base = (void *)0x10000000;
+		lpc178x_mci_data.dma_tx_size = SZ_64K;
 		break;
 	case PLATFORM_LPC178X_LNX_EVB:
 		/* SD Card interface is not supported on LPC-LNX-EVB */

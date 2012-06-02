@@ -25,6 +25,10 @@
  * @gpio_cd: read this GPIO pin to detect card insertion
  * @capabilities: the capabilities of the block as implemented in
  * this platform, signify anything MMC_CAP_* from mmc/host.h
+ *
+ * Parameters of the DMA Tx buffer, we make them available only on LPC178x/7x:
+ *   @dma_tx_v_base: virtual address of pre-allocated DMA Tx buffer
+ *   @dma_tx_size: size of pre-allocated DMA Tx buffer
  */
 struct mmci_platform_data {
 	unsigned int f_max;
@@ -34,6 +38,11 @@ struct mmci_platform_data {
 	int	gpio_wp;
 	int	gpio_cd;
 	unsigned long capabilities;
+
+#ifdef CONFIG_LPC178X_SD_DMA
+	void *dma_tx_v_base;
+	unsigned int dma_tx_size;
+#endif
 };
 
 #endif
