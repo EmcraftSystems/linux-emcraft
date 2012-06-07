@@ -359,7 +359,7 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 			clk = MCI_CLK_BYPASS;
 			host->cclk = host->mclk;
 		} else {
-			clk = host->mclk / (2 * desired) - 1;
+			clk = DIV_ROUND_UP(host->mclk, 2 * desired) - 1;
 			if (clk >= 256)
 				clk = 255;
 			host->cclk = host->mclk / (2 * (clk + 1));
