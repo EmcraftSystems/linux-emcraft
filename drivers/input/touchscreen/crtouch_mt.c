@@ -95,7 +95,7 @@ int read_resolution(void)
 	xmax = horizontal;
 	ymax = vertical;
 
-	printk(KERN_DEBUG "calibration values XMAX:%i YMAX:%i", xmax, ymax);
+	printk(KERN_DEBUG "calibration values XMAX:%i YMAX:%i\n", xmax, ymax);
 
 	return 0;
 }
@@ -293,7 +293,7 @@ static void report_MT(struct work_struct *work)
 
 			if (result < 0)
 				/*Do nothing*/
-				printk(KERN_ALERT "Single Touch Error Reading");
+				printk(KERN_ALERT "Single Touch Error Reading\n");
 
 			else{
 				crtouch->x1 = xy[1];
@@ -747,7 +747,7 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 
 	error = read_resolution();
 	if (error < 0) {
-		printk(KERN_DEBUG "couldn't read size of screen");
+		printk(KERN_DEBUG "couldn't read size of screen\n");
 		result = -EIO;
 		goto err_free_wq;
 	}
@@ -805,7 +805,7 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 		goto err_free_wq;
 
 	if (alloc_chrdev_region(&dev_number, 0, 2, DEV_NAME) < 0) {
-		printk(KERN_DEBUG "couldn't allocate cr-touch device with dev");
+		printk(KERN_DEBUG "couldn't allocate cr-touch device with dev\n");
 		goto err_unr_dev;
 	}
 
@@ -819,27 +819,27 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 	crtouch_class = class_create(THIS_MODULE, DEV_NAME);
 
 	if (crtouch_class == NULL) {
-		printk(KERN_DEBUG "unable to create a class");
+		printk(KERN_DEBUG "unable to create a class\n");
 		goto err_unr_createdev;
 	}
 
 	if (device_create(crtouch_class, NULL, dev_number,
 				NULL, DEV_NAME) == NULL) {
-		printk(KERN_DEBUG "unable to create a device");
+		printk(KERN_DEBUG "unable to create a device\n");
 		goto err_unr_cdev;
 	}
 
 	result = gpio_request(PIN_WAKE, "GPIO_WAKE_CRTOUCH");
 
 	if (result != 0) {
-		printk(KERN_DEBUG "error requesting GPIO %d", result);
+		printk(KERN_DEBUG "error requesting GPIO %d\n", result);
 		goto err_unr_class;
 	}
 
 	result = gpio_direction_output(PIN_WAKE, GPIOF_OUT_INIT_HIGH);
 
 	if (result != 0) {
-		printk(KERN_DEBUG "error config GPIO PIN direction %d", result);
+		printk(KERN_DEBUG "error config GPIO PIN direction %d\n", result);
 		goto err_free_pin;
 	}
 
@@ -850,14 +850,14 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 	result = gpio_request(GPIO_IRQ, "GPIO_INTERRUPT_CRTOUCH");
 
 	if (result != 0) {
-		printk(KERN_DEBUG "error requesting GPIO for IRQ %d", result);
+		printk(KERN_DEBUG "error requesting GPIO for IRQ %d\n", result);
 		goto err_free_pin;
 	}
 
 	result = gpio_direction_input(GPIO_IRQ);
 
 	if (result != 0) {
-		printk(KERN_DEBUG "error config IRQ PIN direction %d", result);
+		printk(KERN_DEBUG "error config IRQ PIN direction %d\n", result);
 		goto err_free_pinIrq;
 	}
 
