@@ -204,6 +204,20 @@ out:
 }
 
 /*
+ * Pin configuration table for K70-SOM, excluding LCD signals.
+ *
+ * This part of pin configuration will also be used on TWR-K70F120M.
+ */
+static const struct kinetis_gpio_pin_config k70som_iomux[] = {
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+	/* E.18 = GPIO (for I2C_SDA) */
+	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* E.19 = GPIO (for I2C_SCL) */
+	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+};
+
+/*
  * GPIO pin configuration table for TWR-K70F120M + TWR-SER + TWR-LCD-RGB
  */
 static const struct kinetis_gpio_pin_config twr_lcd_rgb_iomux[] = {
@@ -272,13 +286,6 @@ static const struct kinetis_gpio_pin_config twr_lcd_rgb_iomux[] = {
  * LCD pin configuration table for K70-SOM + SOM-BSB + EA-LCD-004
  */
 static const struct kinetis_gpio_pin_config k70som_ealcd004_iomux[] = {
-#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
-	/* E.18 = GPIO (for I2C_SDA) */
-	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
-	/* E.19 = GPIO (for I2C_SCL) */
-	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
-#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
-
 #if defined(CONFIG_KINETIS_FB)
 	/*
 	 * Control signals
@@ -355,6 +362,9 @@ void __init kinetis_iomux_init(void)
 	 */
 	platform = kinetis_platform_get();
 	lcdtype = kinetis_lcdtype_get();
+	/*
+	 * LCD signals
+	 */
 	if (lcdtype == LCD_TWR_LCD_RGB) {
 		kinetis_gpio_config_table(
 			twr_lcd_rgb_iomux, ARRAY_SIZE(twr_lcd_rgb_iomux));
@@ -370,5 +380,17 @@ void __init kinetis_iomux_init(void)
 	} else {
 		pr_err("%s: unsupported platform (%d) or type of LCD (%d)\n",
 		       __func__, platform, lcdtype);
+	}
+	/*
+	 * Signals other than LCD
+	 */
+	switch (platform) {
+	case PLATFORM_KINETIS_TWR_K70F120M:
+	case PLATFORM_KINETIS_K70_SOM:
+		kinetis_gpio_config_table(
+			k70som_iomux, ARRAY_SIZE(k70som_iomux));
+		break;
+	default:
+		break;
 	}
 }

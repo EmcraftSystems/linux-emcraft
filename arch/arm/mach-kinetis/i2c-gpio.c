@@ -32,6 +32,10 @@
 
 /*
  * GPIO pins used as I2C_0_SDA and I2C_0_SCL signals on the SOM-BSB baseboard.
+ *
+ * The same pins are used for the I2C bus on TWR-K70F120M. On this board I2C
+ * is used particularly to access the resistive touchscreen installed
+ * on the TWR-LCD-RGB board.
  */
 static struct i2c_gpio_platform_data k70som_i2c_gpio_data = {
 	.sda_pin		= KINETIS_GPIO_MKPIN(KINETIS_GPIO_PORT_E, 18),
@@ -53,11 +57,9 @@ void __init kinetis_i2c_gpio_init(void)
 	platform = kinetis_platform_get();
 	switch (platform) {
 	case PLATFORM_KINETIS_K70_SOM:
+	case PLATFORM_KINETIS_TWR_K70F120M:
 		kinetis_gpio_i2c_device.dev.platform_data =
 			&k70som_i2c_gpio_data;
-		break;
-	case PLATFORM_KINETIS_TWR_K70F120M:
-		/* Do not use I2C for now on TWR-K70F120M */
 		break;
 	default:
 		break;
