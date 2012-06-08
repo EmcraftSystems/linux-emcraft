@@ -820,20 +820,20 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 
 	if (crtouch_class == NULL) {
 		printk(KERN_DEBUG "unable to create a class\n");
-		goto err_unr_createdev;
+		goto err_unr_cdev;
 	}
 
 	if (device_create(crtouch_class, NULL, dev_number,
 				NULL, DEV_NAME) == NULL) {
 		printk(KERN_DEBUG "unable to create a device\n");
-		goto err_unr_cdev;
+		goto err_unr_class;
 	}
 
 	result = gpio_request(PIN_WAKE, "GPIO_WAKE_CRTOUCH");
 
 	if (result != 0) {
 		printk(KERN_DEBUG "error requesting GPIO %d\n", result);
-		goto err_unr_class;
+		goto err_unr_createdev;
 	}
 
 	result = gpio_direction_output(PIN_WAKE, GPIOF_OUT_INIT_HIGH);
@@ -879,10 +879,10 @@ err_free_pinIrq:
 	gpio_free(GPIO_IRQ);
 err_free_pin:
 	gpio_free(PIN_WAKE);
-err_unr_class:
-	class_destroy(crtouch_class);
 err_unr_createdev:
 	device_destroy(crtouch_class, dev_number);
+err_unr_class:
+	class_destroy(crtouch_class);
 err_unr_cdev:
 	cdev_del(&crtouch_cdev);
 err_unr_chrdev:
