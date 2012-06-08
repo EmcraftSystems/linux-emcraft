@@ -1019,19 +1019,17 @@ static const struct i2c_device_id crtouch_idtable[] = {
 };
 
 static struct i2c_driver crtouch_fops = {
-
 	.driver = {
-		   .owner = THIS_MODULE,
-		   .name = "crtouch_drv",
+		.owner	= THIS_MODULE,
+		.name	= "crtouch_drv",
 	},
-	.id_table	= 	crtouch_idtable,
-	.probe	= 	crtouch_probe,
+	.id_table	= crtouch_idtable,
+	.probe		= crtouch_probe,
 #ifdef WAKE_SIGNAL
-	.resume	=	crtouch_resume,
+	.resume		= crtouch_resume,
 	.suspend	= crtouch_suspend,
 #endif /* WAKE_SIGNAL */
-	.remove 	= __devexit_p(crtouch_remove),
-
+	.remove		= __devexit_p(crtouch_remove),
 };
 
 MODULE_DEVICE_TABLE(i2c, crtouch_idtable);
