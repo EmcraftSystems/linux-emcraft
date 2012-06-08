@@ -291,11 +291,17 @@ static void report_MT(struct work_struct *work)
 		} else {
 			result = i2c_smbus_read_i2c_block_data(client, X_COORDINATE_MSB, LEN_XY, xy);
 
-			if (result < 0)
+			if (result < 0) {
 				/*Do nothing*/
-				printk(KERN_ALERT "Single Touch Error Reading\n");
 
-			else{
+				/*
+				 * Hide this error message on Kinetis K70 with
+				 * touchscreen on the TWR-LCD-RGB board.
+				 */
+#ifndef CONFIG_ARCH_KINETIS
+				printk(KERN_ALERT "Single Touch Error Reading\n");
+#endif
+			} else {
 				crtouch->x1 = xy[1];
 				crtouch->x1 |= xy[0] << 8;
 				crtouch->y1 = xy[3];
