@@ -1,6 +1,10 @@
 /*
  * Copyright (C) 2011-2012 Freescale Semiconductor, Inc.
  *
+ * Modified to support the touchscreen on Freescale TWR-LCD-RGB with Qt Embedded
+ * Copyright (c) 2012
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -22,21 +26,45 @@
 
 #include "crtouch_mt.h"
 
+#ifdef CONFIG_ARCH_KINETIS
+#undef MULTITOUCH
+#undef PRESSURE_EVENT
+#undef READ_RESOLUTION
+#undef GESTURES
+#undef CAPACITIVE
+#undef WAKE_SIGNAL
+#undef IRQ_EVENT_HANDLING
+#define IRQ_POLL_PERIOD		(msecs_to_jiffies(20))
+#else /* CONFIG_ARCH_KINETIS */
+#define MULTITOUCH
+#define PRESSURE_EVENT
+#define READ_RESOLUTION
+#define GESTURES
+#define CAPACITIVE
+#define WAKE_SIGNAL
+#define IRQ_EVENT_HANDLING
+#endif /* CONFIG_ARCH_KINETIS */
+
 void report_single_touch(void)
 {
+#ifdef MULTITOUCH
 	input_report_abs(crtouch->input_dev, ABS_MT_POSITION_X, crtouch->x1);
 	input_report_abs(crtouch->input_dev, ABS_MT_POSITION_Y, crtouch->y1);
 	input_report_abs(crtouch->input_dev, ABS_MT_TOUCH_MAJOR, 1);
 	input_mt_sync(crtouch->input_dev);
+#endif /* MULTITOUCH */
 	input_event(crtouch->input_dev, EV_ABS, ABS_X, crtouch->x1);
 	input_event(crtouch->input_dev, EV_ABS, ABS_Y, crtouch->y1);
 	input_event(crtouch->input_dev, EV_KEY, BTN_TOUCH, 1);
+#ifdef PRESSURE_EVENT
 	input_report_abs(crtouch->input_dev, ABS_PRESSURE, 1);
+#endif /* PRESSURE_EVENT */
 	input_sync(crtouch->input_dev);
 
 	status_pressed = CRICS_TOUCHED;
 }
 
+#ifdef MULTITOUCH
 void report_multi_touch(void)
 {
 
@@ -56,18 +84,24 @@ void report_multi_touch(void)
 
 	status_pressed = CRICS_TOUCHED;
 }
+#endif /* MULTITOUCH */
 
 void free_touch(void)
 {
+#ifdef MULTITOUCH
 	input_event(crtouch->input_dev, EV_ABS, ABS_MT_TOUCH_MAJOR, 0);
 	input_mt_sync(crtouch->input_dev);
+#endif /* MULTITOUCH */
 	input_event(crtouch->input_dev, EV_KEY, BTN_TOUCH, 0);
+#ifdef PRESSURE_EVENT
 	input_report_abs(crtouch->input_dev, ABS_PRESSURE, 0);
+#endif /* PRESSURE_EVENT */
 	input_sync(crtouch->input_dev);
 
 	status_pressed = CRICS_RELEASED;
 }
 
+#ifdef MULTITOUCH
 void free_two_touch(void){
 
 	input_event(crtouch->input_dev, EV_ABS, ABS_MT_TOUCH_MAJOR, 0);
@@ -75,9 +109,11 @@ void free_two_touch(void){
 	input_sync(crtouch->input_dev);
 
 }
+#endif /* MULTITOUCH */
 
 int read_resolution(void)
 {
+#ifdef READ_RESOLUTION
 	char resolution[LEN_RESOLUTION_BYTES];
 	int horizontal, vertical, ret;
 
@@ -94,6 +130,10 @@ int read_resolution(void)
 
 	xmax = horizontal;
 	ymax = vertical;
+#else
+	xmax = 4096;
+	ymax = 4096;
+#endif /* READ_RESOLUTION */
 
 	printk(KERN_DEBUG "calibration values XMAX:%i YMAX:%i\n", xmax, ymax);
 
@@ -106,19 +146,26 @@ static void report_MT(struct work_struct *work)
 	struct crtouch_data *crtouch = container_of(work, struct crtouch_data, work);
 	struct i2c_client *client = crtouch->client;
 
-	s32 status_register_1 = 0;
-	s32 status_register_2 = 0;
-	s32 dynamic_status = 0;
-	s32 fifo_capacitive = 0;
-	s32 rotate_angle_help = 0;
 	int result;
+	char xy[LEN_XY];
+	s32 status_register_1 = 0;
+
+#ifdef GESTURES
+	s32 status_register_2 = 0;
+	s32 rotate_angle_help = 0;
 	int command = 0;
 	int degrees = 0;
 	int zoom_value_moved = 0;
-	char xy[LEN_XY];
+#endif /* GESTURES */
+
+#ifdef CAPACITIVE
+	s32 dynamic_status = 0;
+	s32 fifo_capacitive = 0;
+#endif /* CAPACITIVE */
 
 	status_register_1 = i2c_smbus_read_byte_data(client, STATUS_REGISTER_1);
 
+#ifdef GESTURES
 	/*check zoom resistive*/
 	if ((status_register_1 & MASK_EVENTS_ZOOM_R) == MASK_EVENTS_ZOOM_R && (status_register_1 & TWO_TOUCH)) {
 
@@ -185,7 +232,9 @@ static void report_MT(struct work_struct *work)
 		}
 
 	}
+#endif /* GESTURES */
 
+#ifdef CAPACITIVE
 	/*check capacitive events*/
 	if ((status_register_1 & MASK_EVENTS_CAPACITIVE) == MASK_EVENTS_CAPACITIVE) {
 
@@ -276,9 +325,14 @@ static void report_MT(struct work_struct *work)
 		}
 
 	}
+#endif /* CAPACITIVE */
 
 	/*check xy*/
-	if ((status_register_1 & MASK_RESISTIVE_SAMPLE) == MASK_RESISTIVE_SAMPLE && !(status_register_1 & TWO_TOUCH)) {
+	if ((status_register_1 & MASK_RESISTIVE_SAMPLE) == MASK_RESISTIVE_SAMPLE
+#ifdef MULTITOUCH
+	    && !(status_register_1 & TWO_TOUCH)
+#endif /* MULTITOUCH */
+            ) {
 
 		/*clean zoom data when release 2touch*/
 		last_angle = 0;
@@ -321,6 +375,7 @@ static void report_MT(struct work_struct *work)
 
 	}
 
+#ifdef GESTURES
 	/*simulate gestures 2 touch*/
 	if (command) {
 
@@ -461,7 +516,7 @@ static void report_MT(struct work_struct *work)
 		command = 0;
 
 	}
-
+#endif /* GESTURES */
 }
 
 int crtouch_open(struct inode *inode, struct file *filp)
@@ -692,12 +747,25 @@ read :	crtouch_read,
 };
 
 
+#ifdef IRQ_EVENT_HANDLING
 static irqreturn_t crtouch_irq(int irq, void *dev_id)
 {
 	queue_work(crtouch->workqueue, &crtouch->work);
 	return IRQ_HANDLED;
 }
+#else /* IRQ_EVENT_HANDLING */
+static struct timer_list tsc_poll_timer;
 
+static void tsc_poll_handler(unsigned long arg)
+{
+	queue_work(crtouch->workqueue, &crtouch->work);
+
+	tsc_poll_timer.expires += IRQ_POLL_PERIOD;
+	add_timer(&tsc_poll_timer);
+}
+#endif /* IRQ_EVENT_HANDLING */
+
+#ifdef WAKE_SIGNAL
 static int crtouch_resume(struct i2c_client *client)
 {
 	gpio_set_value(PIN_WAKE, GND);
@@ -715,6 +783,7 @@ static int crtouch_suspend(struct i2c_client *client, pm_message_t mesg)
 	i2c_smbus_write_byte_data(client, CONFIGURATION , data_to_read);
 	return 0;
 }
+#endif /* WAKE_SIGNAL */
 
 static int __devinit crtouch_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
@@ -835,6 +904,7 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 		goto err_unr_class;
 	}
 
+#ifdef WAKE_SIGNAL
 	result = gpio_request(PIN_WAKE, "GPIO_WAKE_CRTOUCH");
 
 	if (result != 0) {
@@ -850,8 +920,10 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 	}
 
 	gpio_set_value(PIN_WAKE, VCC);
+#endif /* WAKE_SIGNAL */
 
 
+#ifdef IRQ_EVENT_HANDLING
 	/*request gpio to used as interrupt*/
 	result = gpio_request(GPIO_IRQ, "GPIO_INTERRUPT_CRTOUCH");
 
@@ -875,18 +947,35 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 		printk(KERN_DEBUG "unable to request IRQ\n");
 		goto err_free_pinIrq;
 	}
+#else /* IRQ_EVENT_HANDLING */
+	/*
+	 * Register timer to implement IRQ polling
+	 */
+	init_timer(&tsc_poll_timer);
+	tsc_poll_timer.function = tsc_poll_handler;
+	tsc_poll_timer.expires = jiffies + IRQ_POLL_PERIOD;
+	add_timer(&tsc_poll_timer);
+#endif /* IRQ_EVENT_HANDLING */
 
 	/*clean interrupt pin*/
 	i2c_smbus_read_byte_data(client, STATUS_REGISTER_1);
 
 	return 0;
 
+#ifdef IRQ_EVENT_HANDLING
 err_free_pinIrq:
 	gpio_free(GPIO_IRQ);
+#endif
+#if defined(IRQ_EVENT_HANDLING) || defined(WAKE_SIGNAL)
 err_free_pin:
+#endif
+#ifdef WAKE_SIGNAL
 	gpio_free(PIN_WAKE);
 err_unr_createdev:
+#endif
+#if defined(IRQ_EVENT_HANDLING) || defined(WAKE_SIGNAL)
 	device_destroy(crtouch_class, dev_number);
+#endif
 err_unr_class:
 	class_destroy(crtouch_class);
 err_unr_cdev:
@@ -912,9 +1001,13 @@ static int __devexit crtouch_remove(struct i2c_client *client)
 	input_unregister_device(crtouch->input_dev);
 	input_free_device(crtouch->input_dev);
 	unregister_chrdev_region(dev_number, 1);
+#ifdef IRQ_EVENT_HANDLING
 	free_irq(gpio_to_irq(GPIO_IRQ), crtouch_irq);
-	gpio_free(PIN_WAKE);
 	gpio_free(GPIO_IRQ);
+#endif /* IRQ_EVENT_HANDLING */
+#ifdef WAKE_SIGNAL
+	gpio_free(PIN_WAKE);
+#endif /* WAKE_SIGNAL */
 	kfree(crtouch);
 
 	return 0;
@@ -933,8 +1026,10 @@ static struct i2c_driver crtouch_fops = {
 	},
 	.id_table	= 	crtouch_idtable,
 	.probe	= 	crtouch_probe,
+#ifdef WAKE_SIGNAL
 	.resume	=	crtouch_resume,
 	.suspend	= crtouch_suspend,
+#endif /* WAKE_SIGNAL */
 	.remove 	= __devexit_p(crtouch_remove),
 
 };
