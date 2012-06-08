@@ -363,7 +363,15 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 		 * the SMBus PEC was wrong.
 		 */
 		} else if (retval == 0) {
+			/*
+			 * Hide this error message on Kinetis K70 with
+			 * touchscreen on the TWR-LCD-RGB board.
+			 */
+#if !(defined(CONFIG_ARCH_KINETIS) && \
+    (defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT) || \
+     defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT_MODULE)))
 			dev_err(&i2c_adap->dev, "sendbytes: NAK bailout.\n");
+#endif
 			return -EIO;
 
 		/* Timeout; or (someday) lost arbitration
