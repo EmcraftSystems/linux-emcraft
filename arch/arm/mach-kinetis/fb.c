@@ -288,6 +288,17 @@ static struct i2c_driver ealcd004_pca9532_driver = {
 	.id_table = ealcd004_pca9532_id,
 };
 
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT) || \
+    defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT_MODULE)
+/*
+ * I2C-connected Freescale CRTouch touchscreen device installed
+ * on the TWR-LCD-RGB board. We register it with the driver `crtouch_mt`.
+ */
+static struct i2c_board_info __initdata twr_lcd_rgb_crtouch = {
+	I2C_BOARD_INFO("crtouchId", 0x49),
+};
+#endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
+
 void __init kinetis_fb_init(void)
 {
 	int platform;
@@ -302,6 +313,17 @@ void __init kinetis_fb_init(void)
 	lcdtype = kinetis_lcdtype_get();
 	if (lcdtype == LCD_TWR_LCD_RGB) {
 		kinetis_fb_device.dev.platform_data = &twr_lcd_rgb_fb_data;
+
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT) || \
+    defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT_MODULE)
+		/*
+		 * Register the I2C-connected CRTouch touchscreen installed
+		 * on TWR-LCD-RGB.
+		 */
+		ret = i2c_register_board_info(0, &twr_lcd_rgb_crtouch, 1);
+		if (ret < 0)
+			goto out;
+#endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 	} else if (lcdtype == LCD_EA_LCD_004 &&
 		 platform == PLATFORM_KINETIS_K70_SOM) {
 		kinetis_fb_device.dev.platform_data = &ea_lcd_004_fb_data;
