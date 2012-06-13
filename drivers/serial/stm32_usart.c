@@ -3,6 +3,10 @@
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  *
+ * Contributions
+ * Jordi López <jordi.lopg@gmail.com>
+ * 06-20-2012 Added termios support and console settings parsing
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -31,6 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_reg.h>
 #include <linux/tty.h>
 
 #include <mach/uart.h>
@@ -87,11 +92,22 @@
  * USART CR bits
  */
 #define STM32_USART_CR1_UE	(1 << 13)	/* USART enable		      */
+#define STM32_USART_CR1_M	(1 << 12)	/* USART 8/9 bits word length */
+#define STM32_USART_CR1_PCE	(1 << 10)	/* USART parity enable        */
+#define STM32_USART_CR1_PS	(1 << 9)	/* USART parity	selection     */
 #define STM32_USART_CR1_TXEIE	(1 << 7)	/* TXE interrupt enable	      */
 #define STM32_USART_CR1_IDLIE	(1 << 4)	/* IDLE interrupt enable      */
 #define STM32_USART_CR1_TE	(1 << 3)	/* Transmitter enable	      */
 #define STM32_USART_CR1_RE	(1 << 2)	/* Receiver enable	      */
 
+#define STM32_USART_CR2_STOP_MASK	(3 << 12)
+#define STM32_USART_CR2_1STOP		(0 << 12)
+#define STM32_USART_CR2_HSTOP		(1 << 12)
+#define STM32_USART_CR2_2STOP		(2 << 12)
+#define STM32_USART_CR2_1HSTOP		(3 << 12)
+
+#define STM32_USART_CR3_CTSE	(1 << 9)
+#define STM32_USART_CR3_RTSE	(1 << 8)
 #define STM32_USART_CR3_DMAR	(1 << 6)	/* DMA enable receiver	      */
 
 /*
@@ -337,7 +353,7 @@ static struct stm32_dma_ini	stm32_usart_rx_dma[STM32_NR_UARTS] = {
 /*
  * STM32F1: Channel ISR bits for half[0]/complete[1] transfers
  */
-static u32			stm32_dma_isr_bit[STM32_DMA_CHAN_LAST] = {
+static u32 stm32_dma_isr_bit[STM32_DMA_CHAN_LAST] = {
 	(1 <<  1) | (1 <<  2), /* Channel 1 */
 	(1 <<  5) | (1 <<  6),
 	(1 <<  9) | (1 << 10),
@@ -350,7 +366,7 @@ static u32			stm32_dma_isr_bit[STM32_DMA_CHAN_LAST] = {
 /*
  * STM32F2: Stream ISR bits for half[0]/complete[1] transfers
  */
-static u32			stm32_dma_isr_bit[STM32_DMA_STREAM_LAST] = {
+static u32 stm32_dma_isr_bit[STM32_DMA_STREAM_LAST] = {
 	(1 <<  4) | (1 <<  5),
 	(1 << 10) | (1 << 11),
 	(1 << 20) | (1 << 21),
@@ -605,12 +621,63 @@ static const char *stm_port_type(struct uart_port *port)
 /*
  * Set termios
  */
-static void stm_port_sert_termios(struct uart_port *port, struct ktermios *termios,
-			      struct ktermios *old)
+static void stm_port_set_termios(struct uart_port *port,
+				 struct ktermios *termios, struct ktermios *old)
 {
-	/*
-	 * TBD
-	 */
+	unsigned long flags;
+	unsigned int baud, max_baud;
+	volatile struct stm32_usart_regs *uart = stm32_usart(port);
+	u32 newcr1, newcr2, newcr3, apb_clock;
+
+	newcr1 = uart->cr1;
+	newcr2 = uart->cr2;
+	newcr3 = uart->cr3;
+
+	/* Calculate new word length and parity */
+	newcr1 &= ~(STM32_USART_CR1_M | STM32_USART_CR1_PCE | STM32_USART_CR1_PS);
+	if (termios->c_cflag & PARENB) {
+		newcr1 |= STM32_USART_CR1_PCE;
+		if (termios->c_cflag & PARODD)
+			newcr1 |= STM32_USART_CR1_PS;
+
+		if ((termios->c_cflag & CSIZE) == CS8)
+			newcr1 |= STM32_USART_CR1_M;
+	}
+
+	/* Calculate stop bits */
+	newcr2 &= ~STM32_USART_CR2_STOP_MASK;
+	if (termios->c_cflag & CSTOPB)
+		newcr2 |= STM32_USART_CR2_2STOP;
+
+	/* Calculate new flow control */
+	newcr3 &= ~(STM32_USART_CR3_CTSE | STM32_USART_CR3_RTSE);
+	if (termios->c_cflag & CRTSCTS)
+		newcr3 |= (STM32_USART_CR3_CTSE | STM32_USART_CR3_RTSE);
+
+	/* Determine maximum baudrate from USART clock */
+	if (port->line == 0 || port->line == 5)
+		max_baud = stm32_clock_get(CLOCK_PCLK2) >> 4;
+	else
+		max_baud = stm32_clock_get(CLOCK_PCLK1) >> 4;
+
+	/* Calculate new baud rate */
+	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	/* update timeout */
+	uart_update_timeout(port, termios->c_cflag, baud);
+
+	/* set up USART registers */
+	uart->cr1 = newcr1;
+	uart->cr2 = newcr2;
+	uart->cr3 = newcr3;
+	stm_set_baud_rate(port, baud);
+
+	if (tty_termios_baud_rate(termios))
+		tty_termios_encode_baud_rate(termios, baud, baud);
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /*
@@ -705,7 +772,7 @@ static struct uart_ops stm32_uart_ops = {
 	.break_ctl	= stm_port_break_ctl,
 	.startup	= stm_port_startup,
 	.shutdown	= stm_port_shutdown,
-	.set_termios	= stm_port_sert_termios,
+	.set_termios	= stm_port_set_termios,
 	.type		= stm_port_type,
 	.release_port	= stm_port_release_port,
 	.request_port	= stm_port_request_port,
@@ -780,6 +847,14 @@ static int __init stm_console_setup(struct console *co, char *options)
 {
 	struct uart_port	*port;
 	int			rv;
+	/*
+	 * Set of console default values. They will be used only if
+	 * no options are given, may be changed at will.
+	 */
+	int baud = 115200;
+	int bits = 8;
+	int parity = 'n';
+	int flow = 'n';
 
 	if (co->index < 0 || co->index >= STM32_NR_UARTS) {
 		rv = -EINVAL;
@@ -794,10 +869,12 @@ static int __init stm_console_setup(struct console *co, char *options)
 		goto out;
 	}
 
-	/*
-	 * TBD: depending on the options configure device (baud, parity, ...)
-	 */
-	rv = 0;
+	/* If options are present parse them and overide defaults */
+	if (options)
+		uart_parse_options(options, &baud, &parity, &bits, &flow);
+
+	/* Set options to console and port termios */
+	rv = uart_set_options(port, co, baud, parity, bits, flow);
 out:
 	return rv;
 }
