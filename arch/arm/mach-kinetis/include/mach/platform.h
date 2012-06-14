@@ -29,11 +29,15 @@
 #define PLATFORM_KINETIS_TWR_K70F120M	0
 /* Emcraft K70-SOM + Emcraft SOM-BSB */
 #define PLATFORM_KINETIS_K70_SOM	1
+/* Emcraft K61-SOM + Emcraft SOM-BSB */
+#define PLATFORM_KINETIS_K61_SOM	2
 
 int kinetis_platform_get(void);
 
-/* Freescale Kinetis K70 with maximum core frequency of 120 MHz */
-#define DEVICE_PK70FN1M0VMJ12		0
+/* Freescale Kinetis K70 */
+#define DEVICE_PK70FN1M0VMJ		0
+/* Freescale Kinetis K61 */
+#define DEVICE_PK61FN1M0VMJ		1
 
 int kinetis_device_get(void);
 

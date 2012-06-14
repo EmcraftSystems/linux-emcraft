@@ -344,6 +344,7 @@ void __init kinetis_clock_init(void)
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
 	case PLATFORM_KINETIS_K70_SOM:
+	case PLATFORM_KINETIS_K61_SOM:
 		/*
 		 * The PLL0 in a PK70FN1M0VMJ12 and PK70FN1M0VMJ15 divides
 		 * its output rate by 2.

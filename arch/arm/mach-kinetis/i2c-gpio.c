@@ -57,6 +57,7 @@ void __init kinetis_i2c_gpio_init(void)
 	platform = kinetis_platform_get();
 	switch (platform) {
 	case PLATFORM_KINETIS_K70_SOM:
+	case PLATFORM_KINETIS_K61_SOM:
 	case PLATFORM_KINETIS_TWR_K70F120M:
 		kinetis_gpio_i2c_device.dev.platform_data =
 			&k70som_i2c_gpio_data;

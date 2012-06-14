@@ -106,6 +106,7 @@ void __init kinetis_eth_init(void)
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
 	case PLATFORM_KINETIS_K70_SOM:
+	case PLATFORM_KINETIS_K61_SOM:
 		kinetis_net_device.dev.platform_data =
 			&kinetis_twr_fec_platform_data;
 		break;

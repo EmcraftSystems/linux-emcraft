@@ -142,6 +142,7 @@ void __init kinetis_nand_init(void)
 		size = 256*1024*1024;
 		break;
 	case PLATFORM_KINETIS_K70_SOM:
+	case PLATFORM_KINETIS_K61_SOM:
 		size = 128*1024*1024;
 		/* The NAND flash chip is 8-bit */
 		flash_data.flags |= FSL_NFC_NAND_FLAGS_BUSWIDTH_8;

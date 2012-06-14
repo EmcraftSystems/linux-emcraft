@@ -387,6 +387,7 @@ void __init kinetis_iomux_init(void)
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
 	case PLATFORM_KINETIS_K70_SOM:
+	case PLATFORM_KINETIS_K61_SOM:
 		kinetis_gpio_config_table(
 			k70som_iomux, ARRAY_SIZE(k70som_iomux));
 		break;
