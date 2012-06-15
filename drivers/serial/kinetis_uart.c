@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/tty.h>
+#include <linux/clk.h>
 
 #include <mach/uart.h>
 
@@ -146,6 +147,7 @@ struct kinetis_uart_priv {
 	volatile struct kinetis_uart_regs *regs;
 	int stat_irq;
 	int err_irq;
+	struct clk *clk;
 };
 #define kinetis_up(p)	(container_of((p), struct kinetis_uart_priv, port))
 #define kinetis_regs(p)	(kinetis_up(p)->regs)
@@ -611,16 +613,33 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, port);
 
 	/*
+	 * Acquire and enable clock
+	 */
+	up->clk = clk_get(dev, NULL);
+	if (IS_ERR(up->clk)) {
+		rv = PTR_ERR(up->clk);
+		goto err_cleanup_priv;
+	}
+	clk_enable(up->clk);
+
+	/*
 	 * Register the port
 	 */
 	rv = uart_add_one_port(&kinetis_uart_driver, port);
 	if (rv) {
 		dev_err(dev, "%s: uart_add_one_port failed (%d)\n",
 			__func__, rv);
-		dev_set_drvdata(dev, NULL);
-		up->regs = NULL;
-		goto out;
+		goto err_clk_put;
 	}
+
+	goto out;
+
+err_clk_put:
+	clk_disable(up->clk);
+	clk_put(up->clk);
+err_cleanup_priv:
+	dev_set_drvdata(dev, NULL);
+	up->regs = NULL;
 out:
 	return rv;
 }
@@ -636,8 +655,12 @@ static int __devexit kinetis_uart_remove(struct platform_device *pdev)
 		up = kinetis_up(port);
 		rv = uart_remove_one_port(&kinetis_uart_driver, port);
 		dev_set_drvdata(dev, NULL);
-		if (up)
+		if (up) {
 			up->regs = NULL;
+
+			clk_disable(up->clk);
+			clk_put(up->clk);
+		}
 	}
 
 	return rv;

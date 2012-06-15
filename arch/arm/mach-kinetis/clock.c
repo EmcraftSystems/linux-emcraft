@@ -299,6 +299,12 @@ static struct clk clk_lcdc = {
 };
 
 /*
+ * Clocks for each of the 6 UARTs supported by the Kinetis K70 MCUs.
+ * The clock rates are initialized in `kinetis_clock_init()`.
+ */
+static struct clk clk_uart[6];
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -310,6 +316,12 @@ static struct clk clk_lcdc = {
 static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_net, NULL, "fec_clk"),
 	INIT_CLKREG(&clk_lcdc, "imx-fb.0", NULL),
+	INIT_CLKREG(&clk_uart[0], "kinetis-uart.0", NULL),
+	INIT_CLKREG(&clk_uart[1], "kinetis-uart.1", NULL),
+	INIT_CLKREG(&clk_uart[2], "kinetis-uart.2", NULL),
+	INIT_CLKREG(&clk_uart[3], "kinetis-uart.3", NULL),
+	INIT_CLKREG(&clk_uart[4], "kinetis-uart.4", NULL),
+	INIT_CLKREG(&clk_uart[5], "kinetis-uart.5", NULL),
 };
 
 /*
@@ -448,6 +460,13 @@ void __init kinetis_clock_init(void)
 	 */
 	clk_net.rate = clock_val[CLOCK_MACCLK];
 	clk_lcdc.rate = clock_val[CLOCK_LCDCLK];
+	/*
+	 * UART0 and UART1 are clocked from the core clock, the remaining UARTs
+	 * are clocked from the bus clock.
+	 */
+	for (i = 0; i < ARRAY_SIZE(clk_uart); i++)
+		clk_uart[i].rate = clock_val[i <= 1 ? CLOCK_CCLK : CLOCK_PCLK];
+
 	/*
 	 * Register clocks with the `clk_*` infrastructure
 	 */
