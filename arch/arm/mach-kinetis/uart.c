@@ -46,101 +46,119 @@
 #define KINETIS_UART5_ERR_IRQ	56
 
 /*
- * UART platform device resources
+ * Clock gates for all UARTs
+ *
+ * These values will be passed into the `kinetis_periph_enable()` function.
  */
-#define UART_PLAT_RESOURCES(uid)					       \
-static struct resource kinetis_uart_## uid ##_resources[] = {		       \
-	{								       \
-		.start	= KINETIS_UART## uid ##_BASE,			       \
-		.end	= KINETIS_UART## uid ##_BASE + 1,		       \
-		.flags	= IORESOURCE_MEM,				       \
-	},								       \
-	{								       \
-		.start	= KINETIS_UART## uid ##_STAT_IRQ,		       \
-		.flags	= IORESOURCE_IRQ,				       \
-	},								       \
-	{								       \
-		.start	= KINETIS_UART## uid ##_ERR_IRQ,		       \
-		.flags	= IORESOURCE_IRQ,				       \
-	},								       \
-}
+static const kinetis_clock_gate_t uart_clock_gate[] = {
+	KINETIS_CG_UART0, KINETIS_CG_UART1, KINETIS_CG_UART2,
+	KINETIS_CG_UART3, KINETIS_CG_UART4, KINETIS_CG_UART5,
+};
 
 /*
- * UART platform device instance
+ * Register map bases
  */
-#define UART_PLAT_DEVICE(uid)						       \
-static struct platform_device kinetis_uart_## uid ##_device = {		       \
-	.name			= "kinetis-uart",			       \
-	.id			= uid,					       \
-	.resource		= kinetis_uart_## uid ##_resources,	       \
-	.num_resources		= ARRAY_SIZE(kinetis_uart_## uid ##_resources),\
-}
+static const resource_size_t uart_base[] = {
+	KINETIS_UART0_BASE, KINETIS_UART1_BASE, KINETIS_UART2_BASE,
+	KINETIS_UART3_BASE, KINETIS_UART4_BASE, KINETIS_UART5_BASE,
+};
+
+/*
+ * Status IRQs
+ */
+static const resource_size_t uart_stat_irq[] = {
+	KINETIS_UART0_STAT_IRQ, KINETIS_UART1_STAT_IRQ, KINETIS_UART2_STAT_IRQ,
+	KINETIS_UART3_STAT_IRQ, KINETIS_UART4_STAT_IRQ, KINETIS_UART5_STAT_IRQ,
+};
+
+/*
+ * Error IRQs
+ */
+static const resource_size_t uart_err_irq[] = {
+	KINETIS_UART0_ERR_IRQ, KINETIS_UART1_ERR_IRQ, KINETIS_UART2_ERR_IRQ,
+	KINETIS_UART3_ERR_IRQ, KINETIS_UART4_ERR_IRQ, KINETIS_UART5_ERR_IRQ,
+};
+
+/*
+ * We use this per-UART structure to simplify memory allocation
+ */
+struct uart_data_structures {
+	struct resource res[3];
+	struct platform_device pdev;
+};
 
 /*
  * Enable clocks for USART & DMA, and register platform device
  */
-#define uart_init_clocks_and_register(uid) do {			        \
-	kinetis_periph_enable(KINETIS_CG_UART## uid, 1);	        \
-	platform_device_register(&kinetis_uart_## uid ##_device);       \
-} while (0)
+static void __init kinetis_uart_register(int uid)
+{
+	struct uart_data_structures *uart;
 
-/*
- * Declare the platform devices for the enabled ports
- */
-#if defined(CONFIG_KINETIS_UART0)
-UART_PLAT_RESOURCES(0);
-UART_PLAT_DEVICE(0);
-#endif
+	uart = kzalloc(sizeof(struct uart_data_structures), GFP_KERNEL);
+	if (!uart) {
+		pr_err("kinetis uart: No enough memory for data structures\n");
+		goto out;
+	}
 
-#if defined(CONFIG_KINETIS_UART1)
-UART_PLAT_RESOURCES(1);
-UART_PLAT_DEVICE(1);
-#endif
+	/*
+	 * Initialize resources
+	 */
+	uart->res[0].start = uart_base[uid];
+	uart->res[0].end = uart_base[uid] + 1;
+	uart->res[0].flags = IORESOURCE_MEM;
 
-#if defined(CONFIG_KINETIS_UART2)
-UART_PLAT_RESOURCES(2);
-UART_PLAT_DEVICE(2);
-#endif
+	uart->res[1].start = uart_stat_irq[uid];
+	uart->res[1].flags = IORESOURCE_IRQ;
 
-#if defined(CONFIG_KINETIS_UART3)
-UART_PLAT_RESOURCES(3);
-UART_PLAT_DEVICE(3);
-#endif
+	uart->res[2].start = uart_err_irq[uid];
+	uart->res[2].flags = IORESOURCE_IRQ;
 
-#if defined(CONFIG_KINETIS_UART4)
-UART_PLAT_RESOURCES(4);
-UART_PLAT_DEVICE(4);
-#endif
+	/*
+	 * Initialize platform device
+	 */
+	uart->pdev.name = "kinetis-uart";
+	uart->pdev.id = uid;
+	uart->pdev.resource = uart->res;
+	uart->pdev.num_resources = ARRAY_SIZE(uart->res);
 
-#if defined(CONFIG_KINETIS_UART5)
-UART_PLAT_RESOURCES(5);
-UART_PLAT_DEVICE(5);
-#endif
+	/*
+	 * Enable UART module clock
+	 */
+	kinetis_periph_enable(uart_clock_gate[uid], 1);
+
+	if (platform_device_register(&uart->pdev) < 0)
+		goto err_periph_disable;
+
+	goto out;
+
+err_periph_disable:
+	kinetis_periph_enable(uart_clock_gate[uid], 0);
+	kfree(uart);
+out:
+	;
+}
 
 /*
  * Register the Kinetis-specific UART devices with the kernel
  */
 void __init kinetis_uart_init(void)
 {
-	/*
-	 * Enable clocks for the enabled ports, and register the platform devs
-	 */
 #if defined(CONFIG_KINETIS_UART0)
-	uart_init_clocks_and_register(0);
+	kinetis_uart_register(0);
 #endif
 #if defined(CONFIG_KINETIS_UART1)
-	uart_init_clocks_and_register(1);
+	kinetis_uart_register(1);
 #endif
 #if defined(CONFIG_KINETIS_UART2)
-	uart_init_clocks_and_register(2);
+	kinetis_uart_register(2);
 #endif
 #if defined(CONFIG_KINETIS_UART3)
-	uart_init_clocks_and_register(3);
+	kinetis_uart_register(3);
 #endif
 #if defined(CONFIG_KINETIS_UART4)
-	uart_init_clocks_and_register(4);
+	kinetis_uart_register(4);
 #endif
 #if defined(CONFIG_KINETIS_UART5)
-	uart_init_clocks_and_register(5);
+	kinetis_uart_register(5);
 #endif
 }
