@@ -633,6 +633,10 @@ static int __init kinetis_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int rv;
+	int baud = 115200;
+	int bits = 8;
+	int parity = 'n';
+	int flow = 'n';
 
 	if (co->index < 0 || co->index >= KINETIS_NR_UARTS) {
 		rv = -EINVAL;
@@ -648,9 +652,13 @@ static int __init kinetis_console_setup(struct console *co, char *options)
 	}
 
 	/*
-	 * TBD: depending on the options configure device (baud, parity, ...)
+	 * Configure UART (baud, parity, ...) depending on the options passed
+	 * in the kernel parameters line.
 	 */
-	rv = 0;
+	if (options)
+		uart_parse_options(options, &baud, &parity, &bits, &flow);
+	rv = uart_set_options(port, co, baud, parity, bits, flow);
+
 out:
 	return rv;
 }
@@ -664,7 +672,7 @@ static struct console kinetis_console = {
 	.device	= uart_console_device,
 	.write	= kinetis_console_write,
 	.setup	= kinetis_console_setup,
-	.flags	= CON_PRINTBUFFER | CON_ENABLED,
+	.flags	= CON_PRINTBUFFER,
 	.index	= -1,
 	.data	= &kinetis_uart_driver,
 };
