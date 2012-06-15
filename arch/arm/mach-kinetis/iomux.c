@@ -204,9 +204,26 @@ out:
 }
 
 /*
+ * Pin configuration table for TWR-K70F120M, excluding LCD signals.
+ */
+static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+	/* E.18 = GPIO (for I2C_SDA) */
+	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* E.19 = GPIO (for I2C_SCL) */
+	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+
+#if defined(CONFIG_KINETIS_UART2)
+	/* E.16 = UART2_TX */
+	{{KINETIS_GPIO_PORT_E, 16}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* E.17 = UART2_RX */
+	{{KINETIS_GPIO_PORT_E, 17}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif
+};
+
+/*
  * Pin configuration table for K70-SOM, excluding LCD signals.
- *
- * This part of pin configuration will also be used on TWR-K70F120M.
  */
 static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
@@ -215,6 +232,48 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 	/* E.19 = GPIO (for I2C_SCL) */
 	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
 #endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+
+#if defined(CONFIG_KINETIS_UART0)
+	/* D.7 = UART0_TX */
+	{{KINETIS_GPIO_PORT_D, 7}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* D.6 = UART0_RX */
+	{{KINETIS_GPIO_PORT_D, 6}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif
+
+#if defined(CONFIG_KINETIS_UART1)
+	/* C.4 = UART1_TX */
+	{{KINETIS_GPIO_PORT_C, 4}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* C.3 = UART1_RX */
+	{{KINETIS_GPIO_PORT_C, 3}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif
+
+#if defined(CONFIG_KINETIS_UART2)
+	/* E.16 = UART2_TX (USB-serial on Emcraft SOM-BSB baseboard) */
+	{{KINETIS_GPIO_PORT_E, 16}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* E.17 = UART2_RX (USB-serial on Emcraft SOM-BSB baseboard) */
+	{{KINETIS_GPIO_PORT_E, 17}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif
+
+#if defined(CONFIG_KINETIS_UART3)
+	/* B.11 = UART3_TX */
+	{{KINETIS_GPIO_PORT_B, 11}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* B.10 = UART3_RX */
+	{{KINETIS_GPIO_PORT_B, 10}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif
+
+#if defined(CONFIG_KINETIS_UART4)
+	/* C.15 = UART4_TX */
+	{{KINETIS_GPIO_PORT_C, 15}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* C.14 = UART4_RX */
+	{{KINETIS_GPIO_PORT_C, 14}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif
+
+#if defined(CONFIG_KINETIS_UART5)
+	/* E.8 = UART5_TX */
+	{{KINETIS_GPIO_PORT_E, 8}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* E.9 = UART5_RX */
+	{{KINETIS_GPIO_PORT_E, 9}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif
 };
 
 /*
@@ -386,6 +445,9 @@ void __init kinetis_iomux_init(void)
 	 */
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
+		kinetis_gpio_config_table(
+			twrk70f120m_iomux, ARRAY_SIZE(twrk70f120m_iomux));
+		break;
 	case PLATFORM_KINETIS_K70_SOM:
 	case PLATFORM_KINETIS_K61_SOM:
 		kinetis_gpio_config_table(
