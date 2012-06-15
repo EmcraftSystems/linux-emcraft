@@ -250,6 +250,11 @@ static int kinetis_startup(struct uart_port *port)
 	regs->c5 &= ~(KINETIS_UART_C5_TDMAS_MSK | KINETIS_UART_C5_RDMAS_MSK);
 	regs->c2 |= KINETIS_UART_C2_RIE_MSK;
 
+	/*
+	 * Enable receiver and transmitter
+	 */
+	regs->c2 |= KINETIS_UART_C2_RE_MSK | KINETIS_UART_C2_TE_MSK;
+
 	rv = 0;
 out:
 	return rv;
