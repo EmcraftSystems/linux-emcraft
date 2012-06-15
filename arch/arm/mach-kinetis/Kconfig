@@ -15,9 +15,19 @@ config KINETIS_UART0
 	bool "Enable Kinetis UART0 port"
 	default n
 
+config KINETIS_UART0_CTSRTS
+	depends on KINETIS_UART0
+	bool "Enable UART0 hardware flow control"
+	default n
+
 config KINETIS_UART1
 	depends on ARCH_KINETIS && SERIAL_KINETIS
 	bool "Enable Kinetis UART1 port"
+	default n
+
+config KINETIS_UART1_CTSRTS
+	depends on KINETIS_UART1
+	bool "Enable UART1 hardware flow control"
 	default n
 
 config KINETIS_UART2
@@ -25,9 +35,19 @@ config KINETIS_UART2
 	bool "Enable Kinetis UART2 port"
 	default y
 
+config KINETIS_UART2_CTSRTS
+	depends on KINETIS_UART2
+	bool "Enable UART2 hardware flow control"
+	default n
+
 config KINETIS_UART3
 	depends on ARCH_KINETIS && SERIAL_KINETIS
 	bool "Enable Kinetis UART3 port"
+	default n
+
+config KINETIS_UART3_CTSRTS
+	depends on KINETIS_UART3
+	bool "Enable UART3 hardware flow control"
 	default n
 
 config KINETIS_UART4
@@ -35,9 +55,19 @@ config KINETIS_UART4
 	bool "Enable Kinetis UART4 port"
 	default n
 
+config KINETIS_UART4_CTSRTS
+	depends on KINETIS_UART4
+	bool "Enable UART4 hardware flow control"
+	default n
+
 config KINETIS_UART5
 	depends on ARCH_KINETIS && SERIAL_KINETIS
 	bool "Enable Kinetis UART5 port"
+	default n
+
+config KINETIS_UART5_CTSRTS
+	depends on KINETIS_UART5
+	bool "Enable UART5 hardware flow control"
 	default n
 
 config KINETIS_MAC

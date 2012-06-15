@@ -33,6 +33,7 @@
 #include <linux/serial_core.h>
 #include <linux/tty.h>
 #include <linux/clk.h>
+#include <linux/kinetis_uart.h>
 
 #include <mach/uart.h>
 
@@ -119,6 +120,14 @@
 /* Transmitter DMA Select */
 #define KINETIS_UART_C5_TDMAS_MSK	(1 << 7)
 
+/*
+ * UART Modem Register
+ */
+/* Receiver request-to-send enable */
+#define KINETIS_UART_MODEM_RXRTSE_MSK	(1 << 3)
+/* Transmitter clear-to-send enable */
+#define KINETIS_UART_MODEM_TXCTSE_MSK	(1 << 0)
+
 
 static struct console kinetis_console;
 static void kinetis_console_write(
@@ -172,6 +181,8 @@ struct kinetis_uart_priv {
 	int stat_irq;
 	int err_irq;
 	struct clk *clk;
+
+	int have_ctsrts;
 };
 #define kinetis_up(p)	(container_of((p), struct kinetis_uart_priv, port))
 #define kinetis_regs(p)	(kinetis_up(p)->regs)
@@ -520,6 +531,17 @@ static void kinetis_set_termios(struct uart_port *port,
 	}
 
 	/*
+	 * Enable symmetric hardware flow control (CTS/RTS handshaking),
+	 * if available and requested.
+	 */
+	if (up->have_ctsrts && (termios->c_cflag & CRTSCTS)) {
+		regs->modem = KINETIS_UART_MODEM_RXRTSE_MSK |
+			KINETIS_UART_MODEM_TXCTSE_MSK;
+	} else {
+		regs->modem = 0;
+	}
+
+	/*
 	 * Enable Rx/Tx again
 	 */
 	regs->c2 |= KINETIS_UART_C2_RE_MSK | KINETIS_UART_C2_TE_MSK;
@@ -705,6 +727,7 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 	struct resource *uart_reg_res;
 	struct resource *uart_stat_irq_res, *uart_err_irq_res;
 	struct device *dev = &pdev->dev;
+	struct kinetis_uart_data *pdata = dev->platform_data;
 	int rv;
 	int id = pdev->id;
 
@@ -731,6 +754,14 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 
 	up = &kinetis_uart_priv[id];
 
+	/*
+	 * Handle platform data
+	 */
+	up->have_ctsrts = pdata && (pdata->flags & KINETIS_UART_FLAG_CTSRTS);
+
+	/*
+	 * Acquire resources
+	 */
 	uart_reg_res      = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	uart_stat_irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	uart_err_irq_res  = platform_get_resource(pdev, IORESOURCE_IRQ, 1);

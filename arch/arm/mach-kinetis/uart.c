@@ -24,6 +24,7 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/kinetis_uart.h>
 
 #include <mach/kinetis.h>
 #include <mach/power.h>
@@ -80,6 +81,14 @@ static const resource_size_t uart_err_irq[] = {
 };
 
 /*
+ * Platform data for Kinetis UART driver to enable CTS/RTS handshaking
+ * (hardware flow control).
+ */
+static struct kinetis_uart_data platform_data_ctsrts = {
+	.flags = KINETIS_UART_FLAG_CTSRTS,
+};
+
+/*
  * We use this per-UART structure to simplify memory allocation
  */
 struct uart_data_structures {
@@ -90,7 +99,7 @@ struct uart_data_structures {
 /*
  * Enable clocks for USART & DMA, and register platform device
  */
-static void __init kinetis_uart_register(int uid)
+static void __init kinetis_uart_register(int uid, int ctsrts)
 {
 	struct uart_data_structures *uart;
 
@@ -120,6 +129,8 @@ static void __init kinetis_uart_register(int uid)
 	uart->pdev.id = uid;
 	uart->pdev.resource = uart->res;
 	uart->pdev.num_resources = ARRAY_SIZE(uart->res);
+	if (ctsrts)
+		uart->pdev.dev.platform_data = &platform_data_ctsrts;
 
 	/*
 	 * Enable UART module clock
@@ -138,27 +149,63 @@ out:
 	;
 }
 
+#if defined(CONFIG_KINETIS_UART0_CTSRTS)
+#define UART0_CTSRTS	1
+#else
+#define UART0_CTSRTS	0
+#endif
+
+#if defined(CONFIG_KINETIS_UART1_CTSRTS)
+#define UART1_CTSRTS	1
+#else
+#define UART1_CTSRTS	0
+#endif
+
+#if defined(CONFIG_KINETIS_UART2_CTSRTS)
+#define UART2_CTSRTS	1
+#else
+#define UART2_CTSRTS	0
+#endif
+
+#if defined(CONFIG_KINETIS_UART3_CTSRTS)
+#define UART3_CTSRTS	1
+#else
+#define UART3_CTSRTS	0
+#endif
+
+#if defined(CONFIG_KINETIS_UART4_CTSRTS)
+#define UART4_CTSRTS	1
+#else
+#define UART4_CTSRTS	0
+#endif
+
+#if defined(CONFIG_KINETIS_UART5_CTSRTS)
+#define UART5_CTSRTS	1
+#else
+#define UART5_CTSRTS	0
+#endif
+
 /*
  * Register the Kinetis-specific UART devices with the kernel
  */
 void __init kinetis_uart_init(void)
 {
 #if defined(CONFIG_KINETIS_UART0)
-	kinetis_uart_register(0);
+	kinetis_uart_register(0, UART0_CTSRTS);
 #endif
 #if defined(CONFIG_KINETIS_UART1)
-	kinetis_uart_register(1);
+	kinetis_uart_register(1, UART1_CTSRTS);
 #endif
 #if defined(CONFIG_KINETIS_UART2)
-	kinetis_uart_register(2);
+	kinetis_uart_register(2, UART2_CTSRTS);
 #endif
 #if defined(CONFIG_KINETIS_UART3)
-	kinetis_uart_register(3);
+	kinetis_uart_register(3, UART3_CTSRTS);
 #endif
 #if defined(CONFIG_KINETIS_UART4)
-	kinetis_uart_register(4);
+	kinetis_uart_register(4, UART4_CTSRTS);
 #endif
 #if defined(CONFIG_KINETIS_UART5)
-	kinetis_uart_register(5);
+	kinetis_uart_register(5, UART5_CTSRTS);
 #endif
 }
