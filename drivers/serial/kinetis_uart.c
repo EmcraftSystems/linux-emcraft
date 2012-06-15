@@ -45,6 +45,20 @@
 #define KINETIS_DRIVER_NAME	"kinetis-uart"
 
 /*
+ * Distrubution of the baudrate divisor value over the BDH/BDL registers and
+ * the C4[BRFA] bit field.
+ */
+/* C4[BRFA] (Baud Rate Fine Adjust) */
+#define KINETIS_UART_BRFA_BITWIDTH	5
+#define KINETIS_UART_BRFA_BITWIDTH_MSK	((1 << KINETIS_UART_BRFA_BITWIDTH) - 1)
+/* BDL (Baud Rate Registers: Low) */
+#define KINETIS_UART_BDL_BITWIDTH	8
+#define KINETIS_UART_BDL_BITWIDTH_MSK	((1 << KINETIS_UART_BDL_BITWIDTH) - 1)
+/* BDH (Baud Rate Registers: High) */
+#define KINETIS_UART_BDH_BITWIDTH	5
+#define KINETIS_UART_BDH_BITWIDTH_MSK	((1 << KINETIS_UART_BDH_BITWIDTH) - 1)
+
+/*
  * UART registers
  */
 /*
@@ -66,6 +80,16 @@
 #define KINETIS_UART_S1_RDRF_MSK	(1 << 5)
 /* Transmit Data Register Empty Flag */
 #define KINETIS_UART_S1_TDRE_MSK	(1 << 7)
+
+/*
+ * UART Control Register 1
+ */
+/* 9-bit or 8-bit Mode Select */
+#define KINETIS_UART_C1_M_MSK		(1 << 4)
+/* Parity Enable */
+#define KINETIS_UART_C1_PE_MSK		(1 << 1)
+/* Parity Type: 0=even parity, 1=odd parity */
+#define KINETIS_UART_C1_PT_MSK		(1 << 0)
 
 /*
  * UART Control Register 2
@@ -381,9 +405,126 @@ static void kinetis_shutdown(struct uart_port *port)
 static void kinetis_set_termios(struct uart_port *port,
 		struct ktermios *termios, struct ktermios *old)
 {
+	struct kinetis_uart_priv *up = kinetis_up(port);
+	volatile struct kinetis_uart_regs *regs = up->regs;
+	unsigned long flags;
+	/* Requested baudrate in bits/sec */
+	unsigned int baud;
+	/* If 7-bit with parity requested */
+	int want_7bit;
+	/* If parity bit requested */
+	int want_parity;
+	/* UART's base clock rate in Hz */
+	unsigned int base_clk;
+	/* Baudrate generator divider value */
+	u32 br_div;
+
 	/*
-	 * TBD
+	 * UARTs on Kinetis support 8-bit and 9-bit modes, but there is no
+	 * standard API for 9-bit mode in Linux, this is why 8-bit mode will
+	 * always be used.
+	 *
+	 * When parity bit is enabled, 7-bit data is also supported.
+	 *
+	 * If 7-bit with parity is requested, then set it up. In all other
+	 * cases, use 8-bit mode.
 	 */
+	want_7bit = (termios->c_cflag & CSIZE) == CS7 &&
+		(termios->c_cflag & PARENB);
+	want_parity = termios->c_cflag & PARENB;
+
+	/*
+	 * Get base clock for this particular UART
+	 */
+	base_clk = clk_get_rate(up->clk);
+	/*
+	 * If base clock is OK, determine the requested baud rate.
+	 * The maximum baud rate is 1/16 of the base clock frequency.
+	 */
+	baud = 0;
+	if (base_clk)
+		baud = uart_get_baud_rate(port, termios, old, 0, base_clk / 16);
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	/*
+	 * Disable Rx/Tx while changing UART parameters
+	 */
+	regs->c2 &= ~(KINETIS_UART_C2_RE_MSK | KINETIS_UART_C2_TE_MSK);
+
+	/*
+	 * Change baudrate
+	 */
+	if (baud) {
+		/*
+		 * Prepare baudrate divisor.
+		 *
+		 * 32*SBR + BRFD = 2 * base_clk / baudrate
+		 */
+		br_div = 2 * base_clk / baud;
+
+		/*
+		 * Changes in BDH will not take effect until we write into BDL.
+		 * Therefore we have to write into BDH first, and after that
+		 * into BDL.
+		 */
+		regs->bdh =
+			(regs->bdh & ~KINETIS_UART_BDH_SBR_MSK) |
+			(((br_div >>
+				(KINETIS_UART_BRFA_BITWIDTH +
+				KINETIS_UART_BDL_BITWIDTH)) &
+			KINETIS_UART_BDH_BITWIDTH_MSK) <<
+			KINETIS_UART_BDH_SBR_BITS);
+		regs->bdl =
+			((br_div >> KINETIS_UART_BRFA_BITWIDTH) &
+			KINETIS_UART_BDL_BITWIDTH_MSK) <<
+			KINETIS_UART_BDL_SBR_BITS;
+
+		/*
+		 * Baudrate fine adjust
+		 */
+		regs->c4 =
+			(regs->c4 & ~KINETIS_UART_C4_BRFA_MSK) |
+			((br_div & KINETIS_UART_BRFA_BITWIDTH_MSK) <<
+			KINETIS_UART_C4_BRFA_BITS);
+
+		/*
+		 * Update the per-port timeout.
+		 */
+		uart_update_timeout(port, termios->c_cflag, baud);
+	}
+
+	/*
+	 * 8-bit character + parity bit = 9 bits of data.
+	 */
+	if (!want_7bit && want_parity)
+		regs->c1 |= KINETIS_UART_C1_M_MSK;
+	else
+		regs->c1 &= ~KINETIS_UART_C1_M_MSK;
+
+	/*
+	 * Enable or disable parity
+	 */
+	if (want_parity) {
+		regs->c1 |= KINETIS_UART_C1_PE_MSK;
+
+		/*
+		 * Set parity type
+		 */
+		if (termios->c_cflag & PARODD)
+			regs->c1 |= KINETIS_UART_C1_PT_MSK;
+		else
+			regs->c1 &= ~KINETIS_UART_C1_PT_MSK;
+	} else {
+		regs->c1 &= ~KINETIS_UART_C1_PE_MSK;
+	}
+
+	/*
+	 * Enable Rx/Tx again
+	 */
+	regs->c2 |= KINETIS_UART_C2_RE_MSK | KINETIS_UART_C2_TE_MSK;
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static const char *kinetis_type(struct uart_port *port)
