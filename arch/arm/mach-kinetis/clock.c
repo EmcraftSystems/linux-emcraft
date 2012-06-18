@@ -35,11 +35,13 @@
 #include <mach/power.h>
 
 /*
- * Internal oscillator value
+ * Frequencies on OSC0 (EXTAL0/XTAL0) and OSC1 (EXTAL1/XTAL1)
  *
- * This frequency should be set to the same value as in U-Boot.
+ * These frequencies should be set to the same values as in U-Boot.
+ * These frequencies happen to be the same on K70-SOM and TWR-K70F120M.
  */
-#define CONFIG_KINETIS_EXTAL0_RATE	50000000	/* 50 MHz */
+#define CONFIG_KINETIS_OSC0_RATE	50000000	/* 50 MHz */
+#define CONFIG_KINETIS_OSC1_RATE	12000000	/* 12 MHz */
 
 /*
  * MCG Control 5 Register
@@ -340,6 +342,10 @@ void __init kinetis_clock_init(void)
 	/* MCU-specific parameters */
 	int vco_div;
 	int vdiv_min;
+	/* PLL0 or PLL1 used to generate MCGOUTCLK ("main" PLL) */
+	int pll_sel;
+	/* OSC0 or OSC1 used as clock source for the "main" PLL */
+	int osc_sel;
 	/* Frequency at the MCGOUTCLK output of the MCG */
 	int mcgout;
 
@@ -379,43 +385,52 @@ void __init kinetis_clock_init(void)
 	}
 
 	/*
-	 * The following code assumes that the MCGOUTCLK clock is always the
-	 * PLL0 output clock and that the PLL0 input is EXTAL0.
+	 * Check whether PLL0 or PLL1 is used for MCGOUTCLK
 	 */
+	pll_sel = !!(KINETIS_MCG->c11 & KINETIS_MCG_C11_PLLCS_MSK);
+
+	/*
+	 * Check whether OSC0 or OSC1 is used to source the main PLL
+	 */
+	if (pll_sel)
+		osc_sel = !!(KINETIS_MCG->c11 & KINETIS_MCG_C11_PLLREFSEL1_MSK);
+	else
+		osc_sel = !!(KINETIS_MCG->c5 & KINETIS_MCG_C5_PLLREFSEL_MSK);
+
 	/*
 	 * Start with the MCG input clock
 	 */
-	mcgout = CONFIG_KINETIS_EXTAL0_RATE;
+	mcgout = osc_sel ? CONFIG_KINETIS_OSC1_RATE : CONFIG_KINETIS_OSC0_RATE;
 
 	/*
-	 * Check whether PLL0 or PLL1 is used for MCGOUTCLK
+	 * Apply dividers and multipliers of the selected PLL
 	 */
-	if (KINETIS_MCG->c11 & KINETIS_MCG_C11_PLLCS_MSK) {
+	if (pll_sel) {
 		/*
-		 * PLL1 internal divider
+		 * PLL1 internal divider (PRDIV)
 		 */
 		mcgout /= ((KINETIS_MCG->c11 & KINETIS_MCG_C11_PRDIV_MSK) >>
 			KINETIS_MCG_C11_PRDIV_BITS) + 1;
 		/*
-		 * PLL1 multiplication factor
+		 * PLL1 multiplication factor (VDIV)
 		 */
 		mcgout *= ((KINETIS_MCG->c12 & KINETIS_MCG_C12_VDIV1_MSK) >>
 			KINETIS_MCG_C12_VDIV1_BITS) + vdiv_min;
 	} else {
 		/*
-		 * PLL0 internal divider
+		 * PLL0 internal divider (PRDIV)
 		 */
 		mcgout /= ((KINETIS_MCG->c5 & KINETIS_MCG_C5_PRDIV_MSK) >>
 			KINETIS_MCG_C5_PRDIV_BITS) + 1;
 		/*
-		 * PLL0 multiplication factor
+		 * PLL0 multiplication factor (VDIV)
 		 */
 		mcgout *= ((KINETIS_MCG->c6 & KINETIS_MCG_C6_VDIV_MSK) >>
 			KINETIS_MCG_C6_VDIV_BITS) + vdiv_min;
 	}
 
 	/*
-	 * Apply the PLL0 output divider
+	 * Apply the PLL output divider
 	 */
 	mcgout /= vco_div;
 
@@ -442,7 +457,7 @@ void __init kinetis_clock_init(void)
 	/*
 	 * Ethernet clock
 	 */
-	clock_val[CLOCK_MACCLK] = CONFIG_KINETIS_EXTAL0_RATE;
+	clock_val[CLOCK_MACCLK] = CONFIG_KINETIS_OSC0_RATE;
 
 	/*
 	 * LCD Controller clock
