@@ -1105,7 +1105,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	if (plat->dma_tx_size)
 		mmc->max_seg_size = plat->dma_tx_size;
 	else
-		mmc->max_seg_size = DMA_BUFF_SIZE - 1;
+		mmc->max_seg_size = DMA_BUFF_SIZE;
 #else
 	/*
 	 * Set the maximum segment size.  Since we aren't doing DMA
