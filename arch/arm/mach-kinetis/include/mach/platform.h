@@ -47,5 +47,7 @@ int kinetis_lcdtype_get(void);
 #define LCD_TWR_LCD_RGB			0
 /* Embedded Artists EA-LCD-004 */
 #define LCD_EA_LCD_004			1
+/* Future Electronics TWR-PIM-NL8048BC19-02C */
+#define LCD_FUT_TWR_NL8048		2
 
 #endif /* __ASM_ARCH_PLATFORM_H */

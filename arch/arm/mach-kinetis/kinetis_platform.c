@@ -126,6 +126,8 @@ static int __init kinetis_lcdtype_parse(char *s)
 		kinetis_lcdtype = LCD_TWR_LCD_RGB;
 	} else if (!strcmp(s, "ea-lcd-004")) {
 		kinetis_lcdtype = LCD_EA_LCD_004;
+	} else if (!strcmp(s, "fut-twr-nl8048")) {
+		kinetis_lcdtype = LCD_FUT_TWR_NL8048;
 	}
 
 	return 1;
