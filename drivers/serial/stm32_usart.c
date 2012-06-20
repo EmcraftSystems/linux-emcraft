@@ -5,7 +5,7 @@
  *
  * Contributions
  * Jordi López <jordi.lopg@gmail.com>
- * 06-13-2012 Added termios support and console settings parsing
+ * 06-20-2012 Added termios support and console settings parsing
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -91,16 +91,16 @@
 /*
  * USART CR bits
  */
-#define STM32_USART_CR1_UE		(1 << 13)	/* USART enable					*/
+#define STM32_USART_CR1_UE		(1 << 13)	/* USART enable			*/
 #define STM32_USART_CR1_M		(1 << 12)	/* USART 8/9 bits word length 	*/
-#define STM32_USART_CR1_PCE		(1 << 10)	/* USART parity enable			*/
-#define STM32_USART_CR1_PS		(1 <<  9)	/* USART parity	selection		*/
-#define STM32_USART_CR1_TXEIE	(1 << 7)	/* TXE interrupt enable			*/
-#define STM32_USART_CR1_IDLIE	(1 << 4)	/* IDLE interrupt enable		*/
-#define STM32_USART_CR1_TE		(1 << 3)	/* Transmitter enable			*/
-#define STM32_USART_CR1_RE		(1 << 2)	/* Receiver enable				*/
+#define STM32_USART_CR1_PCE		(1 << 10)	/* USART parity enable		*/
+#define STM32_USART_CR1_PS		(1 <<  9)	/* USART parity	selection	*/
+#define STM32_USART_CR1_TXEIE		(1 << 7)	/* TXE interrupt enable		*/
+#define STM32_USART_CR1_IDLIE		(1 << 4)	/* IDLE interrupt enable	*/
+#define STM32_USART_CR1_TE		(1 << 3)	/* Transmitter enable		*/
+#define STM32_USART_CR1_RE		(1 << 2)	/* Receiver enable		*/
 
-#define STM32_USART_CR2_STOP_MASK	(~(3 << 12))
+#define STM32_USART_CR2_STOP_MASK	(3 << 12)
 #define STM32_USART_CR2_1STOP		(0 << 12)
 #define STM32_USART_CR2_HSTOP		(1 << 12)
 #define STM32_USART_CR2_2STOP		(2 << 12)
@@ -108,18 +108,18 @@
 
 #define STM32_USART_CR3_CTSE	(1 << 9)
 #define STM32_USART_CR3_RTSE	(1 << 8)
-#define STM32_USART_CR3_DMAR	(1 << 6)	/* DMA enable receiver	      */
+#define STM32_USART_CR3_DMAR	(1 << 6)	/* DMA enable receiver	*/
 
 /*
  * USART SR bits (this is not the full list, see the others in uart.h header)
  */
 #define STM32_USART_SR_IDLE	(1 << 4)
-#define STM32_USART_SR_ORE	(1 << 3)	/* Overrun error	      */
-#define STM32_USART_SR_FE	(1 << 1)	/* Framing error	      */
-#define STM32_USART_SR_PE	(1 << 0)	/* Parity error		      */
-#define STM32_USART_SR_ERRORS	(STM32_USART_SR_ORE | STM32_USART_SR_FE |      \
+#define STM32_USART_SR_ORE	(1 << 3)	/* Overrun error	*/
+#define STM32_USART_SR_FE	(1 << 1)	/* Framing error	*/
+#define STM32_USART_SR_PE	(1 << 0)	/* Parity error		*/
+#define STM32_USART_SR_ERRORS	(STM32_USART_SR_ORE | STM32_USART_SR_FE | \
 				 STM32_USART_SR_PE)
-#define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_ORE | STM32_USART_SR_PE |      \
+#define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_ORE | STM32_USART_SR_PE | \
 				 STM32_USART_SR_FE)
 
 /*
@@ -136,9 +136,9 @@
  */
 #ifndef CONFIG_ARCH_STM32F1
 /* Streams and Double Buffer Mode are not supported on STM32F1 */
-#define STM32_DMA_CR_CHSEL_BIT	25		/* Channel selection	      */
-#define STM32_DMA_CR_CT		(1 << 19)	/* Current target	      */
-#define STM32_DMA_CR_DBM	(1 << 18)	/* Double buffer mode	      */
+#define STM32_DMA_CR_CHSEL_BIT	25		/* Channel selection	*/
+#define STM32_DMA_CR_CT		(1 << 19)	/* Current target	*/
+#define STM32_DMA_CR_DBM	(1 << 18)	/* Double buffer mode	*/
 #endif
 
 /* Priority level */
@@ -151,19 +151,19 @@
 
 #ifdef CONFIG_ARCH_STM32F1
 /* STM32F1 */
-#define STM32_DMA_CR_MINC	(1 << 7)	/* Memory increment mode      */
-#define STM32_DMA_CR_CIRC	(1 << 5)	/* Circular mode	      */
-#define STM32_DMA_CR_TCIE	(1 << 1)	/* Transfer complete irq ena  */
-#define STM32_DMA_CR_HTIE	(1 << 2)	/* Half transfer irq ena      */
+#define STM32_DMA_CR_MINC	(1 << 7)	/* Memory increment mode	*/
+#define STM32_DMA_CR_CIRC	(1 << 5)	/* Circular mode		*/
+#define STM32_DMA_CR_TCIE	(1 << 1)	/* Transfer complete irq ena	*/
+#define STM32_DMA_CR_HTIE	(1 << 2)	/* Half transfer irq ena	*/
 #else
 /* STM32F2 */
-#define STM32_DMA_CR_MINC	(1 << 10)	/* Memory increment mode      */
-#define STM32_DMA_CR_CIRC	(1 << 8)	/* Circular mode	      */
-#define STM32_DMA_CR_TCIE	(1 << 4)	/* Transfer complete irq ena  */
-#define STM32_DMA_CR_HTIE	(1 << 3)	/* Half transfer irq ena      */
+#define STM32_DMA_CR_MINC	(1 << 10)	/* Memory increment mode	*/
+#define STM32_DMA_CR_CIRC	(1 << 8)	/* Circular mode		*/
+#define STM32_DMA_CR_TCIE	(1 << 4)	/* Transfer complete irq ena	*/
+#define STM32_DMA_CR_HTIE	(1 << 3)	/* Half transfer irq ena	*/
 #endif
 
-#define STM32_DMA_CR_EN		(1 << 0)	/* Stream enable	      */
+#define STM32_DMA_CR_EN		(1 << 0)	/* Stream enable		*/
 
 /*
  * DMA NDTR bits
@@ -175,44 +175,44 @@
  * USART register map
  */
 struct stm32_usart_regs {
-	u16	sr;		/* Status				      */
+	u16	sr;		/* Status					*/
 	u16	rsv0;
-	u16	dr;		/* Data					      */
+	u16	dr;		/* Data					*/
 	u16	rsv1;
-	u16	brr;		/* Baud rate				      */
+	u16	brr;		/* Baud rate					*/
 	u16	rsv2;
-	u16	cr1;		/* Control 1				      */
+	u16	cr1;		/* Control 1					*/
 	u16	rsv3;
-	u16	cr2;		/* Control 2				      */
+	u16	cr2;		/* Control 2					*/
 	u16	rsv4;
-	u16	cr3;		/* Control 3				      */
+	u16	cr3;		/* Control 3					*/
 	u16	rsv5;
-	u16	gtpr;		/* Guard time and prescaler		      */
+	u16	gtpr;		/* Guard time and prescaler			*/
 };
 
 /*
  * DMA register map
  */
 struct stm32_dma_regs {
-	u32	lisr;			/* low interrupt status		      */
+	u32	lisr;			/* low interrupt status		*/
 #ifndef CONFIG_ARCH_STM32F1
-	u32	hisr;			/* high interrupt status	      */
+	u32	hisr;			/* high interrupt status		*/
 #endif
-	u32	lifcr;			/* low interrupt flag clear	      */
+	u32	lifcr;			/* low interrupt flag clear		*/
 #ifndef CONFIG_ARCH_STM32F1
-	u32	hifcr;			/* high interrupt flag clear	      */
+	u32	hifcr;			/* high interrupt flag clear	*/
 #endif
 
 	struct {
-		u32		cr;	/* configuration		      */
-		u32		ndtr;	/* number of data		      */
-		volatile void	*par;	/* peripheral address		      */
-		volatile void	*m0ar;	/* memory 0 address		      */
+		u32		cr;	/* configuration			*/
+		u32		ndtr;	/* number of data			*/
+		volatile void	*par;	/* peripheral address		*/
+		volatile void	*m0ar;	/* memory 0 address			*/
 #ifdef CONFIG_ARCH_STM32F1
 		u32		rsv0;
 #else
-		volatile void	*m1ar;	/* memory 1 address		      */
-		u32		fcr;	/* FIFO control			      */
+		volatile void	*m1ar;	/* memory 1 address			*/
+		u32		fcr;	/* FIFO control			*/
 #endif
 	} s[8];
 };
@@ -303,7 +303,7 @@ struct stm32_usart_priv {
  * Prototypes
  */
 static void stm32_xmit_char(volatile struct stm32_usart_regs *uart,
-			    unsigned char c);
+				unsigned char c);
 static void stm32_transmit(struct uart_port *port);
 
 static irqreturn_t stm32_usart_isr(int irq, void *dev_id);
@@ -353,7 +353,7 @@ static struct stm32_dma_ini	stm32_usart_rx_dma[STM32_NR_UARTS] = {
 /*
  * STM32F1: Channel ISR bits for half[0]/complete[1] transfers
  */
-static u32			stm32_dma_isr_bit[STM32_DMA_CHAN_LAST] = {
+static u32 stm32_dma_isr_bit[STM32_DMA_CHAN_LAST] = {
 	(1 <<  1) | (1 <<  2), /* Channel 1 */
 	(1 <<  5) | (1 <<  6),
 	(1 <<  9) | (1 << 10),
@@ -366,7 +366,7 @@ static u32			stm32_dma_isr_bit[STM32_DMA_CHAN_LAST] = {
 /*
  * STM32F2: Stream ISR bits for half[0]/complete[1] transfers
  */
-static u32			stm32_dma_isr_bit[STM32_DMA_STREAM_LAST] = {
+static u32 stm32_dma_isr_bit[STM32_DMA_STREAM_LAST] = {
 	(1 <<  4) | (1 <<  5),
 	(1 << 10) | (1 << 11),
 	(1 << 20) | (1 << 21),
@@ -621,83 +621,63 @@ static const char *stm_port_type(struct uart_port *port)
 /*
  * Set termios
  */
-static void stm_port_set_termios ( struct uart_port *port, struct ktermios *termios,
-			      				   struct ktermios *old )
+static void stm_port_set_termios(struct uart_port *port, struct ktermios *termios,
+				struct ktermios *old )
 {
-    unsigned long flags;
-    unsigned int baud;
-    volatile struct stm32_usart_regs *uart = stm32_usart(port);
-    u32 newcr1, newcr2, newcr3;
+	unsigned long flags;
+	unsigned int baud, max_baud;
+	volatile struct stm32_usart_regs *uart = stm32_usart(port);
+	u32 newcr1, newcr2, newcr3, apb_clock;
 
 	newcr1 = uart->cr1;
 	newcr2 = uart->cr2;
 	newcr3 = uart->cr3;
 	
-    /* Calculate new Word length and parity */
-	newcr1 &= ~( STM32_USART_CR1_M | STM32_USART_CR1_PCE);
-    if ( termios->c_cflag & PARENB )
-    {
-    	newcr1 |= STM32_USART_CR1_PCE;
-        if ( termios->c_cflag & PARODD )
-            newcr1 |= STM32_USART_CR1_PS;
-        else
-            newcr1 |= STM32_USART_CR1_PS;
-            
-        if ( ( termios->c_cflag & CSIZE ) == CS8 )
-        	newcr1 |= STM32_USART_CR1_M;
-    }
-    
-    /* Calculate stop bits */
-    newcr2 &= STM32_USART_CR2_STOP_MASK;
-	if ( termios->c_cflag & CSTOPB )
+	/* Calculate new word length and parity */
+	newcr1 &= ~(STM32_USART_CR1_M | STM32_USART_CR1_PCE | STM32_USART_CR1_PS);
+	if (termios->c_cflag & PARENB) {
+		newcr1 |= STM32_USART_CR1_PCE;
+		if ( termios->c_cflag & PARODD )
+			newcr1 |= STM32_USART_CR1_PS;
+
+		if ((termios->c_cflag & CSIZE) == CS8)
+			newcr1 |= STM32_USART_CR1_M;
+	}
+
+	/* Calculate stop bits */
+	newcr2 &= ~STM32_USART_CR2_STOP_MASK;
+	if (termios->c_cflag & CSTOPB)
 		newcr2 |= STM32_USART_CR2_2STOP;
 
-    /* Calculate new flow control */
-    newcr3 &= ~( STM32_USART_CR3_CTSE | STM32_USART_CR3_RTSE );
-    if ( termios->c_cflag & CRTSCTS )
-		    newcr3 |= ( STM32_USART_CR3_CTSE | STM32_USART_CR3_RTSE );
-    
-    /* Calculate new baud rate */
-    baud = uart_get_baud_rate ( port, termios, old, 0, 115200 );
+	/* Calculate new flow control */
+	newcr3 &= ~(STM32_USART_CR3_CTSE | STM32_USART_CR3_RTSE);
+	if (termios->c_cflag & CRTSCTS)
+		newcr3 |= (STM32_USART_CR3_CTSE | STM32_USART_CR3_RTSE);
 
-    spin_lock_irqsave( &port->lock, flags );
+	/* Determine maximum baudrate from USART clock */
+	if (port->line == 0 || port->line == 5)
+		max_baud = stm32_clock_get(CLOCK_PCLK2) >> 4;
+	else
+		max_baud = stm32_clock_get(CLOCK_PCLK1) >> 4;
 
-    /* update timeout */
-    uart_update_timeout ( port, termios->c_cflag, baud );
+	/* Calculate new baud rate */
+	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
 
-    port->read_status_mask = UART_LSR_DR | UART_LSR_OE | UART_LSR_THRE;
+	spin_lock_irqsave(&port->lock, flags);
 
-    if ( termios->c_iflag & INPCK )
-        port->read_status_mask |= UART_LSR_PE | UART_LSR_FE;
+	/* update timeout */
+	uart_update_timeout(port, termios->c_cflag, baud);
 
-    port->ignore_status_mask = 0;
-    if ( termios->c_iflag & IGNPAR )
-        port->ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
-    if ( termios->c_iflag & IGNBRK )
-    {
-        port->ignore_status_mask |= UART_LSR_BI;
-        /*
-         * If we're ignoring parity and break indicators,
-         * ignore overruns too (for real raw support).
-         */
-        if ( termios->c_iflag & IGNPAR )
-            port->ignore_status_mask |= UART_LSR_OE;
-    }
-
-    /* ignore all characters if CREAD is not set */
-    if ( ( termios->c_cflag & CREAD ) == 0 )
-        port->ignore_status_mask |= UART_LSR_DR;
-
-    /* set up USART registers */
+	/* set up USART registers */
 	uart->cr1 = newcr1;
 	uart->cr2 = newcr2;
 	uart->cr3 = newcr3;
-	stm_set_baud_rate ( port, baud );
-    
-    if ( tty_termios_baud_rate ( termios ) )
-        tty_termios_encode_baud_rate ( termios, baud, baud );
-        
-    spin_unlock_irqrestore ( &port->lock, flags );
+	stm_set_baud_rate(port, baud);
+
+	if (tty_termios_baud_rate(termios))
+		tty_termios_encode_baud_rate(termios, baud, baud);
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /*
@@ -871,10 +851,10 @@ static int __init stm_console_setup(struct console *co, char *options)
 	 * Set of console default values. They will be used only if
 	 * no options are given, may be changed at will.
 	 */
-    int baud = 115200;
-    int bits = 8;
-    int parity = 'n';
-    int flow = 'n';
+	int baud = 115200;
+	int bits = 8;
+	int parity = 'n';
+	int flow = 'n';
 
 	if (co->index < 0 || co->index >= STM32_NR_UARTS) {
 		rv = -EINVAL;
@@ -889,12 +869,12 @@ static int __init stm_console_setup(struct console *co, char *options)
 		goto out;
 	}
 
-    /* If options are present parse them and overide defaults */
-    if ( options )
-        uart_parse_options ( options, &baud, &parity, &bits, &flow );
+	/* If options are present parse them and overide defaults */
+	if (options)
+		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
 	/* Set options to console and port termios */
-    rv = uart_set_options ( port, co, baud, parity, bits, flow );
+	rv = uart_set_options(port, co, baud, parity, bits, flow);
 out:
 	return rv;
 }
