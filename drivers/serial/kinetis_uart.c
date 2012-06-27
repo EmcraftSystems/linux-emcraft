@@ -836,18 +836,23 @@ static int __devexit kinetis_uart_remove(struct platform_device *pdev)
 	struct kinetis_uart_priv *up;
 	int rv = 0;
 
-	if (port) {
-		up = kinetis_up(port);
-		rv = uart_remove_one_port(&kinetis_uart_driver, port);
-		dev_set_drvdata(dev, NULL);
-		if (up) {
-			up->regs = NULL;
+	if (!port)
+		goto out;
 
-			clk_disable(up->clk);
-			clk_put(up->clk);
-		}
-	}
+	up = kinetis_up(port);
 
+	/* Unregister the port */
+	rv = uart_remove_one_port(&kinetis_uart_driver, port);
+
+	/* Release clock */
+	clk_disable(up->clk);
+	clk_put(up->clk);
+
+	/* Reset pointers */
+	dev_set_drvdata(dev, NULL);
+	up->regs = NULL;
+
+out:
 	return rv;
 }
 
