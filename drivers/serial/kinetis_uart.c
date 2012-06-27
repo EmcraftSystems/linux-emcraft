@@ -259,7 +259,7 @@ static int kinetis_startup(struct uart_port *port)
 	 */
 	rv = request_irq(up->stat_irq, kinetis_uart_status_irq,
 			 IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
-			 KINETIS_UART_PORT, port);
+			 KINETIS_UART_PORT, up);
 	if (rv) {
 		printk(KERN_ERR "%s: request_irq (%d)failed (%d)\n",
 			__func__, up->stat_irq, rv);
@@ -271,11 +271,11 @@ static int kinetis_startup(struct uart_port *port)
 	 */
 	rv = request_irq(up->err_irq, kinetis_uart_error_irq,
 			 IRQF_DISABLED,
-			 KINETIS_UART_PORT, port);
+			 KINETIS_UART_PORT, up);
 	if (rv) {
 		printk(KERN_ERR "%s: request_irq (%d)failed (%d)\n",
 			__func__, up->err_irq, rv);
-		free_irq(up->stat_irq, port);
+		free_irq(up->stat_irq, up);
 		goto out;
 	}
 
@@ -409,8 +409,8 @@ static void kinetis_shutdown(struct uart_port *port)
 {
 	struct kinetis_uart_priv *up = kinetis_up(port);
 
-	free_irq(up->stat_irq, port);
-	free_irq(up->err_irq, port);
+	free_irq(up->stat_irq, up);
+	free_irq(up->err_irq, up);
 }
 
 static void kinetis_set_termios(struct uart_port *port,
