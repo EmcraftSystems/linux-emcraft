@@ -32,6 +32,7 @@
 #include <asm/mach/time.h>
 
 #include <mach/clock.h>
+#include <mach/dmainit.h>
 #include <mach/iomux.h>
 #include <mach/platform.h>
 #include <mach/timer.h>
@@ -179,6 +180,13 @@ static void __init kinetis_init_irq(void)
  */
 static void __init kinetis_init(void)
 {
+#if defined(CONFIG_KINETIS_EDMA)
+	/*
+	 * Configure DMA controller and its driver's API
+	 */
+	kinetis_dma_init();
+#endif
+
 	/*
 	 * Configure the IOMUXes of the Freescale Kinetis MCU
 	 */

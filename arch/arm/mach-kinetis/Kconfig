@@ -80,6 +80,11 @@ config KINETIS_FB
 	bool "Enable Freescale Kinetis framebuffer"
 	default n
 
+config KINETIS_EDMA
+	depends on ARCH_KINETIS
+	bool "Enable Kinetis eDMA controller for peripherals"
+	default y
+
 endmenu
 
 endif
