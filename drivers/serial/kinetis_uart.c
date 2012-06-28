@@ -34,8 +34,10 @@
 #include <linux/tty.h>
 #include <linux/clk.h>
 #include <linux/kinetis_uart.h>
+#include <linux/dma-mapping.h>
 
 #include <mach/uart.h>
+#include <mach/dmac.h>
 
 /*
  * Driver settings
@@ -77,10 +79,12 @@
 /*
  * UART Status Register 1
  */
-/* Receive Data Register Full Flag */
-#define KINETIS_UART_S1_RDRF_MSK	(1 << 5)
 /* Transmit Data Register Empty Flag */
 #define KINETIS_UART_S1_TDRE_MSK	(1 << 7)
+/* Receive Data Register Full Flag */
+#define KINETIS_UART_S1_RDRF_MSK	(1 << 5)
+/* Idle Line Flag */
+#define KINETIS_UART_S1_IDLE_MSK	(1 << 4)
 
 /*
  * UART Control Register 1
@@ -95,14 +99,16 @@
 /*
  * UART Control Register 2
  */
-/* Receiver Enable */
-#define KINETIS_UART_C2_RE_MSK	(1 << 2)
-/* Transmitter Enable */
-#define KINETIS_UART_C2_TE_MSK	(1 << 3)
-/* Receiver Full Interrupt or DMA Transfer Enable */
-#define KINETIS_UART_C2_RIE_MSK	(1 << 5)
 /* Transmitter Interrupt or DMA Transfer Enable */
-#define KINETIS_UART_C2_TIE_MSK	(1 << 7)
+#define KINETIS_UART_C2_TIE_MSK		(1 << 7)
+/* Receiver Full Interrupt or DMA Transfer Enable */
+#define KINETIS_UART_C2_RIE_MSK		(1 << 5)
+/* Idle Line Interrupt Enable */
+#define KINETIS_UART_C2_ILIE_MSK	(1 << 4)
+/* Transmitter Enable */
+#define KINETIS_UART_C2_TE_MSK		(1 << 3)
+/* Receiver Enable */
+#define KINETIS_UART_C2_RE_MSK		(1 << 2)
 
 /*
  * UART Control Register 4
@@ -171,6 +177,9 @@ struct kinetis_uart_regs {
 	u8 tl7816;	/* 7816 Transmit Length Register */
 };
 
+/* The whole Rx DMA buffer should be filled in approximately 40ms */
+#define DMA_RX_BUF_TIMECYCLE	40
+
 /*
  * Driver private
  */
@@ -183,6 +192,17 @@ struct kinetis_uart_priv {
 	struct clk *clk;
 
 	int have_ctsrts;
+
+#if defined(CONFIG_KINETIS_EDMA)
+	/* UART Rx DMA channel number */
+	int dma_ch_rx;
+#endif /* CONFIG_KINETIS_EDMA */
+	/* UART DMA receive buffer: CPU pointer and DMA address */
+	u8 *rx_buf;
+	dma_addr_t rx_dma_handle;
+	unsigned int rx_buf_len;
+	/* Offset in buffer of the received character to be handled next */
+	int rx_cons_idx;
 };
 #define kinetis_up(p)	(container_of((p), struct kinetis_uart_priv, port))
 #define kinetis_regs(p)	(kinetis_up(p)->regs)
@@ -225,6 +245,46 @@ static void kinetis_uart_tx_irq(struct kinetis_uart_priv *up)
 	kinetis_uart_tx_chars(up);
 }
 
+#if defined(CONFIG_KINETIS_EDMA)
+static void kinetis_uart_handle_dma_rx(struct kinetis_uart_priv *up)
+{
+	struct tty_struct *tty = up->port.state->port.tty;
+	/* Buffer offset where DMA engine will write the next received byte */
+	int prod_idx;
+
+	/* Find "head" of the circular DMA buffer */
+	prod_idx = kinetis_dma_ch_iter_done(up->dma_ch_rx);
+	if (prod_idx < 0) {
+		dev_err(up->port.dev, "kinetis_dma_ch_iter_done failed (%d).\n",
+			prod_idx);
+		goto out;
+	}
+
+	if (prod_idx > up->rx_cons_idx) {
+		/* Feed to TTY subsystem a continuous chunk in buffer */
+		tty_insert_flip_string(tty, up->rx_buf + up->rx_cons_idx,
+			prod_idx - up->rx_cons_idx);
+	} else if (prod_idx < up->rx_cons_idx) {
+		/* prod_idx has wrapped. Handle the first part of data. */
+		tty_insert_flip_string(tty, up->rx_buf + up->rx_cons_idx,
+			up->rx_buf_len - up->rx_cons_idx);
+		/* Handle the second part of data in the beginning of buffer. */
+		tty_insert_flip_string(tty, up->rx_buf, prod_idx);
+	} else {
+		/* No new characters in the receive buffer */
+		goto out;
+	}
+
+	/* We have processed all new data in buffer */
+	up->rx_cons_idx = prod_idx;
+
+	tty_flip_buffer_push(tty);
+
+out:
+	;
+}
+#endif /* CONFIG_KINETIS_EDMA */
+
 static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 {
 	struct kinetis_uart_priv *up = dev_id;
@@ -232,10 +292,29 @@ static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 	u8 status;
 
 	status = regs->s1;
-	if (status & KINETIS_UART_S1_RDRF_MSK)
-		kinetis_uart_rx_irq(up);
+
+	/* Handle character transmission */
 	if (status & KINETIS_UART_S1_TDRE_MSK)
 		kinetis_uart_tx_irq(up);
+
+	/* Handle received characters (Rx DMA disabled) */
+	if (
+#if defined(CONFIG_KINETIS_EDMA)
+		up->dma_ch_rx < 0 &&
+#endif /* CONFIG_KINETIS_EDMA */
+		(status & KINETIS_UART_S1_RDRF_MSK))
+		kinetis_uart_rx_irq(up);
+
+#if defined(CONFIG_KINETIS_EDMA)
+	/* Handle received characters (Rx DMA enabled) */
+	if (up->dma_ch_rx >= 0 && (status & KINETIS_UART_S1_IDLE_MSK)) {
+		/* Clear S[IDLE] flag by reading from UARTx_D after UART_S */
+		u8 tmp;
+		tmp = regs->d;
+
+		kinetis_uart_handle_dma_rx(up);
+	}
+#endif /* CONFIG_KINETIS_EDMA */
 
 	return IRQ_HANDLED;
 }
@@ -244,6 +323,199 @@ static irqreturn_t kinetis_uart_error_irq(int irq, void *dev_id)
 {
 	return IRQ_HANDLED;
 }
+
+#if defined(CONFIG_KINETIS_EDMA)
+static void kinetis_uart_dma_irq(int ch, unsigned long flags, void *data)
+{
+	kinetis_uart_handle_dma_rx(data);
+}
+
+/*
+ * Calculate the Rx DMA buffer size to ensure the whole buffer fills
+ * in around 40ms (DMA_RX_BUF_TIMECYCLE).
+ *
+ * Based on uart_update_timeout() from serial_core.c
+ */
+static int kinetis_calc_bufsize(unsigned int cflag, unsigned int baud)
+{
+	unsigned int bits;
+
+	/* byte size and parity */
+	switch (cflag & CSIZE) {
+	case CS5:
+		bits = 7;
+		break;
+	case CS6:
+		bits = 8;
+		break;
+	case CS7:
+		bits = 9;
+		break;
+	default:
+		bits = 10;
+		break; /* CS8 */
+	}
+
+	if (cflag & CSTOPB)
+		bits++;
+	if (cflag & PARENB)
+		bits++;
+
+	/* We divide by 1000 because DMA_RX_BUF_TIMECYCLE is in milliseconds */
+	return max(10u, baud * DMA_RX_BUF_TIMECYCLE / (1000u * bits));
+}
+
+/*
+ * Free the DMA coherent UART Rx buffer
+ */
+static void kinetis_rx_dma_free(struct kinetis_uart_priv *up)
+{
+	if (up->rx_buf) {
+		dma_free_coherent(NULL, up->rx_buf_len, up->rx_buf,
+			up->rx_dma_handle);
+		up->rx_buf = NULL;
+	}
+}
+
+/*
+ * This function should be called if up->dma_ch_rx is valid.
+ * This function must be called with port->lock taken.
+ */
+static int __kinetis_stop_rx_dma(struct kinetis_uart_priv *up)
+{
+	volatile struct kinetis_uart_regs *regs = up->regs;
+	int rv;
+
+	/* Disable UART transmit DMA */
+	regs->c5 &= ~KINETIS_UART_C5_TDMAS_MSK;
+	/* Disable UART receive DMA */
+	regs->c2 &= ~KINETIS_UART_C2_RIE_MSK;
+	regs->c5 &= ~KINETIS_UART_C5_RDMAS_MSK;
+	/* Disable "Idle Line" interrupt */
+	regs->c2 &= ~KINETIS_UART_C2_ILIE_MSK;
+
+	/* Stop DMA if it was running */
+	rv = kinetis_dma_ch_disable(up->dma_ch_rx);
+
+	return rv;
+}
+
+/*
+ * This function should be called if up->dma_ch_rx is valid.
+ * This function must be called with port->lock taken.
+ */
+static int __kinetis_start_rx_dma(struct kinetis_uart_priv *up,
+				  unsigned int cflag, unsigned int baud)
+{
+	volatile struct kinetis_uart_regs *regs = up->regs;
+	int rv;
+
+	/* Allocate Rx DMA buffer */
+	up->rx_cons_idx = 0;
+	up->rx_buf_len = kinetis_calc_bufsize(cflag, baud);
+	up->rx_buf = dma_alloc_coherent(
+		NULL, up->rx_buf_len, &up->rx_dma_handle, GFP_KERNEL);
+	if (!up->rx_buf) {
+		rv = -ENOMEM;
+		goto out;
+	}
+
+	/* Clear DMA channel TCD (transfer control descriptor) */
+	rv = kinetis_dma_ch_init(up->dma_ch_rx);
+	if (rv < 0)
+		goto out;
+	/* DMA source if the UARTx_D 8-bit register */
+	rv = kinetis_dma_ch_set_src(up->dma_ch_rx, (dma_addr_t)&regs->d, 0,
+		KINETIS_DMA_WIDTH_8BIT, 0);
+	if (rv < 0)
+		goto out;
+	/* DMA destination is the UART Rx DMA buffer */
+	rv = kinetis_dma_ch_set_dest(up->dma_ch_rx, up->rx_dma_handle, 1,
+		KINETIS_DMA_WIDTH_8BIT, -up->rx_buf_len);
+	if (rv < 0)
+		goto out;
+	/* Transfer 1 character at a time */
+	rv = kinetis_dma_ch_set_nbytes(up->dma_ch_rx, 1);
+	if (rv < 0)
+		goto out;
+	/* Wrap destination address when the buffer ends */
+	rv = kinetis_dma_ch_set_iter_num(up->dma_ch_rx, up->rx_buf_len);
+	if (rv < 0)
+		goto out;
+	/* Enable UART Rx DMA channel */
+	rv = kinetis_dma_ch_enable(up->dma_ch_rx);
+	if (rv < 0)
+		goto out;
+
+	/* Disable UART transmit DMA */
+	regs->c5 &= ~KINETIS_UART_C5_TDMAS_MSK;
+	/* Enable UART receive DMA */
+	regs->c5 |= KINETIS_UART_C5_RDMAS_MSK;
+	regs->c2 |= KINETIS_UART_C2_RIE_MSK;
+	/* Enable "Idle Line" interrupt */
+	regs->c2 |= KINETIS_UART_C2_ILIE_MSK;
+
+	rv = 0;
+	goto out;
+
+out:
+	return rv;
+}
+
+/*
+ * This function should be called if up->dma_ch_rx is valid.
+ *
+ * We do not call kinetis_rx_dma_free() from this function, because that
+ * requires interrupts to be enabled (due to dma_free_coherent() used).
+ * This function must work correctly with interrupts disabled, because it
+ * may be called from function kinetis_stop_rx() which executes with
+ * interrupts disabled.
+ *
+ * The UART Rx DMA buffer will be freed anyway in the next call to
+ * kinetis_start_rx_dma().
+ */
+static int kinetis_stop_rx_dma(struct kinetis_uart_priv *up)
+{
+	unsigned long flags;
+	int rv;
+
+	spin_lock_irqsave(&up->port.lock, flags);
+	rv = __kinetis_stop_rx_dma(up);
+	spin_unlock_irqrestore(&up->port.lock, flags);
+
+	return rv;
+}
+
+/*
+ * This function should be called if up->dma_ch_rx is valid.
+ */
+static int kinetis_start_rx_dma(struct kinetis_uart_priv *up,
+				unsigned int cflag, unsigned int baud)
+{
+	unsigned long flags;
+	int rv;
+
+	/* Stop DMA if it was running */
+	kinetis_stop_rx_dma(up);
+
+	/* Free DMA buffer if it was allocated */
+	kinetis_rx_dma_free(up);
+
+	spin_lock_irqsave(&up->port.lock, flags);
+	rv = __kinetis_start_rx_dma(up, cflag, baud);
+	spin_unlock_irqrestore(&up->port.lock, flags);
+
+	/*
+	 * If __kinetis_start_rx_dma() failed but up->rx_buf was successfully
+	 * allocated, then free this buffer.
+	 */
+	if (rv < 0)
+		kinetis_rx_dma_free(up);
+
+	return rv;
+}
+
+#endif /* CONFIG_KINETIS_EDMA */
 
 /*
  * Request IRQs, enable interrupts
@@ -275,15 +547,24 @@ static int kinetis_startup(struct uart_port *port)
 	if (rv) {
 		printk(KERN_ERR "%s: request_irq (%d)failed (%d)\n",
 			__func__, up->err_irq, rv);
-		free_irq(up->stat_irq, up);
-		goto out;
+		goto err_irq_err;
 	}
 
-	/*
-	 * Enable UART receive interrupts
-	 */
-	regs->c5 &= ~(KINETIS_UART_C5_TDMAS_MSK | KINETIS_UART_C5_RDMAS_MSK);
-	regs->c2 |= KINETIS_UART_C2_RIE_MSK;
+#if defined(CONFIG_KINETIS_EDMA)
+	if (up->dma_ch_rx >= 0) {
+		/* If using DMA, enable the UART Rx DMA channel */
+		rv = kinetis_start_rx_dma(up, CS8, 115200);
+		if (rv < 0)
+			goto err_start_rx_dma;
+	} else {
+#endif /* CONFIG_KINETIS_EDMA */
+		/* If not using DMA, enable UART receive interrupts */
+		regs->c5 &= ~(KINETIS_UART_C5_TDMAS_MSK |
+			KINETIS_UART_C5_RDMAS_MSK);
+		regs->c2 |= KINETIS_UART_C2_RIE_MSK;
+#if defined(CONFIG_KINETIS_EDMA)
+	}
+#endif /* CONFIG_KINETIS_EDMA */
 
 	/*
 	 * Enable receiver and transmitter
@@ -291,6 +572,15 @@ static int kinetis_startup(struct uart_port *port)
 	regs->c2 |= KINETIS_UART_C2_RE_MSK | KINETIS_UART_C2_TE_MSK;
 
 	rv = 0;
+	goto out;
+
+#if defined(CONFIG_KINETIS_EDMA)
+err_start_rx_dma:
+	free_irq(up->err_irq, up);
+#endif /* CONFIG_KINETIS_EDMA */
+
+err_irq_err:
+	free_irq(up->stat_irq, up);
 out:
 	return rv;
 }
@@ -395,6 +685,23 @@ static void kinetis_start_tx(struct uart_port *port)
 
 static void kinetis_stop_rx(struct uart_port *port)
 {
+	struct kinetis_uart_priv *up = kinetis_up(port);
+	volatile struct kinetis_uart_regs *regs = up->regs;
+
+#if defined(CONFIG_KINETIS_EDMA)
+	if (up->dma_ch_rx >= 0) {
+		/* If using DMA, stop receive DMA */
+		kinetis_stop_rx_dma(up);
+	} else {
+#endif /* CONFIG_KINETIS_EDMA */
+		/* If not using DMA, disable receive IRQ */
+		regs->c2 &= ~KINETIS_UART_C2_RIE_MSK;
+#if defined(CONFIG_KINETIS_EDMA)
+	}
+#endif /* CONFIG_KINETIS_EDMA */
+
+	/* Disable receiver */
+	regs->c2 &= ~KINETIS_UART_C2_RE_MSK;
 }
 
 static void kinetis_enable_ms(struct uart_port *port)
@@ -455,6 +762,14 @@ static void kinetis_set_termios(struct uart_port *port,
 	baud = 0;
 	if (base_clk)
 		baud = uart_get_baud_rate(port, termios, old, 0, base_clk / 16);
+
+#if defined(CONFIG_KINETIS_EDMA)
+	/*
+	 * Disable Rx DMA while changing UART parameters
+	 */
+	if (up->dma_ch_rx >= 0)
+		kinetis_stop_rx_dma(up);
+#endif /* CONFIG_KINETIS_EDMA */
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -547,6 +862,14 @@ static void kinetis_set_termios(struct uart_port *port,
 	regs->c2 |= KINETIS_UART_C2_RE_MSK | KINETIS_UART_C2_TE_MSK;
 
 	spin_unlock_irqrestore(&port->lock, flags);
+
+#if defined(CONFIG_KINETIS_EDMA)
+	/*
+	 * Disable Rx DMA while changing UART parameters
+	 */
+	if (up->dma_ch_rx >= 0)
+		kinetis_start_rx_dma(up, termios->c_cflag, baud ? baud : 115200);
+#endif /* CONFIG_KINETIS_EDMA */
 }
 
 static const char *kinetis_type(struct uart_port *port)
@@ -726,6 +1049,9 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	struct resource *uart_reg_res;
 	struct resource *uart_stat_irq_res, *uart_err_irq_res;
+#if defined(CONFIG_KINETIS_EDMA)
+	struct resource *uart_rx_dma_res;
+#endif /* CONFIG_KINETIS_EDMA */
 	struct device *dev = &pdev->dev;
 	struct kinetis_uart_data *pdata = dev->platform_data;
 	int rv;
@@ -765,6 +1091,9 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 	uart_reg_res      = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	uart_stat_irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	uart_err_irq_res  = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
+#if defined(CONFIG_KINETIS_EDMA)
+	uart_rx_dma_res   = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+#endif /* CONFIG_KINETIS_EDMA */
 
 	if (!uart_reg_res || !uart_stat_irq_res || !uart_err_irq_res) {
 		rv = -ENODEV;
@@ -783,6 +1112,12 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 	up->regs = (volatile struct kinetis_uart_regs *)uart_reg_res->start;
 	up->stat_irq  = uart_stat_irq_res->start;
 	up->err_irq   = uart_err_irq_res->start;
+#if defined(CONFIG_KINETIS_EDMA)
+	if (uart_rx_dma_res)
+		up->dma_ch_rx = uart_rx_dma_res->start;
+	else
+		up->dma_ch_rx = -1;
+#endif /* CONFIG_KINETIS_EDMA */
 
 	spin_lock_init(&port->lock);
 	port->iotype  = SERIAL_IO_MEM,
@@ -807,6 +1142,43 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 	}
 	clk_enable(up->clk);
 
+#if defined(CONFIG_KINETIS_EDMA)
+	/*
+	 * Acquire Rx DMA channel, if available
+	 */
+	if (up->dma_ch_rx >= 0) {
+		rv = kinetis_dma_ch_get(up->dma_ch_rx);
+		if (rv < 0) {
+			dev_warn(dev, "%s: Failed to acquire Rx DMA channel %d "
+				"(error %d), falling back to PIO mode.\n",
+				__func__, up->dma_ch_rx, rv);
+
+			/* Continue without DMA support */
+			up->dma_ch_rx = -1;
+		}
+	}
+
+	/*
+	 * Request Rx DMA IRQ
+	 */
+	if (up->dma_ch_rx >= 0) {
+		rv = kinetis_dma_ch_request_irq(
+			up->dma_ch_rx, kinetis_uart_dma_irq,
+			KINETIS_DMA_INTMAJOR | KINETIS_DMA_INTHALF, up);
+		if (rv < 0) {
+			kinetis_dma_ch_put(up->dma_ch_rx);
+
+			dev_warn(dev, "%s: Failed to request Rx DMA IRQ for "
+				"channel %d (error %d), falling back "
+				"to PIO mode.\n",
+				__func__, up->dma_ch_rx, rv);
+
+			/* Continue without DMA support */
+			up->dma_ch_rx = -1;
+		}
+	}
+#endif /* CONFIG_KINETIS_EDMA */
+
 	/*
 	 * Register the port
 	 */
@@ -814,12 +1186,19 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 	if (rv) {
 		dev_err(dev, "%s: uart_add_one_port failed (%d)\n",
 			__func__, rv);
-		goto err_clk_put;
+		goto err_dma_rx_put;
 	}
 
 	goto out;
 
-err_clk_put:
+err_dma_rx_put:
+#if defined(CONFIG_KINETIS_EDMA)
+	if (up->dma_ch_rx >= 0) {
+		kinetis_dma_ch_free_irq(up->dma_ch_rx, up);
+		kinetis_dma_ch_put(up->dma_ch_rx);
+	}
+#endif /* CONFIG_KINETIS_EDMA */
+
 	clk_disable(up->clk);
 	clk_put(up->clk);
 err_cleanup_priv:
@@ -843,6 +1222,14 @@ static int __devexit kinetis_uart_remove(struct platform_device *pdev)
 
 	/* Unregister the port */
 	rv = uart_remove_one_port(&kinetis_uart_driver, port);
+
+#if defined(CONFIG_KINETIS_EDMA)
+	/* Release Rx DMA channel */
+	if (up->dma_ch_rx >= 0) {
+		kinetis_dma_ch_free_irq(up->dma_ch_rx, up);
+		kinetis_dma_ch_put(up->dma_ch_rx);
+	}
+#endif /* CONFIG_KINETIS_EDMA */
 
 	/* Release clock */
 	clk_disable(up->clk);
