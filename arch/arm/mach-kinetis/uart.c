@@ -29,6 +29,7 @@
 #include <mach/kinetis.h>
 #include <mach/power.h>
 #include <mach/uart.h>
+#include <mach/dmainit.h>
 
 /*
  * Kinetis UART interrupt numbers (for status sources and error sources)
@@ -80,6 +81,16 @@ static const resource_size_t uart_err_irq[] = {
 	KINETIS_UART3_ERR_IRQ, KINETIS_UART4_ERR_IRQ, KINETIS_UART5_ERR_IRQ,
 };
 
+#if defined(CONFIG_KINETIS_EDMA)
+/*
+ * UART Rx DMA channels
+ */
+static const resource_size_t uart_rx_dma[] = {
+	KINETIS_DMACH_UART0_RX, KINETIS_DMACH_UART1_RX, KINETIS_DMACH_UART2_RX,
+	KINETIS_DMACH_UART3_RX, KINETIS_DMACH_UART4_RX, KINETIS_DMACH_UART5_RX,
+};
+#endif /* CONFIG_KINETIS_EDMA */
+
 /*
  * Platform data for Kinetis UART driver to enable CTS/RTS handshaking
  * (hardware flow control).
@@ -92,7 +103,12 @@ static struct kinetis_uart_data platform_data_ctsrts = {
  * We use this per-UART structure to simplify memory allocation
  */
 struct uart_data_structures {
+#if defined(CONFIG_KINETIS_EDMA)
+	struct resource res[4];
+#else
 	struct resource res[3];
+#endif
+
 	struct platform_device pdev;
 };
 
@@ -121,6 +137,11 @@ static void __init kinetis_uart_register(int uid, int ctsrts)
 
 	uart->res[2].start = uart_err_irq[uid];
 	uart->res[2].flags = IORESOURCE_IRQ;
+
+#if defined(CONFIG_KINETIS_EDMA)
+	uart->res[3].start = uart_rx_dma[uid];
+	uart->res[3].flags = IORESOURCE_DMA;
+#endif
 
 	/*
 	 * Initialize platform device
