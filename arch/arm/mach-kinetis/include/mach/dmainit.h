@@ -38,5 +38,6 @@
 #define KINETIS_DMACH_UART5_RX	5
 
 void __init kinetis_dma_init(void);
+void __init kinetis_dmac_init(void);
 
 #endif /* _MACH_KINETIS_DMAINIT_H_ */

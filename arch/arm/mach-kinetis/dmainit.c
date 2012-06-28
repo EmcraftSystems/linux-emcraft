@@ -29,9 +29,8 @@
 #include <mach/kinetis.h>
 #include <mach/power.h>
 #include <mach/dmainit.h>
+#include <mach/dmac.h>
 
-/* Number of DMA channels */
-#define KINETIS_DMA_CH_NUM		32
 /* Number of DMA channels associated with DMAMUX0 */
 #define KINETIS_DMA_CH_NUM_MUX0		16
 
@@ -164,4 +163,7 @@ void __init kinetis_dma_init(void)
 {
 	/* Configure the DMA request multiplexers */
 	dma_ch_config_table(k70_dmamux_table, ARRAY_SIZE(k70_dmamux_table));
+
+	/* Initialize the DMA controller driver API */
+	kinetis_dmac_init();
 }
