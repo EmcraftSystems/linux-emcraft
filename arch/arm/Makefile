@@ -112,6 +112,10 @@ ifeq ($(CONFIG_INITRAMFS_IS_LARGE),y)
 CFLAGS_THUMB2	+= -mlong-calls
 endif
 AFLAGS_THUMB2	:=$(CFLAGS_THUMB2) -Wa$(comma)-mthumb
+# Work around buggy relocation from gas if requested:
+ifeq ($(CONFIG_THUMB2_AVOID_R_ARM_THM_JUMP11),y)
+CFLAGS_MODULE	+=-fno-optimize-sibling-calls
+endif
 endif
 
 # Need -Uarm for gcc < 3.x
