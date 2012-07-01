@@ -1,5 +1,6 @@
 config WIRELESS_EXT
-	bool
+	bool "Enable wireless extensions legacy interface"
+	default n
 
 config WEXT_CORE
 	def_bool y
