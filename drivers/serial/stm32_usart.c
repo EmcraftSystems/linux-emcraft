@@ -627,7 +627,7 @@ static void stm_port_set_termios(struct uart_port *port,
 	unsigned long flags;
 	unsigned int baud, max_baud;
 	volatile struct stm32_usart_regs *uart = stm32_usart(port);
-	u32 newcr1, newcr2, newcr3, apb_clock;
+	u32 newcr1, newcr2, newcr3;
 
 	newcr1 = uart->cr1;
 	newcr2 = uart->cr2;
