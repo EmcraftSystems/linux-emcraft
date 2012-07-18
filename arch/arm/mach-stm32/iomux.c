@@ -161,15 +161,6 @@ static const u32 af_val[] = {
 };
 
 /*
- * USART GPIO roles
- */
-static const enum stm32f2_gpio_role usart_gpio_role[] = {
-	STM32F2_GPIO_ROLE_USART1, STM32F2_GPIO_ROLE_USART2,
-	STM32F2_GPIO_ROLE_USART3, STM32F2_GPIO_ROLE_USART4,
-	STM32F2_GPIO_ROLE_USART5, STM32F2_GPIO_ROLE_USART6
-};
-
-/*
  * Configure the specified GPIO for the specified role
  */
 #ifndef CONFIG_ARCH_STM32F1
