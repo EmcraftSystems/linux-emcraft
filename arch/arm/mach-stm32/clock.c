@@ -8,6 +8,11 @@
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
+ * Implement clock driver based on the clk_*() API
+ * (C) Copyright 2012
+ * Emcraft Systems, <www.emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -30,7 +35,9 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/kernel.h>
+#include <linux/module.h>
+
+#include <asm/clkdev.h>
 
 #include <mach/platform.h>
 #include <mach/clock.h>
@@ -102,6 +109,130 @@
 #define STM32F1_RCC_CFGR_PLLXTPRE_MSK	(1 << 17)
 
 /*
+ * STM32 ENR bit for SD Card Controller
+ */
+#define STM32_RCC_ENR_SDIOEN		(1 << 11)
+
+/*
+ * The structure that holds the information about a clock
+ */
+struct clk {
+	/* Clock rate, the only possible value of */
+	unsigned long rate;
+
+	/* Reference count */
+	unsigned int enabled;
+
+	/* Custom `clk_*` functions */
+	void (*clk_enable)(struct clk *clk);
+	void (*clk_disable)(struct clk *clk);
+};
+
+static DEFINE_SPINLOCK(clocks_lock);
+
+/*
+ * clk_enable - inform the system when the clock source should be running.
+ */
+int clk_enable(struct clk *clk)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&clocks_lock, flags);
+	if (clk->enabled++ == 0 && clk->clk_enable)
+		clk->clk_enable(clk);
+	spin_unlock_irqrestore(&clocks_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+/*
+ * clk_disable - inform the system when the clock source is no longer required
+ */
+void clk_disable(struct clk *clk)
+{
+	unsigned long flags;
+
+	WARN_ON(clk->enabled == 0);
+
+	spin_lock_irqsave(&clocks_lock, flags);
+	if (--clk->enabled == 0 && clk->clk_disable)
+		clk->clk_disable(clk);
+	spin_unlock_irqrestore(&clocks_lock, flags);
+}
+EXPORT_SYMBOL(clk_disable);
+
+/*
+ * clk_get_rate - obtain the current clock rate (in Hz) for a clock source
+ */
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return clk->rate;
+}
+EXPORT_SYMBOL(clk_get_rate);
+
+/*
+ * clk_set_rate - set the clock rate for a clock source
+ *
+ * We do not support this, because we assume that all clock rates are fixed.
+ */
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(clk_set_rate);
+
+/*
+ * clk_round_rate - adjust a rate to the exact rate a clock can provide
+ *
+ * We return the actual clock rate, because we assume that all clock rates
+ * are fixed.
+ */
+long clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk->rate;
+}
+EXPORT_SYMBOL(clk_round_rate);
+
+/*
+ * Enable the SD Card Controller clock
+ */
+static void mci_clk_enable(struct clk *clk)
+{
+	STM32_RCC->apb2enr |= STM32_RCC_ENR_SDIOEN;
+}
+
+/*
+ * Disable the SD Card Controller clock
+ */
+static void mci_clk_disable(struct clk *clk)
+{
+	STM32_RCC->apb2enr &= ~STM32_RCC_ENR_SDIOEN;
+}
+
+/*
+ * Clock for the SD Card Interface module of the MCU. The clock rate
+ * is initialized in `stm32_clock_init()`.
+ */
+static struct clk clk_mci = {
+	.clk_enable = mci_clk_enable,
+	.clk_disable = mci_clk_disable,
+};
+
+/*
+ * Array of all clock to register with the `clk_*` infrastructure
+ */
+#define INIT_CLKREG(_clk,_devname,_conname)		\
+	{						\
+		.clk		= _clk,			\
+		.dev_id		= _devname,		\
+		.con_id		= _conname,		\
+	}
+static struct clk_lookup stm32_clkregs[] = {
+	INIT_CLKREG(&clk_mci, "mmci0", NULL),
+};
+
+/*
  * Clock values
  */
 static u32 clock_val[CLOCK_END];
@@ -121,6 +252,7 @@ void __init stm32_clock_init(void)
 	u32	pllvco, pllp, pllm;
 #endif
 	int	platform;
+	int	i;
 
 	/*
 	 * Select HSE (external oscillator) freq value depending on the
@@ -151,6 +283,9 @@ void __init stm32_clock_init(void)
 	/*
 	 * Get SYSCLK
 	 */
+#ifndef CONFIG_ARCH_STM32F1
+	pllvco = 0;
+#endif
 	tmp  = STM32_RCC->cfgr >> STM32_RCC_CFGR_SWS_BIT;
 	tmp &= STM32_RCC_CFGR_SWS_MSK;
 	switch (tmp) {
@@ -251,10 +386,30 @@ void __init stm32_clock_init(void)
 	clock_val[CLOCK_PTMR2] = clock_val[CLOCK_PCLK2];
 	if (tmp != STM32_RCC_CFGR_PPRE2_DIVNO)
 		clock_val[CLOCK_PTMR2] *= 2;
+
+	/*
+	 * Initialize the `clk_*` structures
+	 */
+#ifndef CONFIG_ARCH_STM32F1
+	if (pllvco) {
+		clk_mci.rate = pllvco /
+			((STM32_RCC->pllcfgr >> STM32F2_RCC_PLLCFGR_PLLQ_BIT) &
+			STM32F2_RCC_PLLCFGR_PLLQ_MSK);
+	}
+#endif
+
+	/*
+	 * Register clocks with the `clk_*` infrastructure
+	 */
+	for (i = 0; i < ARRAY_SIZE(stm32_clkregs); i++)
+		clkdev_add(&stm32_clkregs[i]);
 }
 
 /*
  * Return a clock value for the specified clock.
+ *
+ * This is the legacy way to get a clock rate, independent
+ * from `clk_get_rate()`.
  */
 unsigned int stm32_clock_get(enum stm32_clock clk)
 {
