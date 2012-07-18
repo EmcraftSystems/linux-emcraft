@@ -28,19 +28,7 @@
 #include <mach/stm32.h>
 #include <mach/uart.h>
 #include <mach/iomux.h>
-
-/*
- * STM32 DMA bases
- */
-#ifdef CONFIG_ARCH_STM32F1
-/* STM32F1 */
-#define STM32_DMA1_BASE		(STM32_AHB1PERITH_BASE + 0x0000)
-#define STM32_DMA2_BASE		(STM32_AHB1PERITH_BASE + 0x0400)
-#else
-/* STM32F2 */
-#define STM32_DMA1_BASE		(STM32_AHB1PERITH_BASE + 0x6000)
-#define STM32_DMA2_BASE		(STM32_AHB1PERITH_BASE + 0x6400)
-#endif
+#include <mach/dmaregs.h>
 
 /*
  * USART RX DMAs
@@ -121,19 +109,6 @@
 #ifndef CONFIG_ARCH_STM32F1
 #define STM32_RCC_ENR_USART6	offsetof(struct stm32_rcc_regs, apb2enr)
 #define STM32_RCC_MSK_USART6	(1 <<  5)
-#endif
-
-/*
- * Masks for the DMA{1,2}_EN bits in the RCC_AHB1ENR register
- */
-#ifdef CONFIG_ARCH_STM32F1
-/* STM32F1 */
-#define STM32_RCC_AHB1ENR_DMA1_MSK	(1 << 0)
-#define STM32_RCC_AHB1ENR_DMA2_MSK	(1 << 1)
-#else
-/* STM32F2 */
-#define STM32_RCC_AHB1ENR_DMA1_MSK	(1 << 21)
-#define STM32_RCC_AHB1ENR_DMA2_MSK	(1 << 22)
 #endif
 
 /*

@@ -40,6 +40,7 @@
 
 #include <mach/uart.h>
 #include <mach/clock.h>
+#include <mach/dmaregs.h>
 
 /*
  * Driver settings
@@ -132,46 +133,6 @@
 #define STM32_USART_BRR_M_MSK	0xFFF
 
 /*
- * DMA CR bits
- */
-#ifndef CONFIG_ARCH_STM32F1
-/* Streams and Double Buffer Mode are not supported on STM32F1 */
-#define STM32_DMA_CR_CHSEL_BIT	25		/* Channel selection	      */
-#define STM32_DMA_CR_CT		(1 << 19)	/* Current target	      */
-#define STM32_DMA_CR_DBM	(1 << 18)	/* Double buffer mode	      */
-#endif
-
-/* Priority level */
-#ifdef CONFIG_ARCH_STM32F1
-#define STM32_DMA_CR_PL_BIT	12		/* STM32F1 */
-#else
-#define STM32_DMA_CR_PL_BIT	16		/* STM32F2 */
-#endif
-#define STM32_DMA_CR_PL_HIGH	0x2
-
-#ifdef CONFIG_ARCH_STM32F1
-/* STM32F1 */
-#define STM32_DMA_CR_MINC	(1 << 7)	/* Memory increment mode      */
-#define STM32_DMA_CR_CIRC	(1 << 5)	/* Circular mode	      */
-#define STM32_DMA_CR_TCIE	(1 << 1)	/* Transfer complete irq ena  */
-#define STM32_DMA_CR_HTIE	(1 << 2)	/* Half transfer irq ena      */
-#else
-/* STM32F2 */
-#define STM32_DMA_CR_MINC	(1 << 10)	/* Memory increment mode      */
-#define STM32_DMA_CR_CIRC	(1 << 8)	/* Circular mode	      */
-#define STM32_DMA_CR_TCIE	(1 << 4)	/* Transfer complete irq ena  */
-#define STM32_DMA_CR_HTIE	(1 << 3)	/* Half transfer irq ena      */
-#endif
-
-#define STM32_DMA_CR_EN		(1 << 0)	/* Stream enable	      */
-
-/*
- * DMA NDTR bits
- */
-#define STM32_DMA_NDTR_NDT_BIT	0		/* Num of data items to xfer  */
-#define STM32_DMA_NDTR_NDT_MSK	0xFFFF
-
-/*
  * USART register map
  */
 struct stm32_usart_regs {
@@ -188,33 +149,6 @@ struct stm32_usart_regs {
 	u16	cr3;		/* Control 3				      */
 	u16	rsv5;
 	u16	gtpr;		/* Guard time and prescaler		      */
-};
-
-/*
- * DMA register map
- */
-struct stm32_dma_regs {
-	u32	lisr;			/* low interrupt status		      */
-#ifndef CONFIG_ARCH_STM32F1
-	u32	hisr;			/* high interrupt status	      */
-#endif
-	u32	lifcr;			/* low interrupt flag clear	      */
-#ifndef CONFIG_ARCH_STM32F1
-	u32	hifcr;			/* high interrupt flag clear	      */
-#endif
-
-	struct {
-		u32		cr;	/* configuration		      */
-		u32		ndtr;	/* number of data		      */
-		volatile void	*par;	/* peripheral address		      */
-		volatile void	*m0ar;	/* memory 0 address		      */
-#ifdef CONFIG_ARCH_STM32F1
-		u32		rsv0;
-#else
-		volatile void	*m1ar;	/* memory 1 address		      */
-		u32		fcr;	/* FIFO control			      */
-#endif
-	} s[8];
 };
 
 #ifndef CONFIG_ARCH_STM32F1
