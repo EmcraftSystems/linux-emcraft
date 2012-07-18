@@ -40,6 +40,7 @@
 #include <mach/timer.h>
 #include <mach/uart.h>
 #include <mach/flash.h>
+#include <mach/sdcard.h>
 
 /*
  * Prototypes
@@ -200,4 +201,11 @@ static void __init stm32_init(void)
 	 */
 	stm32_flash_init();
 #endif
+
+#if defined(CONFIG_MMC_ARMMMCI)
+	/*
+	 * Configure SD card controller
+	 */
+	stm32_sdcard_init();
+#endif /* defined(CONFIG_MMC_ARMMMCI) */
 }

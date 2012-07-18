@@ -781,6 +781,7 @@ config ARCH_STM32
 	bool "STMicro STM32 SoC"
 	depends on !MMU
 	select ARM_CORTEXM3
+	select ARM_AMBA
 	help
 	  This enables support for the STMicro STM32 SoC
 
