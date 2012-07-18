@@ -3,6 +3,11 @@
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  *
+ * Add SDIO pin configuration for STM3220G-EVAL
+ * (C) Copyright 2012
+ * Emcraft Systems, <www.emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -95,6 +100,7 @@
  * AF12 selection
  */
 #define STM32F2_GPIO_AF_FSMC	0x0C
+#define STM32F2_GPIO_AF_SDIO	0x0C
 
 /*
  * GPIO register map
@@ -123,6 +129,7 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_USART5,	/* USART5			      */
 	STM32F2_GPIO_ROLE_USART6,	/* USART6			      */
 	STM32F2_GPIO_ROLE_ETHERNET,	/* MAC				      */
+	STM32F2_GPIO_ROLE_SDIO,		/* SDIO				      */
 	STM32F2_GPIO_ROLE_MCO		/* MC external output clock	      */
 };
 
@@ -149,7 +156,7 @@ static const unsigned long io_base[] = {
 static const u32 af_val[] = {
 	STM32F2_GPIO_AF_USART1, STM32F2_GPIO_AF_USART2, STM32F2_GPIO_AF_USART3,
 	STM32F2_GPIO_AF_USART4, STM32F2_GPIO_AF_USART5, STM32F2_GPIO_AF_USART6,
-	STM32F2_GPIO_AF_MAC,
+	STM32F2_GPIO_AF_MAC, STM32F2_GPIO_AF_SDIO,
 	0
 };
 
@@ -200,6 +207,11 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 	case STM32F2_GPIO_ROLE_MCO:
 		otype  = STM32F2_GPIO_OTYPE_PP;
 		ospeed = STM32F2_GPIO_SPEED_100M;
+		pupd   = STM32F2_GPIO_PUPD_NO;
+		break;
+	case STM32F2_GPIO_ROLE_SDIO:
+		otype  = STM32F2_GPIO_OTYPE_PP;
+		ospeed = STM32F2_GPIO_SPEED_50M;
 		pupd   = STM32F2_GPIO_PUPD_NO;
 		break;
 	default:
@@ -315,6 +327,20 @@ void __init stm32_iomux_init(void)
 			}
 		} while (0);
 #endif
+#if defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE)
+		do {
+			static struct stm32f2_gpio_dsc sdcard_gpio[] = {
+				{2,  8}, {2,  9}, {2, 10}, {2, 11},
+				{2, 12}, {3,  2}
+			};
+			int	i;
+
+			for (i = 0; i < ARRAY_SIZE(sdcard_gpio); i++) {
+				stm32f2_gpio_config(&sdcard_gpio[i],
+						    STM32F2_GPIO_ROLE_SDIO);
+			}
+		} while (0);
+#endif /* defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE) */
 		break;
 #else
 	/* STM32F1-based platforms */
