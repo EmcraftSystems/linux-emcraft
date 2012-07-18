@@ -319,6 +319,7 @@ static void mmc_dma_tx_start(struct mmci_host *host)
  * @fifohalfsize: number of bytes that can be written when MCI_TXFIFOHALFEMPTY
  *		  is asserted (likewise for RX)
  * @sdio: variant supports SDIO
+ * @st_clkdiv: true if using a ST-specific clock divider algorithm
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -327,6 +328,7 @@ struct variant_data {
 	unsigned int		fifosize;
 	unsigned int		fifohalfsize;
 	bool			sdio;
+	bool			st_clkdiv;
 };
 
 static struct variant_data variant_arm = {
@@ -350,7 +352,9 @@ static struct variant_data variant_ux500 = {
 	.clkreg_enable		= 1 << 14, /* HWFCEN */
 	.datalength_bits	= 24,
 	.sdio			= true,
+	.st_clkdiv		= true,
 };
+
 /*
  * This must be called with host->lock held
  */
@@ -361,9 +365,30 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 
 	if (desired) {
 		if (desired >= host->mclk) {
-			clk = MCI_CLK_BYPASS;
+			/*
+			 * The ST clock divider does not like the bypass bit,
+			 * even though it's available. Instead the datasheet
+			 * recommends setting the divider to zero.
+			 */
+			if (!variant->st_clkdiv)
+				clk = MCI_CLK_BYPASS;
 			host->cclk = host->mclk;
+		} else if (variant->st_clkdiv) {
+			/*
+			 * DB8500 TRM says f = mclk / (clkdiv + 2)
+			 * => clkdiv = (mclk / f) - 2
+			 * Round the divider up so we don't exceed the max
+			 * frequency
+			 */
+			clk = DIV_ROUND_UP(host->mclk, desired) - 2;
+			if (clk >= 256)
+				clk = 255;
+			host->cclk = host->mclk / (clk + 2);
 		} else {
+			/*
+			 * PL180 TRM says f = mclk / (2 * (clkdiv + 1))
+			 * => clkdiv = mclk / (2 * f) - 1
+			 */
 			clk = DIV_ROUND_UP(host->mclk, 2 * desired) - 1;
 			if (clk >= 256)
 				clk = 255;
