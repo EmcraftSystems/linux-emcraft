@@ -76,7 +76,7 @@ static int dma_ch_config(const struct kinetis_dma_ch_config *cfg)
 	 * Verify the function argument
 	 */
 	if (cfg->ch < 0 || cfg->ch >= KINETIS_DMA_CH_NUM) {
-		rv = EINVAL;
+		rv = -EINVAL;
 		goto out;
 	}
 
