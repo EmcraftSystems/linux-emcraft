@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/amba/bus.h>
+#include <linux/err.h>
 
 #include <asm/irq.h>
 #include <asm/sizes.h>
