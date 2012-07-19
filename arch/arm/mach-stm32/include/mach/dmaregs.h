@@ -70,6 +70,22 @@
 #define STM32_DMA_NDTR_NDT_MSK	0xFFFF
 
 /*
+ * DMA channel register map. Part of the DMA controller register map.
+ */
+struct stm32_dma_ch_regs {
+	u32		cr;	/* configuration */
+	u32		ndtr;	/* number of data */
+	volatile void	*par;	/* peripheral address */
+	volatile void	*m0ar;	/* memory 0 address */
+#ifdef CONFIG_ARCH_STM32F1
+	u32		rsv0;
+#else
+	volatile void	*m1ar;	/* memory 1 address */
+	u32		fcr;	/* FIFO control */
+#endif
+};
+
+/*
  * DMA register map
  */
 struct stm32_dma_regs {
@@ -82,18 +98,7 @@ struct stm32_dma_regs {
 	u32	hifcr;			/* high interrupt flag clear	      */
 #endif
 
-	struct {
-		u32		cr;	/* configuration		      */
-		u32		ndtr;	/* number of data		      */
-		volatile void	*par;	/* peripheral address		      */
-		volatile void	*m0ar;	/* memory 0 address		      */
-#ifdef CONFIG_ARCH_STM32F1
-		u32		rsv0;
-#else
-		volatile void	*m1ar;	/* memory 1 address		      */
-		u32		fcr;	/* FIFO control			      */
-#endif
-	} s[8];
+	struct stm32_dma_ch_regs s[8];
 };
 
 /*
