@@ -56,11 +56,15 @@ int kinetis_dma_ch_get(int ch);
 int kinetis_dma_ch_put(int ch);
 int kinetis_dma_ch_enable(int ch);
 int kinetis_dma_ch_disable(int ch);
-int kinetis_dma_ch_request_irq(int ch, void (*handler)(int ch, unsigned long flags, void *data), unsigned long flags, void *data);
+int kinetis_dma_ch_request_irq(
+	int ch, void (*handler)(int ch, unsigned long flags, void *data),
+	unsigned long flags, void *data);
 int kinetis_dma_ch_free_irq(int ch, void *data);
 int kinetis_dma_ch_init(int ch);
-int kinetis_dma_ch_set_src(int ch, u32 saddr, s16 soff, u8 bitwidth, s32 slast);
-int kinetis_dma_ch_set_dest(int ch, u32 daddr, s16 doff, u8 bitwidth, s32 dlast);
+int kinetis_dma_ch_set_src(
+	int ch, u32 saddr, s16 soff, u8 bitwidth, s32 slast);
+int kinetis_dma_ch_set_dest(
+	int ch, u32 daddr, s16 doff, u8 bitwidth, s32 dlast);
 int kinetis_dma_ch_set_nbytes(int ch, u32 nbytes);
 int kinetis_dma_ch_set_iter_num(int ch, u16 iter);
 int kinetis_dma_ch_iter_done(int ch);

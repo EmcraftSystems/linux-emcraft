@@ -321,7 +321,9 @@ EXPORT_SYMBOL(kinetis_dma_ch_disable);
  * The DMA driver code will clear the interrupt request flag
  * for the corresponding DMA channel.
  */
-int kinetis_dma_ch_request_irq(int ch, void (*handler)(int ch, unsigned long flags, void *data), unsigned long flags, void *data)
+int kinetis_dma_ch_request_irq(
+	int ch, void (*handler)(int ch, unsigned long flags, void *data),
+	unsigned long flags, void *data)
 {
 	unsigned long fl;
 	int rv;
