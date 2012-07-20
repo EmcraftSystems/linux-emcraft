@@ -435,7 +435,7 @@ int kinetis_dma_ch_free_irq(int ch, void *data)
 
 	/* Disable DMA buffer completion and half-completion interrupts */
 	KINETIS_DMA->tcd[ch].csr &=
-		~(KINETIS_TCD_CSR_INTMAJOR_MSK | ~KINETIS_TCD_CSR_INTHALF_MSK);
+		~(KINETIS_TCD_CSR_INTMAJOR_MSK | KINETIS_TCD_CSR_INTHALF_MSK);
 
 	/*
 	 * Call free_irq() if no IRQ handler is installed
