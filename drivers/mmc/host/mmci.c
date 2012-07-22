@@ -473,9 +473,7 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 
 static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 {
-#ifndef CONFIG_LPC178X_SD_DMA
 	struct variant_data *variant = host->variant;
-#endif /* !CONFIG_LPC178X_SD_DMA */
 	unsigned int datactrl, timeout, irqmask = 0;
 	unsigned long long clks;
 	void __iomem *base;
