@@ -57,6 +57,11 @@ config STM32_DMA
 	bool "Enable STM32 DMA controller for peripherals"
 	default n
 
+config STM32_SD_DMA
+	depends on ARCH_STM32 && MMC_ARMMMCI && STM32_DMA && MMC_BLOCK_BOUNCE
+	bool "Use DMA for the SD Card Interface"
+	default y
+
 endmenu
 
 endif

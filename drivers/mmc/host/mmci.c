@@ -10,6 +10,11 @@
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  *
+ * Add DMA support for STM32F2
+ * (C) Copyright 2012
+ * Emcraft Systems, <www.emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -44,27 +49,36 @@
 #include <mach/dma.h>
 #endif /* CONFIG_LPC178X_SD_DMA */
 
+#ifdef CONFIG_STM32_SD_DMA
+#include <linux/dma-mapping.h>
+#include <mach/dmainit.h>
+#include <mach/dmac.h>
+#endif /* CONFIG_STM32_SD_DMA */
+
 #include "mmci.h"
 
 #define DRIVER_NAME "mmci-pl18x"
 
 static unsigned int fmax = 515633;
 
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 
 #define SD_FIFO(x)			(x + 0x80)
 
 #define DMA_BUFF_SIZE SZ_64K
 
 struct sddrv_dmac_data {
-	struct dma_config dmacfgtx;
-	struct dma_config dmacfgrx;
 	struct device *dev;
 	int lastch;
+
+#if defined(CONFIG_LPC178X_SD_DMA)
+	struct dma_config dmacfgtx;
+	struct dma_config dmacfgrx;
 	dma_addr_t dma_handle_tx;
 	void *dma_v_base;
 	int mapped;
 	int preallocated_tx_buf;
+#endif /* CONFIG_LPC178X_SD_DMA */
 };
 static struct sddrv_dmac_data dmac_drvdat;
 
@@ -74,6 +88,9 @@ static struct sddrv_dmac_data dmac_drvdat;
 	MCI_DATATIMEOUTMASK | MCI_TXUNDERRUNMASK | MCI_RXOVERRUNMASK| \
 	MCI_CMDRESPENDMASK | MCI_CMDSENTMASK | MCI_DATAENDMASK)
 
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
+
+#if defined(CONFIG_LPC178X_SD_DMA)
 static int mmc_dma_setup(struct mmci_platform_data *plat)
 {
 	u32 llptrrx, llptrtx;
@@ -307,7 +324,195 @@ static void mmc_dma_tx_start(struct mmci_host *host)
 	local_irq_restore(flags);
 }
 
-#endif /* CONFIG_LPC178X_SD_DMA */
+#elif defined(CONFIG_STM32_SD_DMA)
+
+static int mmc_dma_setup(struct mmci_platform_data *plat)
+{
+	return stm32_dma_ch_get(STM32F2_DMACH_SDIO);
+}
+
+static void mmc_dma_dealloc(void)
+{
+	int rv;
+
+	rv = stm32_dma_ch_put(STM32F2_DMACH_SDIO);
+	if (rv < 0)
+		pr_err("%s: stm32_dma_ch_put() failed (%d)\n", __func__, rv);
+}
+
+/*
+ * Prepare and enable DMA Rx channel (on STM32)
+ */
+static void mmc_dma_rx_start(struct mmci_host *host)
+{
+	struct mmc_request *mrq = host->mrq;
+	struct mmc_data *reqdata = mrq->data;
+	int dma_len;
+	int rv;
+
+	/* Scatter/gather DMA is not supported */
+	BUG_ON(reqdata->sg_len > 1);
+
+	dma_len = dma_map_sg(
+		mmc_dev(host->mmc), reqdata->sg, reqdata->sg_len,
+		DMA_FROM_DEVICE);
+	if (dma_len == 0) {
+		dev_err(mmc_dev(host->mmc), "could not map DMA Rx buffer\n");
+		goto out;
+	}
+
+	/*
+	 * Direction: peripheral-to-memory
+	 * Flow controller: peripheral
+	 * Priority: very high (3)
+	 * Double buffer mode: disabled
+	 * Circular mode: disabled
+	 */
+	rv = stm32_dma_ch_init(STM32F2_DMACH_SDIO, 0, 1, 3, 0, 0);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Enable burst mode; set FIFO threshold to "full FIFO"
+	 */
+	rv = stm32_dma_ch_init_fifo(STM32F2_DMACH_SDIO, 1, 3);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Peripheral address: SDIO controller FIFO data register
+	 * Peripheral increment: disabled
+	 * Peripheral data size: 32-bit
+	 * Burst transfer configuration: incremental burst of 4 beats
+	 */
+	rv = stm32_dma_ch_set_periph(STM32F2_DMACH_SDIO,
+		SD_FIFO((u32)host->base), 0, 2, 1);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Memory address: DMA buffer address
+	 * Memory incremental: enabled
+	 * Memory data size: 32-bit
+	 * Burst transfer configuration: incremental burst of 4 beats
+	 */
+	rv = stm32_dma_ch_set_memory(STM32F2_DMACH_SDIO,
+		sg_dma_address(&reqdata->sg[0]), 1, 2, 1);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Set number of items to transfer to zero, because we use peripheral
+	 * flow controller, and therefore the SDIO controller will stop
+	 * the transfer when the whole block data has been transferred.
+	 */
+	rv = stm32_dma_ch_set_nitems(STM32F2_DMACH_SDIO, 0);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Enable the DMA channel. After this point, the DMA transfer will
+	 * be able to start.
+	 */
+	rv = stm32_dma_ch_enable(STM32F2_DMACH_SDIO);
+	if (rv < 0)
+		goto err;
+
+	goto out;
+
+err:
+	dev_err(mmc_dev(host->mmc), "Rx DMA channel initialization failed\n");
+out:
+	;
+}
+
+/*
+ * Prepare and enable DMA Tx channel (on STM32)
+ */
+static void mmc_dma_tx_start(struct mmci_host *host)
+{
+	struct mmc_request *mrq = host->mrq;
+	struct mmc_data *reqdata = mrq->data;
+	int dma_len;
+	int rv;
+
+	/* Scatter/gather DMA is not supported */
+	BUG_ON(reqdata->sg_len > 1);
+
+	dma_len = dma_map_sg(
+		mmc_dev(host->mmc), reqdata->sg, reqdata->sg_len,
+		DMA_TO_DEVICE);
+	if (dma_len == 0) {
+		dev_err(mmc_dev(host->mmc), "could not map DMA Tx buffer\n");
+		goto out;
+	}
+
+	/*
+	 * Direction: memory-to-peripheral
+	 * Flow controller: peripheral
+	 * Priority: very high (3)
+	 * Double buffer mode: disabled
+	 * Circular mode: disabled
+	 */
+	rv = stm32_dma_ch_init(STM32F2_DMACH_SDIO, 1, 1, 3, 0, 0);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Enable burst mode; set FIFO threshold to "full FIFO"
+	 */
+	rv = stm32_dma_ch_init_fifo(STM32F2_DMACH_SDIO, 1, 3);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Peripheral address: SDIO controller FIFO data register
+	 * Peripheral increment: disabled
+	 * Peripheral data size: 32-bit
+	 * Burst transfer configuration: incremental burst of 4 beats
+	 */
+	rv = stm32_dma_ch_set_periph(STM32F2_DMACH_SDIO,
+		SD_FIFO((u32)host->base), 0, 2, 1);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Memory address: DMA buffer address
+	 * Memory incremental: enabled
+	 * Memory data size: 32-bit
+	 * Burst transfer configuration: incremental burst of 4 beats
+	 */
+	rv = stm32_dma_ch_set_memory(STM32F2_DMACH_SDIO,
+		sg_dma_address(&reqdata->sg[0]), 1, 2, 1);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Set number of items to transfer to zero, because we use peripheral
+	 * flow controller, and therefore the SDIO controller will stop
+	 * the transfer when the whole block data has been transferred.
+	 */
+	rv = stm32_dma_ch_set_nitems(STM32F2_DMACH_SDIO, 0);
+	if (rv < 0)
+		goto err;
+
+	/*
+	 * Enable the DMA channel. After this point, the DMA transfer will
+	 * be able to start.
+	 */
+	rv = stm32_dma_ch_enable(STM32F2_DMACH_SDIO);
+	if (rv < 0)
+		goto err;
+
+	goto out;
+
+err:
+	dev_err(mmc_dev(host->mmc), "Tx DMA channel initialization failed\n");
+out:
+	;
+}
+
+#endif /* CONFIG_LPC178X_SD_DMA; CONFIG_STM32_SD_DMA */
 
 /**
  * struct variant_data - MMCI variant-specific quirks
@@ -353,7 +558,15 @@ static struct variant_data variant_ux500 = {
 	.fifosize		= 30 * 4,
 	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
+#if defined(CONFIG_STM32_SD_DMA)
+	/*
+	 * On STM32, do not use HW flow control as recommended
+	 * in the STM32F20x/STM32F21x errata sheet.
+	 */
+	.clkreg_enable		= 0,
+#else
 	.clkreg_enable		= MCI_ST_UX500_HWFCEN,
+#endif
 	.datalength_bits	= 24,
 	.sdio			= true,
 	.st_clkdiv		= true,
@@ -495,16 +708,16 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 
 	base = host->base;
 	writel(timeout, base + MMCIDATATIMER);
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	writel((host->size * data->blocks), base + MMCIDATALENGTH);
 #else
 	writel(host->size, base + MMCIDATALENGTH);
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 	blksz_bits = ffs(data->blksz) - 1;
 	BUG_ON(1 << blksz_bits != data->blksz);
 
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	datactrl = MCI_DPSM_ENABLE | MCI_DPSM_DMAENABLE | blksz_bits << 4;
 	if (data->flags & MMC_DATA_READ) {
 		datactrl |= MCI_DPSM_DIRECTION;
@@ -533,7 +746,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		 */
 		irqmask = MCI_TXFIFOHALFEMPTYMASK;
 	}
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 	/* The ST Micro variants has a special bit to enable SDIO */
 	if (variant->sdio && host->mmc->card)
@@ -541,12 +754,12 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 			datactrl |= MCI_ST_DPSM_SDIOEN;
 
 	writel(datactrl, base + MMCIDATACTRL);
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	datactrl = readl(base + MMCIMASK0) & ~MCI_DATABLOCKENDMASK;
 	writel(datactrl | MCI_DATAENDMASK, base + MMCIMASK0);
 #else
 	writel(readl(base + MMCIMASK0) & ~MCI_DATAENDMASK, base + MMCIMASK0);
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 	mmci_set_mask1(host, irqmask);
 }
@@ -583,7 +796,7 @@ static void
 mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	      unsigned int status)
 {
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	if (status & MCI_DATAEND) {
 		host->data_xfered += data->blksz * data->blocks;
 	}
@@ -591,7 +804,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	if (status & MCI_DATABLOCKEND) {
 		host->data_xfered += data->blksz;
 	}
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
@@ -621,20 +834,30 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	}
 
 	if (status & MCI_DATAEND) {
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 		if (data->flags & MMC_DATA_READ) {
+#if defined(CONFIG_LPC178X_SD_DMA)
 			lpc178x_dma_force_burst(dmac_drvdat.lastch,
 				DMA_PERID_SDCARD);
 			lpc178x_dma_flush_llist(dmac_drvdat.lastch);
+#else /* CONFIG_STM32_SD_DMA */
+			stm32_dma_ch_disable(STM32F2_DMACH_SDIO);
+#endif
 			dma_unmap_sg(mmc_dev(host->mmc),
 				data->sg, data->sg_len, DMA_FROM_DEVICE);
 		} else {
+#if defined(CONFIG_LPC178X_SD_DMA)
 			lpc178x_dma_ch_disable(dmac_drvdat.lastch);
 			if (dmac_drvdat.mapped)
 				dma_unmap_sg(mmc_dev(host->mmc), data->sg,
 					data->sg_len, DMA_TO_DEVICE);
+#else /* CONFIG_STM32_SD_DMA */
+			stm32_dma_ch_disable(STM32F2_DMACH_SDIO);
+			dma_unmap_sg(mmc_dev(host->mmc), data->sg,
+				data->sg_len, DMA_TO_DEVICE);
+#endif
 		}
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 		mmci_stop_data(host);
 
@@ -865,11 +1088,11 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		}
 
 		status &= readl(host->base + MMCIMASK0);
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 		writel((status | MCI_DATABLOCKEND), host->base + MMCICLEAR);
 #else
 		writel(status, host->base + MMCICLEAR);
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 		dev_dbg(mmc_dev(host->mmc), "irq0 (data+cmd) %08x\n", status);
 
@@ -1147,18 +1370,37 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 		mmc->ocr_avail = plat->ocr_mask;
 	mmc->caps = plat->capabilities;
 
+#ifdef CONFIG_STM32_SD_DMA
+	/*
+	 * Always use a single bounce buffer on STM32. On STM32F2 this
+	 * could be set to 2, because this MCU supports Double Buffer Mode,
+	 * but it would be harder to implement than single buffer DMA.
+	 */
+	mmc->max_hw_segs = 1;
+#else
 	/*
 	 * We can do SGIO
 	 */
 	mmc->max_hw_segs = 16;
+#endif /* CONFIG_STM32_SD_DMA */
+
 	mmc->max_phys_segs = NR_SG;
 
+#ifdef CONFIG_STM32_SD_DMA
+	/*
+	 * The Number Of Data register on STM32 is 16-bit, but note that it
+	 * denotes the number of 32-bit words in a data transfer. This is why
+	 * we multiply the maximum value of this register by 4.
+	 */
+	mmc->max_req_size = ((1 << 16) - 1) * 4;
+#else
 	/*
 	 * Since only a certain number of bits are valid in the data length
 	 * register, we must ensure that we don't exceed 2^num-1 bytes in a
 	 * single request.
 	 */
 	mmc->max_req_size = (1 << variant->datalength_bits) - 1;
+#endif /* CONFIG_STM32_SD_DMA */
 
 #ifdef CONFIG_LPC178X_SD_DMA
 	/*
@@ -1193,14 +1435,14 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	 */
 	mmc->max_blk_count = mmc->max_req_size;
 
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	/*
 	 * Setup DMA for the interface
 	 */
 	dmac_drvdat.dev = &dev->dev;
 	if (mmc_dma_setup(plat))
 		goto err_dma_setup;
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 	spin_lock_init(&host->lock);
 
@@ -1280,10 +1522,10 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	if (host->gpio_cd != -ENOSYS)
 		gpio_free(host->gpio_cd);
  err_gpio_cd:
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	mmc_dma_dealloc();
  err_dma_setup:
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 	iounmap(host->base);
  clk_disable:
 	clk_disable(host->clk);
@@ -1327,9 +1569,9 @@ static int __devexit mmci_remove(struct amba_device *dev)
 		if (host->gpio_cd != -ENOSYS)
 			gpio_free(host->gpio_cd);
 
-#ifdef CONFIG_LPC178X_SD_DMA
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 		mmc_dma_dealloc();
-#endif /* CONFIG_LPC178X_SD_DMA */
+#endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
 		iounmap(host->base);
 		clk_disable(host->clk);
