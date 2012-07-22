@@ -56,7 +56,7 @@ static unsigned int fmax = 515633;
 
 #define DMA_BUFF_SIZE SZ_64K
 
-struct LPC178X_SDDRV_DATA {
+struct sddrv_dmac_data {
 	struct dma_config dmacfgtx;
 	struct dma_config dmacfgrx;
 	struct device *dev;
@@ -66,7 +66,7 @@ struct LPC178X_SDDRV_DATA {
 	int mapped;
 	int preallocated_tx_buf;
 };
-static struct LPC178X_SDDRV_DATA lpc178x_drvdat;
+static struct sddrv_dmac_data dmac_drvdat;
 
 #undef MCI_IRQENABLE
 #define MCI_IRQENABLE \
@@ -93,42 +93,42 @@ static int mmc_dma_setup(struct mmci_platform_data *plat)
 
 	if (plat->dma_tx_size) {
 		/* Use pre-allocated memory for the DMA Tx buffer */
-		lpc178x_drvdat.dma_handle_tx = (dma_addr_t)plat->dma_tx_v_base;
-		lpc178x_drvdat.dma_v_base = plat->dma_tx_v_base;
-		lpc178x_drvdat.preallocated_tx_buf = 1;
+		dmac_drvdat.dma_handle_tx = (dma_addr_t)plat->dma_tx_v_base;
+		dmac_drvdat.dma_v_base = plat->dma_tx_v_base;
+		dmac_drvdat.preallocated_tx_buf = 1;
 	} else {
 		/* Allocate a chunk of memory for the DMA TX buffers */
-		lpc178x_drvdat.dma_v_base = dma_alloc_coherent(lpc178x_drvdat.dev,
-			DMA_BUFF_SIZE, &lpc178x_drvdat.dma_handle_tx, GFP_KERNEL);
-		lpc178x_drvdat.preallocated_tx_buf = 0;
+		dmac_drvdat.dma_v_base = dma_alloc_coherent(dmac_drvdat.dev,
+			DMA_BUFF_SIZE, &dmac_drvdat.dma_handle_tx, GFP_KERNEL);
+		dmac_drvdat.preallocated_tx_buf = 0;
 	}
 
-	if (lpc178x_drvdat.dma_v_base == NULL) {
-		dev_err(lpc178x_drvdat.dev, "error getting DMA region\n");
+	if (dmac_drvdat.dma_v_base == NULL) {
+		dev_err(dmac_drvdat.dev, "error getting DMA region\n");
 		ret = -ENOMEM;
 		goto dma_no_tx_buff;
 	}
-	dev_info(lpc178x_drvdat.dev, "DMA buffer: phy:%p, virt:%p\n",
-		(void *) lpc178x_drvdat.dma_handle_tx,
-		lpc178x_drvdat.dma_v_base);
+	dev_info(dmac_drvdat.dev, "DMA buffer: phy:%p, virt:%p\n",
+		(void *) dmac_drvdat.dma_handle_tx,
+		dmac_drvdat.dma_v_base);
 
 	/* Setup TX DMA channel */
-	lpc178x_drvdat.dmacfgtx.ch = DMA_CH_SDCARD_TX;
-	lpc178x_drvdat.dmacfgtx.tc_inten = 0;
-	lpc178x_drvdat.dmacfgtx.err_inten = 0;
-	lpc178x_drvdat.dmacfgtx.src_size = 4;
-	lpc178x_drvdat.dmacfgtx.src_inc = 1;
-	lpc178x_drvdat.dmacfgtx.src_bsize = DMAC_CHAN_SRC_BURST_8;
-	lpc178x_drvdat.dmacfgtx.src_prph = DMAC_SRC_PERIP(DMA_PERID_SDCARD);
-	lpc178x_drvdat.dmacfgtx.dst_size = 4;
-	lpc178x_drvdat.dmacfgtx.dst_inc = 0;
-	lpc178x_drvdat.dmacfgtx.dst_bsize = DMAC_CHAN_DEST_BURST_8;
-	lpc178x_drvdat.dmacfgtx.dst_prph = DMAC_DEST_PERIP(DMA_PERID_SDCARD);
-	lpc178x_drvdat.dmacfgtx.flowctrl = DMAC_CHAN_FLOW_P_M2P;
+	dmac_drvdat.dmacfgtx.ch = DMA_CH_SDCARD_TX;
+	dmac_drvdat.dmacfgtx.tc_inten = 0;
+	dmac_drvdat.dmacfgtx.err_inten = 0;
+	dmac_drvdat.dmacfgtx.src_size = 4;
+	dmac_drvdat.dmacfgtx.src_inc = 1;
+	dmac_drvdat.dmacfgtx.src_bsize = DMAC_CHAN_SRC_BURST_8;
+	dmac_drvdat.dmacfgtx.src_prph = DMAC_SRC_PERIP(DMA_PERID_SDCARD);
+	dmac_drvdat.dmacfgtx.dst_size = 4;
+	dmac_drvdat.dmacfgtx.dst_inc = 0;
+	dmac_drvdat.dmacfgtx.dst_bsize = DMAC_CHAN_DEST_BURST_8;
+	dmac_drvdat.dmacfgtx.dst_prph = DMAC_DEST_PERIP(DMA_PERID_SDCARD);
+	dmac_drvdat.dmacfgtx.flowctrl = DMAC_CHAN_FLOW_P_M2P;
 	if (lpc178x_dma_ch_get(
-		&lpc178x_drvdat.dmacfgtx, "dma_sd_tx", NULL, NULL) < 0)
+		&dmac_drvdat.dmacfgtx, "dma_sd_tx", NULL, NULL) < 0)
 	{
-		dev_err(lpc178x_drvdat.dev,
+		dev_err(dmac_drvdat.dev,
 			"Error setting up SD card TX DMA channel\n");
 		ret = -ENODEV;
 		goto dma_no_txch;
@@ -136,31 +136,31 @@ static int mmc_dma_setup(struct mmci_platform_data *plat)
 
 	/* Allocate a linked list for DMA support */
 	llptrtx = lpc178x_dma_alloc_llist(
-		lpc178x_drvdat.dmacfgtx.ch, NR_SG * 2);
+		dmac_drvdat.dmacfgtx.ch, NR_SG * 2);
 	if (llptrtx == 0) {
-		dev_err(lpc178x_drvdat.dev,
+		dev_err(dmac_drvdat.dev,
 			"Error allocating list buffer (MMC TX)\n");
 		ret = -ENOMEM;
 		goto dma_no_txlist;
 	}
 
 	/* Setup RX DMA channel */
-	lpc178x_drvdat.dmacfgrx.ch = DMA_CH_SDCARD_RX;
-	lpc178x_drvdat.dmacfgrx.tc_inten = 0;
-	lpc178x_drvdat.dmacfgrx.err_inten = 0;
-	lpc178x_drvdat.dmacfgrx.src_size = 4;
-	lpc178x_drvdat.dmacfgrx.src_inc = 0;
-	lpc178x_drvdat.dmacfgrx.src_bsize = DMAC_CHAN_SRC_BURST_8;
-	lpc178x_drvdat.dmacfgrx.src_prph = DMAC_SRC_PERIP(DMA_PERID_SDCARD);
-	lpc178x_drvdat.dmacfgrx.dst_size = 4;
-	lpc178x_drvdat.dmacfgrx.dst_inc = 1;
-	lpc178x_drvdat.dmacfgrx.dst_bsize = DMAC_CHAN_DEST_BURST_8;
-	lpc178x_drvdat.dmacfgrx.dst_prph = DMAC_DEST_PERIP(DMA_PERID_SDCARD);
-	lpc178x_drvdat.dmacfgrx.flowctrl = DMAC_CHAN_FLOW_D_P2M;
+	dmac_drvdat.dmacfgrx.ch = DMA_CH_SDCARD_RX;
+	dmac_drvdat.dmacfgrx.tc_inten = 0;
+	dmac_drvdat.dmacfgrx.err_inten = 0;
+	dmac_drvdat.dmacfgrx.src_size = 4;
+	dmac_drvdat.dmacfgrx.src_inc = 0;
+	dmac_drvdat.dmacfgrx.src_bsize = DMAC_CHAN_SRC_BURST_8;
+	dmac_drvdat.dmacfgrx.src_prph = DMAC_SRC_PERIP(DMA_PERID_SDCARD);
+	dmac_drvdat.dmacfgrx.dst_size = 4;
+	dmac_drvdat.dmacfgrx.dst_inc = 1;
+	dmac_drvdat.dmacfgrx.dst_bsize = DMAC_CHAN_DEST_BURST_8;
+	dmac_drvdat.dmacfgrx.dst_prph = DMAC_DEST_PERIP(DMA_PERID_SDCARD);
+	dmac_drvdat.dmacfgrx.flowctrl = DMAC_CHAN_FLOW_D_P2M;
 	if (lpc178x_dma_ch_get(
-		&lpc178x_drvdat.dmacfgrx, "dma_sd_rx", NULL, NULL) < 0)
+		&dmac_drvdat.dmacfgrx, "dma_sd_rx", NULL, NULL) < 0)
 	{
-		dev_err(lpc178x_drvdat.dev,
+		dev_err(dmac_drvdat.dev,
 			"Error setting up SD card RX DMA channel\n");
 		ret = -ENODEV;
 		goto dma_no_rxch;
@@ -168,9 +168,9 @@ static int mmc_dma_setup(struct mmci_platform_data *plat)
 
 	/* Allocate a linked list for DMA support */
 	llptrrx = lpc178x_dma_alloc_llist(
-		lpc178x_drvdat.dmacfgrx.ch, NR_SG * 2);
+		dmac_drvdat.dmacfgrx.ch, NR_SG * 2);
 	if (llptrrx == 0) {
-		dev_err(lpc178x_drvdat.dev,
+		dev_err(dmac_drvdat.dev,
 			"Error allocating list buffer (MMC RX)\n");
 		ret = -ENOMEM;
 		goto dma_no_rxlist;
@@ -179,18 +179,18 @@ static int mmc_dma_setup(struct mmci_platform_data *plat)
 	return 0;
 
 dma_no_rxlist:
-	lpc178x_dma_ch_put(lpc178x_drvdat.dmacfgrx.ch);
-	lpc178x_drvdat.dmacfgrx.ch = -1;
+	lpc178x_dma_ch_put(dmac_drvdat.dmacfgrx.ch);
+	dmac_drvdat.dmacfgrx.ch = -1;
 dma_no_rxch:
-	lpc178x_dma_dealloc_llist(lpc178x_drvdat.dmacfgtx.ch);
+	lpc178x_dma_dealloc_llist(dmac_drvdat.dmacfgtx.ch);
 dma_no_txlist:
-	lpc178x_dma_ch_put(lpc178x_drvdat.dmacfgtx.ch);
-	lpc178x_drvdat.dmacfgtx.ch = -1;
+	lpc178x_dma_ch_put(dmac_drvdat.dmacfgtx.ch);
+	dmac_drvdat.dmacfgtx.ch = -1;
 dma_no_txch:
-	if (!lpc178x_drvdat.preallocated_tx_buf) {
-		dma_free_coherent(lpc178x_drvdat.dev, DMA_BUFF_SIZE,
-			lpc178x_drvdat.dma_v_base,
-			lpc178x_drvdat.dma_handle_tx);
+	if (!dmac_drvdat.preallocated_tx_buf) {
+		dma_free_coherent(dmac_drvdat.dev, DMA_BUFF_SIZE,
+			dmac_drvdat.dma_v_base,
+			dmac_drvdat.dma_handle_tx);
 	}
 dma_no_tx_buff:
 	return ret;
@@ -198,16 +198,16 @@ dma_no_tx_buff:
 
 static void mmc_dma_dealloc(void)
 {
-	lpc178x_dma_dealloc_llist(lpc178x_drvdat.dmacfgrx.ch);
-	lpc178x_dma_ch_put(lpc178x_drvdat.dmacfgrx.ch);
-	lpc178x_drvdat.dmacfgrx.ch = -1;
-	lpc178x_dma_dealloc_llist(lpc178x_drvdat.dmacfgtx.ch);
-	lpc178x_dma_ch_put(lpc178x_drvdat.dmacfgtx.ch);
-	lpc178x_drvdat.dmacfgtx.ch = -1;
-	if (!lpc178x_drvdat.preallocated_tx_buf) {
-		dma_free_coherent(lpc178x_drvdat.dev, DMA_BUFF_SIZE,
-			lpc178x_drvdat.dma_v_base,
-			lpc178x_drvdat.dma_handle_tx);
+	lpc178x_dma_dealloc_llist(dmac_drvdat.dmacfgrx.ch);
+	lpc178x_dma_ch_put(dmac_drvdat.dmacfgrx.ch);
+	dmac_drvdat.dmacfgrx.ch = -1;
+	lpc178x_dma_dealloc_llist(dmac_drvdat.dmacfgtx.ch);
+	lpc178x_dma_ch_put(dmac_drvdat.dmacfgtx.ch);
+	dmac_drvdat.dmacfgtx.ch = -1;
+	if (!dmac_drvdat.preallocated_tx_buf) {
+		dma_free_coherent(dmac_drvdat.dev, DMA_BUFF_SIZE,
+			dmac_drvdat.dma_v_base,
+			dmac_drvdat.dma_handle_tx);
 	}
 }
 
@@ -242,7 +242,7 @@ static void mmc_dma_rx_start(struct mmci_host *host)
 			if (dmaxferlen > 15872)
 				dmaxferlen = 15872;
 
-			lpc178x_dma_queue_llist_entry(lpc178x_drvdat.lastch,
+			lpc178x_dma_queue_llist_entry(dmac_drvdat.lastch,
 				(void *) SD_FIFO((u32)host->base),
 				dmaaddr, dmaxferlen);
 
@@ -271,17 +271,17 @@ static void mmc_dma_tx_start(struct mmci_host *host)
 	len = reqdata->sg_len;
 
 	/* Only 1 segment and no need to copy? */
-	if (len == 1 && !lpc178x_drvdat.preallocated_tx_buf) {
+	if (len == 1 && !dmac_drvdat.preallocated_tx_buf) {
 		dma_len = dma_map_sg(mmc_dev(host->mmc), reqdata->sg,
 			reqdata->sg_len, DMA_TO_DEVICE);
 		if (dma_len == 0)
 			return;
 
 		dmaaddr = (void *) sg_dma_address(&sg[0]);
-		lpc178x_drvdat.mapped = 1;
+		dmac_drvdat.mapped = 1;
 	} else {
 		/* Move data to contiguous buffer first, then transfer it */
-		dst_buffer = (char *) lpc178x_drvdat.dma_v_base;
+		dst_buffer = (char *) dmac_drvdat.dma_v_base;
 		do
 		{
 			if (!sg_miter_next(sg_miter))
@@ -297,8 +297,8 @@ static void mmc_dma_tx_start(struct mmci_host *host)
 
 		sg_miter_stop(sg_miter);
 
-		lpc178x_drvdat.mapped = 0;
-		dmaaddr = (void *) lpc178x_drvdat.dma_handle_tx;
+		dmac_drvdat.mapped = 0;
+		dmaaddr = (void *) dmac_drvdat.dma_handle_tx;
 	}
 
 	lpc178x_dma_start_pflow_xfer(DMA_CH_SDCARD_TX, dmaaddr,
@@ -508,10 +508,10 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	datactrl = MCI_DPSM_ENABLE | MCI_DPSM_DMAENABLE | blksz_bits << 4;
 	if (data->flags & MMC_DATA_READ) {
 		datactrl |= MCI_DPSM_DIRECTION;
-		lpc178x_drvdat.lastch = DMA_CH_SDCARD_RX;
+		dmac_drvdat.lastch = DMA_CH_SDCARD_RX;
 		mmc_dma_rx_start(host);
 	} else {
-		lpc178x_drvdat.lastch = DMA_CH_SDCARD_TX;
+		dmac_drvdat.lastch = DMA_CH_SDCARD_TX;
 		mmc_dma_tx_start(host);
 	}
 #else
@@ -623,14 +623,14 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	if (status & MCI_DATAEND) {
 #ifdef CONFIG_LPC178X_SD_DMA
 		if (data->flags & MMC_DATA_READ) {
-			lpc178x_dma_force_burst(lpc178x_drvdat.lastch,
+			lpc178x_dma_force_burst(dmac_drvdat.lastch,
 				DMA_PERID_SDCARD);
-			lpc178x_dma_flush_llist(lpc178x_drvdat.lastch);
+			lpc178x_dma_flush_llist(dmac_drvdat.lastch);
 			dma_unmap_sg(mmc_dev(host->mmc),
 				data->sg, data->sg_len, DMA_FROM_DEVICE);
 		} else {
-			lpc178x_dma_ch_disable(lpc178x_drvdat.lastch);
-			if (lpc178x_drvdat.mapped)
+			lpc178x_dma_ch_disable(dmac_drvdat.lastch);
+			if (dmac_drvdat.mapped)
 				dma_unmap_sg(mmc_dev(host->mmc), data->sg,
 					data->sg_len, DMA_TO_DEVICE);
 		}
@@ -1197,7 +1197,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	/*
 	 * Setup DMA for the interface
 	 */
-	lpc178x_drvdat.dev = &dev->dev;
+	dmac_drvdat.dev = &dev->dev;
 	if (mmc_dma_setup(plat))
 		goto err_dma_setup;
 #endif /* CONFIG_LPC178X_SD_DMA */
