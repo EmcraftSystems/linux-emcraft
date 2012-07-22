@@ -38,41 +38,87 @@
  * DMA CR bits
  */
 #ifndef CONFIG_ARCH_STM32F1
-/* Streams and Double Buffer Mode are not supported on STM32F1 */
-#define STM32_DMA_CR_CHSEL_BIT	25		/* Channel selection	      */
-#define STM32_DMA_CR_CT		(1 << 19)	/* Current target	      */
-#define STM32_DMA_CR_DBM	(1 << 18)	/* Double buffer mode	      */
+/*
+ * Streams and Double Buffer Mode are not supported on STM32F1
+ */
+/* Channel selection */
+#define STM32_DMA_CR_CHSEL_BIT		25
+/* Current target */
+#define STM32_DMA_CR_CT			(1 << 19)
+/* Double buffer mode */
+#define STM32_DMA_CR_DBM_BIT		18
+#define STM32_DMA_CR_DBM		(1 << STM32_DMA_CR_DBM_BIT)
+
+/* Memory burst transfer configuration */
+#define STM32_DMA_CR_MBURST_BITS	23
+#define STM32_DMA_CR_MBURST_MSK		(3 << STM32_DMA_CR_MBURST_BITS)
+/* Peripheral burst transfer configuration */
+#define STM32_DMA_CR_PBURST_BITS	21
+#define STM32_DMA_CR_PBURST_MSK		(3 << STM32_DMA_CR_PBURST_BITS)
+
+/* Peripheral increment offset size */
+#define STM32_DMA_CR_PINCOS_MSK		(1 << 15)
+
+/* Memory data size */
+#define STM32_DMA_CR_MSIZE_BITS		13
+#define STM32_DMA_CR_MSIZE_MSK		(3 << STM32_DMA_CR_MSIZE_BITS)
+/* Peripheral data size */
+#define STM32_DMA_CR_PSIZE_BITS		11
+#define STM32_DMA_CR_PSIZE_MSK		(3 << STM32_DMA_CR_PSIZE_BITS)
 #endif
 
 /* Priority level */
 #ifdef CONFIG_ARCH_STM32F1
-#define STM32_DMA_CR_PL_BIT	12		/* STM32F1 */
+#define STM32_DMA_CR_PL_BIT		12		/* STM32F1 */
 #else
-#define STM32_DMA_CR_PL_BIT	16		/* STM32F2 */
+#define STM32_DMA_CR_PL_BIT		16		/* STM32F2 */
 #endif
-#define STM32_DMA_CR_PL_HIGH	0x2
+#define STM32_DMA_CR_PL_MSK		(3 << STM32_DMA_CR_PL_BIT)
+#define STM32_DMA_CR_PL_HIGH		0x2
 
 #ifdef CONFIG_ARCH_STM32F1
 /* STM32F1 */
-#define STM32_DMA_CR_MINC	(1 << 7)	/* Memory increment mode      */
-#define STM32_DMA_CR_CIRC	(1 << 5)	/* Circular mode	      */
-#define STM32_DMA_CR_TCIE	(1 << 1)	/* Transfer complete irq ena  */
-#define STM32_DMA_CR_HTIE	(1 << 2)	/* Half transfer irq ena      */
+/* Memory increment mode */
+#define STM32_DMA_CR_MINC		(1 << 7)
+/* Circular mode */
+#define STM32_DMA_CR_CIRC_BIT		5
+#define STM32_DMA_CR_CIRC		(1 << STM32_DMA_CR_CIRC_BIT)
+/* Transfer complete irq ena */
+#define STM32_DMA_CR_TCIE		(1 << 1)
+/* Half transfer irq ena */
+#define STM32_DMA_CR_HTIE		(1 << 2)
 #else
 /* STM32F2 */
-#define STM32_DMA_CR_MINC	(1 << 10)	/* Memory increment mode      */
-#define STM32_DMA_CR_CIRC	(1 << 8)	/* Circular mode	      */
-#define STM32_DMA_CR_TCIE	(1 << 4)	/* Transfer complete irq ena  */
-#define STM32_DMA_CR_HTIE	(1 << 3)	/* Half transfer irq ena      */
+/* Memory increment mode */
+#define STM32_DMA_CR_MINC_BIT		10
+#define STM32_DMA_CR_MINC		(1 << STM32_DMA_CR_MINC_BIT)
+/* Peripheral increment mode */
+#define STM32_DMA_CR_PINC_BIT		9
+#define STM32_DMA_CR_PINC		(1 << STM32_DMA_CR_PINC_BIT)
+/* Circular mode */
+#define STM32_DMA_CR_CIRC_BIT		8
+#define STM32_DMA_CR_CIRC		(1 << STM32_DMA_CR_CIRC_BIT)
+/* Data transfer direction */
+#define STM32_DMA_CR_DIR_BITS		6
+#define STM32_DMA_CR_DIR_MSK		(3 << STM32_DMA_CR_DIR_BITS)
+/* Peripheral flow controller */
+#define STM32_DMA_CR_PFCTRL_BIT		5
+#define STM32_DMA_CR_PFCTRL_MSK		(1 << STM32_DMA_CR_PFCTRL_BIT)
+/* Transfer complete irq ena */
+#define STM32_DMA_CR_TCIE		(1 << 4)
+/* Half transfer irq ena */
+#define STM32_DMA_CR_HTIE		(1 << 3)
 #endif
 
-#define STM32_DMA_CR_EN		(1 << 0)	/* Stream enable	      */
+/* Stream enable */
+#define STM32_DMA_CR_EN			(1 << 0)
 
 /*
  * DMA NDTR bits
  */
-#define STM32_DMA_NDTR_NDT_BIT	0		/* Num of data items to xfer  */
-#define STM32_DMA_NDTR_NDT_MSK	0xFFFF
+/* Num of data items to xfer */
+#define STM32_DMA_NDTR_NDT_BIT		0
+#define STM32_DMA_NDTR_NDT_MSK		0xFFFF
 
 /*
  * DMA channel register map. Part of the DMA controller register map.

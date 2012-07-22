@@ -28,6 +28,7 @@
 
 #include <mach/stm32.h>
 #include <mach/dmainit.h>
+#include <mach/dmac.h>
 #include <mach/dmaregs.h>
 
 struct stm32f2_dma_ch_config {
@@ -105,4 +106,7 @@ void __init stm32_dma_init(void)
 	dma_ch_config_table(
 		stm32f2_dmamux_table, ARRAY_SIZE(stm32f2_dmamux_table));
 #endif
+
+	/* Initialize the DMA controller driver API */
+	stm32_dmac_init();
 }

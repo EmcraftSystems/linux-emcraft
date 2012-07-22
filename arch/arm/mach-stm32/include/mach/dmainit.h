@@ -41,5 +41,6 @@
 #endif
 
 void __init stm32_dma_init(void);
+void __init stm32_dmac_init(void);
 
 #endif /* _MACH_STM32_DMAINIT_H_ */
