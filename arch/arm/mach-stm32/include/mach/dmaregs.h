@@ -29,6 +29,11 @@
 
 #include <mach/stm32.h>
 
+/* Number of DMA channels (0..15) */
+#define STM32F2_DMA_CH_NUM		16
+/* Number of DMA channels associated with the DMA1 controller (0..7) */
+#define STM32F2_DMA_CH_NUM_DMA1		8
+
 /*
  * DMA CR bits
  */
@@ -113,6 +118,11 @@ struct stm32_dma_regs {
 #define STM32_DMA1_BASE		(STM32_AHB1PERITH_BASE + 0x6000)
 #define STM32_DMA2_BASE		(STM32_AHB1PERITH_BASE + 0x6400)
 #endif
+
+#define STM32_DMA1		((volatile struct stm32_dma_regs *) \
+				STM32_DMA1_BASE)
+#define STM32_DMA2		((volatile struct stm32_dma_regs *) \
+				STM32_DMA2_BASE)
 
 /*
  * Masks for the DMA{1,2}_EN bits in the RCC_AHB1ENR register

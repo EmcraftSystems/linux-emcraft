@@ -41,6 +41,7 @@
 #include <mach/uart.h>
 #include <mach/flash.h>
 #include <mach/sdcard.h>
+#include <mach/dmainit.h>
 
 /*
  * Prototypes
@@ -176,6 +177,13 @@ static void __init stm32_init_irq(void)
  */
 static void __init stm32_init(void)
 {
+#if defined(CONFIG_STM32_DMA)
+	/*
+	 * Configure DMA controller and its driver's API
+	 */
+	stm32_dma_init();
+#endif
+
 	/*
 	 * Configure the IOMUXes of STM32
 	 */

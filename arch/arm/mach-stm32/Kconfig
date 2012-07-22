@@ -52,6 +52,11 @@ config STM32_MAC
 	bool "Enable STM32 Ethernet port"
 	default y
 
+config STM32_DMA
+	depends on ARCH_STM32
+	bool "Enable STM32 DMA controller for peripherals"
+	default n
+
 endmenu
 
 endif
