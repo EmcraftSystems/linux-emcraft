@@ -135,14 +135,13 @@ static void core10100_adjust_link(struct net_device *dev)
 	struct core10100_dev *bp = netdev_priv(dev);
 	struct phy_device *phydev = bp->phy_dev;
 
-	u8  tx_rx_stopped = 0;
+	u8 tx_rx_stopped = 0;
 	u32 status_change = 0;
 	unsigned long flags;
 	/* u8  link_stat; */
 
-
 	spin_lock_irqsave(&bp->lock, flags);
-	
+
 	if (phydev->link) {
 
 		/* Check whether link duplex has been changed */
@@ -170,7 +169,8 @@ static void core10100_adjust_link(struct net_device *dev)
 		/* Check whether link speed has been changed */
 		if (bp->speed != phydev->speed) {
 			/* TX/RX have to be stopped for updating */
-			if (tx_rx_stopped != 1 && bp->flags & TX_RX_ENABLED){
+			if (tx_rx_stopped != 1 && 
+				bp->flags & TX_RX_ENABLED) {
 				stop_tx_rx(bp);
 				tx_rx_stopped = 1;
 			}
@@ -183,11 +183,12 @@ static void core10100_adjust_link(struct net_device *dev)
 				bp->flags &= ~LINK_100;
 				write_reg(CSR6, read_reg(CSR6) & ~CSR6_TTM);
 			}
-			else
+			else {
 				printk(KERN_WARNING
 				       "%s: Ack!  Speed (%d) is not "
 				       "10/100/1000!\n", dev->name,
 				       phydev->speed);
+			}
 
 			status_change = 1;
 			bp->speed = phydev->speed;
@@ -207,7 +208,6 @@ static void core10100_adjust_link(struct net_device *dev)
 		}
 		
 		bp->link = phydev->link;
-
 		status_change = 1;
 	}
 
@@ -217,7 +217,8 @@ static void core10100_adjust_link(struct net_device *dev)
 		if (phydev->link)
 			printk(KERN_INFO "%s: link up (%d/%s)\n",
 				dev->name, phydev->speed,
-				DUPLEX_FULL == phydev->duplex ? "Full" : "Half");
+				DUPLEX_FULL == phydev->duplex ? 
+					"Full" : "Half");
 		else
 			printk(KERN_INFO "%s: link down\n", dev->name);
 	}
@@ -227,7 +228,6 @@ static void core10100_adjust_link(struct net_device *dev)
 		debug("%s: Start RX TX\n", __func__);
 		write_reg(CSR6, read_reg(CSR6) | CSR6_ST | CSR6_SR);
 	}
-
 }
 
 static int __init core10100_mii_init(struct net_device *dev)
@@ -242,7 +242,6 @@ static int __init core10100_mii_init(struct net_device *dev)
 	if (!bp->mii_bus) {
 		printk(KERN_INFO "alloc_mdio_bitbang failed!\n");
 	}
-
 	
 	bp->mii_bus->name = "eth_mii_bus";	
 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
@@ -252,7 +251,6 @@ static int __init core10100_mii_init(struct net_device *dev)
 	if (ret) {
 		printk(KERN_INFO "mdiobus_register failed!\n");
 	}
-
 	
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
@@ -270,20 +268,16 @@ static int __init core10100_mii_init(struct net_device *dev)
 		/* bp->phy_id = MSS_PHY_ADDRESS_AUTO_DETECT; */
 	}
 
-
 	phydev = phy_connect(dev, dev_name(&phydev->dev),
 			     &core10100_adjust_link, 0,
 			     PHY_INTERFACE_MODE_RMII);
-
 
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
 		return PTR_ERR(phydev);
 	}
-
 	
 	phydev->supported &= PHY_BASIC_FEATURES;
-
 
 	bp->phy_id = phydev->phy_id;
 	bp->link = 0;

@@ -53,11 +53,11 @@ struct mss_timer {
 
 #define MSS_TIMER	((volatile struct mss_timer *)(MSS_TIMER_BASE))
 
-#define TIMER_CTRL_ENBL	(1<<0)
-#define TIMER_CTRL_PRDC	(0<<1)
-#define TIMER_CTRL_INTR	(1<<2)
-#define TIMER_RIS_ACK	(1<<0)
-#define TIMER_RST_CLR	(1<<6)
+#define TIMER_CTRL_ENBL		(1<<0)
+#define TIMER_CTRL_ONESHOT	(1<<1)
+#define TIMER_CTRL_INTR		(1<<2)
+#define TIMER_RIS_ACK		(1<<0)
+#define TIMER_RST_CLR		(1<<6)
 
 /*
  * Reference clock for the SmartFusion Timers.
@@ -65,36 +65,88 @@ struct mss_timer {
 static unsigned int timer_ref_clk;
 
 /*
- * Set the frequency and periodic mode for the system tick timer
+ * Calculates a clocksource shift from hz and # of bits a clock uses.
+ * I took this routine from a kernel patch (apparently, it hasn't
+ * made its way to this kernel yet).
+ */
+static u32 timer_clocksource_hz2shift(u32 bits, u32 hz)
+{
+	u64 temp;
+
+	for (; bits > 0; bits--) {
+		temp = (u64) NSEC_PER_SEC << bits;
+		do_div(temp, hz);
+		if ((temp >> 32) == 0)
+			break;
+	}
+	return bits;
+}
+
+/*
+ * Set the mode for the system tick timer
  */
 static void timer_1_set_mode(
 	enum clock_event_mode mode, struct clock_event_device *clk)
 {
 	unsigned long ctrl;
+	unsigned long flags;
 
 	switch(mode) {
+
 	case CLOCK_EVT_MODE_PERIODIC:
+	case CLOCK_EVT_MODE_RESUME:
 
 		/*
 		 * Kernel ticker rate: 100Hz.
-		 */
-		MSS_TIMER->tim1_loadval = timer_ref_clk / HZ;
-
-		/*
 		 * Enable interrupts, Periodic Mode, Timer Enabled
 		 */
-		ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_PRDC | TIMER_CTRL_INTR;
+		raw_local_irq_save(flags);
+		MSS_TIMER->tim1_loadval = timer_ref_clk / HZ;
+		ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_INTR;
+		MSS_TIMER->tim1_ctrl = ctrl;
+		raw_local_irq_restore(flags);
 		break;
-	default:
+
+	case CLOCK_EVT_MODE_ONESHOT:
+
+		raw_local_irq_save(flags);
+		MSS_TIMER->tim1_loadval = 0xFFFFFFFF;
+		ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_ONESHOT | TIMER_CTRL_INTR;
+		MSS_TIMER->tim1_ctrl = ctrl;
+		raw_local_irq_restore(flags);
+		break;
+
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
 
 		/*
 		 * Disable the timer.
 		 */
+		raw_local_irq_save(flags);
 		ctrl = MSS_TIMER->tim1_ctrl & ~TIMER_CTRL_ENBL;
+		MSS_TIMER->tim1_ctrl = ctrl;
+		raw_local_irq_restore(flags);
 		break;
 	}
+}
 
-	MSS_TIMER->tim1_ctrl = ctrl;
+/*
+ * TBD
+ */
+static int timer_1_set_next_event(
+	unsigned long delta, struct clock_event_device *c)
+{
+	unsigned long flags;
+
+	raw_local_irq_save(flags);
+#if 0
+	MSS_TIMER->tim1_loadval = 50 * delta;
+#else
+	MSS_TIMER->tim1_loadval = delta;
+#endif
+	raw_local_irq_restore(flags);
+
+	return 0;
 }
 
 /*
@@ -102,9 +154,9 @@ static void timer_1_set_mode(
  */
 static struct clock_event_device timer_1_clockevent = {
 	.name           = "mss_timer1_clockevent",
-	.shift          = 32,
-	.features       = CLOCK_EVT_FEAT_PERIODIC,
+	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode       = timer_1_set_mode,
+	.set_next_event	= timer_1_set_next_event,
 	.rating         = 200,
 	.cpumask        = cpu_all_mask,
 };
@@ -115,12 +167,21 @@ static struct clock_event_device timer_1_clockevent = {
 static void __init timer_1_clockevents_init(unsigned int irq)
 {
 	timer_1_clockevent.irq = irq;
+#if 1
+	timer_1_clockevent.shift = 
+		timer_clocksource_hz2shift(32, timer_ref_clk);
 	timer_1_clockevent.mult =
-		div_sc(1000000, NSEC_PER_SEC, timer_1_clockevent.shift);
+		clocksource_hz2mult(timer_ref_clk, timer_1_clockevent.shift);
 	timer_1_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xffffffff, &timer_1_clockevent);
+		clockevent_delta2ns(0xFFFFFFFF, &timer_1_clockevent);
 	timer_1_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xf, &timer_1_clockevent);
+		clockevent_delta2ns(0x1, &timer_1_clockevent);
+#else
+	timer_1_clockevent.shift = 0;
+	timer_1_clockevent.mult = 1;
+	timer_1_clockevent.min_delta_ns = 50;
+	timer_1_clockevent.max_delta_ns = 0x00FFFFFF;
+#endif
 
 	clockevents_register_device(&timer_1_clockevent);
 }
@@ -171,16 +232,16 @@ static void __init timer_ticker_init(void)
 	irq = MSS_TIMER1_IRQ;
 
 	/*
+	 * 
+	 */
+	timer_1_clockevents_init(irq);
+
+	/*
 	 * Unmask the Timer 1 interrupts at NVIC (interrupst are still
 	 * disabled globally in the kernel). Provide the interrupt handler
 	 * for the timer interrupt.
 	 */
 	setup_irq(irq, &timer_1_irq);
-
-	/*
-	 * 
-	 */
-	timer_1_clockevents_init(irq);
 }
 
 /*
@@ -201,26 +262,8 @@ static struct clocksource timer_2_clocksource= {
 	.mask	= CLOCKSOURCE_MASK(32),
 	.mult	= 0,
 	.shift	= 0,
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_VALID_FOR_HRES,
 };
-
-/*
- * Calculates a clocksource shift from hz and # of bits a clock uses.
- * I took this routine from a kernel patch (apparently, it hasn't
- * made its way to this kernel yet).
- */
-static u32 timer_clocksource_hz2shift(u32 bits, u32 hz)
-{
-	u64 temp;
-
-	for (; bits > 0; bits--) {
-		temp = (u64) NSEC_PER_SEC << bits;
-		do_div(temp, hz);
-		if ((temp >> 32) == 0)
-			break;
-	}
-	return bits;
-}
 
 /*
  * Start a clocksource using Timer2 in 32-bit mode
@@ -231,8 +274,8 @@ static void __init timer_clocksource_init(void)
  	 * No interrupts, periodic mode, load with the largest number
  	 * that fits into the 32-bit timer
  	 */
-	MSS_TIMER->tim2_loadval = 0xffffffff;
-	MSS_TIMER->tim2_ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_PRDC;
+	MSS_TIMER->tim2_loadval = 0xFFFFFFFF;
+	MSS_TIMER->tim2_ctrl = TIMER_CTRL_ENBL;
 
 	/*
  	 * Calculate shift and mult using helper functions.
@@ -266,17 +309,17 @@ void __init a2f_timer_init(void)
 	timer_ref_clk = a2f_clock_get(CLCK_PCLK0);
 
 	/*
- 	 * Register and start a system ticker
- 	 */
-	timer_ticker_init();
-
-	/*
  	 * Register and start a clocksource
  	 */
 	timer_clocksource_init();
 
 	/*
-	 * Allow SystemTimer (Timer1 & Timer2 included) to count
+ 	 * Register and start a system ticker
+ 	 */
+	timer_ticker_init();
+
+	/*
+	 * Allow SystemTimer (including Timer1 & Timer2) to count
 	 * (bring it out of the power-up reset)
 	 */
 	A2F_SYSREG->soft_rst_cr &= ~TIMER_RST_CLR;

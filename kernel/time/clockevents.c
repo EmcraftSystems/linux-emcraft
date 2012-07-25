@@ -22,6 +22,9 @@
 
 #include "tick-internal.h"
 
+extern void printascii(char *);
+extern void printhex8(unsigned int);
+
 /* The registered clock event devices */
 static LIST_HEAD(clockevent_devices);
 static LIST_HEAD(clockevents_released);
@@ -114,7 +117,7 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 
 	delta = ktime_to_ns(ktime_sub(expires, now));
 
-	if (delta <= 0)
+	if (delta <= 0 || !dev->set_next_event)
 		return -ETIME;
 
 	dev->next_event = expires;
@@ -122,8 +125,9 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	if (dev->mode == CLOCK_EVT_MODE_SHUTDOWN)
 		return 0;
 
-	if (delta > dev->max_delta_ns)
+	if (delta > dev->max_delta_ns) {
 		delta = dev->max_delta_ns;
+	}
 	if (delta < dev->min_delta_ns)
 		delta = dev->min_delta_ns;
 

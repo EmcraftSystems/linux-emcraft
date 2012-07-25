@@ -584,6 +584,7 @@ static void tick_nohz_switch_to_nohz(void)
 	 * hrtimer_forward with the highres code.
 	 */
 	hrtimer_init(&ts->sched_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+
 	/* Get the next period */
 	next = tick_init_jiffy_update();
 
@@ -806,6 +807,13 @@ int tick_check_oneshot_change(int allow_nohz)
 {
 	struct tick_sched *ts = &__get_cpu_var(tick_cpu_sched);
 
+	/*
+	 * TBD - this bit appears to have been legitimately set
+	 * by tick_clock_notify() when a better clocksource
+	 * was being set. For now, disable this check but
+	 * need to figure out why we run into this condition and
+	 * bail out of the tickless kernel mode.
+	 */
 	if (!test_and_clear_bit(0, &ts->check_clocks))
 		return 0;
 
