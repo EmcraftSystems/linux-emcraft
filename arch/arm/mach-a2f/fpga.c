@@ -62,6 +62,8 @@ int a2f_fpga_dma_init(void)
 	return ret;
 }
 
+#if defined(CONFIG_A2F_FPGA_CINT)
+
 /*
  * CoreInterrupt registers
  */
@@ -218,4 +220,6 @@ int a2f_fpga_demux_irq_source_enable(unsigned int irq)
 Done_release_nothing:
 	return ret;
 }
+
+#endif /* defined(CONFIG_A2F_FPGA_CINT) */
 
