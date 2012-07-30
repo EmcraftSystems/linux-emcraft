@@ -1,0 +1,55 @@
+config SND_LPC3XXX_SOC
+        tristate "SoC Audio for the NXP LPC32XX System-on-a-Chip"
+        depends on ARCH_LPC32XX && SND_SOC
+        help
+          Say Y or M if you want to add support for codecs attached to
+          the LPC3XXX I2S interface.  You will also need to to select
+          the audio interfaces to support below.
+
+config SND_LPC3XXX_SOC_I2S_UDA1380
+        tristate "SoC Audio support for Phytec 3250 board with the UDA1380"
+        depends on SND_LPC3XXX_SOC
+        select I2C
+        select SND_SOC_UDA1380
+        select SND_LPC32XX_USEI2S1
+        select SND_LPC32XX_SLAVE_TX_CLK_TO_RX
+        help
+          Say Y or M here if you want to add support for SoC audio
+          on the Phytec 3250 board. This requires an I2C channel connected
+          to the I2C interface of the UDA1380 codec.
+
+config SND_LPC32XX_USEI2S1
+        bool "Use I2S1 channel instead of I2S0"
+        depends on SND_LPC3XXX_SOC
+        help
+	  The LPC32XX has 2 I2S channels (0 and 1). Normally, I2S0 is
+	  used for communications with an I2S codec. If I2S1 should be
+	  used instead, select this option. For LPC32XX systems that
+	  used the LCD interface, I2S1 must be used.
+
+config SND_LPC32XX_USEI2S_SLAVE_MODETX
+        bool "Use slave mode on the TX channel instead of master mode"
+        depends on SND_LPC3XXX_SOC
+	default n
+        help
+	  In this mode, the TX WS and bit clocks are driven from the audio
+	  CODEC instead of from the LPC32x0. For most CODECs, this won't
+	  be the case, but CODECs that have their own clocking may be able
+	  to provide TX clocking.
+
+config SND_LPC32XX_USEI2S_SLAVE_MODERX
+        bool "Use slave mode on the RX channel instead of master mode"
+        depends on SND_LPC3XXX_SOC
+	default n
+        help
+	  In this mode, the RX WS and bit clocks are driven from the audio
+	  CODEC instead of from the LPC32x0.
+
+config SND_LPC32XX_SLAVE_TX_CLK_TO_RX
+        bool "Enable TX WS clock during RX"
+        depends on SND_LPC3XXX_SOC
+	default n
+        help
+	  This enables the TX WS clock during RX transfers. Some CODECS use
+	  the TX clock for internal clock or for RX clocking.
+
