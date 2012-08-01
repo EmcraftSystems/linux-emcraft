@@ -46,6 +46,12 @@
 #define DMAIOBASE io_p2v(LPC178X_DMA_BASE)
 #define VALID_CHANNEL(c) (((c) >= 0) && ((c) < MAX_DMA_CHANNELS))
 
+/*
+ * Bit fields of the DMA Request Select register
+ */
+#define LPC178X_SCC_DMACREQSEL_SEL6_I2S0_MSK	(1 << 6)
+#define LPC178X_SCC_DMACREQSEL_SEL7_I2S1_MSK	(1 << 7)
+
 static DEFINE_SPINLOCK(dma_lock);
 
 struct dma_linked_list {
@@ -764,6 +770,14 @@ void __init lpc178x_dma_init(void)
 	__raw_writel(1, DMA_CONFIG(DMAIOBASE));
 	__raw_writel(0xFF, DMA_INT_TC_CLEAR(DMAIOBASE));
 	__raw_writel(0xFF, DMA_INT_ERR_CLEAR(DMAIOBASE));
+
+	/*
+	 * Configure multiplexing of DMA requests: enable two I2S DMA requests
+	 * instead of SSP2_TX/RX enabled by default.
+	 */
+	LPC178X_SCC->dmacreqsel |=
+		LPC178X_SCC_DMACREQSEL_SEL6_I2S0_MSK |
+		LPC178X_SCC_DMACREQSEL_SEL7_I2S1_MSK;
 
 	/* Clock is only enabled when needed to save power */
 	clk_disable(dma_ctrl.clk);
