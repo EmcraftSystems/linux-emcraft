@@ -120,4 +120,26 @@ extern u32 lpc178x_dma_queue_llist(int ch,
 extern int lpc178x_dma_start_xfer(int chan, u32 config);
 extern void lpc178x_dma_force_burst(int ch, int src);
 
+/*
+ * Function aliases to be used by drivers initially written for LPC32xx
+ */
+#define lpc32xx_dma_ch_enable		lpc178x_dma_ch_enable
+#define lpc32xx_dma_ch_disable		lpc178x_dma_ch_disable
+#define lpc32xx_dma_ch_get		lpc178x_dma_ch_get
+#define lpc32xx_dma_ch_put		lpc178x_dma_ch_put
+#define lpc32xx_dma_ch_pause_unpause	lpc178x_dma_ch_pause_unpause
+#define lpc32xx_dma_start_pflow_xfer	lpc178x_dma_start_pflow_xfer
+#define lpc32xx_dma_is_active		lpc178x_dma_is_active
+#define lpc32xx_dma_alloc_llist		lpc178x_dma_alloc_llist
+#define lpc32xx_dma_dealloc_llist	lpc178x_dma_dealloc_llist
+#define lpc32xx_dma_llist_v_to_p	lpc178x_dma_llist_v_to_p
+#define lpc32xx_dma_llist_p_to_v	lpc178x_dma_llist_p_to_v
+#define lpc32xx_dma_get_llist_head	lpc178x_dma_get_llist_head
+#define lpc32xx_dma_flush_llist		lpc178x_dma_flush_llist
+#define lpc32xx_dma_queue_llist_entry	lpc178x_dma_queue_llist_entry
+#define lpc32xx_get_free_llist_entry	lpc178x_get_free_llist_entry
+#define lpc32xx_dma_queue_llist		lpc178x_dma_queue_llist
+#define lpc32xx_dma_start_xfer		lpc178x_dma_start_xfer
+#define lpc32xx_dma_force_burst		lpc178x_dma_force_burst
+
 #endif /* _MACH_LPC178X_DMA_H_ */
