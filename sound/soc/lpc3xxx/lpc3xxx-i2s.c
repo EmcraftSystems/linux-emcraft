@@ -5,6 +5,10 @@
  *
  * Copyright (C) 2008 NXP Semiconductors
  *
+ * Add support for NXP LPC178x/7x
+ * Copyright (c) 2012
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -61,6 +65,7 @@ static struct lpc3xxx_i2s_info i2s_info[NUM_I2S_DEVICES] = {
 	 .clkname = "i2s0_ck",
 	 .baseio = LPC32XX_I2S0_BASE,
 	 },
+#ifdef CONFIG_ARCH_LPC32XX
 	{
 	 .name = "i2s1",
 	 .lock = __SPIN_LOCK_UNLOCKED(i2s_info[1].lock),
@@ -68,6 +73,7 @@ static struct lpc3xxx_i2s_info i2s_info[NUM_I2S_DEVICES] = {
 	 .clkname = "i2s1_ck",
 	 .baseio = LPC32XX_I2S1_BASE,
 	 },
+#endif /* CONFIG_ARCH_LPC32XX */
 };
 
 static u32 absd32(u32 v1, u32 v2) {
@@ -498,6 +504,7 @@ struct snd_soc_dai lpc3xxx_i2s_dai[NUM_I2S_DEVICES] = {
 	 .ops = &lpc3xxx_i2s_dai_ops,
 	 .private_data = &i2s_info[0],
 	 },
+#ifdef CONFIG_ARCH_LPC32XX
 	{
 	 .name = "lpc3xxx-i2s1",
 	 .id = 1,
@@ -518,6 +525,7 @@ struct snd_soc_dai lpc3xxx_i2s_dai[NUM_I2S_DEVICES] = {
 	 .ops = &lpc3xxx_i2s_dai_ops,
 	 .private_data = &i2s_info[1],
 	 },
+#endif /* CONFIG_ARCH_LPC32XX */
 };
 EXPORT_SYMBOL_GPL(lpc3xxx_i2s_dai);
 

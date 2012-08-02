@@ -5,6 +5,10 @@
  *
  * Copyright (C) 2008 NXP Semiconductors
  *
+ * Add support for NXP LPC178x/7x
+ * Copyright (c) 2012
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -193,13 +197,18 @@ static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 			prtd->dmacfg.err_inten = 1;
 			prtd->dmacfg.src_size = 4;
 			prtd->dmacfg.src_inc = 1;
+#ifdef CONFIG_ARM_LPC32XX
 			prtd->dmacfg.src_ahb1 = 1;
+#endif
 			prtd->dmacfg.src_bsize = DMAC_CHAN_SRC_BURST_4;
 			prtd->dmacfg.src_prph = 0;
 			prtd->dmacfg.dst_size = 4;
 			prtd->dmacfg.dst_inc = 0;
 			prtd->dmacfg.dst_bsize = DMAC_CHAN_DEST_BURST_4;
+#ifdef CONFIG_ARM_LPC32XX
 			prtd->dmacfg.dst_ahb1 = 0;
+#endif
+
 #if defined(CONFIG_SND_LPC32XX_USEI2S1)
 			prtd->dmacfg.dst_prph = DMAC_DEST_PERIP(DMA_PERID_I2S1_DMA1);
 #else
@@ -228,7 +237,9 @@ static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 			prtd->dmacfg.err_inten = 1;
 			prtd->dmacfg.src_size = 4;
 			prtd->dmacfg.src_inc = 0;
+#ifdef CONFIG_ARM_LPC32XX
 			prtd->dmacfg.src_ahb1 = 1;
+#endif
 			prtd->dmacfg.src_bsize = DMAC_CHAN_SRC_BURST_4;
 #if defined(CONFIG_SND_LPC32XX_USEI2S1)
 			prtd->dmacfg.src_prph = DMAC_SRC_PERIP(DMA_PERID_I2S1_DMA0);
@@ -237,7 +248,9 @@ static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 #endif
 			prtd->dmacfg.dst_size = 4;
 			prtd->dmacfg.dst_inc = 1;
+#ifdef CONFIG_ARM_LPC32XX
 			prtd->dmacfg.dst_ahb1 = 0;
+#endif
 			prtd->dmacfg.dst_bsize = DMAC_CHAN_DEST_BURST_4;
 			prtd->dmacfg.dst_prph = 0;
 			prtd->dmacfg.flowctrl = DMAC_CHAN_FLOW_D_P2M;

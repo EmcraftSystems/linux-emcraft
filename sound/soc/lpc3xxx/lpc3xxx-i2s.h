@@ -27,7 +27,11 @@
 #include <mach/clkdev.h>
 #include <mach/i2s.h>
 
+#ifdef CONFIG_ARCH_LPC32XX
 #define NUM_I2S_DEVICES		2
+#else /* LPC178x/7x */
+#define NUM_I2S_DEVICES		1
+#endif
 
 #define I2S_DMA_XMIT		0x1
 #define I2S_DMA_RECV		0x2

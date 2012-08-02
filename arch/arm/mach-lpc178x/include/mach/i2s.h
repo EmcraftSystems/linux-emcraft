@@ -23,6 +23,13 @@
 #ifndef  __ASM_ARCH_I2S_H
 #define  __ASM_ARCH_I2S_H
 
+#include <mach/hardware.h>
+
+/*
+ * I2S registers base address on LPC178x/7x
+ */
+#define LPC32XX_I2S0_BASE	0x400A8000
+
 /**********************************************************************
 * I2S controller register offsets
 **********************************************************************/

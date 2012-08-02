@@ -33,6 +33,14 @@
 #error "ARM LPC178x/7x platform only support !MMU"
 #endif
 
+/*
+ * These definitions are used by some drivers imported from
+ * the NXP LPC32xx Linux port.
+ */
+#define _SBF(f, v)		((v) << (f))
+#define _BIT(n)			_SBF(n, 1)
+#define io_p2v(x)		((volatile void __iomem *)x)
+
 #define IO_ADDRESS(x)		(x)
 #define __io_address(n)		__io(IO_ADDRESS(n))
 
