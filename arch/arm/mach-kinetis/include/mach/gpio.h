@@ -57,105 +57,22 @@
 	(number / KINETIS_GPIO_PORT_PINS)
 
 /*
- * GPIO register map
- * Should be mapped at (0x400ff000 + port * 0x40).
+ * GPIO index map
  */
-struct kinetis_gpio_regs {
-	u32 pdor;	/* Port Data Output Register */
-	u32 psor;	/* Port Set Output Register */
-	u32 pcor;	/* Port Clear Output Register */
-	u32 ptor;	/* Port Toggle Output Register */
-	u32 pdir;	/* Port Data Input Register */
-	u32 pddr;	/* Port Data Direction Register */
-};
+/* Kinetis GPIOs */
+#define KINETIS_GPIO_OFF_MCU	0
+#define KINETIS_GPIO_LEN_MCU \
+	KINETIS_GPIO_MKPIN(KINETIS_GPIO_PORTS - 1, KINETIS_GPIO_PORT_PINS)
 
-/*
- * GPIO registers base
- */
-#define KINETIS_GPIO_BASE		0x400ff000
-#define KINETIS_GPIO_PORT_ADDR(port)	((KINETIS_GPIO_BASE) + (port) * 0x40)
-#define KINETIS_GPIO(port) \
-	((volatile struct kinetis_gpio_regs *)KINETIS_GPIO_PORT_ADDR(port))
+#define ARCH_NR_GPIOS		KINETIS_GPIO_LEN_MCU
 
-/*
- * Get the current state of a GPIO input pin
- */
-static inline int gpio_get_value(unsigned gpio)
-{
-	return (KINETIS_GPIO(KINETIS_GPIO_GETPORT(gpio))->pdir >>
-		KINETIS_GPIO_GETPIN(gpio)) & 1;
-}
+#define gpio_get_value	__gpio_get_value
+#define gpio_set_value	__gpio_set_value
+#define gpio_to_irq	__gpio_to_irq
+#define gpio_cansleep	__gpio_cansleep
 
-/*
- * Change the direction of a GPIO pin to input
- */
-static inline int gpio_direction_input(unsigned gpio)
-{
-	KINETIS_GPIO(KINETIS_GPIO_GETPORT(gpio))->pddr &=
-		~(1 << KINETIS_GPIO_GETPIN(gpio));
+#include <asm-generic/gpio.h>
 
-	return 0;
-}
-
-/*
- * Set the state of a GPIO output pin
- */
-static inline void gpio_set_value(unsigned gpio, int value)
-{
-	if (value) {
-		KINETIS_GPIO(KINETIS_GPIO_GETPORT(gpio))->psor =
-			(1 << KINETIS_GPIO_GETPIN(gpio));
-	} else {
-		KINETIS_GPIO(KINETIS_GPIO_GETPORT(gpio))->pcor =
-			(1 << KINETIS_GPIO_GETPIN(gpio));
-	}
-}
-
-/*
- * Change the direction of a GPIO pin to output and
- * set the level on this pin.
- */
-static inline int gpio_direction_output(unsigned gpio, int level)
-{
-	KINETIS_GPIO(KINETIS_GPIO_GETPORT(gpio))->pddr |=
-		(1 << KINETIS_GPIO_GETPIN(gpio));
-
-	gpio_set_value(gpio, level);
-
-	return 0;
-}
-
-/*
- * We do not support GPIO configuration for now
- */
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-	return 0;
-}
-
-/*
- * We do not support GPIO configuration for now
- */
-static inline void gpio_free(unsigned gpio)
-{
-	might_sleep();
-}
-
-/*
- * Verify that the pin number identifies an existing pin
- */
-static inline int gpio_is_valid(int number)
-{
-	return number >= 0 && number <= KINETIS_GPIO_MKPIN(
-		KINETIS_GPIO_PORTS - 1, KINETIS_GPIO_PORT_PINS - 1);
-}
-
-/*
- * We do not support GPIO interrupts
- */
-static inline int gpio_to_irq(int gpio)
-{
-	return -EINVAL;
-}
+void __init kinetis_gpio_init(void);
 
 #endif /* _MACH_KINETIS_GPIO_H_ */

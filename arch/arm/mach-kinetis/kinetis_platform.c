@@ -40,9 +40,13 @@
 #include <mach/eth.h>
 #include <mach/nand.h>
 #include <mach/fb.h>
+
+#if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
 #include <mach/mxc_ehci.h>
 #include <mach/spi-gpio.h>
+#include <mach/gpio.h>
+#endif /* CONFIG_GPIOLIB */
 
 /*
  * Prototypes
@@ -222,6 +226,13 @@ static void __init kinetis_init(void)
 	 */
 	kinetis_nand_init();
 #endif
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Register Kinetis GPIO lines
+	 */
+	kinetis_gpio_init();
+#endif /* CONFIG_GPIOLIB */
 
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	/*

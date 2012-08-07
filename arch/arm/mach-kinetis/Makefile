@@ -12,3 +12,4 @@ obj-$(CONFIG_I2C_GPIO)		+= i2c-gpio.o
 obj-$(CONFIG_KINETIS_EDMA)	+= dmainit.o dmac.o
 obj-$(CONFIG_USB_EHCI_MXC)	+= ehci.o
 obj-$(CONFIG_KINETIS_SPI_GPIO)	+= spi-gpio.o
+obj-$(CONFIG_GPIOLIB)		+= gpio.o

@@ -805,7 +805,7 @@ config ARCH_KINETIS
 	bool "Freescale Kinetis MCU"
 	depends on !MMU
 	select ARM_CORTEXM3
-	select GENERIC_GPIO
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  This enables support for the Freescale Kinetis MCUs
 
