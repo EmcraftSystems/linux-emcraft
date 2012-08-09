@@ -65,25 +65,7 @@ struct mss_timer {
 static unsigned int timer_ref_clk;
 
 /*
- * Calculates a clocksource shift from hz and # of bits a clock uses.
- * I took this routine from a kernel patch (apparently, it hasn't
- * made its way to this kernel yet).
- */
-static u32 timer_clocksource_hz2shift(u32 bits, u32 hz)
-{
-	u64 temp;
-
-	for (; bits > 0; bits--) {
-		temp = (u64) NSEC_PER_SEC << bits;
-		do_div(temp, hz);
-		if ((temp >> 32) == 0)
-			break;
-	}
-	return bits;
-}
-
-/*
- * Set the mode for the system tick timer
+ * Clock event device set mode function
  */
 static void timer_1_set_mode(
 	enum clock_event_mode mode, struct clock_event_device *clk)
@@ -108,14 +90,6 @@ static void timer_1_set_mode(
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
-
-		raw_local_irq_save(flags);
-		MSS_TIMER->tim1_loadval = 0xFFFFFFFF;
-		ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_ONESHOT | TIMER_CTRL_INTR;
-		MSS_TIMER->tim1_ctrl = ctrl;
-		raw_local_irq_restore(flags);
-		break;
-
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 
@@ -131,19 +105,18 @@ static void timer_1_set_mode(
 }
 
 /*
- * TBD
+ * Configure the timer to generate an interrupt in the specified amount of ticks
  */
 static int timer_1_set_next_event(
 	unsigned long delta, struct clock_event_device *c)
 {
+	unsigned long ctrl;
 	unsigned long flags;
 
 	raw_local_irq_save(flags);
-#if 0
-	MSS_TIMER->tim1_loadval = 50 * delta;
-#else
 	MSS_TIMER->tim1_loadval = delta;
-#endif
+	ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_ONESHOT | TIMER_CTRL_INTR;
+	MSS_TIMER->tim1_ctrl = ctrl;
 	raw_local_irq_restore(flags);
 
 	return 0;
@@ -167,21 +140,16 @@ static struct clock_event_device timer_1_clockevent = {
 static void __init timer_1_clockevents_init(unsigned int irq)
 {
 	timer_1_clockevent.irq = irq;
-#if 1
-	timer_1_clockevent.shift = 
-		timer_clocksource_hz2shift(32, timer_ref_clk);
-	timer_1_clockevent.mult =
-		clocksource_hz2mult(timer_ref_clk, timer_1_clockevent.shift);
-	timer_1_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xFFFFFFFF, &timer_1_clockevent);
+	const u64 max_delay_in_sec = 5;
+
+	/*
+	 * Set the fields required for the set_next_event method (tickless kernel support)
+	 */
+	clockevents_calc_mult_shift(&timer_1_clockevent, timer_ref_clk,
+			max_delay_in_sec);
+	timer_1_clockevent.max_delta_ns = max_delay_in_sec * NSEC_PER_SEC;
 	timer_1_clockevent.min_delta_ns =
 		clockevent_delta2ns(0x1, &timer_1_clockevent);
-#else
-	timer_1_clockevent.shift = 0;
-	timer_1_clockevent.mult = 1;
-	timer_1_clockevent.min_delta_ns = 50;
-	timer_1_clockevent.max_delta_ns = 0x00FFFFFF;
-#endif
 
 	clockevents_register_device(&timer_1_clockevent);
 }
@@ -199,8 +167,8 @@ static irqreturn_t timer_1_interrupt(int irq, void *dev_id)
 	MSS_TIMER->tim1_ris = TIMER_RIS_ACK;
 
 	/*
- 	 * Handle the event.
- 	 */
+	 * Handle the event.
+	 */
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
@@ -215,24 +183,16 @@ static struct irqaction timer_1_irq = {
 };
 
 /*
- * Start a systicker using Timer1 in 32-bit mode
+ * Configure clock event device on Timer 1
  */
-static void __init timer_ticker_init(void)
-{	
+static void __init timer_clockevent_init(void)
+{
 	unsigned int irq;
 
-	/*
-	 * We will use the AFS System Timer 1 in the 32-bit mode for
-	 * the System Ticker.
-	 * ...
-	 * Another (obvious) candidatate would the Cortex-M3 SysTick,
-	 * however the current ARMv7m kernel doesn't use it for
-	 * some reason.
-	 */
 	irq = MSS_TIMER1_IRQ;
 
 	/*
-	 * 
+	 * Init clock event device
 	 */
 	timer_1_clockevents_init(irq);
 
@@ -271,25 +231,22 @@ static struct clocksource timer_2_clocksource= {
 static void __init timer_clocksource_init(void)
 {	
 	/*
- 	 * No interrupts, periodic mode, load with the largest number
- 	 * that fits into the 32-bit timer
- 	 */
+	 * No interrupts, periodic mode, load with the largest number
+	 * that fits into the 32-bit timer
+	 */
 	MSS_TIMER->tim2_loadval = 0xFFFFFFFF;
 	MSS_TIMER->tim2_ctrl = TIMER_CTRL_ENBL;
 
 	/*
- 	 * Calculate shift and mult using helper functions.
- 	 * Supposedly, these helpers get us best values for
- 	 * the number of bits in the timer and the reference clock
- 	 */
-	timer_2_clocksource.shift = 
-		timer_clocksource_hz2shift(32, timer_ref_clk);
-	timer_2_clocksource.mult =
-		clocksource_hz2mult(timer_ref_clk, timer_2_clocksource.shift);
+	 * Calculate shift and mult using a helper function.
+	 * Supposedly, this helper gets us best values for
+	 * conversion between time in nanoseconds and timer ticks
+	 */
+	clocksource_calc_mult_shift(&timer_2_clocksource, timer_ref_clk, 4);
 
 	/*
- 	 * Register the clocksource with the timekeeper
- 	 */
+	 * Register the clocksource with the timekeeper
+	 */
 	clocksource_register(&timer_2_clocksource);
 }
 
@@ -309,14 +266,14 @@ void __init a2f_timer_init(void)
 	timer_ref_clk = a2f_clock_get(CLCK_PCLK0);
 
 	/*
- 	 * Register and start a clocksource
- 	 */
+	 * Register and start a clocksource
+	 */
 	timer_clocksource_init();
 
 	/*
- 	 * Register and start a system ticker
- 	 */
-	timer_ticker_init();
+	 * Register and start a clock event device
+	 */
+	timer_clockevent_init();
 
 	/*
 	 * Allow SystemTimer (including Timer1 & Timer2) to count
