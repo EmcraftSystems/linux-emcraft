@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/sched.h>
 
 #include <asm/hardware/cortexm3.h>
 #include <mach/kinetis.h>
@@ -79,7 +80,7 @@ struct kinetis_pit_regs {
 /*
  * Initialize a PIT channel, but do not enable it
  */
-static void kinetis_pit_init(unsigned int timer, u32 pit_clk)
+static void kinetis_pit_init(unsigned int timer, u32 ticks)
 {
 	volatile struct kinetis_pit_channel_regs *timer_regs =
 		&KINETIS_PIT->ch[timer];
@@ -100,7 +101,7 @@ static void kinetis_pit_init(unsigned int timer, u32 pit_clk)
 	timer_regs->tflg = KINETIS_PIT_TFLG_TIF_MSK;
 
 	/* Set the Load Value register */
-	timer_regs->ldval = pit_clk / HZ - 1;
+	timer_regs->ldval = ticks;
 	/* Load the current timer value */
 	timer_regs->cval = 0;
 	/* Enable the interrupt for the PIT channel */
@@ -149,6 +150,7 @@ static void clockevent_tmr_set_mode(
 	case CLOCK_EVT_MODE_PERIODIC:
 		kinetis_pit_enable(KINETIS_CLOCKEVENT_PIT, 1);
 		break;
+	case CLOCK_EVT_MODE_ONESHOT:
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	default:
@@ -158,14 +160,31 @@ static void clockevent_tmr_set_mode(
 }
 
 /*
+ * Configure the timer to generate an interrupt in the specified amount of ticks
+ */
+static int clockevent_tmr_set_next_event(
+	unsigned long delta, struct clock_event_device *c)
+{
+	unsigned long flags;
+
+	raw_local_irq_save(flags);
+	kinetis_pit_init(KINETIS_CLOCKEVENT_PIT, delta);
+	kinetis_pit_enable(KINETIS_CLOCKEVENT_PIT, 1);
+	raw_local_irq_restore(flags);
+
+	return 0;
+}
+
+/*
  * Kinetis System Timer device
  */
 static struct clock_event_device clockevent_tmr = {
 	.name		= "kinetis-pit0",
 	.rating		= 200,
 	.irq		= KINETIS_CLOCKEVENT_IRQ,
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= clockevent_tmr_set_mode,
+	.set_next_event	= clockevent_tmr_set_next_event,
 	.cpumask	= cpu_all_mask,
 };
 
@@ -204,11 +223,13 @@ static struct irqaction	clockevent_tmr_irqaction = {
  */
 static void clockevents_tmr_init(void)
 {
+	const u64 max_delay_in_sec = 5;
+
 	/* PIT runs at the Bus clock rate */
 	u32 pit_clk = kinetis_clock_get(CLOCK_PCLK);
 
 	/* Initialize PIT channel 0 */
-	kinetis_pit_init(KINETIS_CLOCKEVENT_PIT, pit_clk);
+	kinetis_pit_init(KINETIS_CLOCKEVENT_PIT, pit_clk / HZ - 1);
 
 	/* Enable PIT channel 0 */
 	kinetis_pit_enable(KINETIS_CLOCKEVENT_PIT, 1);
@@ -217,14 +238,10 @@ static void clockevents_tmr_init(void)
 	setup_irq(KINETIS_CLOCKEVENT_IRQ, &clockevent_tmr_irqaction);
 
 	/*
-	 * For system timer we don't provide set_next_event method,
-	 * so, I guess, setting mult, shift, max_delta_ns, min_delta_ns
-	 * makes no sense (I verified that kernel works well without these).
-	 * Nevertheless, some clocksource drivers with periodic-mode only do
-	 * this. So, let's set them to some values too.
+	 * Set the fields required for the set_next_event method (tickless kernel support)
 	 */
-	clockevents_calc_mult_shift(&clockevent_tmr, pit_clk / HZ, 5);
-	clockevent_tmr.max_delta_ns = clockevent_delta2ns(0xFFFFFFF0, &clockevent_tmr);
+	clockevents_calc_mult_shift(&clockevent_tmr, pit_clk, max_delay_in_sec);
+	clockevent_tmr.max_delta_ns = max_delay_in_sec * NSEC_PER_SEC;
 	clockevent_tmr.min_delta_ns = clockevent_delta2ns(0xF, &clockevent_tmr);
 
 	clockevents_register_device(&clockevent_tmr);
