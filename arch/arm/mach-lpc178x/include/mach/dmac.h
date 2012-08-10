@@ -41,9 +41,6 @@
  */
 #define LPC178X_DMA_IRQ		26
 
-#define _BIT(n)		(1 << n)
-#define io_p2v(x)	((volatile void __iomem *)x)
-
 /**********************************************************************
 * DMA register offsets
 **********************************************************************/
@@ -281,5 +278,7 @@
 * `34.4.2.3 DMA request connections` of the LPC178x/7x User Manual.
 **********************************************************************/
 #define DMA_PERID_SDCARD            1
+#define DMA_PERID_I2S0_DMA0		6
+#define DMA_PERID_I2S0_DMA1		7
 
 #endif /* _MACH_LPC178X_DMAC_H_ */

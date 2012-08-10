@@ -316,6 +316,15 @@ static struct clk clk_lcd = {
 };
 
 /*
+ * Clock for the I2S module of the MCU.
+ *
+ * The clock rate is initialized in lpc178x_clock_init().
+ */
+static struct clk clk_i2s = {
+	.pconp_mask	= LPC178X_SCC_PCONP_PCI2S_MSK,
+};
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -332,6 +341,7 @@ static struct clk_lookup lpc178x_clkregs[] = {
 	INIT_CLKREG(&clk_i2c[1], "lpc2k-i2c.1", NULL),
 	INIT_CLKREG(&clk_i2c[2], "lpc2k-i2c.2", NULL),
 	INIT_CLKREG(&clk_lcd, "dev:clcd", NULL),
+	INIT_CLKREG(&clk_i2s, NULL, "i2s0_ck"),
 };
 
 /*
@@ -453,6 +463,7 @@ void __init lpc178x_clock_init(void)
 	clk_mci.rate = clock_val[CLOCK_PCLK];
 	for (i = 0; i < ARRAY_SIZE(clk_i2c); i++)
 		clk_i2c[i].rate = clock_val[CLOCK_PCLK];
+	clk_i2s.rate = clock_val[CLOCK_CCLK];
 	/*
 	 * Register clocks with the `clk_*` infrastructure
 	 */

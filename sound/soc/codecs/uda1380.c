@@ -753,22 +753,30 @@ static int uda1380_register(struct uda1380_priv *uda1380)
 		return -EINVAL;
 	}
 
-	if (!pdata || !pdata->gpio_power || !pdata->gpio_reset)
+	if (!pdata)
 		return -EINVAL;
 
-	ret = gpio_request(pdata->gpio_power, "uda1380 power");
-	if (ret)
-		goto err_out;
-	ret = gpio_request(pdata->gpio_reset, "uda1380 reset");
-	if (ret)
-		goto err_gpio;
+	if (gpio_is_valid(pdata->gpio_power)) {
+		ret = gpio_request(pdata->gpio_power, "uda1380 power");
+		if (ret)
+			goto err_out;
+	}
 
-	gpio_direction_output(pdata->gpio_power, 1);
+	if (gpio_is_valid(pdata->gpio_reset)) {
+		ret = gpio_request(pdata->gpio_reset, "uda1380 reset");
+		if (ret)
+			goto err_gpio;
+	}
 
-	/* we may need to have the clock running here - pH5 */
-	gpio_direction_output(pdata->gpio_reset, 1);
-	udelay(5);
-	gpio_set_value(pdata->gpio_reset, 0);
+	if (gpio_is_valid(pdata->gpio_power))
+		gpio_direction_output(pdata->gpio_power, 1);
+
+	if (gpio_is_valid(pdata->gpio_reset)) {
+		/* we may need to have the clock running here - pH5 */
+		gpio_direction_output(pdata->gpio_reset, 1);
+		udelay(5);
+		gpio_set_value(pdata->gpio_reset, 0);
+	}
 
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
@@ -819,10 +827,13 @@ static int uda1380_register(struct uda1380_priv *uda1380)
 err_dai:
 	snd_soc_unregister_codec(codec);
 err_reset:
-	gpio_set_value(pdata->gpio_power, 0);
-	gpio_free(pdata->gpio_reset);
+	if (gpio_is_valid(pdata->gpio_power))
+		gpio_set_value(pdata->gpio_power, 0);
+	if (gpio_is_valid(pdata->gpio_reset))
+		gpio_free(pdata->gpio_reset);
 err_gpio:
-	gpio_free(pdata->gpio_power);
+	if (gpio_is_valid(pdata->gpio_power))
+		gpio_free(pdata->gpio_power);
 err_out:
 	return ret;
 }
@@ -835,9 +846,13 @@ static void uda1380_unregister(struct uda1380_priv *uda1380)
 	snd_soc_unregister_dais(uda1380_dai, ARRAY_SIZE(uda1380_dai));
 	snd_soc_unregister_codec(&uda1380->codec);
 
-	gpio_set_value(pdata->gpio_power, 0);
-	gpio_free(pdata->gpio_reset);
-	gpio_free(pdata->gpio_power);
+	if (gpio_is_valid(pdata->gpio_power)) {
+		gpio_set_value(pdata->gpio_power, 0);
+		gpio_free(pdata->gpio_power);
+	}
+
+	if (gpio_is_valid(pdata->gpio_reset))
+		gpio_free(pdata->gpio_reset);
 
 	kfree(uda1380);
 	uda1380_codec = NULL;

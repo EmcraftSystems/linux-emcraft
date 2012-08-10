@@ -93,8 +93,19 @@
 	(hs      << LPC178X_GPIO_CONFIG_HS_BIT     ) | \
 	(hidrive << LPC178X_GPIO_CONFIG_HIDRIVE_BIT))
 /*
- * TBD: similar macros for other pin types (W)
+ * Type W pins (digital pins with selectable input glitch filter)
+ *
+ * Bit 7 (ADMODE) must be set to 1 for normal operation.
  */
+#define LPC178X_GPIO_CONFIG_W(func,mode,hys,inv,filter,slew,od) \
+	((func  << LPC178X_GPIO_CONFIG_FUNC_BITS ) | \
+	(mode   << LPC178X_GPIO_CONFIG_MODE_BITS ) | \
+	(hys    << LPC178X_GPIO_CONFIG_HYS_BIT   ) | \
+	(inv    << LPC178X_GPIO_CONFIG_INV_BIT   ) | \
+	(1      << LPC178X_GPIO_CONFIG_ADMODE_BIT) | \
+	(filter << LPC178X_GPIO_CONFIG_FILTER_BIT) | \
+	(slew   << LPC178X_GPIO_CONFIG_SLEW_BIT  ) | \
+	(od     << LPC178X_GPIO_CONFIG_OD_BITS   ))
 
 /*
  * Function mode for pins.
@@ -476,6 +487,24 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 	/* P2.13 (D) = LCD D19 */
 	{{2, 13}, LPC178X_GPIO_CONFIG_D(7, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
 #endif /* defined(CONFIG_FB_ARMCLCD) || defined(CONFIG_FB_ARMCLCD_MODULE) */
+
+#if defined(CONFIG_SND_LPC3XXX_SOC) || defined(CONFIG_SND_LPC3XXX_SOC_MODULE)
+	/*
+	 * Pin configuration for the I2S audio interface
+	 */
+	/* P0.4 (D) = I2S_RX_SCK */
+	{{0,  4}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P0.5 (D) = I2S_RX_WS */
+	{{0,  5}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P0.6 (D) = I2S_RX_SDA */
+	{{0,  6}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P0.7 (W) = I2S_TX_SCK */
+	{{0,  7}, LPC178X_GPIO_CONFIG_W(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+	/* P0.8 (W) = I2S_TX_WS */
+	{{0,  8}, LPC178X_GPIO_CONFIG_W(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+	/* P0.9 (W) = I2S_TX_SDA */
+	{{0,  9}, LPC178X_GPIO_CONFIG_W(1, LPC178X_NO_PULLUP, 0, 0, 0, 0, 0)},
+#endif /* CONFIG_SND_LPC3XXX_SOC || CONFIG_SND_LPC3XXX_SOC_MODULE */
 };
 
 /*

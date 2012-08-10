@@ -101,9 +101,10 @@ struct lpc178x_scc_regs {
 	u32 rsv3;
 	u32 pclksel;	/* Peripheral Clock Selection register */
 	/* 0x400FC1AC */
-	u32 rsv4[7];
+	u32 rsv4[6];
 
-	/* 0x400FC1C8 */
+	/* 0x400FC1C4 */
+	u32 dmacreqsel;	/* DMA Request Select register */
 	u32 clkoutcfg;
 	u32 rstcon0;
 	u32 rstcon1;
