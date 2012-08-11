@@ -170,6 +170,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	}
 	clk_enable(priv->usbclk);
 
+#ifdef CONFIG_ARCH_MXC
 	if (!cpu_is_mx35()) {
 		priv->ahbclk = clk_get(dev, "usb_ahb");
 		if (IS_ERR(priv->ahbclk)) {
@@ -178,6 +179,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		}
 		clk_enable(priv->ahbclk);
 	}
+#endif /* CONFIG_ARCH_MXC */
 
 	/* set USBMODE to host mode */
 	temp = readl(hcd->regs + USBMODE_OFFSET);
@@ -230,7 +232,9 @@ err_init:
 		clk_disable(priv->ahbclk);
 		clk_put(priv->ahbclk);
 	}
+#ifdef CONFIG_ARCH_MXC
 err_clk_ahb:
+#endif
 	clk_disable(priv->usbclk);
 	clk_put(priv->usbclk);
 err_clk:
