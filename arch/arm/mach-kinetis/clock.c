@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include <asm/clkdev.h>
 
@@ -307,6 +308,26 @@ static struct clk clk_lcdc = {
 static struct clk clk_uart[6];
 
 /*
+ * Enable the USB-HS module clock
+ */
+static void usbhs_clk_enable(struct clk *clk)
+{
+	local_clk_enable(clk);
+
+	/* Wait for the clock to stabilize before accessing the register map */
+	mdelay(10);
+}
+
+
+/*
+ * USB-HS module clock
+ */
+static struct clk clk_usbhs = {
+	.gate = KINETIS_CG_USBHS,
+	.clk_enable = usbhs_clk_enable,
+};
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -324,6 +345,7 @@ static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_uart[3], "kinetis-uart.3", NULL),
 	INIT_CLKREG(&clk_uart[4], "kinetis-uart.4", NULL),
 	INIT_CLKREG(&clk_uart[5], "kinetis-uart.5", NULL),
+	INIT_CLKREG(&clk_usbhs, "mxc-ehci.0", "usb"),
 };
 
 /*
