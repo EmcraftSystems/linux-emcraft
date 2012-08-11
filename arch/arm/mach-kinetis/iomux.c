@@ -204,9 +204,11 @@ out:
 }
 
 /*
- * Pin configuration table for TWR-K70F120M, excluding LCD signals.
+ * Configuration table for pins used for same functions on both TWR-K70F120M
+ * and K70-SOM. The LCD signals are excluded from this tables, because they may
+ * change depending on the LCD type.
  */
-static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
+static const struct kinetis_gpio_pin_config common_iomux[] = {
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	/* E.18 = GPIO (for I2C_SDA) */
 	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
@@ -214,6 +216,41 @@ static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
 	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
 #endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
 
+#if defined(CONFIG_USB_EHCI_MXC) || defined(CONFIG_USB_EHCI_MXC_MODULE)
+	/* A.6 = ULPI_CLK */
+	{{KINETIS_GPIO_PORT_A, 6}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.7 = ULPI_DIR */
+	{{KINETIS_GPIO_PORT_A, 7}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.8 = ULPI_NXT */
+	{{KINETIS_GPIO_PORT_A, 8}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.9 = ULPI_STP */
+	{{KINETIS_GPIO_PORT_A, 9}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.10 = ULPI_DATA0 */
+	{{KINETIS_GPIO_PORT_A, 10}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.11 = ULPI_DATA1 */
+	{{KINETIS_GPIO_PORT_A, 11}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.24 = ULPI_DATA2 */
+	{{KINETIS_GPIO_PORT_A, 24}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.25 = ULPI_DATA3 */
+	{{KINETIS_GPIO_PORT_A, 25}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.26 = ULPI_DATA4 */
+	{{KINETIS_GPIO_PORT_A, 26}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.27 = ULPI_DATA5 */
+	{{KINETIS_GPIO_PORT_A, 27}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.28 = ULPI_DATA6 */
+	{{KINETIS_GPIO_PORT_A, 28}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* A.29 = ULPI_DATA7 */
+	{{KINETIS_GPIO_PORT_A, 29}, KINETIS_GPIO_CONFIG_MUX(2)},
+
+	/* B.8 = RSTOUT_B on TWR-SER2, for resetting the USB PHY */
+	{{KINETIS_GPIO_PORT_B, 8}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif /* CONFIG_USB_EHCI_MXC || CONFIG_USB_EHCI_MXC_MODULE */
+};
+
+/*
+ * Pin configuration table for TWR-K70F120M, excluding LCD signals.
+ */
+static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
 #if defined(CONFIG_KINETIS_UART2)
 	/* E.16 = UART2_TX */
 	{{KINETIS_GPIO_PORT_E, 16}, KINETIS_GPIO_CONFIG_MUX(3)},
@@ -226,13 +263,6 @@ static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
  * Pin configuration table for K70-SOM, excluding LCD signals.
  */
 static const struct kinetis_gpio_pin_config k70som_iomux[] = {
-#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
-	/* E.18 = GPIO (for I2C_SDA) */
-	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
-	/* E.19 = GPIO (for I2C_SCL) */
-	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
-#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
-
 #if defined(CONFIG_KINETIS_UART0)
 	/* D.7 = UART0_TX */
 	{{KINETIS_GPIO_PORT_D, 7}, KINETIS_GPIO_CONFIG_MUX(3)},
@@ -482,10 +512,14 @@ void __init kinetis_iomux_init(void)
 	switch (platform) {
 	case PLATFORM_KINETIS_TWR_K70F120M:
 		kinetis_gpio_config_table(
+			common_iomux, ARRAY_SIZE(common_iomux));
+		kinetis_gpio_config_table(
 			twrk70f120m_iomux, ARRAY_SIZE(twrk70f120m_iomux));
 		break;
 	case PLATFORM_KINETIS_K70_SOM:
 	case PLATFORM_KINETIS_K61_SOM:
+		kinetis_gpio_config_table(
+			common_iomux, ARRAY_SIZE(common_iomux));
 		kinetis_gpio_config_table(
 			k70som_iomux, ARRAY_SIZE(k70som_iomux));
 		break;
