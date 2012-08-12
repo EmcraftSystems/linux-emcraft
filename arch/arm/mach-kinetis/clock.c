@@ -45,6 +45,11 @@
 #define CONFIG_KINETIS_OSC1_RATE	12000000	/* 12 MHz */
 
 /*
+ * The USB High Speed ULPI clock rate must be 60MHz
+ */
+#define KINETIS_USBHS_REQ_RATE		60000000
+
+/*
  * MCG Control 5 Register
  */
 /* PLL External Reference Divider */
@@ -93,6 +98,15 @@
  * SIM registers
  */
 /*
+ * System Options Register 2
+ */
+/* USB HS clock source select */
+#define KINETIS_SIM_SOPT2_USBHSRC_BITS	2
+#define KINETIS_SIM_SOPT2_USBHSRC_MSK	(3 << KINETIS_SIM_SOPT2_USBHSRC_BITS)
+#define KINETIS_SIM_SOPT2_USBHSRC_PLL0	(1 << KINETIS_SIM_SOPT2_USBHSRC_BITS)
+#define KINETIS_SIM_SOPT2_USBHSRC_PLL1	(2 << KINETIS_SIM_SOPT2_USBHSRC_BITS)
+
+/*
  * System Clock Divider Register 1
  */
 /* Clock 1 output divider value (for the core/system clock) */
@@ -103,6 +117,18 @@
 #define KINETIS_SIM_CLKDIV1_OUTDIV2_BITS	24
 #define KINETIS_SIM_CLKDIV1_OUTDIV2_MSK \
 	(((1 << 4) - 1) << KINETIS_SIM_CLKDIV1_OUTDIV2_BITS)
+
+/*
+ * System Clock Divider Register 2
+ */
+/* USB HS clock divider fraction */
+#define KINETIS_SIM_CLKDIV2_USBHSFRAC_BIT	8
+#define KINETIS_SIM_CLKDIV2_USBHSFRAC_MSK \
+	(1 << KINETIS_SIM_CLKDIV2_USBHSFRAC_BIT)
+/* USB HS clock divider divisor */
+#define KINETIS_SIM_CLKDIV2_USBHSDIV_BIT	9
+#define KINETIS_SIM_CLKDIV2_USBHSDIV_MSK \
+	(7 << KINETIS_SIM_CLKDIV2_USBHSDIV_BIT)
 
 /*
  * System Clock Divider Register 3
@@ -123,6 +149,8 @@
 /*
  * Misc Control Register
  */
+/* 60 MHz ULPI clock (ULPI_CLK) output enable */
+#define KINETIS_SIM_MCR_ULPICLKOBE_MSK	(1 << 30)
 /* Start LCDC display */
 #define KINETIS_SIM_MCR_LCDSTART_MSK	(1 << 16)
 
@@ -370,6 +398,9 @@ void __init kinetis_clock_init(void)
 	int osc_sel;
 	/* Frequency at the MCGOUTCLK output of the MCG */
 	int mcgout;
+	/* USB High Speed clock divider values */
+	int usbhs_div;
+	int usbhs_frac;
 
 	/*
 	 * Default values for the MCU-specific parameters
@@ -491,6 +522,37 @@ void __init kinetis_clock_init(void)
 		(((KINETIS_SIM->clkdiv3 &
 			KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK) >>
 		KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1);
+
+	/*
+	 * USB High Speed controller clock
+	 */
+	/* Use fractional divider if "msgout" is not a multiple of 60MHz */
+	usbhs_frac = (mcgout % KINETIS_USBHS_REQ_RATE) != 0;
+	usbhs_div = mcgout * (usbhs_frac + 1) / KINETIS_USBHS_REQ_RATE - 1;
+	if (usbhs_div < 0)
+		usbhs_div = 0;
+	if (usbhs_div > 7)
+		usbhs_div = 7;
+	clock_val[CLOCK_USBHS] = mcgout * (usbhs_frac + 1) / (usbhs_div + 1);
+	/* Write USB-HS clock configuration to registers */
+	if (clock_val[CLOCK_USBHS] == KINETIS_USBHS_REQ_RATE) {
+		/* Do not output the 60MHz ULPI clock */
+		KINETIS_SIM->mcr &= ~KINETIS_SIM_MCR_ULPICLKOBE_MSK;
+		/* Clock source: MCGOUT clock (PLL0 or PLL1) */
+		KINETIS_SIM->sopt2 =
+			(KINETIS_SIM->sopt2 & ~KINETIS_SIM_SOPT2_USBHSRC_MSK) |
+			(pll_sel ? KINETIS_SIM_SOPT2_USBHSRC_PLL1 :
+				KINETIS_SIM_SOPT2_USBHSRC_PLL0);
+		/* Clock divider */
+		KINETIS_SIM->clkdiv2 =
+			(KINETIS_SIM->clkdiv2 &
+				(KINETIS_SIM_CLKDIV2_USBHSDIV_MSK |
+				KINETIS_SIM_CLKDIV2_USBHSFRAC_MSK)) |
+			(usbhs_frac << KINETIS_SIM_CLKDIV2_USBHSFRAC_BIT) |
+			(usbhs_div << KINETIS_SIM_CLKDIV2_USBHSDIV_BIT);
+	} else {
+		clock_val[CLOCK_USBHS] = 0;
+	}
 
 	/*
 	 * Initialize the `clk_*` structures

@@ -10,3 +10,4 @@ obj-$(CONFIG_MTD_NAND_FSL_NFC)	+= nand.o
 obj-$(CONFIG_KINETIS_FB)	+= fb.o
 obj-$(CONFIG_I2C_GPIO)		+= i2c-gpio.o
 obj-$(CONFIG_KINETIS_EDMA)	+= dmainit.o dmac.o
+obj-$(CONFIG_USB_EHCI_MXC)	+= ehci.o

@@ -41,6 +41,7 @@
 #include <mach/nand.h>
 #include <mach/fb.h>
 #include <mach/i2c-gpio.h>
+#include <mach/mxc_ehci.h>
 
 /*
  * Prototypes
@@ -226,5 +227,12 @@ static void __init kinetis_init(void)
 	 * Configure the Freescale Kinetis LCD Controller
 	 */
 	kinetis_fb_init();
+#endif
+
+#if defined(CONFIG_USB_EHCI_MXC)
+	/*
+	 * Configure the Freescale Kinetis USB High Speed controller
+	 */
+	kinetis_ehci_init();
 #endif
 }
