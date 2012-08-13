@@ -29,6 +29,7 @@
 #include <mach/kinetis.h>
 #include <mach/power.h>
 #include <mach/platform.h>
+#include <mach/iomux.h>
 
 /*
  * PORTx register map
@@ -61,67 +62,6 @@ struct kinetis_port_regs {
 static const kinetis_clock_gate_t port_clock_gate[] = {
 	KINETIS_CG_PORTA, KINETIS_CG_PORTB, KINETIS_CG_PORTC,
 	KINETIS_CG_PORTD, KINETIS_CG_PORTE, KINETIS_CG_PORTF,
-};
-
-/*
- * Bits and bit groups inside the PCR registers (Pin Control Registers)
- */
-/* Pin Mux Control (selects pin function) */
-#define KINETIS_GPIO_CONFIG_MUX_BITS	8
-/* Pull Enable (pull-down by default) */
-#define KINETIS_GPIO_CONFIG_PE_BIT	1
-#define KINETIS_GPIO_CONFIG_PE_MSK	(1 << KINETIS_GPIO_CONFIG_PE_BIT)
-/* Drive Strength Enable (high drive strength) */
-#define KINETIS_GPIO_CONFIG_DSE_MSK	(1 << 6)
-
-/*
- * These macros should be used to compute the value for the second argument of
- * `kinetis_gpio_config()` (`regval`). This value will be copied into a PCR
- * register.
- */
-/* The simplest macro that only allow to configure the MUX bits */
-#define KINETIS_GPIO_CONFIG_MUX(mux) \
-	(mux << KINETIS_GPIO_CONFIG_MUX_BITS)
-/* Also enable the pull-down register */
-#define KINETIS_GPIO_CONFIG_PULLDOWN(mux) \
-	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_PE_MSK)
-/* Also enable high drive strength */
-#define KINETIS_GPIO_CONFIG_DSE(mux) \
-	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_DSE_MSK)
-/*
- * TBD: similar macros with more options
- */
-
-/*
- * Number of pins in all ports
- */
-#define KINETIS_GPIO_PORT_PINS		32
-/*
- * Maximum possible number of GPIO ports (A..F on K70)
- */
-#define KINETIS_GPIO_PORTS	6
-
-/*
- * GPIO ports
- */
-#define KINETIS_GPIO_PORT_A	0
-#define KINETIS_GPIO_PORT_B	1
-#define KINETIS_GPIO_PORT_C	2
-#define KINETIS_GPIO_PORT_D	3
-#define KINETIS_GPIO_PORT_E	4
-#define KINETIS_GPIO_PORT_F	5
-
-/*
- * GPIO descriptor
- */
-struct kinetis_gpio_dsc {
-	unsigned int port;	/* GPIO port */
-	unsigned int pin;	/* GPIO pin */
-};
-
-struct kinetis_gpio_pin_config {
-	struct kinetis_gpio_dsc dsc;
-	u32 regval;	/* Value for writing into the PCR register */
 };
 
 /*
