@@ -29,6 +29,7 @@
 
 #include <mach/platform.h>
 #include <mach/clock.h>
+#include <mach/iomux.h>
 #include <mach/mxc_ehci.h>
 
 /*
@@ -94,10 +95,38 @@ struct platform_device usbhs_dev = {
  */
 #define TWRSER2_RESET_GPIO	KINETIS_GPIO_MKPIN(KINETIS_GPIO_PORT_B, 8)
 
+/*
+ * MCU pin number used for the ULPI_CLK function (ULPI input clock from
+ * the USB PHY).
+ */
+#define KINETIS_USBHS_ULPI_CLK	KINETIS_GPIO_MKPIN(KINETIS_GPIO_PORT_A, 6)
+
+/*
+ * Wait until gpio_get_value(gpio) returns the requested value or until
+ * we time out. The timeout value is expressed in microseconds.
+ */
+int gpio_wait_level_timeout(unsigned gpio, int value, int timeout)
+{
+	while (timeout-- > 0) {
+		if (gpio_get_value(gpio) == value) {
+			timeout = 1;
+			break;
+		}
+		udelay(1);
+	}
+
+	return timeout > 0 ? 0 : -ETIMEDOUT;
+}
+
 void __init kinetis_ehci_init(void)
 {
 	int platform;
 	int rv;
+	int i;
+
+	const struct kinetis_gpio_dsc ulpi_clk = {
+		KINETIS_GPIO_GETPORT(KINETIS_USBHS_ULPI_CLK),
+		KINETIS_GPIO_GETPIN(KINETIS_USBHS_ULPI_CLK)};
 
 	/*
 	 * Reset the USB High Speed ULPI PHY installed on the TWR-SER2 board
@@ -120,6 +149,36 @@ void __init kinetis_ehci_init(void)
 	/* Do not register USB Host if USB-HS clock was not set up */
 	if (!kinetis_clock_get(CLOCK_USBHS)) {
 		pr_err("%s: USB-HS clock is not configured.\n", __func__);
+		goto out;
+	}
+
+	/* Configure ULPI_CLK pin in GPIO mode */
+	rv = kinetis_gpio_config(&ulpi_clk, KINETIS_GPIO_CONFIG_MUX(1));
+	if (rv != 0) {
+		pr_err("%s: Could not use ULPI_CLK signal as GPIN.\n",
+			__func__);
+		goto out;
+	}
+
+	/* If we see 10 level switches, assume there is an input clock */
+	gpio_direction_input(KINETIS_USBHS_ULPI_CLK);
+	for (i = 0; i < 10; i++) {
+		rv = gpio_wait_level_timeout(
+			KINETIS_USBHS_ULPI_CLK, i & 1, 10000);
+		if (rv != 0) {
+			pr_err("%s: Could not detect an input clock on the "
+				"pin PTA6 of the MCU.\n"
+				"%s: You probably have not connected a ULPI "
+				"PHY to the K70 MCU.\n", __func__, __func__);
+			goto out;
+		}
+	}
+
+	/* After we are done with GPIO, reconfigure PTA6 back as ULPI_CLK */
+	rv = kinetis_gpio_config(&ulpi_clk, KINETIS_GPIO_CONFIG_MUX(2));
+	if (rv != 0) {
+		pr_err("%s: Could not configure ULPI_CLK function.\n",
+			__func__);
 		goto out;
 	}
 
