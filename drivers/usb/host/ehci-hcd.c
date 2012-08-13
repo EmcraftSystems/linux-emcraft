@@ -44,6 +44,10 @@
 #include <asm/system.h>
 #include <asm/unaligned.h>
 
+#ifdef CONFIG_ARCH_KINETIS
+#include <mach/cache.h>
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 /*

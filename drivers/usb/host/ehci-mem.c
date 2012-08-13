@@ -174,6 +174,9 @@ static void ehci_mem_cleanup (struct ehci_hcd *ehci)
 static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 {
 	int i;
+#ifdef CONFIG_ARCH_KINETIS
+	unsigned long cache_flags;
+#endif
 
 	/* QTDs for control/bulk/intr transfers */
 	ehci->qtd_pool = dma_pool_create ("ehci_qtd",
@@ -194,10 +197,18 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 	if (!ehci->qh_pool) {
 		goto fail;
 	}
+	/* Disable the Kinetis PS cache. This fixes an EHCI crash somehow. */
+#ifdef CONFIG_ARCH_KINETIS
+	kinetis_ps_cache_save(&cache_flags);
+#endif
 	ehci->async = ehci_qh_alloc (ehci, flags);
 	if (!ehci->async) {
 		goto fail;
 	}
+	/* It appears to be OK to enable the Kinetis PS cache again here. */
+#ifdef CONFIG_ARCH_KINETIS
+	kinetis_ps_cache_restore(&cache_flags);
+#endif
 
 	/* ITD for high speed ISO transfers */
 	ehci->itd_pool = dma_pool_create ("ehci_itd",
@@ -219,6 +230,10 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 		goto fail;
 	}
 
+	/* Disable the Kinetis PS cache. This fixes an EHCI crash somehow. */
+#ifdef CONFIG_ARCH_KINETIS
+	kinetis_ps_cache_save(&cache_flags);
+#endif
 	/* Hardware periodic table */
 	ehci->periodic = (__le32 *)
 		dma_alloc_coherent (ehci_to_hcd(ehci)->self.controller,
@@ -234,6 +249,10 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 	ehci->pshadow = kcalloc(ehci->periodic_size, sizeof(void *), flags);
 	if (ehci->pshadow != NULL)
 		return 0;
+	/* It appears to be OK to enable the Kinetis PS cache again here. */
+#ifdef CONFIG_ARCH_KINETIS
+	kinetis_ps_cache_restore(&cache_flags);
+#endif
 
 fail:
 	ehci_dbg (ehci, "couldn't init memory\n");
