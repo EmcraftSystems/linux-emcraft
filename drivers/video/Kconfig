@@ -2205,4 +2205,11 @@ if FB || SGI_NEWPORT_CONSOLE
 	source "drivers/video/logo/Kconfig"
 endif
 
+config PANEL_NEC_NL8048HL11_01B_SPI
+	tristate "NEC NL8048HL11-01B panel SPI initialization"
+	depends on SPI_MASTER
+	help
+	  This NEC NL8048HL11-01B panel is a TFT LCD that requires
+	  initialization over SPI.
+
 endmenu
