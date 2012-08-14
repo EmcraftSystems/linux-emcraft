@@ -185,6 +185,20 @@ static const struct kinetis_gpio_pin_config common_iomux[] = {
 	/* B.8 = RSTOUT_B on TWR-SER2, for resetting the USB PHY */
 	{{KINETIS_GPIO_PORT_B, 8}, KINETIS_GPIO_CONFIG_MUX(1)},
 #endif /* CONFIG_USB_EHCI_MXC || CONFIG_USB_EHCI_MXC_MODULE */
+
+#if defined(CONFIG_KINETIS_SPI2_GPIO)
+	/*
+	 * SPI2 bus signals in GPIO mode
+	 */
+	/* D.11 = SPI2_nCS0 */
+	{{KINETIS_GPIO_PORT_D, 11}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* D.12 = SPI2_CLK */
+	{{KINETIS_GPIO_PORT_D, 12}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* D.13 = SPI2_MOSI */
+	{{KINETIS_GPIO_PORT_D, 13}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* D.14 = SPI2_MISO */
+	{{KINETIS_GPIO_PORT_D, 14}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif /* CONFIG_KINETIS_SPI2_GPIO */
 };
 
 /*

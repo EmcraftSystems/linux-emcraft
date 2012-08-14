@@ -80,6 +80,16 @@ config KINETIS_FB
 	bool "Enable Freescale Kinetis framebuffer"
 	default n
 
+config KINETIS_SPI_GPIO
+	depends on ARCH_KINETIS && SPI_GPIO
+	bool "Enable SPI buses emulated using GPIO"
+	default n
+
+config KINETIS_SPI2_GPIO
+	depends on KINETIS_SPI_GPIO
+	bool "Enable the Kinetis SPI2 bus emulated using GPIO"
+	default n
+
 config KINETIS_EDMA
 	depends on ARCH_KINETIS
 	bool "Enable Kinetis eDMA controller for peripherals"

@@ -42,6 +42,7 @@
 #include <mach/fb.h>
 #include <mach/i2c-gpio.h>
 #include <mach/mxc_ehci.h>
+#include <mach/spi-gpio.h>
 
 /*
  * Prototypes
@@ -234,5 +235,12 @@ static void __init kinetis_init(void)
 	 * Configure the Freescale Kinetis USB High Speed controller
 	 */
 	kinetis_ehci_init();
+#endif
+
+#if defined(CONFIG_KINETIS_SPI_GPIO)
+	/*
+	 * Configure SPI buses emulated using GPIOs
+	 */
+	kinetis_spi_gpio_init();
 #endif
 }
