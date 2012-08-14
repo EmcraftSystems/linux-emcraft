@@ -442,9 +442,11 @@ void __init kinetis_iomux_init(void)
 	/*
 	 * LCD signals
 	 */
-	if (lcdtype == LCD_TWR_LCD_RGB || (lcdtype == LCD_FUT_TWR_NL8048 &&
-	    (platform == PLATFORM_KINETIS_K70_SOM ||
-	     platform == PLATFORM_KINETIS_TWR_K70F120M))) {
+	if (lcdtype == LCD_TWR_LCD_RGB ||
+		((lcdtype == LCD_FUT_TWR_NL8048 ||
+			lcdtype == LCD_FUT_TWR_PIM_41WVGA) &&
+		(platform == PLATFORM_KINETIS_K70_SOM ||
+			platform == PLATFORM_KINETIS_TWR_K70F120M))) {
 		kinetis_gpio_config_table(
 			twr_lcd_rgb_iomux, ARRAY_SIZE(twr_lcd_rgb_iomux));
 	} else if (lcdtype == LCD_EA_LCD_004 &&

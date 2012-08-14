@@ -131,6 +131,10 @@ static int __init kinetis_lcdtype_parse(char *s)
 		kinetis_lcdtype = LCD_EA_LCD_004;
 	} else if (!strcmp(s, "fut-twr-nl8048")) {
 		kinetis_lcdtype = LCD_FUT_TWR_NL8048;
+#ifdef CONFIG_KINETIS_SPI2_GPIO
+	} else if (!strcmp(s, "fut-twr-pim-41wvga")) {
+		kinetis_lcdtype = LCD_FUT_TWR_PIM_41WVGA;
+#endif
 	}
 
 	return 1;

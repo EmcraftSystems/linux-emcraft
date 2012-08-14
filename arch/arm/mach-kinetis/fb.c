@@ -26,11 +26,13 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/imxfb.h>
+#include <linux/spi/spi.h>
 
 #include <mach/platform.h>
 #include <mach/kinetis.h>
 #include <mach/fb.h>
 #include <mach/power.h>
+#include <mach/gpio.h>
 #include <mach/clock.h>
 
 /*
@@ -153,6 +155,58 @@ static struct imx_fb_videomode fut_twr_nl8048_fb_modes[] = {
 static struct imx_fb_platform_data fut_twr_nl8048_fb_data = {
 	.mode = fut_twr_nl8048_fb_modes,
 	.num_modes = ARRAY_SIZE(fut_twr_nl8048_fb_modes),
+
+	/* LSCR1 is not supported on Kinetis */
+	.lscr1		= 0x00000000,
+	/* Disable PWM contrast control */
+	.pwmr		= 0x00000000,
+	/*
+	 * DMA control register value. We use default values for the
+	 * `DMA high mark` and the `DMA trigger mark`. The burst length is
+	 * dynamic.
+	 */
+	.dmacr		=
+		(0x04 << KINETIS_LCDC_LDCR_HM_BITS) |
+		(0x60 << KINETIS_LCDC_LDCR_TM_BITS),
+};
+
+/*
+ * Future Electronics TWR-PIM-41WVGA
+ */
+static struct imx_fb_videomode fut_twr_pim_41wvga_fb_modes[] = {
+	{
+		.mode = {
+			.name		= "NEC NL8048HL11",
+			.refresh	= 60,	/* VSYNC rate in Hz */
+			.xres		= 800,
+			.yres		= 480,
+			.pixclock	= KHZ2PICOS(23800),	/* 23.8 MHz */
+			.left_margin	= 4,	/* Horiz. front porch */
+			.hsync_len	= 1,	/* Horiz. pulse width */
+			.right_margin	= 4,	/* Horiz. back porch */
+			.upper_margin	= 7,	/* Vert. front porch */
+			.vsync_len	= 3,	/* Vert. pulse width */
+			.lower_margin	= 4,	/* Vert. back porch */
+		},
+		/*
+		 * The screen is 24bpp, but every pixel occupies 32 bits
+		 * of memory.
+		 */
+		.bpp		= 32,
+		.pcr		=
+			PCR_END_SEL |		/* Big Endian */
+			PCR_TFT | PCR_COLOR |	/* Color TFT */
+			PCR_SCLK_SEL |		/* Always enable LSCLK */
+			PCR_SCLKIDLE |
+			PCR_CLKPOL |		/* Polarities */
+			PCR_FLMPOL |
+			PCR_LPPOL,
+	},
+};
+
+static struct imx_fb_platform_data fut_twr_pim_41wvga_fb_data = {
+	.mode = fut_twr_pim_41wvga_fb_modes,
+	.num_modes = ARRAY_SIZE(fut_twr_pim_41wvga_fb_modes),
 
 	/* LSCR1 is not supported on Kinetis */
 	.lscr1		= 0x00000000,
@@ -352,6 +406,20 @@ static struct i2c_board_info __initdata twr_lcd_rgb_crtouch = {
 };
 #endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 
+#ifdef CONFIG_KINETIS_SPI2_GPIO
+static struct spi_board_info nec_8048_spi_board_info[] __initdata = {
+	[0] = {
+		.modalias		= "nec_8048_spi",
+		.bus_num		= 0,
+		.chip_select		= 0,
+		.max_speed_hz		= 375000,
+		/* Chip select GPIO */
+		.controller_data	=
+			(void *) KINETIS_GPIO_MKPIN(KINETIS_GPIO_PORT_D, 11),
+	},
+};
+#endif /* CONFIG_KINETIS_SPI2_GPIO */
+
 void __init kinetis_fb_init(void)
 {
 	int platform;
@@ -403,6 +471,25 @@ void __init kinetis_fb_init(void)
 		   (platform == PLATFORM_KINETIS_K70_SOM ||
 		    platform == PLATFORM_KINETIS_TWR_K70F120M)) {
 		kinetis_fb_device.dev.platform_data = &fut_twr_nl8048_fb_data;
+	} else if (lcdtype == LCD_FUT_TWR_PIM_41WVGA &&
+		   (platform == PLATFORM_KINETIS_K70_SOM ||
+		    platform == PLATFORM_KINETIS_TWR_K70F120M)) {
+		kinetis_fb_device.dev.platform_data =
+			&fut_twr_pim_41wvga_fb_data;
+
+		spi_register_board_info(nec_8048_spi_board_info,
+			ARRAY_SIZE(nec_8048_spi_board_info));
+
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT) || \
+    defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT_MODULE)
+		/*
+		 * Register the I2C-connected CRTouch touchscreen installed
+		 * on TWR-PIM-41WVGA.
+		 */
+		ret = i2c_register_board_info(0, &twr_lcd_rgb_crtouch, 1);
+		if (ret < 0)
+			goto out;
+#endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 	}
 
 	/*
