@@ -114,6 +114,8 @@ static int __init kinetis_platform_parse(char *s)
 		kinetis_platform = PLATFORM_KINETIS_K70_SOM;
 	} else if (!strcmp(s, "k61-som")) {
 		kinetis_platform = PLATFORM_KINETIS_K61_SOM;
+	} else {
+		pr_err("%s: An unknown platform requested: %s\n", __func__, s);
 	}
 
 	return 1;
@@ -135,6 +137,8 @@ static int __init kinetis_lcdtype_parse(char *s)
 	} else if (!strcmp(s, "fut-twr-pim-41wvga")) {
 		kinetis_lcdtype = LCD_FUT_TWR_PIM_41WVGA;
 #endif
+	} else {
+		pr_err("%s: An unknown LCD type requested: %s\n", __func__, s);
 	}
 
 	return 1;
