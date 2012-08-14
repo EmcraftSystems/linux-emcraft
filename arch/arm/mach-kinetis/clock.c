@@ -382,6 +382,20 @@ static struct clk_lookup kinetis_clkregs[] = {
 static u32 clock_val[CLOCK_END];
 
 /*
+ * Update the "rate" property of the registered LCDC clock
+ */
+static void kinetis_lcdc_update_clock_rate(void)
+{
+	clk_lcdc.rate = clock_val[CLOCK_MCGOUTCLK] /
+		(((KINETIS_SIM->clkdiv3 &
+			KINETIS_SIM_CLKDIV3_LCDCDIV_MSK) >>
+		KINETIS_SIM_CLKDIV3_LCDCDIV_BITS) + 1) *
+		(((KINETIS_SIM->clkdiv3 &
+			KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK) >>
+		KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1);
+}
+
+/*
  * Initialize the reference clocks.
  */
 void __init kinetis_clock_init(void)
@@ -520,13 +534,7 @@ void __init kinetis_clock_init(void)
 	/*
 	 * LCD Controller clock
 	 */
-	clock_val[CLOCK_LCDCLK] = mcgout /
-		(((KINETIS_SIM->clkdiv3 &
-			KINETIS_SIM_CLKDIV3_LCDCDIV_MSK) >>
-		KINETIS_SIM_CLKDIV3_LCDCDIV_BITS) + 1) *
-		(((KINETIS_SIM->clkdiv3 &
-			KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK) >>
-		KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1);
+	kinetis_lcdc_update_clock_rate();
 
 	/*
 	 * USB High Speed controller clock
@@ -563,7 +571,6 @@ void __init kinetis_clock_init(void)
 	 * Initialize the `clk_*` structures
 	 */
 	clk_net.rate = clock_val[CLOCK_MACCLK];
-	clk_lcdc.rate = clock_val[CLOCK_LCDCLK];
 	/*
 	 * UART0 and UART1 are clocked from the core clock, the remaining UARTs
 	 * are clocked from the bus clock.
