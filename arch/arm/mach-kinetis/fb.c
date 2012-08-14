@@ -31,6 +31,7 @@
 #include <mach/kinetis.h>
 #include <mach/fb.h>
 #include <mach/power.h>
+#include <mach/clock.h>
 
 /*
  * Freescale Kinetis LCD Controller register base
@@ -413,6 +414,14 @@ void __init kinetis_fb_init(void)
 		 * register map accessible.
 		 */
 		kinetis_periph_enable(KINETIS_CG_LCDC, 1);
+		/*
+		 * Adjust the LCDC clock divider values
+		 */
+		kinetis_lcdc_adjust_clock_divider(PICOS2KHZ(
+			((struct imx_fb_platform_data *)
+				kinetis_fb_device.dev.platform_data)->
+			mode[0].mode.pixclock) * 1000,
+			kinetis_clock_get(CLOCK_CCLK));
 
 		platform_device_register(&kinetis_fb_device);
 	}

@@ -382,6 +382,16 @@ static struct clk_lookup kinetis_clkregs[] = {
 static u32 clock_val[CLOCK_END];
 
 /*
+ * Maximum values for the LCDC clock divisor and fraction
+ */
+/* LCDCDIV: 12 bits, up to 4096 */
+#define KINETIS_LCDC_MAX_NUMERATOR	((KINETIS_SIM_CLKDIV3_LCDCDIV_MSK >> \
+					KINETIS_SIM_CLKDIV3_LCDCDIV_BITS) + 1)
+/* LCDCFRAC: 8 bits, up to 256 */
+#define KINETIS_LCDC_MAX_DENOMINATOR	((KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK >> \
+					KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1)
+
+/*
  * Update the "rate" property of the registered LCDC clock
  */
 static void kinetis_lcdc_update_clock_rate(void)
@@ -393,6 +403,94 @@ static void kinetis_lcdc_update_clock_rate(void)
 		(((KINETIS_SIM->clkdiv3 &
 			KINETIS_SIM_CLKDIV3_LCDCFRAC_MSK) >>
 		KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS) + 1);
+}
+
+/*
+ * Adjust the LCDC clock divider to produce a frequency as close as possible
+ * to the requested value.
+ */
+void kinetis_lcdc_adjust_clock_divider(unsigned long clock, unsigned long base)
+{
+	/*
+	 * Length limit for the continued fraction. In the worst case
+	 * of the integer parts in the continued fraction being all ones
+	 * (golden ratio), numerator and denominator of the evaluated continued
+	 * fraction grow like Fibonacci numbers, or like powers of golden
+	 * ratio. This is why for the length limit (N) we choose the logarithm
+	 * of 4096 (LCDCDIV maximum value) to base of golden ratio (1.618...),
+	 * plus a few extra array elements for safety.
+	 */
+	const int N = 20;
+
+	/* Integer parts in the continued fraction */
+	u32 seq[N];
+	/* Indices in the "seq" array */
+	int i, j;
+	/* Temporary variables for evaluation of continued fraction */
+	u32 a, b, c;
+	/* Final numerator and denominator */
+	u32 last_a = 1, last_b = 1;
+	/* Target value, multiplied by 2**16 */
+	u32 x;
+
+	/* x = (clock << 16) / base */
+	u64 tmp = (u64)clock << 16;
+	do_div(tmp, base);
+	x = (u32)tmp;
+
+	/*
+	 * Build the continued fraction (Diophantine approximation of "x")
+	 */
+	for (i = 0; i < N; i++) {
+		/* floor(x) */
+		seq[i] = x >> 16;
+
+		/* Result is a/b, "c" is a helper variable */
+		a = 0;
+		b = 1;
+		for (j = i; j >= 0; j--) {
+			/* New denominator */
+			c = seq[j] * b + a;
+			if (c > KINETIS_LCDC_MAX_NUMERATOR)
+				break;
+
+			/* New numerator */
+			a = b;
+			/* Write denominator into the correct variable */
+			b = c;
+		}
+
+		if (b > KINETIS_LCDC_MAX_DENOMINATOR ||
+		    a > KINETIS_LCDC_MAX_NUMERATOR) {
+			/* Stop approximation on exceeding of the limits */
+			break;
+		} else {
+			/* Approximation is good, save it */
+			last_a = a;
+			last_b = b;
+		}
+
+		/* Keep fractional part */
+		x &= 0xffff;
+		/* Exit if we are already very close to the target value */
+		if (x < 2)
+			break;
+
+		/* x = 1.0/x */
+		x = ((u32)-1) / x;
+	}
+
+	/*
+	 * Write LCDC clock divider values to the SIM_CLKDIV3 register
+	 */
+	KINETIS_SIM->clkdiv3 =
+		((last_a - 1) << KINETIS_SIM_CLKDIV3_LCDCDIV_BITS) |
+		((last_b - 1) << KINETIS_SIM_CLKDIV3_LCDCFRAC_BITS);
+
+	/*
+	 * Update LCDC clock rate
+	 */
+	kinetis_lcdc_update_clock_rate();
 }
 
 /*

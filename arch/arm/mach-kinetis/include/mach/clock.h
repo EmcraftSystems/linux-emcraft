@@ -48,4 +48,11 @@ void __init kinetis_clock_init(void);
  */
 unsigned int kinetis_clock_get(enum kinetis_clock clk);
 
+/*
+ * Configure the LCDC clock fractional divider to produce a frequency as close
+ * as possible to the requested value.
+ */
+void kinetis_lcdc_adjust_clock_divider(
+	unsigned long clock, unsigned long base);
+
 #endif /* _MACH_KINETIS_CLOCK_H_ */
