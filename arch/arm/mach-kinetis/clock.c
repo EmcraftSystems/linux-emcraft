@@ -488,6 +488,11 @@ void __init kinetis_clock_init(void)
 	mcgout /= vco_div;
 
 	/*
+	 * Save MCGOUTCLK frequency
+	 */
+	clock_val[CLOCK_MCGOUTCLK] = mcgout;
+
+	/*
 	 * CPU clock
 	 */
 	clock_val[CLOCK_CCLK] = mcgout /

@@ -30,6 +30,7 @@
  */
 enum kinetis_clock {
 	CLOCK_SYSTICK,		/* Systimer clock frequency expressed in Hz   */
+	CLOCK_MCGOUTCLK,	/* MCGOUTCLK frequency expressed in Hz        */
 	CLOCK_CCLK,		/* Core clock frequency expressed in Hz       */
 	CLOCK_PCLK,		/* Bus clock frequency expressed in Hz        */
 	CLOCK_MACCLK,		/* MAC module clock frequency expressed in Hz */
