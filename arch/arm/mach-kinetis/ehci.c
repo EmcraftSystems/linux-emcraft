@@ -135,6 +135,12 @@ void __init kinetis_ehci_init(void)
 	if (platform == PLATFORM_KINETIS_TWR_K70F120M ||
 	    platform == PLATFORM_KINETIS_K70_SOM ||
 	    platform == PLATFORM_KINETIS_K61_SOM) {
+		rv = gpio_request(TWRSER2_RESET_GPIO, "TWR-SER2 reset");
+		if (rv < 0) {
+			pr_err("%s: Could not acquire GPIO line.\n", __func__);
+			goto out;
+		}
+
 		gpio_direction_output(TWRSER2_RESET_GPIO, 1);
 
 		/* Activate USB PHY reset */
@@ -161,6 +167,11 @@ void __init kinetis_ehci_init(void)
 	}
 
 	/* If we see 10 level switches, assume there is an input clock */
+	rv = gpio_request(KINETIS_USBHS_ULPI_CLK, "ULPI_CLK");
+	if (rv < 0) {
+		pr_err("%s: Could not acquire GPIO line ULPI_CLK.\n", __func__);
+		goto out;
+	}
 	gpio_direction_input(KINETIS_USBHS_ULPI_CLK);
 	for (i = 0; i < 10; i++) {
 		rv = gpio_wait_level_timeout(
@@ -170,9 +181,11 @@ void __init kinetis_ehci_init(void)
 				"pin PTA6 of the MCU.\n"
 				"%s: You probably have not connected a ULPI "
 				"PHY to the K70 MCU.\n", __func__, __func__);
+			gpio_free(KINETIS_USBHS_ULPI_CLK);
 			goto out;
 		}
 	}
+	gpio_free(KINETIS_USBHS_ULPI_CLK);
 
 	/* After we are done with GPIO, reconfigure PTA6 back as ULPI_CLK */
 	rv = kinetis_gpio_config(&ulpi_clk, KINETIS_GPIO_CONFIG_MUX(2));
