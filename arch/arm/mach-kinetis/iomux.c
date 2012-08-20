@@ -292,6 +292,22 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 	{{KINETIS_GPIO_PORT_E, 11}, KINETIS_GPIO_CONFIG_MUX(3)},
 #endif /* CONFIG_KINETIS_UART5_CTSRTS */
 #endif /* CONFIG_KINETIS_UART5 */
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Pin configuration for the User LEDs and the User Button installed
+	 * on the SOM-BSB baseboard. Other baseboards may need different pin
+	 * configurations.
+	 */
+#if 0
+	/* E.9 = GPIO 137: User button (S2) */
+	{{KINETIS_GPIO_PORT_E,  9}, KINETIS_GPIO_CONFIG_PULLUP(1)},
+	/* E.11 = GPIO 139: LED DS3 */
+	{{KINETIS_GPIO_PORT_E, 11}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* E.12 = GPIO 140: LED DS4 */
+	{{KINETIS_GPIO_PORT_E, 12}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif
+#endif /* CONFIG_GPIOLIB */
 };
 
 /*
