@@ -35,6 +35,9 @@
 /* Pull Enable (pull-down by default) */
 #define KINETIS_GPIO_CONFIG_PE_BIT	1
 #define KINETIS_GPIO_CONFIG_PE_MSK	(1 << KINETIS_GPIO_CONFIG_PE_BIT)
+/* Pull Select (0=pull-down, 1=pull-up) */
+#define KINETIS_GPIO_CONFIG_PS_BIT	0
+#define KINETIS_GPIO_CONFIG_PS_MSK	(1 << KINETIS_GPIO_CONFIG_PS_BIT)
 /* Drive Strength Enable (high drive strength) */
 #define KINETIS_GPIO_CONFIG_DSE_MSK	(1 << 6)
 
@@ -49,6 +52,10 @@
 /* Also enable the pull-down register */
 #define KINETIS_GPIO_CONFIG_PULLDOWN(mux) \
 	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_PE_MSK)
+/* Also enable the pull-up register */
+#define KINETIS_GPIO_CONFIG_PULLUP(mux) \
+	(KINETIS_GPIO_CONFIG_MUX(mux) | \
+	KINETIS_GPIO_CONFIG_PE_MSK | KINETIS_GPIO_CONFIG_PS_MSK)
 /* Also enable high drive strength */
 #define KINETIS_GPIO_CONFIG_DSE(mux) \
 	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_DSE_MSK)
