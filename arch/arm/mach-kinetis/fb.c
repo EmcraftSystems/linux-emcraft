@@ -170,6 +170,7 @@ static struct imx_fb_platform_data fut_twr_nl8048_fb_data = {
 		(0x60 << KINETIS_LCDC_LDCR_TM_BITS),
 };
 
+#ifdef CONFIG_KINETIS_SPI2_GPIO
 /*
  * Future Electronics TWR-PIM-41WVGA
  */
@@ -221,6 +222,7 @@ static struct imx_fb_platform_data fut_twr_pim_41wvga_fb_data = {
 		(0x04 << KINETIS_LCDC_LDCR_HM_BITS) |
 		(0x60 << KINETIS_LCDC_LDCR_TM_BITS),
 };
+#endif /* CONFIG_KINETIS_SPI2_GPIO */
 
 /*
  * EA-LCD-004 with the K70-SOM module on SOM-BSB
@@ -471,6 +473,7 @@ void __init kinetis_fb_init(void)
 		   (platform == PLATFORM_KINETIS_K70_SOM ||
 		    platform == PLATFORM_KINETIS_TWR_K70F120M)) {
 		kinetis_fb_device.dev.platform_data = &fut_twr_nl8048_fb_data;
+#ifdef CONFIG_KINETIS_SPI2_GPIO
 	} else if (lcdtype == LCD_FUT_TWR_PIM_41WVGA &&
 		   (platform == PLATFORM_KINETIS_K70_SOM ||
 		    platform == PLATFORM_KINETIS_TWR_K70F120M)) {
@@ -490,6 +493,7 @@ void __init kinetis_fb_init(void)
 		if (ret < 0)
 			goto out;
 #endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
+#endif /* CONFIG_KINETIS_SPI2_GPIO */
 	}
 
 	/*
