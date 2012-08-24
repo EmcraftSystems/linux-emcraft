@@ -868,4 +868,11 @@ config RTC_DRV_MC13783
 	help
 	  This enables support for the Freescale MC13783 PMIC RTC
 
+config RTC_DRV_STM32F2
+	tristate "STM32F2 On-Chip RTC"
+	depends on ARCH_STM32 && !ARCH_STM32F1
+	help
+	  If you say yes here you will get support for the
+	  STM32F2 On-Chip Real Time Clock.
+
 endif # RTC_CLASS
