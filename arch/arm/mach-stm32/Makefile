@@ -9,3 +9,4 @@ obj-$(CONFIG_STM32_ETHER)	+= eth.o
 obj-$(CONFIG_MTD_PHYSMAP)	+= flash.o
 obj-$(CONFIG_MMC_ARMMMCI)	+= sdcard.o
 obj-$(CONFIG_STM32_DMA)		+= dmainit.o dmac.o
+obj-$(CONFIG_RTC_DRV_STM32F2)	+= rtc.o

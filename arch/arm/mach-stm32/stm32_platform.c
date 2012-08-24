@@ -42,6 +42,7 @@
 #include <mach/flash.h>
 #include <mach/sdcard.h>
 #include <mach/dmainit.h>
+#include <mach/rtc.h>
 
 /*
  * Prototypes
@@ -216,4 +217,11 @@ static void __init stm32_init(void)
 	 */
 	stm32_sdcard_init();
 #endif /* defined(CONFIG_MMC_ARMMMCI) */
+
+#if defined(CONFIG_RTC_DRV_STM32F2)
+	/*
+	 * Initialize the on-chip real-time clock
+	 */
+	stm32_rtc_init();
+#endif /* CONFIG_RTC_DRV_STM32F2 */
 }
