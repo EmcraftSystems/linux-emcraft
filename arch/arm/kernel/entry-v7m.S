@@ -30,7 +30,9 @@ __invalid_entry:
 	adr	r0, strerr
 	mrs	r1, ipsr
 	mov	r2, lr
+#ifdef CONFIG_PRINTK
 	bl	printk
+#endif
 	mov	r0, sp
 	bl	show_regs
 	mov	r0, 0
