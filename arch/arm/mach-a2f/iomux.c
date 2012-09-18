@@ -94,4 +94,12 @@ void __init a2f_iomux_init(void)
 	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[10]);
 	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[11]);
 #endif
+#if defined(CONFIG_A2F_MSS_I2C0)
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[6]);
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[7]);
+#endif
+#if defined(CONFIG_A2F_MSS_I2C1)
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[14]);
+	writel(MSS_IOMUX_INOUT,	&MSS_IOMUX->cr[15]);
+#endif
 }

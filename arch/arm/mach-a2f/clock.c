@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <mach/platform.h>
 #include <mach/a2f.h>
 #include <mach/clock.h>
@@ -199,6 +200,7 @@ void __init a2f_clock_init(void)
  * @param clck		id of the clock
  * @returns		frequency of the clock
  */
+EXPORT_SYMBOL(a2f_clock_get);
 unsigned int a2f_clock_get(enum a2f_clock clck)
 {
 	unsigned int val = 0;
