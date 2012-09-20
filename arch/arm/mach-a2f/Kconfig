@@ -47,6 +47,20 @@ config A2F_MSS_SPI1
 	help
 	  Include support for the MSS SPI1 port
 
+config A2F_MSS_I2C0
+	depends on ARCH_A2F && I2C_A2F
+	bool "Enable MSS I2C0 port"
+	default y
+	help
+	  Include support for the MSS I2C0 port
+
+config A2F_MSS_I2C1
+	depends on ARCH_A2F && I2C_A2F
+	bool "Enable MSS I2C1 port"
+	default y
+	help
+	  Include support for the MSS I2C1 port
+
 config A2F_FPGA_CINT
 	depends on ARCH_A2F
 	bool "Enable support for the FPGA CoreInterrupt IP"

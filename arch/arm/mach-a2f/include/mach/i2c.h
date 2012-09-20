@@ -21,9 +21,7 @@
 #ifndef _MACH_A2F_I2C_H_
 #define _MACH_A2F_I2C_H_
 
-#if 0
 extern void __init a2f_i2c_init(void);
-#endif
 
 struct i2c_a2f_data {
 	unsigned int	ref_clk;	/* Reference clock */

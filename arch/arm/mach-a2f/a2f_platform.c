@@ -53,6 +53,7 @@
 #include <mach/uart.h>
 #include <mach/eth.h>
 #include <mach/spi.h>
+#include <mach/i2c.h>
 #include <mach/flash.h>
 
 /*
@@ -218,6 +219,13 @@ static void __init a2f_init(void)
  	 * SPI slave devices).
  	 */
 	a2f_spi_init();
+#endif
+
+#if defined(CONFIG_I2C_A2F)
+	/*
+ 	 * Configure the I2C controllers and devices
+ 	 */
+	a2f_i2c_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)

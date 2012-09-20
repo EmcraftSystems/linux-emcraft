@@ -277,6 +277,12 @@ config I2C_POWERMAC
 
 comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
+config I2C_A2F
+	tristate "SmartFusion I2C support"
+	depends on MACH_A2F
+	help
+	  This is the I2C bus driver for the SmartFusion I2C interface.
+
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
 	depends on ARCH_AT91 && EXPERIMENTAL && BROKEN
