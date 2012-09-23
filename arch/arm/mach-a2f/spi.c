@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/mach-a2f/spi.c
  *
- * Copyright (C) 2011 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2011,2012 Vladimir Khusainov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,13 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/serial_8250.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 #include <mach/a2f.h>
+#include <mach/platform.h>
 #include <mach/clock.h>
 #include <mach/spi.h>
 
@@ -95,10 +100,12 @@ static struct platform_device spi_a2f_dev1 = {
 #endif	/* CONFIG_A2F_MSS_SPI1 */
 
 /*
- * Register the A2F specific SPI devices with the kernel.
+ * Register the A2F specific SPI controllers and devices with the kernel.
  */
 void __init a2f_spi_init(void)
 {
+	int p = a2f_platform_get();
+
 #if defined(CONFIG_A2F_MSS_SPI0)
 	/*
  	 * Pass the reference clock to the driver
@@ -123,4 +130,69 @@ void __init a2f_spi_init(void)
 	 */
 	platform_device_register(&spi_a2f_dev1);		
 #endif
+
+	/*
+	 * Perform board-specific SPI device registration
+	 */
+	if (p == PLATFORM_A2F_LNX_EVB) {
+	}
+	else if (p == PLATFORM_A2F_ACTEL_DEV_BRD) {
+	}
+	else if (p == PLATFORM_A2F_HOERMANN_BRD) {
+#if defined(CONFIG_A2F_MSS_SPI1)
+
+#if defined(CONFIG_MTD_M25P80)
+
+		/*
+		 * SPI Flash partitioning
+		 */
+#		define FLASH_JFFS2_OFFSET__A2F_HOERMANN_BRD	(1024*1024*2)
+#		define FLASH_SIZE__A2F_HOERMANN_BRD		(1024*1024*8)
+		static struct mtd_partition
+			spi_a2f_flash_partitions__a2f_hoermann_brd[] = {
+			{
+				.name = "spi_flash_part0",
+				.size = FLASH_JFFS2_OFFSET__A2F_HOERMANN_BRD,
+				.offset = 0,
+			},
+			{
+				.name = "spi_flash_part1",
+				.size = FLASH_SIZE__A2F_HOERMANN_BRD -
+					FLASH_JFFS2_OFFSET__A2F_HOERMANN_BRD,
+				.offset = FLASH_JFFS2_OFFSET__A2F_HOERMANN_BRD,
+			},
+		};
+
+		/*
+		 * SPI Flash
+		 */
+		static struct flash_platform_data
+			spi_a2f_flash_data__a2f_hoermann_brd = {
+			.name = "at25df641",
+			.parts =  spi_a2f_flash_partitions__a2f_hoermann_brd,
+			.nr_parts =
+		ARRAY_SIZE(spi_a2f_flash_partitions__a2f_hoermann_brd),
+			.type = "at25df641",
+		};
+
+		/*
+		 * SPI slave device
+		 */
+		static struct spi_board_info
+			spi_a2f_eeprom__a2f_hoermann_brd = {
+			.modalias = "m25p32",
+			.max_speed_hz = 10000000,
+			.bus_num = 1,
+			.chip_select = 0,
+			.platform_data = &spi_a2f_flash_data__a2f_hoermann_brd,
+			.mode = SPI_MODE_3,
+		};
+#endif
+
+#if defined(CONFIG_MTD_M25P80)
+		spi_register_board_info(&spi_a2f_eeprom__a2f_hoermann_brd, 1);
+#endif
+
+#endif
+	}
 }

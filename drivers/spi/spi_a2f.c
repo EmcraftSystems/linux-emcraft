@@ -1,7 +1,7 @@
 /*
  * Device driver for the SPI controller of the SmartFusion SoC.
  * Author: Vladimir Khusainov, vlad@emcraft.com
- * Copyright 2011 Emcraft Systems
+ * Copyright 2011,2012 Emcraft Systems
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -21,6 +21,19 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <mach/a2f.h>
+#include <mach/platform.h>
+
+/*
+ * Debug output control. While debugging, have SPI_A2F_DEBUG defined.
+ * In deployment, make sure that SPI_A2F_DEBUG is undefined
+ * to avoid performance and size overhead of debug messages.
+ */
+#define SPI_A2F_DEBUG
+#if 1
+#undef SPI_A2F_DEBUG
+#endif
+
+#if defined(SPI_A2F_DEBUG)
 
 /*
  * Driver verbosity level: 0->silent; >0->verbose (1 to 4, growing verbosity)
@@ -35,6 +48,13 @@ static int spi_a2f_debug = 0;
 module_param(spi_a2f_debug, int, S_IRUGO);
 MODULE_PARM_DESC(spi_a2f_debug, "SPI controller driver verbosity level");
 
+#if !defined(MODULE)
+
+/*
+ * Parser for the boot time driver verbosity parameter
+ * @param str		user defintion of the parameter
+ * @returns		1->success
+ */
 static int __init spi_a2f_debug_setup(char * str)
 {
 	get_option(&str, &spi_a2f_debug);
@@ -42,12 +62,19 @@ static int __init spi_a2f_debug_setup(char * str)
 }
 __setup("spi_a2f_debug=", spi_a2f_debug_setup);
 
+#endif /* !defined(MODULE) */
+
 /*
  * Service to print debug messages
  */
 #define d_printk(level, fmt, args...)					\
 	if (spi_a2f_debug >= level) printk(KERN_INFO "%s: " fmt,	\
 				       	   __func__, ## args)
+#else
+
+#define d_printk(level, fmt, args...)
+
+#endif /* defined(SPI_A2F_DEBUG) */
 
 /*
  * Private data structure for an instance of the SPI controller
@@ -63,6 +90,7 @@ struct spi_a2f {
 	struct work_struct		work;		/* Work Q */
 	struct workqueue_struct *	workqueue;	/* Work Q */
 	struct spi_device *		slave;		/* Current SPI slave */
+	int				a2f_dev;	/* SmartFusion chip */
 };
 
 /* 
@@ -96,12 +124,15 @@ struct mss_spi {
 #define SPI1_RST_CLR			(1<<10)
 #define SPI_CONTROL_ENABLE		(1<<0)
 #define SPI_CONTROL_MASTER		(1<<1)
-#define SPI_CONTROL_SPH			(1<<25)
-#define SPI_CONTROL_SPO			(1<<24)
 #define SPI_CONTROL_PROTO_MSK		(3<<2)
 #define SPI_CONTROL_PROTO_MOTO		(0<<2)
 #define SPI_CONTROL_CNT_MSK		(0xffff<<8)
 #define SPI_CONTROL_CNT_SHF		(8)
+#define SPI_CONTROL_SPO			(1<<24)
+#define SPI_CONTROL_SPH			(1<<25)
+#define SPI_CONTROL_SPS			(1<<26)
+#define SPI_CONTROL_BIGFIFO		(1<<28)
+#define SPI_CONTROL_RESET		(1<<31)
 #define SPI_STATUS_RXFIFOOVR		(1<<2)
 #define SPI_STATUS_RXFIFOEMP		(1<<6)
 #define SPI_STATUS_TXFIFOFUL		(1<<8)
@@ -146,8 +177,27 @@ static int spi_a2f_hw_init(struct spi_a2f *c)
 	MSS_SPI(c)->spi_control |= SPI_CONTROL_PROTO_MOTO;
 
 	/*
- 	 * Enable the SPI contoller
+	 * If we are running on the A2F500 device, we have an option
+	 * to set-up the controller in such a way that it doesn't remove
+	 * Chip Select until the entire message has been transferred,
+	 * even if at some points TX FIFO becomes empty.
+	 * ...
+	 * Similarly on A2F400, we have an option to extend FIFO to
+	 * 32 8-bit FIFO frames.
  	 */
+	if (c->a2f_dev == DEVICE_A2F_500) {
+		MSS_SPI(c)->spi_control |= SPI_CONTROL_SPS;
+		MSS_SPI(c)->spi_control |= SPI_CONTROL_BIGFIFO;
+	}
+
+	/*
+ 	 * Enable the SPI contoller
+	 * On the A2F500 it is critical to clear RESET in
+	 * the control bit. This bit is not defined for A2F200.
+ 	 */
+	if (c->a2f_dev == DEVICE_A2F_500) {
+		MSS_SPI(c)->spi_control &= ~SPI_CONTROL_RESET;
+	}
 	MSS_SPI(c)->spi_control |= SPI_CONTROL_ENABLE;
 
 	d_printk(2, "bus=%d,soft_rst_cr=0x%x,spi_control=0x%x,ret=%d\n", 
@@ -220,7 +270,7 @@ static inline int spi_a2f_hw_clk_set(struct spi_a2f *c, unsigned int spd)
 	MSS_SPI(c)->spi_clk_gen = i - 1;
 
 Done:
-	d_printk(2, "bus=%d,cnt_hz=%d,slv_hz=%d,rsl_hz=%d,clk_gen=%d,ret=%d\n", 
+	d_printk(1, "bus=%d,cnt_hz=%d,slv_hz=%d,rsl_hz=%d,clk_gen=%d,ret=%d\n",
 		 c->bus, h, spd, h / (1 << i), MSS_SPI(c)->spi_clk_gen, ret);
 	return ret;
 }
@@ -544,7 +594,7 @@ static int spi_a2f_pio(
 		 */
 	        for (i = 0; 
 		     i < 2 && ti < len && !spi_a2f_hw_txfifo_full(c);
-		     i ++) {
+		     i++) {
 
 			/*
  			 * If the trasmit in the current transfer
@@ -631,7 +681,9 @@ Done:
  */
 static int spi_a2f_handle_message(struct spi_a2f *c, struct spi_message *msg)
 {
+#if defined(SPI_I2C_DEBUG)
 	struct spi_transfer *t;
+#endif
 	struct spi_device *s = msg->spi;
 	int rlen = 0;
 	int ret = 0;
@@ -661,6 +713,7 @@ static int spi_a2f_handle_message(struct spi_a2f *c, struct spi_message *msg)
 	msg->actual_length = rlen;
 
 Done:
+#if defined(SPI_I2C_DEBUG)
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
 		int i; 
 		char * p;
@@ -674,6 +727,7 @@ Done:
 			}
 		}
 	}
+#endif
 	return ret;
 }
 
@@ -685,12 +739,14 @@ static void spi_a2f_handle(struct work_struct *w)
 {
 	struct spi_message *msg;
 	struct spi_a2f *c = container_of(w, struct spi_a2f, work);
-	unsigned long f;
+	unsigned long f = 0;
 
 	/*
 	 * In atomic manner 
 	 */
-	spin_lock_irqsave(&c->lock, f);
+	if (c->a2f_dev == DEVICE_A2F_500) {
+		spin_lock_irqsave(&c->lock, f);
+	}
 
 	/*
  	 * Check if the message queue has messages
@@ -739,8 +795,18 @@ static void spi_a2f_handle(struct work_struct *w)
 		 * at the slave. This option assumes however a deviation
 		 * from the standard design to an SPI slave (GPIO vs
 		 * dedicated SS used as a slave select).
+		 * ...
+		 * The above only concerns A2F200. A2F500 defines a special
+		 * control that allows to configure the SPI control in
+		 * such a way that Chip Select remains asserted until
+		 * an antire message has been sent out even if TX FIFO
+		 * gets empty at some points. This allows not to disable
+		 * interrupts in this function, on the A2F500. Also,
+		 * it allows running SPI devices are high frequencies.
 		 */
-		spin_unlock_irqrestore(&c->lock, f);
+		if (c->a2f_dev == DEVICE_A2F_500) {
+			spin_unlock_irqrestore(&c->lock, f);
+		}
 
 		/*
  		 * Let the upper layers complete processing of the message
@@ -750,13 +816,17 @@ static void spi_a2f_handle(struct work_struct *w)
 		/*
  		 * Re-acquire the lock and go check the message list again
  		 */
-		spin_lock_irqsave(&c->lock, f);
+		if (c->a2f_dev == DEVICE_A2F_500) {
+			spin_lock_irqsave(&c->lock, f);
+		}
 	}
 
 	/*
 	 * Release the lock and return
 	 */
-	spin_unlock_irqrestore(&c->lock, f);
+	if (c->a2f_dev == DEVICE_A2F_500) {
+		spin_unlock_irqrestore(&c->lock, f);
+	}
 }
 
 /*
@@ -854,7 +924,7 @@ static int spi_a2f_transfer(struct spi_device *s, struct spi_message *msg)
 	spin_unlock_irqrestore(&c->lock, f);
 
 Done:
-	d_printk(1, "msg=%p,ret=%d\n", msg, ret);
+	d_printk(3, "msg=%p,ret=%d\n", msg, ret);
 	return ret;
 }
 
@@ -932,6 +1002,11 @@ static int __devinit spi_a2f_probe(struct platform_device *dev)
 	 * Pointer the controller-specific data structure
  	 */
 	c = spi_master_get_devdata(m);
+
+	/*
+	 * Find out which SmartFusion chip we are running on
+	 */
+	c->a2f_dev = a2f_device_get();
 
 	/*
  	 * Set up the bus number so that platform
