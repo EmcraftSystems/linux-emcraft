@@ -772,7 +772,7 @@ static void spi_a2f_handle(struct work_struct *w)
 	/*
 	 * In atomic manner 
 	 */
-	if (c->a2f_dev == DEVICE_A2F_500) {
+	if (c->a2f_dev == DEVICE_A2F_200) {
 		spin_lock_irqsave(&c->lock, f);
 	}
 
@@ -832,7 +832,7 @@ static void spi_a2f_handle(struct work_struct *w)
 		 * interrupts in this function, on the A2F500. Also,
 		 * it allows running SPI devices are high frequencies.
 		 */
-		if (c->a2f_dev == DEVICE_A2F_500) {
+		if (c->a2f_dev == DEVICE_A2F_200) {
 			spin_unlock_irqrestore(&c->lock, f);
 		}
 
@@ -844,7 +844,7 @@ static void spi_a2f_handle(struct work_struct *w)
 		/*
  		 * Re-acquire the lock and go check the message list again
  		 */
-		if (c->a2f_dev == DEVICE_A2F_500) {
+		if (c->a2f_dev == DEVICE_A2F_200) {
 			spin_lock_irqsave(&c->lock, f);
 		}
 	}
@@ -852,7 +852,7 @@ static void spi_a2f_handle(struct work_struct *w)
 	/*
 	 * Release the lock and return
 	 */
-	if (c->a2f_dev == DEVICE_A2F_500) {
+	if (c->a2f_dev == DEVICE_A2F_200) {
 		spin_unlock_irqrestore(&c->lock, f);
 	}
 }

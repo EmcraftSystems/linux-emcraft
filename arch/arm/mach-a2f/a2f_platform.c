@@ -80,17 +80,11 @@ int a2f_device_get(void)
 
 	switch (a2f_platform) {
 	case PLATFORM_A2F_ACTEL_DEV_BRD:
-		r = DEVICE_A2F_500;
-		break;
 	case PLATFORM_A2F_HOERMANN_BRD:
-		r = DEVICE_A2F_500;
-		break;
 	case PLATFORM_A2F500_SOM:
 		r = DEVICE_A2F_500;
 		break;
 	case PLATFORM_A2F200_SOM:
-		r = DEVICE_A2F_200;
-		break;
 	case PLATFORM_A2F_LNX_EVB:
 	default:
 		r = DEVICE_A2F_200;
