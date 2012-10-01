@@ -777,6 +777,13 @@ config ARCH_A2F
 	help
 	  This enables support for the Actel A2F (SmartFusion) SoC
 
+config ARCH_M2S
+	bool "Actel M2S (SmartFusion2) eSoC"
+	depends on !MMU
+	select ARM_CORTEXM3
+	help
+	  This enables support for the Actel M2S (SmartFusion2) eSoC
+
 config ARCH_STM32
 	bool "STMicro STM32 SoC"
 	depends on !MMU
@@ -922,6 +929,8 @@ source "arch/arm/mach-w90x900/Kconfig"
 source "arch/arm/mach-mps/Kconfig"
 
 source "arch/arm/mach-a2f/Kconfig"
+
+source "arch/arm/mach-m2s/Kconfig"
 
 source "arch/arm/mach-stm32/Kconfig"
 

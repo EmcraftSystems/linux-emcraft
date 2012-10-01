@@ -1,0 +1,29 @@
+if ARCH_M2S
+
+config MACH_M2S
+	bool
+	default y
+	select ARM_NVIC if CPU_V7M
+	help
+	  Include support for the Actel M2S (SmartFusion2) cSoC
+
+menu "M2S I/O interfaces"
+	depends on ARCH_M2S
+
+config M2S_MSS_UART0
+	depends on ARCH_M2S && SERIAL_8250
+	bool "Enable MSS UART0 port"
+	default n
+	help
+	  Include support for the MSS UART0 port
+
+config M2S_MSS_UART1
+	depends on ARCH_M2S && SERIAL_8250
+	bool "Enable MSS UART1 port"
+	default y
+	help
+	  Include support for the MSS UART1 port
+
+endmenu
+
+endif
