@@ -15,7 +15,7 @@
 #include <mach/uart.h>
 
 	.macro		addruart,rx
-	mov		\rx, MSS_UART0_BASE
+	ldr		\rx, =MSS_UART0_BASE
 	.endm
 
 #define UART_SHIFT      2
