@@ -37,18 +37,12 @@
 #define MSS_TIMER1_IRQ	20
 
 struct mss_timer {
-	unsigned int	tim1_val;
-	unsigned int	tim1_loadval;
-	unsigned int	tim1_bgloadval;
-	unsigned int	tim1_ctrl;
-	unsigned int	tim1_ris;
-	unsigned int	tim1_mis;
-	unsigned int	tim2_val;
-	unsigned int	tim2_loadval;
-	unsigned int	tim2_bgloadval;
-	unsigned int	tim2_ctrl;
-	unsigned int	tim2_ris;
-	unsigned int	tim2_mis;
+	unsigned int	tim_val;
+	unsigned int	tim_loadval;
+	unsigned int	tim_bgloadval;
+	unsigned int	tim_ctrl;
+	unsigned int	tim_ris;
+	unsigned int	tim_mis;
 };
 
 #define MSS_TIMER	((volatile struct mss_timer *)(MSS_TIMER_BASE))
@@ -83,9 +77,9 @@ static void timer_1_set_mode(
 		 * Enable interrupts, Periodic Mode, Timer Enabled
 		 */
 		raw_local_irq_save(flags);
-		MSS_TIMER->tim1_loadval = timer_ref_clk / HZ;
+		MSS_TIMER[0].tim_loadval = timer_ref_clk / HZ;
 		ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_INTR;
-		MSS_TIMER->tim1_ctrl = ctrl;
+		MSS_TIMER[0].tim_ctrl = ctrl;
 		raw_local_irq_restore(flags);
 		break;
 
@@ -97,8 +91,8 @@ static void timer_1_set_mode(
 		 * Disable the timer.
 		 */
 		raw_local_irq_save(flags);
-		ctrl = MSS_TIMER->tim1_ctrl & ~TIMER_CTRL_ENBL;
-		MSS_TIMER->tim1_ctrl = ctrl;
+		ctrl = MSS_TIMER[0].tim_ctrl & ~TIMER_CTRL_ENBL;
+		MSS_TIMER[0].tim_ctrl = ctrl;
 		raw_local_irq_restore(flags);
 		break;
 	}
@@ -114,9 +108,9 @@ static int timer_1_set_next_event(
 	unsigned long flags;
 
 	raw_local_irq_save(flags);
-	MSS_TIMER->tim1_loadval = delta;
+	MSS_TIMER[0].tim_loadval = delta;
 	ctrl = TIMER_CTRL_ENBL | TIMER_CTRL_ONESHOT | TIMER_CTRL_INTR;
-	MSS_TIMER->tim1_ctrl = ctrl;
+	MSS_TIMER[0].tim_ctrl = ctrl;
 	raw_local_irq_restore(flags);
 
 	return 0;
@@ -126,12 +120,12 @@ static int timer_1_set_next_event(
  * A clock_event_device structure for MSS Timer1
  */
 static struct clock_event_device timer_1_clockevent = {
-	.name           = "mss_timer1_clockevent",
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode       = timer_1_set_mode,
+	.name		= "mss_timer1_clockevent",
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.set_mode	= timer_1_set_mode,
 	.set_next_event	= timer_1_set_next_event,
-	.rating         = 200,
-	.cpumask        = cpu_all_mask,
+	.rating		= 200,
+	.cpumask	= cpu_all_mask,
 };
 
 /* 
@@ -139,8 +133,8 @@ static struct clock_event_device timer_1_clockevent = {
  */
 static void __init timer_1_clockevents_init(unsigned int irq)
 {
-	timer_1_clockevent.irq = irq;
 	const u64 max_delay_in_sec = 5;
+	timer_1_clockevent.irq = irq;
 
 	/*
 	 * Set the fields required for the set_next_event method (tickless kernel support)
@@ -164,7 +158,7 @@ static irqreturn_t timer_1_interrupt(int irq, void *dev_id)
 	/*
 	 * Clear the interrupt.
 	 */
-	MSS_TIMER->tim1_ris = TIMER_RIS_ACK;
+	MSS_TIMER[0].tim_ris = TIMER_RIS_ACK;
 
 	/*
 	 * Handle the event.
@@ -177,9 +171,9 @@ static irqreturn_t timer_1_interrupt(int irq, void *dev_id)
  * An irqaction data structure for the system timer interrupt
  */
 static struct irqaction timer_1_irq = {
-	.name           = "mss_timer1_irq",
-	.flags          = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler        = timer_1_interrupt,
+	.name		= "mss_timer1_irq",
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.handler	= timer_1_interrupt,
 };
 
 /*
@@ -209,7 +203,7 @@ static void __init timer_clockevent_init(void)
  */
 static cycle_t timer_2_read(struct clocksource *c)
 {
-	return ~MSS_TIMER->tim2_val;
+	return ~MSS_TIMER[1].tim_val;
 }
 
 /*
@@ -234,8 +228,8 @@ static void __init timer_clocksource_init(void)
 	 * No interrupts, periodic mode, load with the largest number
 	 * that fits into the 32-bit timer
 	 */
-	MSS_TIMER->tim2_loadval = 0xFFFFFFFF;
-	MSS_TIMER->tim2_ctrl = TIMER_CTRL_ENBL;
+	MSS_TIMER[1].tim_loadval = 0xFFFFFFFF;
+	MSS_TIMER[1].tim_ctrl = TIMER_CTRL_ENBL;
 
 	/*
 	 * Calculate shift and mult using a helper function.
