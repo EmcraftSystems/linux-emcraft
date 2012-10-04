@@ -191,7 +191,7 @@ config MMU
 
 config MPU
 	bool "Enable the memory protection unit (EXPERIMENTAL)"
-	depends on !MMU
+	depends on !MMU && !MACH_KINETIS
 	default n
 	help
 	  Use the processor MPU to protect applications from accessing

@@ -301,22 +301,26 @@ static void mpu_addr_region_geometry(void)
 	for (i = 0, s = 0; i < mpu_addr_region_next; i++) {
 		r = &mpu_addr_region_tbl[i];
 		mpu_page_tbl_off[i] = s;
-#ifdef DEBUG
-		printk("%s: %d: %lx\n", __func__, i, s);
-#endif
 		s += sizeof(unsigned int) * 
 		     ((((r->top - r->bot) >> PAGE_SHIFT) + 31) / 32);
+#if defined(DEBUG)
+		printk("%s: %d: b=0x%lx,t=0x%lx,sz=%ldK,s=%ld\n",
+			__func__, i, r->bot, r->top,
+			(r->top - r->bot)/1024, s);
+#endif
 	}
 
 	/*
  	 * Now, calculate the size of the entire page tables pool
  	 * The pool is allocated as a number of 4K pages.
  	 */
-	mpu_page_tbl_len = sizeof(mpu_context_t) + sizeof(unsigned int) * s;
-#ifdef DEBUG
-	printk("%s: %lx\n", __func__, mpu_page_tbl_len);
+	mpu_page_tbl_len = sizeof(mpu_context_t) + s;
+	mpu_page_tbl_order =  max(1, get_order(mpu_page_tbl_len));
+#if defined(DEBUG)
+	printk("%s: tbl=%ld,ord=%ld\n",
+		__func__, mpu_page_tbl_len, mpu_page_tbl_order);
 #endif
-	mpu_page_tbl_order =  max(1, get_order(s));
+
 }
 
 /*
@@ -339,7 +343,7 @@ static inline mpu_addr_region_t * mpu_addr_region_find(unsigned long a)
 /*
  * Debug service: print active MPU address regions
  */
-#ifdef DEBUG
+#if defined(DEBUG)
 static void mpu_addr_region_tbl_print(void)
 {
 	mpu_addr_region_t *r;
@@ -347,7 +351,7 @@ static void mpu_addr_region_tbl_print(void)
 
 	for (i = 0; i < mpu_addr_region_next; i++) {
 		r = &mpu_addr_region_tbl[i];
-		printk("%s: %d: %lx,%lx\n", 
+		printk("%s: %d: %lx,%lx\n",
 		      __func__, i, r->bot, r->top);
 	}
 }
@@ -662,7 +666,7 @@ static inline void mpu_page_map_256b(
 /*
  * Debug service: print current MPU regions
  */
-#ifdef DEBUG
+#if defined(DEBUG)
 static void mpu_page_printall(const char * s, struct mm_struct *mm)
 {
 	unsigned int b;	
@@ -673,7 +677,7 @@ static void mpu_page_printall(const char * s, struct mm_struct *mm)
 	for (i = 0; i < 8; i ++) {
 		mpu_region_read(i, &b, &a);
 		printk("%s: reg=%d: cb=%08x,ca=%08x,mb=%08x,ma=%08x\n", s, i,
-               	       p->mpu_regs[i].base, p->mpu_regs[i].attr, b, a);	
+			p->mpu_regs[i].base, p->mpu_regs[i].attr, b, a);
 	}	
 }
 #endif /* DEBUG */
@@ -718,6 +722,9 @@ void protect_page(struct mm_struct *mm, unsigned long addr,
 		  unsigned long flags)
 {
 	mpu_context_map_page(mm, addr, flags);
+#if 0 && defined(DEBUG)
+	printk("%s: addr=0x%lx\n", __func__, addr);
+#endif
 }
 
 /*
@@ -792,7 +799,9 @@ void mpu_start_thread(struct pt_regs * regs)
 	unsigned long p;
 	int i;
 
-#ifdef DEBUG
+#if defined(DEBUG)
+	printk("%s: control=%x,indx=%d\n",
+		__func__, readl(&NVIC->mpu_control), mpu_hw_reg_indx);
 	printk("%s,%d: end_stack=%lx,start_stack=%lx,len_stack=%ld\n",
 	        __func__, __LINE__,
                mm->context.end_brk, mm->start_stack,
@@ -809,7 +818,7 @@ void mpu_start_thread(struct pt_regs * regs)
 	t &= PAGE_MASK;
 	b = mm->context.end_brk;
 
-#ifdef DEBUG
+#if defined(DEBUG)
 	printk("%s,%d: b=%lx,t=%lx\n", __func__, __LINE__, b, t);
 #endif
 
@@ -826,7 +835,7 @@ void mpu_start_thread(struct pt_regs * regs)
              p <= t && i < MPU_STACK_BAR;
              i ++, p += PAGE32K_SIZE) {
 		mpu_page_map_32k(mm, p, (VM_READ | VM_WRITE));
-#ifdef DEBUG
+#if defined(DEBUG)
 		printk("%s:%d: p=%lx\n", __func__, __LINE__, p);
 #endif
 	}
@@ -926,6 +935,7 @@ asmlinkage void __exception do_memmanage(struct pt_regs *regs)
 		addr = pc;
 		flags = VM_EXEC;
 	}
+
 	/* 
 	 * Some error bit set in the memory fault address register.
 	 * This must be MUNSTKERR due to a stacking error, which
