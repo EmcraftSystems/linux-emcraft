@@ -1114,5 +1114,14 @@ config DEVPORT
 
 source "drivers/s390/char/Kconfig"
 
+config KINETIS_ADC
+	tristate "ADC driver for Freescale Kinetis MCUs"
+	depends on ARCH_KINETIS
+	default n
+	help
+	  ADC driver for Freescale Kinetis MCUs with a custom ioctl()-based
+	  interface. This driver is designed for synchronous one-shot
+	  measurements.
+
 endmenu
 

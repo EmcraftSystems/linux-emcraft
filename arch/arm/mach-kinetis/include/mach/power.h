@@ -80,6 +80,11 @@ typedef u32 kinetis_clock_gate_t;
 #define KINETIS_CG_DMAMUX1	KINETIS_MKCG(5, 2)	/* SIM_SCGC6[2] */
 /* USB High Speed */
 #define KINETIS_CG_USBHS	KINETIS_MKCG(5, 20)	/* SIM_SCGC6[20] */
+/* ADC modules */
+#define KINETIS_CG_ADC0		KINETIS_MKCG(5, 27)	/* SIM_SCGC6[27] */
+#define KINETIS_CG_ADC1		KINETIS_MKCG(2, 27)	/* SIM_SCGC3[27] */
+#define KINETIS_CG_ADC2		KINETIS_MKCG(5, 28)	/* SIM_SCGC6[28] */
+#define KINETIS_CG_ADC3		KINETIS_MKCG(2, 28)	/* SIM_SCGC3[28] */
 
 #ifndef __ASSEMBLY__
 

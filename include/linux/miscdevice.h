@@ -31,6 +31,7 @@
 #define FUSE_MINOR		229
 #define KVM_MINOR		232
 #define A2F_ENVM_MINOR		235
+#define KINETIS_ADC_MINOR	245
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;

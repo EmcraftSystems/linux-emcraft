@@ -114,6 +114,8 @@ js-rtc-y = rtc.o
 obj-$(CONFIG_A2F_ENVM)		+= envm.o
 envm-y				= envm_if.o mss_envm.o
 
+obj-$(CONFIG_KINETIS_ADC)	+= kinetis_adc.o
+
 # Files generated that shall be removed upon make clean
 clean-files := consolemap_deftbl.c defkeymap.c
 
