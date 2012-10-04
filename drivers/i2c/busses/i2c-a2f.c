@@ -275,6 +275,7 @@ static void i2c_a2f_hw_clear(struct i2c_a2f *c)
 
 /*
  * Interrupt handler routine
+ * @param irq		IRQ number
  * @param d		controller data structure
  * @returns		IRQ handler exit code
  */
