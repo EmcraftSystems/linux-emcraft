@@ -31,6 +31,7 @@
 #define _MACH_LPC178X_DMAC_H_
 
 #include <mach/lpc178x.h>
+#include <mach/hardware.h>
 
 /*
  * DMA registers base
