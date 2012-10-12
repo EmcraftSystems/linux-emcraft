@@ -24,6 +24,7 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 
 #include <mach/kinetis.h>
 #include <mach/power.h>
@@ -58,3 +59,4 @@ int kinetis_periph_enable(kinetis_clock_gate_t gate, int enable)
 out:
 	return rv;
 }
+EXPORT_SYMBOL(kinetis_periph_enable);
