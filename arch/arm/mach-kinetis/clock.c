@@ -433,9 +433,9 @@ void kinetis_lcdc_adjust_clock_divider(unsigned long clock, unsigned long base)
 	/* Target value, multiplied by 2**16 */
 	u32 x;
 
-	/* x = (clock << 16) / base */
-	u64 tmp = (u64)clock << 16;
-	do_div(tmp, base);
+	/* x = (base << 16) / clock */
+	u64 tmp = (u64)base << 16;
+	do_div(tmp, clock);
 	x = (u32)tmp;
 
 	/*
@@ -446,18 +446,20 @@ void kinetis_lcdc_adjust_clock_divider(unsigned long clock, unsigned long base)
 		seq[i] = x >> 16;
 
 		/* Result is a/b, "c" is a helper variable */
-		a = 0;
-		b = 1;
+		a = 1;
+		b = 0;
 		for (j = i; j >= 0; j--) {
-			/* New denominator */
-			c = seq[j] * b + a;
-			if (c > KINETIS_LCDC_MAX_NUMERATOR)
-				break;
-
+			/* Partial fraction p_{next} = seq + p^{-1} */
 			/* New numerator */
-			a = b;
-			/* Write denominator into the correct variable */
-			b = c;
+			c = seq[j] * a + b;
+			/* New denominator */
+			b = a;
+			/* Write nominator into the correct variable */
+			a = c;
+
+			if (a > KINETIS_LCDC_MAX_NUMERATOR ||
+			    b > KINETIS_LCDC_MAX_DENOMINATOR)
+				break;
 		}
 
 		if (b > KINETIS_LCDC_MAX_DENOMINATOR ||
