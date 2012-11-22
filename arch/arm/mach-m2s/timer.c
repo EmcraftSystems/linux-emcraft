@@ -256,6 +256,12 @@ static void __init timer_clocksource_init(void)
 void __init m2s_timer_init(void)
 {
 	/*
+	 * Allow SystemTimer (including Timer1 & Timer2) to count
+	 * (bring it out of the power-up reset)
+	 */
+	M2S_SYSREG->soft_reset_cr &= ~TIMER_RST_CLR;
+
+	/*
 	 * Configure the SmartFusion clocks
 	 */
 	m2s_clock_init();
@@ -274,10 +280,4 @@ void __init m2s_timer_init(void)
 	 * Register and start a clock event device
 	 */
 	timer_clockevent_init();
-
-	/*
-	 * Allow SystemTimer (including Timer1 & Timer2) to count
-	 * (bring it out of the power-up reset)
-	 */
-	M2S_SYSREG->soft_reset_cr &= ~TIMER_RST_CLR;
 }
