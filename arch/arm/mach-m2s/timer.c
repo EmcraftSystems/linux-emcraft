@@ -34,7 +34,7 @@
  * Provide a description of the the SmartFusion2 timer hardware interfaces.
  */
 #define MSS_TIMER_BASE	0x40004000
-#define MSS_TIMER1_IRQ	20
+#define MSS_TIMER1_IRQ	14
 
 struct mss_timer {
 	unsigned int	tim1_val;
