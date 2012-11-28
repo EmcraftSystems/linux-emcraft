@@ -34,6 +34,7 @@
 #include <mach/iomux.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/spi.h>
 
 /*
  * Define a particular platform (board)
@@ -149,5 +150,13 @@ static void __init m2s_init(void)
 	 * Configure the UART devices
 	 */
 	m2s_uart_init();
+#endif
+
+#if defined(CONFIG_SPI_M2S)
+	/*
+	 * Configure the SPI master interfaces (and possibly,
+	 * SPI slave devices).
+	 */
+	m2s_spi_init();
 #endif
 }

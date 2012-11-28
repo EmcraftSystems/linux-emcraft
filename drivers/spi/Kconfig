@@ -66,6 +66,12 @@ config SPI_A2F
 	help
 	  This is the SPI controller master driver for the SmartFusion SoC.
 
+config SPI_M2S
+	tristate "SmartFusion2 SPI Controller"
+	depends on MACH_M2S
+	help
+	  This is the SPI controller master driver for the SmartFusion2 SoC.
+
 config SPI_BFIN
 	tristate "SPI controller driver for ADI Blackfin5xx"
 	depends on BLACKFIN
