@@ -22,7 +22,11 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/io.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 #include <mach/m2s.h>
 #include <mach/platform.h>
 #include <mach/clock.h>
@@ -89,6 +93,8 @@ static struct platform_device spi_m2s_dev = {
  */
 void __init m2s_spi_init(void)
 {
+	int	p = m2s_platform_get();
+
 #if defined(CONFIG_M2S_MSS_SPI0) || defined(CONFIG_M2S_MSS_SPI1)
 	spi_m2s_data_dev.ref_clk = m2s_clock_get(SPI_M2S_CLK);
 
@@ -98,4 +104,45 @@ void __init m2s_spi_init(void)
 	platform_set_drvdata(&spi_m2s_dev, &spi_m2s_data_dev);
 	platform_device_register(&spi_m2s_dev);
 #endif
+
+	if (p == PLATFORM_M2S_SOM) {
+#if defined(CONFIG_M2S_MSS_SPI0) && defined(CONFIG_MTD_M25P80)
+		/*
+		 * SPI Flash partitioning:
+		 */
+#		define M2S_SOM_SF_MTD_OFFSET		0x010000 /* 64 KB */
+#		define M2S_SOM_SF_MTD_SIZE0		0x400000 /*  4 MB */
+#		define M2S_SOM_SF_MTD_SIZE1		0xBF0000 /*~12 MB */
+		static struct mtd_partition m2s_som_sf_mtd[] = {
+			   {
+				.name = "spi_flash_part0",
+				.offset = M2S_SOM_SF_MTD_OFFSET,
+				.size = M2S_SOM_SF_MTD_SIZE0,
+			}, {
+				.name = "spi_flash_part1",
+				.offset = M2S_SOM_SF_MTD_OFFSET +
+					  M2S_SOM_SF_MTD_SIZE0,
+				.size = M2S_SOM_SF_MTD_SIZE1,
+			},
+		};
+
+		static struct flash_platform_data m2s_som_sf_data = {
+			.name = "s25fl129p1",
+			.parts = m2s_som_sf_mtd,
+			.nr_parts = ARRAY_SIZE(m2s_som_sf_mtd),
+			.type = "s25fl129p1",
+		};
+
+		static struct spi_board_info m2s_som_sf_inf = {
+			.modalias = "m25p32",
+			.max_speed_hz = 20000000,
+			.bus_num = 0,
+			.chip_select = 0,
+			.platform_data = &m2s_som_sf_data,
+			.mode = SPI_MODE_3,
+		};
+
+		spi_register_board_info(&m2s_som_sf_inf, 1);
+#endif
+	}
 }
