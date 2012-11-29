@@ -26,6 +26,11 @@
 #include <mach/spi.h>
 
 /*
+ * Maximum size we allow per xfer (limited with txrxdf_size register)
+ */
+#define M2S_SPI_MAX_LEN			65535
+
+/*
  * Some bits in various regs
  */
 #define M2S_SYS_SOFT_RST_CR_SPI1	(1 << 10)
@@ -445,7 +450,7 @@ done:
 static int spi_m2s_xfer(struct m2s_spi_dsc *s, struct spi_device *dev,
 			struct spi_message *msg, int *rlen)
 {
-	int xfer_ttl = 0;
+	int xfer_ttl = 0, xfer_cur = 0;
 	int btx, brx;
 	int wb = (dev->bits_per_word + 7) / 8;
 	void *p;
@@ -458,6 +463,10 @@ static int spi_m2s_xfer(struct m2s_spi_dsc *s, struct spi_device *dev,
 	list_for_each_entry(t, &msg->transfers, transfer_list)
 		xfer_ttl += t->len;
 	xfer_ttl /= wb;
+
+	xfer_cur = 0;
+	if (xfer_ttl > M2S_SPI_MAX_LEN)
+		xfer_ttl = M2S_SPI_MAX_LEN;
 
 	/*
 	 * We can't provide persistent TxFIFO data flow even with PDMA, so to
@@ -476,6 +485,8 @@ static int spi_m2s_xfer(struct m2s_spi_dsc *s, struct spi_device *dev,
 	 * way just for more clearance
 	 */
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
+		int	len;
+
 		/*
 		 * Set-up RX
 		 */
@@ -515,14 +526,22 @@ static int spi_m2s_xfer(struct m2s_spi_dsc *s, struct spi_device *dev,
 		/*
 		 * Start RX, and TX
 		 */
-		M2S_PDMA(s)->chan[s->drx].buf[brx].cnt = t->len / wb;
-		M2S_PDMA(s)->chan[s->dtx].buf[btx].cnt = t->len / wb;
+		len = t->len / wb;
+		if (xfer_cur + len > xfer_ttl)
+			len = xfer_ttl - xfer_cur;
+
+		M2S_PDMA(s)->chan[s->drx].buf[brx].cnt = len;
+		M2S_PDMA(s)->chan[s->dtx].buf[btx].cnt = len;
 
 		/*
 		 * Wait for transaction completes (basing on RX status),
 		 * and switch to the next transfer
 		 */
 		while (!(M2S_PDMA(s)->chan[s->drx].status & (1 << brx)));
+
+		xfer_cur += len;
+		if (xfer_cur == xfer_ttl)
+			break;
 	}
 
 	*rlen = xfer_ttl;
