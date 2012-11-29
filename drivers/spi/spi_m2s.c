@@ -967,7 +967,7 @@ static int __devexit spi_m2s_remove(struct platform_device *pdev)
 /*
  * Platform driver data structure
  */
-static struct platform_driver spi_m2s_drv = {
+static struct platform_driver spi_m2s_driver = {
 	.probe  = spi_m2s_probe,
 	.remove = __devexit_p(spi_m2s_remove),
 	.driver = {
@@ -981,7 +981,7 @@ static struct platform_driver spi_m2s_drv = {
  */
 static int __init spi_m2s_module_init(void)
 {
-	return platform_driver_register(&spi_m2s_drv);
+	return platform_driver_register(&spi_m2s_driver);
 }
 
 /*
@@ -989,7 +989,7 @@ static int __init spi_m2s_module_init(void)
  */
 static void __exit spi_m2s_module_exit(void)
 {
-	platform_driver_unregister(&spi_m2s_drv);
+	platform_driver_unregister(&spi_m2s_driver);
 }
 
 module_init(spi_m2s_module_init);
