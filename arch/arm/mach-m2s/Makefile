@@ -6,3 +6,4 @@ obj-$(CONFIG_MACH_M2S)		+= m2s_platform.o timer.o clock.o \
 				   iomux.o reboot.o
 obj-$(CONFIG_SERIAL_8250)	+= uart.o
 obj-$(CONFIG_SPI_M2S)		+= spi.o
+obj-$(CONFIG_M2S_ETH)		+= eth.o

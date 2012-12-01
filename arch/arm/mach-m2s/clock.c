@@ -108,6 +108,9 @@ unsigned int m2s_clock_get(enum m2s_clock clck)
 	case CLCK_PCLK1:
 		val = m2s_clock_pclk1;
 		break;
+	case CLCK_SYSREF:
+		val = CONFIG_SYS_M2S_SYSREF;
+		break;
 	}
 
 	return val;

@@ -35,6 +35,7 @@
 #include <mach/timer.h>
 #include <mach/uart.h>
 #include <mach/spi.h>
+#include <mach/eth.h>
 
 /*
  * Define a particular platform (board)
@@ -158,5 +159,9 @@ static void __init m2s_init(void)
 	 * SPI slave devices).
 	 */
 	m2s_spi_init();
+#endif
+
+#if defined(CONFIG_M2S_ETH)
+	m2s_eth_init();
 #endif
 }

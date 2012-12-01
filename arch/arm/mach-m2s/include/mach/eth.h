@@ -1,7 +1,7 @@
 /*
- * linux/arch/arm/mach-m2s/include/mach/clock.h
+ * linux/arch/arm/mach-m2s/include/mach/eth.h
  *
- * Copyright (C) 2010,2011 Vladimir Khusainov, Emcraft Systems
+ * Copyright (C) 2012 Yuri Tikhonov, Emcraft Systems
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,26 +18,16 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _MACH_M2S_CLOCK_H_
-#define _MACH_M2S_CLOCK_H_
+#ifndef _MACH_M2S_ETH_H_
+#define _MACH_M2S_ETH_H_
 
-/*
- * Initialize the clock section of the M2S.
- */
-extern void __init m2s_clock_init(void);
+extern void __init m2s_eth_init(void);
 
-/*
- * Clocks enumeration.
- */
-enum m2s_clock  {
-	CLCK_PCLK0,
-	CLCK_PCLK1,
-	CLCK_SYSREF,
+struct eth_m2s_platform_data {
+	unsigned long	freq_src;		/* MAC source clock	*/
+	unsigned long	freq_mdc;		/* PHY MDC clock	*/
+	unsigned int	tx_buf_num;		/* Size of Tx BD ring	*/
+	unsigned int	rx_buf_num;		/* Size of Rx BD ring	*/
 };
 
-/*
- * Return a clock value for the specified clock.
- */
-extern unsigned int m2s_clock_get(enum m2s_clock);
-
-#endif	/*_MACH_M2S_CLOCK_H_ */
+#endif	/*_MACH_M2S_ETH_H_ */

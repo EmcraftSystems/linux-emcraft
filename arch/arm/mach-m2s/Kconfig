@@ -38,6 +38,13 @@ config M2S_MSS_UART1
 	help
 	  Include support for the MSS UART1 port
 
+config M2S_MSS_MAC
+	depends on ARCH_M2S && M2S_ETH
+	bool "Enable MSS MAC port"
+	default y
+	help
+	  Include support for the MSS MAC port
+
 endmenu
 
 endif
