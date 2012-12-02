@@ -113,6 +113,8 @@ js-rtc-y = rtc.o
 
 obj-$(CONFIG_A2F_ENVM)		+= envm.o
 envm-y				= envm_if.o mss_envm.o
+obj-$(CONFIG_M2S_ENVM)		+= envm_m2s.o
+envm_m2s-y			= envm_if.o m2s_mss_envm.o
 
 obj-$(CONFIG_KINETIS_ADC)	+= kinetis_adc.o
 
