@@ -383,8 +383,6 @@ static void spi_m2s_hw_release(struct m2s_spi_dsc *s)
 	M2S_PDMA(s)->chan[s->drx].control = PDMA_CONTROL_RESET;
 	M2S_PDMA(s)->chan[s->dtx].control = PDMA_CONTROL_RESET;
 
-	M2S_SYSREG->soft_reset_cr |= M2S_SYS_SOFT_RST_CR_PDMA;
-
 	/*
 	 * Disable the SPI contoller
 	 */

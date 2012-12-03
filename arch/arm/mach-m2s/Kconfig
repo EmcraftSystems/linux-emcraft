@@ -18,9 +18,9 @@ config M2S_MSS_SPI0
 	  Include support for the MSS SPI0 port
 
 config M2S_MSS_SPI1
-	depends on ARCH_M2S && SPI_M2S && !M2S_MSS_SPI0
+	depends on ARCH_M2S && SPI_M2S
 	bool "Enable MSS SPI1 port"
-	default y
+	default n
 	help
 	  Include support for the MSS SPI1 port
 

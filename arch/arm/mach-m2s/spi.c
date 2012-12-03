@@ -38,55 +38,70 @@
  * a separate PDMA driver to fix this.
  */
 #define PDMA_M2S_REGS		0x40003000
-#define PDMA_M2S_REGS_SIZE	0x120
 
-/*
- * The MSS subsystem of SmartFusion contains two SPI ports
- */
-#define SPI_M2S_REGS_SIZE	0x50
+#define SPI0_M2S_ID		0
+#define SPI0_M2S_REGS		0x40001000
+#define SPI0_M2S_CLK		CLCK_PCLK0
+#define SPI0_M2S_RX_DMA		0
+#define SPI0_M2S_TX_DMA		1
+
+#define SPI1_M2S_ID		1
+#define SPI1_M2S_REGS		0x40011000
+#define SPI1_M2S_CLK		CLCK_PCLK1
+#define SPI1_M2S_RX_DMA		2
+#define SPI1_M2S_TX_DMA		3
 
 #if defined(CONFIG_M2S_MSS_SPI0)
-# define SPI_M2S_ID		0
-# define SPI_M2S_REGS		0x40001000
-# define SPI_M2S_CLK		CLCK_PCLK0
-# define SPI_M2S_RX_DMA		0
-# define SPI_M2S_TX_DMA		1
-#elif defined(CONFIG_M2S_MSS_SPI1)
-# define SPI_M2S_ID		1
-# define SPI_M2S_REGS		0x40011000
-# define SPI_M2S_CLK		CLCK_PCLK1
-# define SPI_M2S_RX_DMA		2
-# define SPI_M2S_TX_DMA		3
-#endif
-
-#if defined(CONFIG_M2S_MSS_SPI0) || defined(CONFIG_M2S_MSS_SPI1)
-
-static struct resource spi_m2s_dev_resources[] = {
+static struct resource spi_m2s_dev0_resources[] = {
 	{
-		.start	= SPI_M2S_REGS,
-		.end	= SPI_M2S_REGS + SPI_M2S_REGS_SIZE,
+		.start	= SPI0_M2S_REGS,
+		.end	= SPI0_M2S_REGS + 1,
 		.flags	= IORESOURCE_MEM,
-	},
-	{
+	}, {
 		.start	= PDMA_M2S_REGS,
-		.end	= PDMA_M2S_REGS + PDMA_M2S_REGS_SIZE,
+		.end	= PDMA_M2S_REGS + 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
 
-static struct spi_m2s_platform_data spi_m2s_data_dev = {
-	.dma_rx		= SPI_M2S_RX_DMA,
-	.dma_tx		= SPI_M2S_TX_DMA,
+static struct spi_m2s_platform_data spi_m2s_dev0_data = {
+	.dma_rx		= SPI0_M2S_RX_DMA,
+	.dma_tx		= SPI0_M2S_TX_DMA,
 };
 
-static struct platform_device spi_m2s_dev = {
+static struct platform_device spi_m2s_dev0 = {
 	.name           = "spi_m2s",
-	.id             = SPI_M2S_ID,
-	.num_resources  = ARRAY_SIZE(spi_m2s_dev_resources),
-	.resource       = spi_m2s_dev_resources,
+	.id             = SPI0_M2S_ID,
+	.num_resources  = ARRAY_SIZE(spi_m2s_dev0_resources),
+	.resource       = spi_m2s_dev0_resources,
+};
+#endif	/* CONFIG_M2S_MSS_SPI0 */
+
+#if defined(CONFIG_M2S_MSS_SPI1)
+static struct resource spi_m2s_dev1_resources[] = {
+	{
+		.start	= SPI1_M2S_REGS,
+		.end	= SPI1_M2S_REGS + 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= PDMA_M2S_REGS,
+		.end	= PDMA_M2S_REGS + 1,
+		.flags	= IORESOURCE_MEM,
+	}
 };
 
-#endif	/* CONFIG_M2S_MSS_SPIx */
+static struct spi_m2s_platform_data spi_m2s_dev1_data = {
+	.dma_rx		= SPI1_M2S_RX_DMA,
+	.dma_tx		= SPI1_M2S_TX_DMA,
+};
+
+static struct platform_device spi_m2s_dev1 = {
+	.name		= "spi_m2s",
+	.id		= SPI1_M2S_ID,
+	.num_resources	= ARRAY_SIZE(spi_m2s_dev1_resources),
+	.resource	= spi_m2s_dev1_resources,
+};
+#endif  /* CONFIG_M2S_MSS_SPI1 */
 
 /*
  * Register the M2S specific SPI controllers and devices with the kernel.
@@ -95,14 +110,16 @@ void __init m2s_spi_init(void)
 {
 	int	p = m2s_platform_get();
 
-#if defined(CONFIG_M2S_MSS_SPI0) || defined(CONFIG_M2S_MSS_SPI1)
-	spi_m2s_data_dev.ref_clk = m2s_clock_get(SPI_M2S_CLK);
+#if defined(CONFIG_M2S_MSS_SPI0)
+	spi_m2s_dev0_data.ref_clk = m2s_clock_get(SPI0_M2S_CLK);
+	platform_set_drvdata(&spi_m2s_dev0, &spi_m2s_dev0_data);
+	platform_device_register(&spi_m2s_dev0);
+#endif
 
-	/*
-	 * Pass additional params to the driver, and register device
-	 */
-	platform_set_drvdata(&spi_m2s_dev, &spi_m2s_data_dev);
-	platform_device_register(&spi_m2s_dev);
+#if defined(CONFIG_M2S_MSS_SPI1)
+	spi_m2s_dev1_data.ref_clk = m2s_clock_get(SPI1_M2S_CLK);
+	platform_set_drvdata(&spi_m2s_dev1, &spi_m2s_dev1_data);
+	platform_device_register(&spi_m2s_dev1);
 #endif
 
 	if (p == PLATFORM_M2S_SOM) {
