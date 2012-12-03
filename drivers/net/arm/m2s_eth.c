@@ -1031,7 +1031,6 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 	d->tx.bd_adr = (dma_addr_t)p;
 	p += sizeof(*d->tx.bd) * M2S_TX_NUM;
 #endif
-printk("clear BDs %p/%p\n", d->rx.bd, d->tx.bd);
 	memset((void *)d->rx.bd, 0, sizeof(*d->rx.bd) * M2S_RX_NUM);
 	memset((void *)d->tx.bd, 0, sizeof(*d->tx.bd) * M2S_TX_NUM);
 
