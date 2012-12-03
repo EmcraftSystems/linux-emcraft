@@ -55,8 +55,6 @@ static struct resource			eth_m2s_dev_resources[] = {
  */
 static struct eth_m2s_platform_data	eth_m2s_dev_data = {
 	.freq_mdc	= 2500000,
-	.tx_buf_num	= 32,
-	.rx_buf_num	= 32,
 };
 
 /*

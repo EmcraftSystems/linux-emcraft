@@ -26,8 +26,6 @@ extern void __init m2s_eth_init(void);
 struct eth_m2s_platform_data {
 	unsigned long	freq_src;		/* MAC source clock	*/
 	unsigned long	freq_mdc;		/* PHY MDC clock	*/
-	unsigned int	tx_buf_num;		/* Size of Tx BD ring	*/
-	unsigned int	rx_buf_num;		/* Size of Rx BD ring	*/
 };
 
 #endif	/*_MACH_M2S_ETH_H_ */

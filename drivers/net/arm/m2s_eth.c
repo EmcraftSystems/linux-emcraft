@@ -29,6 +29,17 @@
 #include <mach/eth.h>
 
 /*
+ * Configs
+ */
+#define M2S_RX_NUM		CONFIG_M2S_ETH_RX_NUM
+#define M2S_TX_NUM		CONFIG_M2S_ETH_TX_NUM
+#if defined(CONFIG_M2S_ETH_BUF_IN_ESRAM)
+# define M2S_ESRAM		(0x20000000 + CONFIG_M2S_ETH_BUF_IN_ESRAM_BASE)
+#else
+# undef M2S_ESRAM
+#endif
+
+/*
  * Driver name string
  */
 #define M2S_MAC_NAME		"m2s_eth"
@@ -201,9 +212,8 @@ struct m2s_mac_dev {
 		volatile struct m2s_mac_dma_bd	*bd;	/* RxBD ring CPU adr  */
 		dma_addr_t			bd_adr;	/* RxBD ring DMA adr  */
 		u32				idx;	/* Index in RxBD ring */
-		u32				num;	/* Size of RxBD ring  */
 
-		char				**buf;
+		char				*buf[M2S_RX_NUM];
 	} rx;
 
 	struct {
@@ -211,10 +221,9 @@ struct m2s_mac_dev {
 		dma_addr_t			bd_adr;	/* TxBD ring DMA adr  */
 		u32				idx_nxt;/* Next to send index */
 		u32				idx_cur;/* Sent index	      */
-		u32				num;	/* Size of TxBD ring  */
 
-		char				**buf;
-		struct sk_buff			**skb;
+		char				*buf[M2S_TX_NUM];
+		struct sk_buff			*skb[M2S_TX_NUM];
 	} tx;
 
 	spinlock_t			lock;		/* Exclusive access   */
@@ -637,7 +646,7 @@ next:
 		bd->cfg_size = M2S_BD_EMPTY;
 		M2S_MAC_DMA(d)->rx_stat = M2S_MAC_DMA_STAT_ACK;
 
-		d->rx.idx = (d->rx.idx + 1) % d->rx.num;
+		d->rx.idx = (d->rx.idx + 1) % M2S_RX_NUM;
 		if (d->rx.idx == last)
 			break;
 	}
@@ -688,13 +697,11 @@ static void m2s_mac_tx_irq_cb(struct net_device *dev)
 		dev->stats.tx_bytes += d->tx.skb[idx]->len;
 		dev->stats.tx_packets++;
 
-		dma_unmap_single(&dev->dev, bd->adr_buf, d->tx.skb[idx]->len,
-				 DMA_TO_DEVICE);
 		dev_kfree_skb_irq(d->tx.skb[idx]);
 		d->tx.skb[idx] = NULL;
 
 		M2S_MAC_DMA(d)->tx_stat = M2S_MAC_DMA_STAT_ACK;
-		d->tx.idx_cur = (d->tx.idx_cur + 1) % d->tx.num;
+		d->tx.idx_cur = (d->tx.idx_cur + 1) % M2S_TX_NUM;
 
 		idx = d->tx.idx_cur;
 		bd = &d->tx.bd[idx];
@@ -822,7 +829,7 @@ static netdev_tx_t m2s_mac_net_start_xmit(struct sk_buff *skb,
 
 	spin_lock_irqsave(&d->lock, f);
 	idx = d->tx.idx_nxt;
-	d->tx.idx_nxt = (d->tx.idx_nxt + 1) % d->tx.num;
+	d->tx.idx_nxt = (d->tx.idx_nxt + 1) % M2S_TX_NUM;
 	spin_unlock_irqrestore(&d->lock, f);
 
 	dev->trans_start = jiffies;
@@ -835,8 +842,7 @@ static netdev_tx_t m2s_mac_net_start_xmit(struct sk_buff *skb,
 		p = d->tx.buf[idx];
 	}
 
-	d->tx.bd[idx].adr_buf = dma_map_single(&dev->dev, p, skb->len,
-						DMA_TO_DEVICE);
+	d->tx.bd[idx].adr_buf = (dma_addr_t)p;
 	d->tx.bd[idx].cfg_size = skb->len;
 	d->tx.skb[idx] = skb;
 
@@ -932,6 +938,8 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 	dev->netdev_ops = &m2s_mac_netdev_ops;
 
 	d = netdev_priv(dev);
+	memset(d, 0, sizeof(*d));
+
 	d->net_dev = dev;
 	d->ptf_dev = pd;
 
@@ -940,12 +948,10 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 
 	d->freq_src = pdat->freq_src;
 	d->freq_mdc = pdat->freq_mdc;
-	d->rx.num = pdat->rx_buf_num;
-	d->tx.num = pdat->tx_buf_num;
 
-	if (!d->rx.num || !d->tx.num) {
+	if (!M2S_RX_NUM || !M2S_TX_NUM) {
 		dev_err(&pd->dev, "bad rx/tx %d/%d buf number",
-			d->rx.num, d->tx.num);
+			M2S_RX_NUM, M2S_TX_NUM);
 		rv = -EINVAL;
 		goto err_free_dev;
 	}
@@ -1003,9 +1009,10 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 	 * Allocate descriptors
 	 */
 	pd->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	d->rx.bd = dma_alloc_coherent(&pd->dev, sizeof(*d->rx.bd) * d->rx.num,
+#if !defined(M2S_ESRAM)
+	d->rx.bd = dma_alloc_coherent(&pd->dev, sizeof(*d->rx.bd) * M2S_RX_NUM,
 				      &d->rx.bd_adr, GFP_DMA);
-	d->tx.bd = dma_alloc_coherent(&pd->dev, sizeof(*d->tx.bd) * d->tx.num,
+	d->tx.bd = dma_alloc_coherent(&pd->dev, sizeof(*d->tx.bd) * M2S_TX_NUM,
 				      &d->tx.bd_adr, GFP_DMA);
 	if (!d->rx.bd || !d->tx.bd) {
 		dev_err(&pd->dev, "dma_alloc BD failure %p/%p\n",
@@ -1013,18 +1020,20 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 		rv = -ENOMEM;
 		goto err_free_bd;
 	}
-	memset((void *)d->rx.bd, 0, sizeof(*d->rx.bd) * d->rx.num);
-	memset((void *)d->tx.bd, 0, sizeof(*d->tx.bd) * d->tx.num);
+#else
+	p = (void *)M2S_ESRAM;
 
-	d->rx.buf = kmalloc(d->rx.num * sizeof(void *), GFP_KERNEL);
-	d->tx.buf = kmalloc(d->tx.num * sizeof(void *), GFP_KERNEL);
-	d->tx.skb = kmalloc(d->tx.num * sizeof(void *), GFP_KERNEL);
-	if (!d->rx.buf || !d->tx.buf || !d->tx.skb) {
-		dev_err(&pd->dev, "malloc ptrs failure %p/%p/%p\n",
-			d->rx.buf, d->tx.buf, d->tx.skb);
-		rv = -ENOMEM;
-		goto err_free_ptr;
-	}
+	d->rx.bd = (void *)p;
+	d->rx.bd_adr = (dma_addr_t)p;
+	p += sizeof(*d->rx.bd) * M2S_RX_NUM;
+
+	d->tx.bd = (void *)p;
+	d->tx.bd_adr = (dma_addr_t)p;
+	p += sizeof(*d->tx.bd) * M2S_TX_NUM;
+#endif
+printk("clear BDs %p/%p\n", d->rx.bd, d->tx.bd);
+	memset((void *)d->rx.bd, 0, sizeof(*d->rx.bd) * M2S_RX_NUM);
+	memset((void *)d->tx.bd, 0, sizeof(*d->tx.bd) * M2S_TX_NUM);
 
 	/*
 	 * Allocate bufs for incoming frames, link BDs to list, and mark all
@@ -1032,7 +1041,8 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 	 * aren't used according to doc; guess MAC assumes size of buffer
 	 * basing on max_frame_length register
 	 */
-	for (i = 0; i < d->rx.num; i++) {
+	for (i = 0; i < M2S_RX_NUM; i++) {
+#if !defined(M2S_ESRAM)
 		d->rx.buf[i] = dma_alloc_coherent(&pd->dev, M2S_MAC_FRM_SIZE,
 					(void *)&d->rx.bd[i].adr_buf, GFP_DMA);
 		if (!d->rx.buf[i]) {
@@ -1040,12 +1050,17 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 			rv = -ENOMEM;
 			goto err_free_buf;
 		}
-
+#else
+		d->rx.buf[i] = p;
+		d->rx.bd[i].adr_buf = (dma_addr_t)p;
+		p += M2S_MAC_FRM_SIZE;
+#endif
 		d->rx.bd[i].cfg_size = M2S_BD_EMPTY;
 		d->rx.bd[i].adr_bd_next = d->rx.bd_adr +
-			(((i + 1) % d->rx.num) * sizeof(d->rx.bd[0]));
+			(((i + 1) % M2S_RX_NUM) * sizeof(d->rx.bd[0]));
 	}
-	for (i = 0; i < d->tx.num; i++) {
+	for (i = 0; i < M2S_TX_NUM; i++) {
+#if !defined(M2S_ESRAM)
 		d->tx.buf[i] = dma_alloc_coherent(&pd->dev, M2S_MAC_FRM_SIZE,
 					(void *)&d->tx.bd[i].adr_buf, GFP_DMA);
 		if (!d->tx.buf[i]) {
@@ -1053,11 +1068,14 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 			rv = -ENOMEM;
 			goto err_free_buf;
 		}
-
+#else
+		d->tx.buf[i] = p;
+		p += M2S_MAC_FRM_SIZE;
+#endif
 		d->tx.skb[i] = NULL;
 		d->tx.bd[i].cfg_size = M2S_BD_EMPTY;
 		d->tx.bd[i].adr_bd_next = d->tx.bd_adr +
-			(((i + 1) % d->tx.num) * sizeof(d->tx.bd[0]));
+			(((i + 1) % M2S_TX_NUM) * sizeof(d->tx.bd[0]));
 	}
 
 	d->rx.idx = d->tx.idx_cur = d->tx.idx_nxt = 0;
@@ -1068,13 +1086,13 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 	rv = m2s_mac_hw_init(d);
 	if (rv) {
 		dev_err(&pd->dev, "hw init error %d", rv);
-		goto err_free_buf;
+		goto err_free_hw;
 	}
 
 	rv = m2s_mii_init(dev);
 	if (rv) {
 		dev_err(&pd->dev, "mii init error %d", rv);
-		goto err_free_buf;
+		goto err_free_hw;
 	}
 
 	/*
@@ -1085,35 +1103,36 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 	rv = 0;
 	goto out;
 
+err_free_hw:
+	m2s_mac_net_stop(dev);
+	if (d->mii_bus) {
+		mdiobus_unregister(d->mii_bus);
+		mdiobus_free(d->mii_bus);
+	}
+#if !defined(M2S_ESRAM)
 err_free_buf:
-	for (i = 0; i < d->tx.num; i++) {
+	for (i = 0; i < M2S_TX_NUM; i++) {
 		if (!d->tx.buf[i])
 			break;
 		dma_free_coherent(&pd->dev, M2S_MAC_FRM_SIZE,
 				  d->tx.buf[i], d->tx.bd[i].adr_buf);
 	}
-	for (i = 0; i < d->rx.num; i++) {
+	for (i = 0; i < M2S_RX_NUM; i++) {
 		if (!d->rx.buf[i])
 			break;
 		dma_free_coherent(&pd->dev, M2S_MAC_FRM_SIZE,
 				  d->rx.buf[i], d->rx.bd[i].adr_buf);
 	}
-err_free_ptr:
-	if (d->rx.buf)
-		kfree(d->rx.buf);
-	if (d->tx.buf)
-		kfree(d->tx.buf);
-	if (d->tx.skb)
-		kfree(d->tx.skb);
 err_free_bd:
 	if (d->tx.bd) {
-		dma_free_coherent(&pd->dev, sizeof(d->tx.bd[0]) * d->tx.num,
+		dma_free_coherent(&pd->dev, sizeof(d->tx.bd[0]) * M2S_TX_NUM,
 				  (void *)d->tx.bd, d->tx.bd_adr);
 	}
 	if (d->rx.bd) {
-		dma_free_coherent(&pd->dev, sizeof(d->rx.bd[0]) * d->rx.num,
+		dma_free_coherent(&pd->dev, sizeof(d->rx.bd[0]) * M2S_RX_NUM,
 				  (void *)d->rx.bd, d->rx.bd_adr);
 	}
+#endif /* !M2S_ESRAM */
 	unregister_netdev(dev);
 err_free_remap:
 	if (M2S_MAC_CFG(d))
@@ -1132,28 +1151,29 @@ static int __devexit m2s_mac_remove(struct platform_device *pd)
 {
 	struct net_device	*dev = platform_get_drvdata(pd);
 	struct m2s_mac_dev	*d = netdev_priv(dev);
+#if !defined(M2S_ESRAM)
 	int			i;
+#endif
 
 	m2s_mac_net_stop(dev);
 
 	mdiobus_unregister(d->mii_bus);
 	mdiobus_free(d->mii_bus);
 
-	for (i = 0; i < d->tx.num; i++) {
+#if !defined(M2S_ESRAM)
+	for (i = 0; i < M2S_TX_NUM; i++) {
 		dma_free_coherent(&pd->dev, M2S_MAC_FRM_SIZE,
 				  d->tx.buf[i], d->tx.bd[i].adr_buf);
 	}
-	for (i = 0; i < d->rx.num; i++) {
+	for (i = 0; i < M2S_RX_NUM; i++) {
 		dma_free_coherent(&pd->dev, M2S_MAC_FRM_SIZE,
 				  d->rx.buf[i], d->rx.bd[i].adr_buf);
 	}
-	kfree(d->rx.buf);
-	kfree(d->tx.buf);
-	kfree(d->tx.skb);
-	dma_free_coherent(&pd->dev, sizeof(d->tx.bd[0]) * d->tx.num,
+	dma_free_coherent(&pd->dev, sizeof(d->tx.bd[0]) * M2S_TX_NUM,
 			  (void *)d->tx.bd, d->tx.bd_adr);
-	dma_free_coherent(&pd->dev, sizeof(d->rx.bd[0]) * d->rx.num,
+	dma_free_coherent(&pd->dev, sizeof(d->rx.bd[0]) * M2S_RX_NUM,
 			  (void *)d->rx.bd, d->rx.bd_adr);
+#endif
 	unregister_netdev(dev);
 	iounmap(M2S_MAC_CFG(d));
 	iounmap(M2S_MAC_DMA(d));
