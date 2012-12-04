@@ -126,17 +126,24 @@ void __init m2s_spi_init(void)
 #if defined(CONFIG_M2S_MSS_SPI0) && defined(CONFIG_MTD_M25P80)
 		/*
 		 * SPI Flash partitioning:
+		 * 0-1ffff:		U-boot environment
+		 * 20000-3fffff:	Linux bootable image
+		 * 400000-end of Flash:	JFFS2 filesystem
 		 */
 #		define M2S_SOM_SF_MTD_OFFSET		0x010000 /* 64 KB */
 #		define M2S_SOM_SF_MTD_SIZE0		0x400000 /*  4 MB */
 #		define M2S_SOM_SF_MTD_SIZE1		0xBF0000 /*~12 MB */
 		static struct mtd_partition m2s_som_sf_mtd[] = {
-			   {
-				.name = "spi_flash_part0",
+			{
+				.name = "spi_flash_uboot_env",
+				.offset = 0,
+				.size = M2S_SOM_SF_MTD_OFFSET,
+			}, {
+				.name = "spi_flash_linux_image",
 				.offset = M2S_SOM_SF_MTD_OFFSET,
 				.size = M2S_SOM_SF_MTD_SIZE0,
 			}, {
-				.name = "spi_flash_part1",
+				.name = "spi_flash_jffs2",
 				.offset = M2S_SOM_SF_MTD_OFFSET +
 					  M2S_SOM_SF_MTD_SIZE0,
 				.size = M2S_SOM_SF_MTD_SIZE1,
