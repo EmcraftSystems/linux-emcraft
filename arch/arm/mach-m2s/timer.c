@@ -139,8 +139,8 @@ static struct clock_event_device timer_1_clockevent = {
  */
 static void __init timer_1_clockevents_init(unsigned int irq)
 {
-	timer_1_clockevent.irq = irq;
 	const u64 max_delay_in_sec = 5;
+	timer_1_clockevent.irq = irq;
 
 	/*
 	 * Set the fields required for the set_next_event method (tickless kernel support)
