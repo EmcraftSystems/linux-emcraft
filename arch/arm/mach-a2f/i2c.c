@@ -38,6 +38,7 @@
 
 #define I2C_A2F_DEV0_IRQ	14
 #define I2C_A2F_DEV0_REGS	0x40002000
+#define I2C0_RST_CLR		(1<<11)
 
 static struct resource i2c_a2f_dev0_resources[] = {
 	{
@@ -72,6 +73,7 @@ static struct i2c_a2f_data i2c_a2f_data_dev0 = {
 
 #define I2C_A2F_DEV1_IRQ	17
 #define I2C_A2F_DEV1_REGS	0x40012000
+#define I2C1_RST_CLR		(1<<12)
 
 static struct resource i2c_a2f_dev1_resources[] = {
 	{
@@ -107,6 +109,15 @@ void __init a2f_i2c_init(void)
 	int p = a2f_platform_get();
 
 #if defined(CONFIG_A2F_MSS_I2C0)
+
+	/*
+	 * Reset the I2C controller and then bring it out of reset
+	 */
+	writel(readl(&A2F_SYSREG->soft_rst_cr) | I2C0_RST_CLR,
+		&A2F_SYSREG->soft_rst_cr);
+	writel(readl(&A2F_SYSREG->soft_rst_cr) & ~I2C0_RST_CLR,
+		&A2F_SYSREG->soft_rst_cr);
+
 	/*
  	 * Pass the device parameters to the driver
  	 */
@@ -120,6 +131,15 @@ void __init a2f_i2c_init(void)
 #endif
 
 #if defined(CONFIG_A2F_MSS_I2C1)
+
+	/*
+	 * Reset the I2C controller and then bring it out of reset
+	 */
+	writel(readl(&A2F_SYSREG->soft_rst_cr) | I2C1_RST_CLR,
+		&A2F_SYSREG->soft_rst_cr);
+	writel(readl(&A2F_SYSREG->soft_rst_cr) & ~I2C1_RST_CLR,
+		&A2F_SYSREG->soft_rst_cr);
+
 	/*
  	 * Pass the device parameters to the driver
  	 */

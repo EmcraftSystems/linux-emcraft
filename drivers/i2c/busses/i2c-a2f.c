@@ -122,8 +122,6 @@ struct i2c_a2f_regs {
 /*
  * Some bits in various CSRs 
  */
-#define	I2C0_RST_CLR			(1<<11)
-#define	I2C1_RST_CLR			(1<<12)
 #define	I2C_A2F_CTRL_ENS1		(1<<6)
 #define	I2C_A2F_CTRL_STA		(1<<5)
 #define	I2C_A2F_CTRL_STO		(1<<4)
@@ -184,22 +182,6 @@ static int i2c_a2f_hw_init(struct i2c_a2f *c)
 	b = div[i].b;
 
 	/*
- 	 * TO-DO: here and everywhere, add appropriate code
- 	 * for handling soft-IP I2C controllers
- 	 * The assumption regarding the bus number (ID) is:
- 	 * 0 - MSS I2C0
- 	 * 1 - MSS I2C1
- 	 * 2-9 - soft-IP I2C controllers (these are not supported as of yet)
- 	 */
-	v = c->bus==0 ? I2C0_RST_CLR : c->bus==1 ? I2C1_RST_CLR : 0; 
-
-	/*
- 	 * Reset the I2C controller and then bring it out of reset
- 	 */
-	writel(readl(&A2F_SYSREG->soft_rst_cr) | v, &A2F_SYSREG->soft_rst_cr);
-	writel(readl(&A2F_SYSREG->soft_rst_cr) & ~v, &A2F_SYSREG->soft_rst_cr);
-
-	/*
  	 * Enable the controller
  	 */
 	v = readl(&I2C_A2F(c)->ctrl);
@@ -237,19 +219,11 @@ Done:
  */
 static void i2c_a2f_hw_release(struct i2c_a2f *c)
 {
-	unsigned int v = c->bus==0 ? I2C0_RST_CLR : 
-			 c->bus==1 ? I2C1_RST_CLR : 0; 
-
 	/*
  	 * Disable the controller
  	 */
 	writel(readl(&I2C_A2F(c)->ctrl) & ~I2C_A2F_CTRL_ENS1, 
 		&I2C_A2F(c)->ctrl);
-
-	/*
- 	 * Put the I2C controller into reset
- 	 */
-	writel(readl(&A2F_SYSREG->soft_rst_cr) | v, &A2F_SYSREG->soft_rst_cr);
 
 	d_printk(2, "bus=%d,soft_rst_cr=0x%x\n", 
 		 c->bus, A2F_SYSREG->soft_rst_cr);
