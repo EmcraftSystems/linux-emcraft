@@ -39,7 +39,7 @@
 /*
  * Driver verbosity level: 0->silent; >0->verbose (1 to 4, growing verbosity)
  */
-static int i2c_a2f_debug = 0;
+static int i2c_a2f_debug = 4;
 
 /*
  * User can change verbosity of the driver (when loading the module,
@@ -206,9 +206,8 @@ static int i2c_a2f_hw_init(struct i2c_a2f *c)
 	writel(0x0, &I2C_A2F(c)->addr);
 
 Done:
-	d_printk(2, "bus=%d,soft_rst_cr=0x%x,clk=%d,ctrl=0x%x,ret=%d\n", 
-		 c->bus, readl(&A2F_SYSREG->soft_rst_cr), 
-		 !ret ? c->ref_clk/div[i].d : 0, 
+	d_printk(2, "bus=%d,clk=%d,ctrl=0x%x,ret=%d\n",
+		 c->bus, !ret ? c->ref_clk/div[i].d : 0,
 		 !ret ? readl(&I2C_A2F(c)->ctrl) : 0, ret);
 	return ret;
 }
@@ -225,8 +224,7 @@ static void i2c_a2f_hw_release(struct i2c_a2f *c)
 	writel(readl(&I2C_A2F(c)->ctrl) & ~I2C_A2F_CTRL_ENS1, 
 		&I2C_A2F(c)->ctrl);
 
-	d_printk(2, "bus=%d,soft_rst_cr=0x%x\n", 
-		 c->bus, A2F_SYSREG->soft_rst_cr);
+	d_printk(2, "bus=%d\n", c->bus);
 }
 
 /*

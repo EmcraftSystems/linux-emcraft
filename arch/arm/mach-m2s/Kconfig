@@ -10,20 +10,6 @@ config MACH_M2S
 menu "M2S I/O interfaces"
 	depends on ARCH_M2S
 
-config M2S_MSS_SPI0
-	depends on ARCH_M2S && SPI_M2S
-	bool "Enable MSS SPI0 port"
-	default y
-	help
-	  Include support for the MSS SPI0 port
-
-config M2S_MSS_SPI1
-	depends on ARCH_M2S && SPI_M2S
-	bool "Enable MSS SPI1 port"
-	default n
-	help
-	  Include support for the MSS SPI1 port
-
 config M2S_MSS_UART0
 	depends on ARCH_M2S && SERIAL_8250
 	bool "Enable MSS UART0 port"
@@ -44,6 +30,35 @@ config M2S_MSS_MAC
 	default y
 	help
 	  Include support for the MSS MAC port
+
+config M2S_MSS_SPI0
+	depends on ARCH_M2S && SPI_M2S
+	bool "Enable MSS SPI0 port"
+	default y
+	help
+	  Include support for the MSS SPI0 port
+
+config M2S_MSS_SPI1
+	depends on ARCH_M2S && SPI_M2S
+	bool "Enable MSS SPI1 port"
+	default n
+	help
+	  Include support for the MSS SPI1 port
+
+
+config M2S_MSS_I2C0
+	depends on ARCH_M2S && I2C_A2F
+	bool "Enable MSS I2C0 port"
+	default y
+	help
+	  Include support for the MSS I2C0 port
+
+config M2S_MSS_I2C1
+	depends on ARCH_M2S && I2C_A2F
+	bool "Enable MSS I2C1 port"
+	default y
+	help
+	  Include support for the MSS I2C1 port
 
 endmenu
 
