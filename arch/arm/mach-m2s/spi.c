@@ -159,7 +159,7 @@ void __init m2s_spi_init(void)
 
 		static struct spi_board_info m2s_som_sf_inf = {
 			.modalias = "m25p32",
-			.max_speed_hz = 20000000,
+			.max_speed_hz = 166000000/4,
 			.bus_num = 0,
 			.chip_select = 0,
 			.platform_data = &m2s_som_sf_data,
