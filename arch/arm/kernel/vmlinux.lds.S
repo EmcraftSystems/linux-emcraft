@@ -34,7 +34,9 @@ SECTIONS
 		_stext = .;
 		_sinittext = .;
 			HEAD_TEXT
+#if !defined(CONFIG_M2S_CACHE)
 			INIT_TEXT
+#endif
 		_einittext = .;
 #if !defined(CONFIG_INITRAMFS_IS_LARGE)
 		/*
@@ -59,15 +61,19 @@ SECTIONS
 			*(.taglist.init)
 		__tagtable_end = .;
 
+#if !defined(CONFIG_M2S_CACHE)
 		INIT_SETUP(16)
+#endif
 
 		__early_begin = .;
 			*(.early_param.init)
 		__early_end = .;
 
+#if !defined(CONFIG_M2S_CACHE)
 		INIT_CALLS
 		CON_INITCALL
 		SECURITY_INITCALL
+#endif
 		INIT_RAM_FS
 
 #ifndef CONFIG_XIP_KERNEL
@@ -103,6 +109,32 @@ SECTIONS
 		*(__ex_table)
 #endif
 	}
+
+/*
+ * On Microsemi SmartFusion2, kernel code is linked into
+ * an alias address region, which is cacheable. Anything that
+ * is not code MUST reside in the non-cached address region.
+ */
+#if defined(CONFIG_M2S_CACHE)
+	_non_cached_start = .;
+	.cached m2s_phys_to_cached(_non_cached_start) : {
+		_cached_init = .;
+
+		INIT_TEXT
+		INIT_SETUP(16)
+		INIT_CALLS
+		CON_INITCALL
+		SECURITY_INITCALL
+
+		*(.text)
+		SCHED_TEXT
+		LOCK_TEXT
+		KPROBES_TEXT
+
+		_cached_end = .;
+	}
+	. = _non_cached_start + SIZEOF(.cached);
+#endif
 
 /*
  * In case we run parts of the kernel in embedded Flash,
@@ -182,9 +214,9 @@ SECTIONS
 			*(.exception.text)
 			__exception_text_end = .;
 #if defined(CONFIG_INITRAMFS_IS_LARGE)
-		__proc_info_begin = .;
-			*(.proc.info.init)
-		__proc_info_end = .;
+			__proc_info_begin = .;
+				*(.proc.info.init)
+			__proc_info_end = .;
 #endif
 			TEXT_TEXT
 			SCHED_TEXT

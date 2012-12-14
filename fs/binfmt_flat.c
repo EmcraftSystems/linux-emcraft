@@ -42,6 +42,9 @@
 #include <asm/unaligned.h>
 #include <asm/cacheflush.h>
 #include <asm/page.h>
+#if defined(CONFIG_M2S_CACHE)
+#include <mach/memory.h>
+#endif
 
 /****************************************************************************/
 
@@ -672,6 +675,15 @@ static int load_flat_file(struct linux_binprm * bprm,
 	/* The main program needs a little extra setup in the task structure */
 	start_code = textpos + sizeof (struct flat_hdr);
 	end_code = textpos + text_len;
+#if defined(CONFIG_M2S_CACHE)
+	/*
+	 * On SmartFusion2, we want to run userspace code
+	 * from the on-chip cache. This implies remapping code to
+	 * the cached address region.
+	 */
+	start_code = m2s_phys_to_cached(start_code);
+	end_code = m2s_phys_to_cached(end_code);
+#endif
 	if (id == 0) {
 		current->mm->start_code = start_code;
 		current->mm->end_code = end_code;
@@ -780,6 +792,18 @@ static int load_flat_file(struct linux_binprm * bprm,
 					goto err;
 				}
 
+#if defined(CONFIG_M2S_CACHE)
+				/*
+				 * On SmartFusion2, it is critical that
+				 * relocation (actual write) is done through
+				 * the non-cached address aliases.
+				 */
+				if (m2s_addr_is_cached((unsigned long) rp)) {
+					rp = (unsigned long *)
+						m2s_cached_to_phys(
+						(unsigned long) rp);
+				}
+#endif
 				/* Write back the relocated pointer.  */
 				flat_put_addr_at_rp(rp, addr, relval);
 			}
@@ -788,7 +812,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		for (i=0; i < relocs; i++)
 			old_reloc(ntohl(reloc[i]));
 	}
-	
+
 	flush_icache_range(start_code, end_code);
 
 	/* zero the BSS,  BRK and stack areas */

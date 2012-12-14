@@ -66,6 +66,67 @@ __mmap_switched:
 	str	r2, [r6]			@ Save atags pointer
 	bic	r4, r0, #CR_A			@ Clear 'A' bit
 
+#if defined(CONFIG_ARCH_M2S)
+
+	/*
+	 * For SmartFusion2, we must deal with cache management this early
+	 * because kernel_start resides in the cached DDR address alias.
+	 * Hence, need to remap the DDR and enable the cache and the
+	 * cached address region prior to jumping to kernel_start.
+	 */
+#if defined(CONFIG_M2S_CACHE)
+
+	/*
+	 * Enable caching for the 3rd 128MB region (and disable for
+	 * anything else). This corresponds to 0x10000000 - 0x18000000.
+	 */
+	ldr	r9, =cc_region_cr
+	ldr	r9, [r9]
+	mov	r1, #0x4
+	str	r1, [r9]
+
+	/*
+	 * Enable the cache, in case it is still off
+	 */
+	ldr	r9, =cc_cr
+	ldr	r9, [r9]
+	mov	r1, #0x1
+	str	r1, [r9]
+
+	/*
+	 * Flush the cache
+	 */
+	ldr	r9, =flush_cr
+	ldr	r9, [r9]
+	ldr	r1, =one_ff
+	ldr	r1, [r1]
+	str	r1, [r9]
+	mov	r1, #0x0
+	str	r1, [r9]
+
+	/*
+	 * Allow DDR to be aliased into the cacheable region.
+	 * DDR will now be visible via two aliases:
+	 * - 0xA0000000 (non-cached - used for read-write data)
+	 * - 0x10000000 (cached - used for code)
+	 */
+	ldr	r9, =ddr_cr
+	ldr	r9, [r9]
+	mov	r1, #0x1
+	str	r1, [r9]
+
+#else
+
+	/*
+	 * Disable the cache, just in case it was enabled by firmware
+	 */
+	ldr	r9, =cc_cr
+	ldr	r9, [r9]
+	mov	r1, #0x0
+	str	r1, [r9]
+#endif
+#endif
+
 	/*
 	 * r7 is set to 0 in __switch_data for ARMv7 (conditional on
 	 * CONFIG_CPU_CP15. Not surprisingly an attempt to write to 0
@@ -77,6 +138,21 @@ __mmap_switched:
 	stmia	r7, {r0, r4}			@ Save control register values
 #endif
 	b	start_kernel
+
+#if defined(CONFIG_ARCH_M2S)
+cc_cr:
+	.word	0x40038018
+#if defined(CONFIG_M2S_CACHE)
+cc_region_cr:
+	.word	0x4003801c
+ddr_cr:
+	.word	0x40038008
+flush_cr:
+	.word	0x400381A8
+one_ff:
+	.word	0x1FF
+#endif
+#endif
 
 ENDPROC(__mmap_switched)
 

@@ -17,6 +17,10 @@
 #include <asm/cachetype.h>
 #include <asm/outercache.h>
 
+#if defined(CONFIG_M2S_CACHE)
+#include <mach/memory.h>
+#endif
+
 #define CACHE_COLOUR(vaddr)	((vaddr & (SHMLBA - 1)) >> PAGE_SHIFT)
 
 /*
@@ -417,7 +421,11 @@ extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
  * Perform necessary cache operations to ensure that data previously
  * stored within this range of addresses can be executed by the CPU.
  */
+#if defined(CONFIG_M2S_CACHE)
+#define flush_icache_range(s,e)		m2s_flush_cache()
+#else
 #define flush_icache_range(s,e)		__cpuc_coherent_kern_range(s,e)
+#endif
 
 /*
  * Perform necessary cache operations to ensure that the TLB will

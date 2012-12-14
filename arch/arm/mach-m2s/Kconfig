@@ -10,6 +10,13 @@ config MACH_M2S
 menu "M2S I/O interfaces"
 	depends on ARCH_M2S
 
+config M2S_CACHE
+	depends on ARCH_M2S 
+	bool "Enable SmartFusion2 cache"
+	default y
+	help
+	  Enable the SmartFusion2 on-chip cache
+
 config M2S_MSS_UART0
 	depends on ARCH_M2S && SERIAL_8250
 	bool "Enable MSS UART0 port"

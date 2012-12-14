@@ -275,6 +275,13 @@ static void __init cacheid_init(void)
 		* (volatile u32 *) 0xE0082800 & 0x1 ? "WRITE-BACK" : "NO",
 		* (volatile u32 *) 0xE0082000 & 0x1 ? "WRITE-THROUGH" : "NO");
 #else
+#if defined(CONFIG_ARCH_M2S)
+#if defined(CONFIG_M2S_CACHE)
+		"NO", "8K");
+#else
+		"NO", "NO");
+#endif
+#else
 		/*
 		 * There appears to be something wrong with the cache ID
 		 * parsing code above. On ARMv7M it reads CPUID Base Register,
@@ -289,6 +296,7 @@ static void __init cacheid_init(void)
 		 * a better way of fixing, anyhow.
 		 */
 		"NO", "NO");
+#endif
 #endif
 		cacheid = 0;
 #endif

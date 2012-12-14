@@ -19,6 +19,9 @@ OBJCOPYFLAGS	:=-O binary -R .note -R .note.gnu.build-id -R .comment -S
 ifeq ($(CONFIG_KERNEL_IN_ENVM),y)
 OBJCOPYFLAGS	+=-R .envm
 endif
+ifeq ($(CONFIG_M2S_CACHE),y)
+OBJCOPYFLAGS	+=--change-section-lma .cached+0x90000000
+endif
 GZFLAGS		:=-9
 #KBUILD_CFLAGS	+=-pipe
 # Explicitly specifiy 32-bit ARM ISA since toolchain default can be -mthumb:
