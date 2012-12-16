@@ -1474,7 +1474,7 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430)
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430) || defined(CONFIG_ARCH_M2S)
 
 static irqreturn_t generic_interrupt(int irq, void *__hci)
 {

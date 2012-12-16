@@ -67,6 +67,13 @@ config M2S_MSS_I2C1
 	help
 	  Include support for the MSS I2C1 port
 
+config M2S_MSS_USB
+	depends on ARCH_M2S && USB_MUSB_SOC
+	bool "Enable MSS USB OTG port"
+	default y
+	help
+	  Include support for the MSS USB OTG port
+
 endmenu
 
 endif

@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/clk.h>
 #include <mach/platform.h>
 #include <mach/m2s.h>
 #include <mach/clock.h>
@@ -116,3 +117,22 @@ unsigned int m2s_clock_get(enum m2s_clock clck)
 	return val;
 }
 EXPORT_SYMBOL(m2s_clock_get);
+
+int clk_enable(struct clk *clk)
+{
+	/*
+	 * TBD
+	 */
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+void clk_disable(struct clk *clk)
+{
+	/*
+	 * TBD
+	 */
+}
+EXPORT_SYMBOL(clk_disable);
+

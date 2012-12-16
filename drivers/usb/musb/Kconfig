@@ -40,6 +40,7 @@ config USB_MUSB_SOC
 	default y if ARCH_OMAP34XX
 	default y if (BF54x && !BF544)
 	default y if (BF52x && !BF522 && !BF523)
+	default y if ARCH_M2S
 
 comment "DaVinci 35x and 644x USB support"
 	depends on USB_MUSB_HDRC && ARCH_DAVINCI
@@ -153,7 +154,7 @@ config MUSB_PIO_ONLY
 config USB_INVENTRA_DMA
 	bool
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
-	default ARCH_OMAP2430 || ARCH_OMAP34XX || BLACKFIN
+	default ARCH_OMAP2430 || ARCH_OMAP34XX || BLACKFIN || ARCH_M2S
 	help
 	  Enable DMA transfers using Mentor's engine.
 

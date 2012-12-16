@@ -22,6 +22,10 @@ ifeq ($(CONFIG_ARCH_OMAP3430),y)
 	musb_hdrc-objs	+= omap2430.o
 endif
 
+ifeq ($(CONFIG_ARCH_M2S),y)
+	musb_hdrc-objs	+= m2s.o
+endif
+
 ifeq ($(CONFIG_BF54x),y)
 	musb_hdrc-objs	+= blackfin.o
 endif

@@ -37,6 +37,7 @@
 #include <mach/spi.h>
 #include <mach/eth.h>
 #include <mach/i2c.h>
+#include <mach/usb.h>
 
 /*
  * Define a particular platform (board)
@@ -171,5 +172,9 @@ static void __init m2s_init(void)
 	 * Configure the I2C controllers (and possible I2C devices).
 	 */
 	m2s_i2c_init();
+#endif
+
+#if defined(CONFIG_M2S_MSS_USB)
+	m2s_usb_init();
 #endif
 }
