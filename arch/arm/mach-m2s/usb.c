@@ -38,8 +38,6 @@
 
 #ifdef CONFIG_USB_MUSB_SOC
 
-static int musb_set_clock(struct clk *clk, int state);
-
 static struct resource musb_resources[] = {
 	{
 		.start	= M2S_USB_BASE,
@@ -108,12 +106,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 	.mode		= MUSB_PERIPHERAL,
 #endif
 	.config		= &musb_config,
-
-	/* REVISIT charge pump on TWL4030 can supply up to
-	 * 100 mA ... but this value is board-specific, like
-	 * "mode", and should be passed to usb_musb_init().
-	 */
-	.power		= 50,			/* up to 100 mA */
+	.power		= 250,			/* up to 500 mA */
 };
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
