@@ -84,6 +84,12 @@ static int __init vfpm_init(void)
 	u32 *mvfr0 = (u32 *)0xe000ef40;
 	u32 *fpccr = (u32 *)0xe000ef34;
 
+	/*
+	 * Force the VFP undetect until context switch in
+	 *   vfpm_notifier() is fixed
+	*/
+	return 0;
+
 	/* check for single-precision VFP operations */
 	if ((*mvfr0 & 0xf0) != 0x20)
 		return 0;
