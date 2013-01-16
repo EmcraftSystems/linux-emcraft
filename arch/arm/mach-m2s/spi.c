@@ -38,6 +38,7 @@
  * a separate PDMA driver to fix this.
  */
 #define PDMA_M2S_REGS		0x40003000
+#define PDMA_M2S_IRQ           13
 
 #define SPI0_M2S_ID		0
 #define SPI0_M2S_REGS		0x40001000
@@ -61,7 +62,10 @@ static struct resource spi_m2s_dev0_resources[] = {
 		.start	= PDMA_M2S_REGS,
 		.end	= PDMA_M2S_REGS + 1,
 		.flags	= IORESOURCE_MEM,
-	}
+	}, {
+               .start  = PDMA_M2S_IRQ,
+               .flags  = IORESOURCE_IRQ,
+	},
 };
 
 static struct spi_m2s_platform_data spi_m2s_dev0_data = {
@@ -87,6 +91,9 @@ static struct resource spi_m2s_dev1_resources[] = {
 		.start	= PDMA_M2S_REGS,
 		.end	= PDMA_M2S_REGS + 1,
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= PDMA_M2S_IRQ,
+		.flags	= IORESOURCE_IRQ,
 	}
 };
 
