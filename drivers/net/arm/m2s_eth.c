@@ -827,6 +827,14 @@ static netdev_tx_t m2s_mac_net_start_xmit(struct sk_buff *skb,
 	unsigned long		f;
 	u32			idx;
 
+	/*
+	 * !!!FIXME!!!
+	 * Copying files via NFS can hang the M2S MAC_DMA controller
+	 * when the packets transmit rate is too fast. As a workaround,
+	 * the 50 usec delay is added.
+	 */
+	udelay(50);
+
 	spin_lock_irqsave(&d->lock, f);
 	idx = d->tx.idx_nxt;
 	d->tx.idx_nxt = (d->tx.idx_nxt + 1) % M2S_TX_NUM;
