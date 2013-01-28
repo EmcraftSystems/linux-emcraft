@@ -156,7 +156,6 @@ static inline struct musb *dev_to_musb(struct device *dev)
  */
 void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 {
-	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
 
 	if (unlikely(len == 0))
@@ -200,7 +199,6 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
  */
 void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
-	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
 
 	if (unlikely(len == 0))
