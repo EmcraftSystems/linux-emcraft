@@ -387,11 +387,21 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 	 */
 	if (list_empty(&qh->hep->urb_list)) {
 		struct list_head	*head;
+		struct dma_controller	*dma = musb->dma_controller;
 
-		if (is_in)
+		if (is_in) {
 			ep->rx_reinit = 1;
-		else
+			if (ep->rx_channel) {
+				dma->channel_release(ep->rx_channel);
+				ep->rx_channel = NULL;
+			}
+		} else {
 			ep->tx_reinit = 1;
+			if (ep->tx_channel) {
+				dma->channel_release(ep->tx_channel);
+				ep->tx_channel = NULL;
+			}
+		}
 
 		/* Clobber old pointers to this qh */
 		musb_ep_set_qh(ep, is_in, NULL);
@@ -654,6 +664,12 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 
 	qh->segsize = length;
 
+	/*
+	 * Ensure the data reaches to main memory before starting
+	 * DMA transfer
+	 */
+	wmb();
+
 	if (!dma->channel_program(channel, pkt_size, mode,
 			urb->transfer_dma + offset, length)) {
 		dma->channel_release(channel);
@@ -683,6 +699,8 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 	void __iomem		*epio = hw_ep->regs;
 	struct musb_qh		*qh = musb_ep_get_qh(hw_ep, !is_out);
 	u16			packet_sz = qh->maxpacket;
+	u8			use_dma = 1;
+	u16			csr;
 
 	DBG(3, "%s hw%d urb %p spd%d dev%d ep%d%s "
 				"h_addr%02x h_port%02x bytes %d\n",
@@ -694,9 +712,17 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 
 	musb_ep_select(mbase, epnum);
 
+	if (is_out && !len) {
+		use_dma = 0;
+		csr = musb_readw(epio, MUSB_TXCSR);
+		csr &= ~MUSB_TXCSR_DMAENAB;
+		musb_writew(epio, MUSB_TXCSR, csr);
+		hw_ep->tx_channel = NULL;
+	}
+
 	/* candidate for DMA? */
 	dma_controller = musb->dma_controller;
-	if (is_dma_capable() && epnum && dma_controller) {
+	if (use_dma && is_dma_capable() && epnum && dma_controller) {
 		dma_channel = is_out ? hw_ep->tx_channel : hw_ep->rx_channel;
 		if (!dma_channel) {
 			dma_channel = dma_controller->channel_alloc(
@@ -838,33 +864,28 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		/* kick things off */
 
 		if ((is_cppi_enabled() || tusb_dma_omap()) && dma_channel) {
-			/* candidate for DMA */
-			if (dma_channel) {
-				dma_channel->actual_len = 0L;
-				qh->segsize = len;
+			/* Candidate for DMA */
+			dma_channel->actual_len = 0L;
+			qh->segsize = len;
 
-				/* AUTOREQ is in a DMA register */
-				musb_writew(hw_ep->regs, MUSB_RXCSR, csr);
-				csr = musb_readw(hw_ep->regs,
-						MUSB_RXCSR);
+			/* AUTOREQ is in a DMA register */
+			musb_writew(hw_ep->regs, MUSB_RXCSR, csr);
+			csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
 
-				/* unless caller treats short rx transfers as
-				 * errors, we dare not queue multiple transfers.
-				 */
-				dma_ok = dma_controller->channel_program(
-						dma_channel, packet_sz,
-						!(urb->transfer_flags
-							& URB_SHORT_NOT_OK),
-						urb->transfer_dma + offset,
-						qh->segsize);
-				if (!dma_ok) {
-					dma_controller->channel_release(
-							dma_channel);
-					hw_ep->rx_channel = NULL;
-					dma_channel = NULL;
-				} else
-					csr |= MUSB_RXCSR_DMAENAB;
-			}
+			/*
+			 * Unless caller treats short RX transfers as
+			 * errors, we dare not queue multiple transfers.
+			 */
+			dma_ok = dma_controller->channel_program(dma_channel,
+					packet_sz, !(urb->transfer_flags &
+						     URB_SHORT_NOT_OK),
+					urb->transfer_dma + offset,
+					qh->segsize);
+			if (!dma_ok) {
+				dma_controller->channel_release(dma_channel);
+				hw_ep->rx_channel = dma_channel = NULL;
+			} else
+				csr |= MUSB_RXCSR_DMAENAB;
 		}
 
 		csr |= MUSB_RXCSR_H_REQPKT;
@@ -874,6 +895,73 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 	}
 }
 
+/* Schedule next QH from musb->in_bulk/out_bulk and move the current qh to
+ * the end; avoids starvation for other endpoints.
+ */
+static void musb_bulk_nak_timeout(struct musb *musb, struct musb_hw_ep *ep,
+	int is_in)
+{
+	struct dma_channel	*dma;
+	struct urb		*urb;
+	void __iomem		*mbase = musb->mregs;
+	void __iomem		*epio = ep->regs;
+	struct musb_qh		*cur_qh, *next_qh;
+	u16			rx_csr, tx_csr;
+
+	musb_ep_select(mbase, ep->epnum);
+	if (is_in) {
+		dma = is_dma_capable() ? ep->rx_channel : NULL;
+
+		/* clear nak timeout bit */
+		rx_csr = musb_readw(epio, MUSB_RXCSR);
+		rx_csr |= MUSB_RXCSR_H_WZC_BITS;
+		rx_csr &= ~MUSB_RXCSR_DATAERROR;
+		musb_writew(epio, MUSB_RXCSR, rx_csr);
+
+		cur_qh = first_qh(&musb->in_bulk);
+	} else {
+		dma = is_dma_capable() ? ep->tx_channel : NULL;
+
+		/* clear nak timeout bit */
+		tx_csr = musb_readw(epio, MUSB_TXCSR);
+		tx_csr |= MUSB_TXCSR_H_WZC_BITS;
+		tx_csr &= ~MUSB_TXCSR_H_NAKTIMEOUT;
+		musb_writew(epio, MUSB_TXCSR, tx_csr);
+
+		cur_qh = first_qh(&musb->out_bulk);
+	}
+	if (cur_qh) {
+		urb = next_urb(cur_qh);
+		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
+			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
+			musb->dma_controller->channel_abort(dma);
+			urb->actual_length += dma->actual_len;
+			dma->actual_len = 0L;
+		}
+		musb_save_toggle(cur_qh, is_in, urb);
+
+		if (is_in) {
+			/* move cur_qh to end of queue */
+			list_move_tail(&cur_qh->ring, &musb->in_bulk);
+
+			/* get the next qh from musb->in_bulk */
+			next_qh = first_qh(&musb->in_bulk);
+
+			/* set rx_reinit and schedule the next qh */
+			ep->rx_reinit = 1;
+		} else {
+			/* move cur_qh to end of queue */
+			list_move_tail(&cur_qh->ring, &musb->out_bulk);
+
+			/* get the next qh from musb->out_bulk */
+			next_qh = first_qh(&musb->out_bulk);
+
+			/* set tx_reinit and schedule the next qh */
+			ep->tx_reinit = 1;
+		}
+		musb_start_urb(musb, is_in, next_qh);
+	}
+}
 
 /*
  * Service the default endpoint (ep0) as host.
@@ -1107,6 +1195,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	u32			status = 0;
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
+	bool			transfer_pending = false;
+	static bool use_sg;
 
 	musb_ep_select(mbase, epnum);
 	tx_csr = musb_readw(epio, MUSB_TXCSR);
@@ -1137,23 +1227,31 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		status = -ETIMEDOUT;
 
 	} else if (tx_csr & MUSB_TXCSR_H_NAKTIMEOUT) {
-		DBG(6, "TX end=%d device not responding\n", epnum);
-
-		/* NOTE:  this code path would be a good place to PAUSE a
-		 * transfer, if there's some other (nonperiodic) tx urb
-		 * that could use this fifo.  (dma complicates it...)
-		 * That's already done for bulk RX transfers.
-		 *
-		 * if (bulk && qh->ring.next != &musb->out_bulk), then
-		 * we have a candidate... NAKing is *NOT* an error
-		 */
-		musb_ep_select(mbase, epnum);
-		musb_writew(epio, MUSB_TXCSR,
-				MUSB_TXCSR_H_WZC_BITS
-				| MUSB_TXCSR_TXPKTRDY);
-		return;
+		if (USB_ENDPOINT_XFER_BULK == qh->type && qh->mux == 1
+				&& !list_is_singular(&musb->out_bulk)) {
+			dev_dbg(musb->controller,
+				"NAK timeout on TX%d ep\n", epnum);
+			musb_bulk_nak_timeout(musb, hw_ep, 0);
+		} else {
+			dev_dbg(musb->controller,
+				"TX end=%d device not responding\n", epnum);
+			/* NOTE:  this code path would be a good place to PAUSE a
+			 * transfer, if there's some other (nonperiodic) tx urb
+			 * that could use this fifo.  (dma complicates it...)
+			 * That's already done for bulk RX transfers.
+			 *
+			 * if (bulk && qh->ring.next != &musb->out_bulk), then
+			 * we have a candidate... NAKing is *NOT* an error
+			 */
+			musb_ep_select(mbase, epnum);
+			musb_writew(epio, MUSB_TXCSR,
+					MUSB_TXCSR_H_WZC_BITS
+					| MUSB_TXCSR_TXPKTRDY);
+		}
+			return;
 	}
 
+done:
 	if (status) {
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
@@ -1267,7 +1365,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 				offset = d->offset;
 				length = d->length;
 			}
-		} else if (dma) {
+		} else if (dma && urb->transfer_buffer_length == qh->offset) {
 			done = true;
 		} else {
 			/* see if we need to send more data, or ZLP */
@@ -1280,6 +1378,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 			if (!done) {
 				offset = qh->offset;
 				length = urb->transfer_buffer_length - offset;
+				transfer_pending = true;
 			}
 		}
 	}
@@ -1299,7 +1398,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		urb->actual_length = qh->offset;
 		musb_advance_schedule(musb, urb, hw_ep, USB_DIR_OUT);
 		return;
-	} else	if (usb_pipeisoc(pipe) && dma) {
+	} else if ((usb_pipeisoc(pipe) || transfer_pending) && dma) {
 		if (musb_tx_dma_program(musb->dma_controller, hw_ep, qh, urb,
 				offset, length)) {
 			if (is_cppi_enabled() || tusb_dma_omap())
@@ -1367,50 +1466,6 @@ void musb_host_tx(struct musb *musb, u8 epnum)
  */
 
 #endif
-
-/* Schedule next QH from musb->in_bulk and move the current qh to
- * the end; avoids starvation for other endpoints.
- */
-static void musb_bulk_rx_nak_timeout(struct musb *musb, struct musb_hw_ep *ep)
-{
-	struct dma_channel	*dma;
-	struct urb		*urb;
-	void __iomem		*mbase = musb->mregs;
-	void __iomem		*epio = ep->regs;
-	struct musb_qh		*cur_qh, *next_qh;
-	u16			rx_csr;
-
-	musb_ep_select(mbase, ep->epnum);
-	dma = is_dma_capable() ? ep->rx_channel : NULL;
-
-	/* clear nak timeout bit */
-	rx_csr = musb_readw(epio, MUSB_RXCSR);
-	rx_csr |= MUSB_RXCSR_H_WZC_BITS;
-	rx_csr &= ~MUSB_RXCSR_DATAERROR;
-	musb_writew(epio, MUSB_RXCSR, rx_csr);
-
-	cur_qh = first_qh(&musb->in_bulk);
-	if (cur_qh) {
-		urb = next_urb(cur_qh);
-		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
-			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
-			musb->dma_controller->channel_abort(dma);
-			urb->actual_length += dma->actual_len;
-			dma->actual_len = 0L;
-		}
-		musb_save_toggle(cur_qh, 1, urb);
-
-		/* move cur_qh to end of queue */
-		list_move_tail(&cur_qh->ring, &musb->in_bulk);
-
-		/* get the next qh from musb->in_bulk */
-		next_qh = first_qh(&musb->in_bulk);
-
-		/* set rx_reinit and schedule the next qh */
-		ep->rx_reinit = 1;
-		musb_start_urb(musb, 1, next_qh);
-	}
-}
 
 /*
  * Service an RX interrupt for the given IN endpoint; docs cover bulk, iso,
@@ -1488,7 +1543,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			if (usb_pipebulk(urb->pipe)
 					&& qh->mux == 1
 					&& !list_is_singular(&musb->in_bulk)) {
-				musb_bulk_rx_nak_timeout(musb, hw_ep);
+				musb_bulk_nak_timeout(musb, hw_ep, 1);
 				return;
 			}
 			musb_ep_select(mbase, epnum);
@@ -1577,7 +1632,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			/* even if there was an error, we did the dma
 			 * for iso_frame_desc->length
 			 */
-			if (d->status != EILSEQ && d->status != -EOVERFLOW)
+			if (d->status != -EILSEQ && d->status != -EOVERFLOW)
 				d->status = 0;
 
 			if (++qh->iso_idx >= urb->number_of_packets)
@@ -1771,6 +1826,9 @@ static int musb_schedule(
 	int			best_end, epnum;
 	struct musb_hw_ep	*hw_ep = NULL;
 	struct list_head	*head = NULL;
+	u8			toggle;
+	u8			txtype;
+	struct urb		*urb = next_urb(qh);
 
 	/* use fixed hardware for control and bulk */
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
@@ -1809,6 +1867,27 @@ static int musb_schedule(
 		diff -= (qh->maxpacket * qh->hb_mult);
 
 		if (diff >= 0 && best_diff > diff) {
+
+			/*
+			 * Mentor controller has a bug in that if we schedule
+			 * a BULK Tx transfer on an endpoint that had earlier
+			 * handled ISOC then the BULK transfer has to start on
+			 * a zero toggle.  If the BULK transfer starts on a 1
+			 * toggle then this transfer will fail as the mentor
+			 * controller starts the Bulk transfer on a 0 toggle
+			 * irrespective of the programming of the toggle bits
+			 * in the TXCSR register.  Check for this condition
+			 * while allocating the EP for a Tx Bulk transfer.  If
+			 * so skip this EP.
+			 */
+			hw_ep = musb->endpoints + epnum;
+			toggle = usb_gettoggle(urb->dev, qh->epnum, !is_in);
+			txtype = (musb_readb(hw_ep->regs, MUSB_TXTYPE)
+					>> 4) & 0x3;
+			if (!is_in && (qh->type == USB_ENDPOINT_XFER_BULK) &&
+				toggle && (txtype == USB_ENDPOINT_XFER_ISOC))
+				continue;
+
 			best_diff = diff;
 			best_end = epnum;
 		}
@@ -1821,14 +1900,14 @@ static int musb_schedule(
 		else
 			head = &musb->out_bulk;
 
-		/* Enable bulk RX NAK timeout scheme when bulk requests are
+		/* Enable bulk RX/TX NAK timeout scheme when bulk requests are
 		 * multiplexed.  This scheme doen't work in high speed to full
 		 * speed scenario as NAK interrupts are not coming from a
 		 * full speed device connected to a high speed device.
 		 * NAK timeout interval is 8 (128 uframe or 16ms) for HS and
 		 * 4 (8 frame or 8ms) for FS device.
 		 */
-		if (is_in && qh->dev)
+		if (qh->dev)
 			qh->intv_reg =
 				(USB_SPEED_HIGH == qh->dev->speed) ? 8 : 4;
 		goto success;
@@ -2007,11 +2086,12 @@ static int musb_urb_enqueue(
 	 * we only have work to do in the former case.
 	 */
 	spin_lock_irqsave(&musb->lock, flags);
-	if (hep->hcpriv) {
+	if (hep->hcpriv || !next_urb(qh)) {
 		/* some concurrent activity submitted another urb to hep...
 		 * odd, rare, error prone, but legal.
 		 */
 		kfree(qh);
+		qh = NULL;
 		ret = 0;
 	} else
 		ret = musb_schedule(musb, qh,
@@ -2044,6 +2124,7 @@ done:
 static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh)
 {
 	struct musb_hw_ep	*ep = qh->hw_ep;
+	struct musb		*musb = ep->musb;
 	void __iomem		*epio = ep->regs;
 	unsigned		hw_end = ep->epnum;
 	void __iomem		*regs = ep->musb->mregs;
@@ -2068,7 +2149,7 @@ static int musb_cleanup_urb(struct urb *urb, struct musb_qh *qh)
 	}
 
 	/* turn off DMA requests, discard state, stop polling ... */
-	if (is_in) {
+	if (ep->epnum && is_in) {
 		/* giveback saves bulk toggle */
 		csr = musb_h_flush_rxfifo(ep, 0);
 

@@ -156,7 +156,11 @@ static inline struct musb *dev_to_musb(struct device *dev)
  */
 void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 {
+	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
+
+	if (unlikely(len == 0))
+		return;
 
 	prefetch((u8 *)src);
 
@@ -196,7 +200,11 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
  */
 void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
+	struct musb *musb = hw_ep->musb;
 	void __iomem *fifo = hw_ep->fifo;
+
+	if (unlikely(len == 0))
+		return;
 
 	DBG(4, "%cX ep%d fifo %p count %d buf %p\n",
 			'R', hw_ep->epnum, fifo, len, dst);
@@ -353,8 +361,7 @@ void musb_hnp_stop(struct musb *musb)
 	 * which cause occasional OPT A "Did not receive reset after connect"
 	 * errors.
 	 */
-	musb->port1_status &=
-		~(1 << USB_PORT_FEAT_C_CONNECTION);
+	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
 
 #endif
@@ -471,6 +478,14 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	/* see manual for the order of the tests */
 	if (int_usb & MUSB_INTR_SESSREQ) {
+		void __iomem *mbase = musb->mregs;
+
+		if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS
+				&& (devctl & MUSB_DEVCTL_BDEVICE)) {
+			DBG(1, "SessReq while on B state\n");
+			return IRQ_HANDLED;
+		}
+
 		DBG(1, "SESSION_REQUEST (%s)\n", otg_state_string(musb));
 
 		/* IRQ arrives from ID pin sense or (later, if VBUS power
@@ -519,6 +534,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		case OTG_STATE_A_WAIT_BCON:
 		case OTG_STATE_A_WAIT_VRISE:
 			if (musb->vbuserr_retry) {
+				void __iomem *mbase = musb->mregs;
+
 				musb->vbuserr_retry--;
 				ignore = 1;
 				devctl |= MUSB_DEVCTL_SESSION;
@@ -1265,7 +1282,7 @@ static int __init ep_config_from_hw(struct musb *musb)
 {
 	u8 epnum = 0;
 	struct musb_hw_ep *hw_ep;
-	void *mbase = musb->mregs;
+	void __iomem *mbase = musb->mregs;
 	int ret = 0;
 
 	DBG(2, "<== static silicon ep config\n");
