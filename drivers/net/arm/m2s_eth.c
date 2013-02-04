@@ -101,12 +101,15 @@
 /*
  * DMA_RX_STAT/DMA_TX_STAT register fields
  */
-#define M2S_MAC_DMA_STAT_BUS	(1 << 3)	/* Bus error		      */
-#define M2S_MAC_DMA_STAT_OVF	(1 << 1)	/* Overflow/underrun	      */
-#define M2S_MAC_DMA_STAT_ACK	(1 << 0)	/* Reduce Rx/TxPktCount value */
-#define M2S_MAC_DMA_STAT_RX	(M2S_MAC_DMA_STAT_BUS | M2S_MAC_DMA_STAT_OVF | \
-				 M2S_MAC_DMA_STAT_ACK)
-#define M2S_MAC_DMA_STAT_TX	(M2S_MAC_DMA_STAT_BUS | M2S_MAC_DMA_STAT_ACK)
+#define M2S_MAC_DMA_STAT_RX_BE	(1 << 3)	/* Bus error		      */
+#define M2S_MAC_DMA_STAT_RX_OF	(1 << 2)	/* Overflow		      */
+#define M2S_MAC_DMA_STAT_RX_PR	(1 << 0)	/* Packet received	      */
+#define M2S_MAC_DMA_STAT_TX_BE	(1 << 3)	/* Bus error		      */
+#define M2S_MAC_DMA_STAT_TX_UN	(1 << 1)	/* Underrun		      */
+#define M2S_MAC_DMA_STAT_TX_PS	(1 << 0)	/* Packet sent		      */
+#define M2S_MAC_DMA_STAT_RX	(M2S_MAC_DMA_STAT_RX_BE|M2S_MAC_DMA_STAT_RX_OF|\
+				 M2S_MAC_DMA_STAT_RX_PR)
+#define M2S_MAC_DMA_STAT_TX	(M2S_MAC_DMA_STAT_TX_BE|M2S_MAC_DMA_STAT_RX_PS)
 
 /*
  * DMA_IRQ register fields
@@ -119,6 +122,8 @@
 #define M2S_MAC_DMA_IRQ_MSK	(M2S_MAC_DMA_IRQ_RBUS | M2S_MAC_DMA_IRQ_ROVF | \
 				 M2S_MAC_DMA_IRQ_RPKT |			       \
 				 M2S_MAC_DMA_IRQ_TBUS | M2S_MAC_DMA_IRQ_TPKT)
+#define M2S_MAC_DMA_IRQ_XMIT	(M2S_MAC_DMA_IRQ_RPKT | M2S_MAC_DMA_IRQ_TPKT)
+#define M2S_MAC_DMA_IRQ_ERR	(M2S_MAC_DMA_IRQ_RBUS | M2S_MAC_DMA_IRQ_TBUS)
 
 /*
  * FIFO_CFG0 register fields
@@ -205,13 +210,15 @@ struct m2s_mac_dev {
 
 	struct platform_device		*ptf_dev;	/* Platform device    */
 	struct net_device		*net_dev;
+	struct napi_struct		napi;
+
 	struct phy_device		*phy_dev;
 	struct mii_bus			*mii_bus;
 
 	struct {
 		volatile struct m2s_mac_dma_bd	*bd;	/* RxBD ring CPU adr  */
 		dma_addr_t			bd_adr;	/* RxBD ring DMA adr  */
-		u32				idx;	/* Index in RxBD ring */
+		u32				idx;	/* RxBD id	      */
 
 		char				*buf[M2S_RX_NUM];
 	} rx;
@@ -219,8 +226,8 @@ struct m2s_mac_dev {
 	struct {
 		volatile struct m2s_mac_dma_bd	*bd;	/* TxBD ring CPU adr  */
 		dma_addr_t			bd_adr;	/* TxBD ring DMA adr  */
-		u32				idx_nxt;/* Next to send index */
-		u32				idx_cur;/* Sent index	      */
+		u32				idx_nxt;/* Next TxBD id	      */
+		u32				idx_cur;/* Sent TxBD id	      */
 
 		char				*buf[M2S_TX_NUM];
 		struct sk_buff			*skb[M2S_TX_NUM];
@@ -569,6 +576,13 @@ static __init int m2s_mac_hw_init(struct m2s_mac_dev *d)
 		goto out;
 	}
 
+	/*
+	 * Use same FIFO settings as in AR71xx driver
+	 */
+	M2S_MAC_CFG(d)->fifo_cfg[1] = 0x0fff0000;
+	M2S_MAC_CFG(d)->fifo_cfg[2] = 0x00001fff;
+	M2S_MAC_CFG(d)->fifo_cfg[3] = 0x008001ff;
+
 	M2S_MAC_DMA(d)->irq_msk = M2S_MAC_DMA_IRQ_MSK;
 	M2S_MAC_DMA(d)->irq = M2S_MAC_DMA_IRQ_MSK;
 
@@ -589,37 +603,89 @@ static void m2s_mac_hw_halt(struct m2s_mac_dev *d)
 }
 
 /*
- * MAC Rx interrupt handler
+ * Common MAC interrupt handler
  */
-static void m2s_mac_rx_irq_cb(struct net_device *dev)
+static irqreturn_t m2s_mac_irq_cb(int irq, void *dev_id)
+{
+	struct net_device	*dev = dev_id;
+	struct m2s_mac_dev	*d = netdev_priv(dev);
+	u32			status, handled = 0;
+
+	status = M2S_MAC_DMA(d)->irq;
+
+	if (unlikely(status & M2S_MAC_DMA_IRQ_ERR)) {
+		handled++;
+		if (status & M2S_MAC_DMA_IRQ_RBUS)
+			M2S_MAC_DMA(d)->rx_stat = M2S_MAC_DMA_STAT_RX_BE;
+		if (status & M2S_MAC_DMA_IRQ_TBUS)
+			M2S_MAC_DMA(d)->tx_stat = M2S_MAC_DMA_STAT_TX_BE;
+	}
+
+	if (likely(status & M2S_MAC_DMA_IRQ_XMIT)) {
+		handled++;
+		M2S_MAC_DMA(d)->irq_msk &= ~M2S_MAC_DMA_IRQ_XMIT;
+		napi_schedule(&d->napi);
+	}
+
+	if (unlikely(!handled))
+		m2s_mac_dump_regs("Unhandled M2S MAC IRQ", d);
+
+	return IRQ_RETVAL(handled);
+}
+
+static int m2s_mac_tx_packets(struct m2s_mac_dev *d)
 {
 	volatile struct m2s_mac_dma_bd	*bd;
-	struct m2s_mac_dev		*d = netdev_priv(dev);
+	struct net_device		*dev = d->net_dev;
+	u32				idx;
+	int				sent = 0;
+
+	/*
+	 * Process frames
+	 */
+	while (d->tx.idx_cur != d->tx.idx_nxt) {
+		idx = d->tx.idx_cur % M2S_TX_NUM;
+		bd = &d->tx.bd[idx];
+
+		if (!(bd->cfg_size & M2S_BD_EMPTY))
+			break;
+		if (!(d->tx.skb[idx]))
+			break;
+
+		dev->stats.tx_bytes += d->tx.skb[idx]->len;
+		dev->stats.tx_packets++;
+
+		dev_kfree_skb_any(d->tx.skb[idx]);
+		d->tx.skb[idx] = NULL;
+
+		M2S_MAC_DMA(d)->tx_stat = M2S_MAC_DMA_STAT_TX_PS;
+		d->tx.idx_cur++;
+		sent++;
+	}
+
+	netif_wake_queue(dev);
+
+	return sent;
+}
+
+int m2s_mac_rx_packets(struct m2s_mac_dev *d, int limit)
+{
+	volatile struct m2s_mac_dma_bd	*bd;
 	struct sk_buff			*skb;
-	unsigned long			f;
-	u32				last, size;
-
-	debug("%s: rx_stat=0x%08x\n", __func__, M2S_MAC_DMA(d)->rx_stat);
-
-	/*
-	 * Process errors
-	 */
-	if (M2S_MAC_DMA(d)->rx_stat & M2S_MAC_DMA_STAT_OVF)
-		dev->stats.rx_over_errors++;
-
-	if (M2S_MAC_DMA(d)->rx_stat & M2S_MAC_DMA_STAT_BUS)
-		dev->stats.rx_fifo_errors++;
+	struct net_device		*dev = d->net_dev;
+	u32				size, idx;
+	int				done = 0;
 
 	/*
-	 * Process rx frames; don't want to hang forever, allow only one
-	 * full ring pass
+	 * Process rx frames
 	 */
-	spin_lock_irqsave(&d->lock, f);
-	last = d->rx.idx;
-	while (!(d->rx.bd[d->rx.idx].cfg_size & M2S_BD_EMPTY)) {
-		bd = &d->rx.bd[d->rx.idx];
+	while (done < limit) {
+		idx = d->rx.idx % M2S_RX_NUM;
+		bd = &d->rx.bd[idx];
+		if (bd->cfg_size & M2S_BD_EMPTY)
+			break;
+
 		size = bd->cfg_size & M2S_BD_SIZE_MSK;
-
 		if (size < sizeof(struct ethhdr)) {
 			printk("%s: packet too small: %d\n", __func__, size);
 			dev->stats.rx_dropped++;
@@ -628,7 +694,7 @@ static void m2s_mac_rx_irq_cb(struct net_device *dev)
 
 		skb = dev_alloc_skb(size - 4 + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
-			printk("%s: no memory, drop packet\n", dev->name);
+			printk("%s: no mem, drop packet\n", __func__);
 			dev->stats.rx_dropped++;
 			goto next;
 		}
@@ -639,105 +705,52 @@ static void m2s_mac_rx_irq_cb(struct net_device *dev)
 
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, size);
-		skb_copy_to_linear_data(skb, d->rx.buf[d->rx.idx], size);
+		skb_copy_to_linear_data(skb, d->rx.buf[idx], size);
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 next:
 		bd->cfg_size = M2S_BD_EMPTY;
-		M2S_MAC_DMA(d)->rx_stat = M2S_MAC_DMA_STAT_ACK;
+		M2S_MAC_DMA(d)->rx_stat = M2S_MAC_DMA_STAT_RX_PR;
 
-		d->rx.idx = (d->rx.idx + 1) % M2S_RX_NUM;
-		if (d->rx.idx == last)
-			break;
+		d->rx.idx++;
+		done++;
 	}
 
-	/*
-	 * If Rx stopped (e.g. overflow happened), then update Rx BD base, and
-	 * restart rxing
-	 */
-	if (!(M2S_MAC_DMA(d)->rx_ctrl & M2S_MAC_DMA_CTRL_ENA)) {
-		M2S_MAC_DMA(d)->rx_desc = d->rx.bd_adr +
-			(d->rx.idx * sizeof(struct m2s_mac_dma_bd));
+	return done;
+}
+
+/*
+ * NAPI poll
+ */
+static int m2s_mac_poll(struct napi_struct *napi, int limit)
+{
+	struct m2s_mac_dev	*d = container_of(napi, struct m2s_mac_dev,
+						  napi);
+	int			tx_done, rx_done;
+	u32			status;
+
+	tx_done = m2s_mac_tx_packets(d);
+	rx_done = m2s_mac_rx_packets(d, limit);
+
+	status = M2S_MAC_DMA(d)->rx_stat;
+	if (unlikely(status & M2S_MAC_DMA_STAT_RX_OF)) {
+		M2S_MAC_DMA(d)->rx_stat = M2S_MAC_DMA_STAT_RX_OF;
 		M2S_MAC_DMA(d)->rx_ctrl = M2S_MAC_DMA_CTRL_ENA;
 	}
-	spin_unlock_irqrestore(&d->lock, f);
-}
 
-/*
- * MAC Tx interrupt handler
- */
-static void m2s_mac_tx_irq_cb(struct net_device *dev)
-{
-	volatile struct m2s_mac_dma_bd	*bd;
-	struct m2s_mac_dev		*d = netdev_priv(dev);
-	unsigned long			f;
-	u32				idx;
+	if (rx_done < limit) {
+		if (status & M2S_MAC_DMA_STAT_RX_PR)
+			goto more;
 
-	idx = d->tx.idx_cur;
-	bd = &d->tx.bd[idx];
-	debug("%s: tx_stat=0x%08x;dsc[%d]=%08x.%08x.%08x\n", __func__,
-		M2S_MAC_DMA(d)->tx_stat, idx,
-		bd->adr_buf, bd->cfg_size, bd->adr_bd_next);
+		status = M2S_MAC_DMA(d)->tx_stat;
+		if (status & M2S_MAC_DMA_STAT_TX_PS)
+			goto more;
 
-	/*
-	 * Process errors
-	 */
-	if (M2S_MAC_DMA(d)->tx_stat & M2S_MAC_DMA_STAT_BUS)
-		dev->stats.tx_fifo_errors++;
-
-	/*
-	 * Process frames
-	 */
-	spin_lock_irqsave(&d->lock, f);
-	while (bd->cfg_size & M2S_BD_EMPTY) {
-		if (!(d->tx.skb[idx]))
-			break;
-		bd->cfg_size = M2S_BD_EMPTY;
-
-		dev->stats.tx_bytes += d->tx.skb[idx]->len;
-		dev->stats.tx_packets++;
-
-		dev_kfree_skb_irq(d->tx.skb[idx]);
-		d->tx.skb[idx] = NULL;
-
-		M2S_MAC_DMA(d)->tx_stat = M2S_MAC_DMA_STAT_ACK;
-		d->tx.idx_cur = (d->tx.idx_cur + 1) % M2S_TX_NUM;
-
-		idx = d->tx.idx_cur;
-		bd = &d->tx.bd[idx];
+		napi_complete(napi);
+		M2S_MAC_DMA(d)->irq_msk |= M2S_MAC_DMA_IRQ_XMIT;
 	}
-
-	/*
-	 * If Tx stopped, then update tx ring location base, so that
-	 * next time when we'll enable xfer - DMA re-fetch new BD base correctly
-	 */
-	if (!(M2S_MAC_DMA(d)->tx_ctrl & M2S_MAC_DMA_CTRL_ENA)) {
-		M2S_MAC_DMA(d)->tx_desc = d->tx.bd_adr +
-			 (d->tx.idx_cur * sizeof(struct m2s_mac_dma_bd));
-	}
-	spin_unlock_irqrestore(&d->lock, f);
-}
-
-/*
- * Common MAC interrupt handler
- */
-static irqreturn_t m2s_mac_irq_cb(int irq, void *dev_id)
-{
-	struct net_device	*dev = dev_id;
-	struct m2s_mac_dev	*d = netdev_priv(dev);
-	u32			handled = 0;
-
-	if (M2S_MAC_DMA(d)->rx_stat & M2S_MAC_DMA_STAT_RX) {
-		m2s_mac_rx_irq_cb(dev);
-		handled++;
-	}
-
-	if (M2S_MAC_DMA(d)->tx_stat & M2S_MAC_DMA_STAT_TX) {
-		m2s_mac_tx_irq_cb(dev);
-		handled++;
-	}
-
-	return IRQ_RETVAL(handled);
+more:
+	return rx_done;
 }
 
 /*
@@ -745,10 +758,10 @@ static irqreturn_t m2s_mac_irq_cb(int irq, void *dev_id)
  */
 static void m2s_mac_dump_regs(char *who, struct m2s_mac_dev *d)
 {
-	int	i;
+	volatile struct m2s_mac_dma_bd	*bd;
+	int				i;
 
-	if (who)
-		printk("*** %s %s:\n", __func__, who);
+	printk("*** %s %s:\n", __func__, who ? who : "<unknown>");
 
 	printk(" DMA TX CTRL=%08x;DESC=%08x;STAT=%08x\n",
 		M2S_MAC_DMA(d)->tx_ctrl, M2S_MAC_DMA(d)->tx_desc,
@@ -756,14 +769,16 @@ static void m2s_mac_dump_regs(char *who, struct m2s_mac_dev *d)
 	printk(" DMA RX CTRL=%08x;DESC=%08x;STAT=%08x\n",
 		M2S_MAC_DMA(d)->rx_ctrl, M2S_MAC_DMA(d)->rx_desc,
 		M2S_MAC_DMA(d)->rx_stat);
-	printk(" DMA IRQ %08x/%08x\n", M2S_MAC_DMA(d)->irq, M2S_MAC_DMA(d)->irq_msk);
+	printk(" DMA IRQ %08x/%08x\n",
+		M2S_MAC_DMA(d)->irq, M2S_MAC_DMA(d)->irq_msk);
 	printk(" CFG1=%08x;CFG2=%08x;IFG=%08x;HD=%08x;MFL=%08x\n",
 		M2S_MAC_CFG(d)->cfg1, M2S_MAC_CFG(d)->cfg2,
 		M2S_MAC_CFG(d)->ifg, M2S_MAC_CFG(d)->half_duplex,
 		M2S_MAC_CFG(d)->max_frame_length);
 	printk(" IFCTRL=%08x;IFSTAT=%08x;ADR1=%08x;ADR2=%08x\n",
 		M2S_MAC_CFG(d)->if_ctrl, M2S_MAC_CFG(d)->if_stat,
-		M2S_MAC_CFG(d)->station_addr[0], M2S_MAC_CFG(d)->station_addr[1]);
+		M2S_MAC_CFG(d)->station_addr[0],
+		M2S_MAC_CFG(d)->station_addr[1]);
 	printk(" FIFO CFG ");
 	for (i = 0; i < 6; i++)
 		printk("%08x/", M2S_MAC_CFG(d)->fifo_cfg[i]);
@@ -773,6 +788,31 @@ static void m2s_mac_dump_regs(char *who, struct m2s_mac_dev *d)
 	for (i = 0; i < 8; i++)
 		printk("%08x/", M2S_MAC_CFG(d)->fifo_ram_access[i]);
 	printk("\n");
+	printk(" TX BDs (idx_nxt=%d,idx_cur=%d.drop=%ld,err=%ld,done=%ld):\n",
+		d->tx.idx_nxt, d->tx.idx_cur,
+		d->net_dev->stats.tx_dropped, d->net_dev->stats.tx_fifo_errors,
+		d->net_dev->stats.tx_packets);
+	bd = (void *)M2S_MAC_DMA(d)->tx_desc;
+	do {
+		printk("  at %p: buf=0x%08x.cfg=0x%08x.nxt=0x%08x\n", bd,
+			bd ? bd->adr_buf : 0,
+			bd ? bd->cfg_size : 0,
+			bd ? bd->adr_bd_next : 0);
+		bd = (void *)bd->adr_bd_next;
+	} while (bd && bd != (void *)M2S_MAC_DMA(d)->tx_desc);
+
+	printk(" RX BDs (idx=%d.drop=%ld,err=%ld,over=%ld,done=%ld):\n",
+		d->rx.idx,
+		d->net_dev->stats.rx_dropped, d->net_dev->stats.rx_fifo_errors,
+		d->net_dev->stats.rx_over_errors, d->net_dev->stats.rx_packets);
+	bd = (void *)M2S_MAC_DMA(d)->rx_desc;
+	do {
+		printk("  at %p: buf=0x%08x.cfg=0x%08x.nxt=0x%08x\n", bd,
+			bd ? bd->adr_buf : 0,
+			bd ? bd->cfg_size : 0,
+			bd ? bd->adr_bd_next : 0);
+		bd = (void *)bd->adr_bd_next;
+	} while (bd && bd != (void *)M2S_MAC_DMA(d)->rx_desc);
 }
 
 /******************************************************************************
@@ -785,6 +825,8 @@ static int m2s_mac_net_open(struct net_device *dev)
 	int			rv;
 
 	debug("%s\n", __func__);
+
+	napi_enable(&d->napi);
 
 	d->link = 0;
 	d->duplex = d->speed = -1;
@@ -816,6 +858,8 @@ static int m2s_mac_net_stop(struct net_device *dev)
 
 	m2s_mac_hw_halt(d);
 
+	napi_disable(&d->napi);
+
 	return 0;
 }
 
@@ -824,23 +868,15 @@ static netdev_tx_t m2s_mac_net_start_xmit(struct sk_buff *skb,
 {
 	struct m2s_mac_dev	*d = netdev_priv(dev);
 	unsigned char		*p = skb->data;
-	unsigned long		f;
 	u32			idx;
+	int			rv;
 
-	/*
-	 * !!!FIXME!!!
-	 * Copying files via NFS can hang the M2S MAC_DMA controller
-	 * when the packets transmit rate is too fast. As a workaround,
-	 * the 50 usec delay is added.
-	 */
-	udelay(50);
-
-	spin_lock_irqsave(&d->lock, f);
-	idx = d->tx.idx_nxt;
-	d->tx.idx_nxt = (d->tx.idx_nxt + 1) % M2S_TX_NUM;
-	spin_unlock_irqrestore(&d->lock, f);
-
-	dev->trans_start = jiffies;
+	idx = d->tx.idx_nxt % M2S_TX_NUM;
+	if (!(d->tx.bd[idx].cfg_size & M2S_BD_EMPTY)) {
+		dev->stats.tx_dropped++;
+		rv = NETDEV_TX_BUSY;
+		goto out;
+	}
 
 	/*
 	 * Check alignment; actually - should check dma mapped addr..
@@ -850,19 +886,25 @@ static netdev_tx_t m2s_mac_net_start_xmit(struct sk_buff *skb,
 		p = d->tx.buf[idx];
 	}
 
+
+	d->tx.skb[idx] = skb;
 	d->tx.bd[idx].adr_buf = (dma_addr_t)p;
 	d->tx.bd[idx].cfg_size = skb->len;
-	d->tx.skb[idx] = skb;
+
+	d->tx.idx_nxt++;
+	if (d->tx.idx_nxt == (d->tx.idx_cur + M2S_TX_NUM))
+		netif_stop_queue(dev);
 
 	debug("%s: %dB; dsc[%d]=%08x.%08x.%08x / %08x.%08x\n", __func__,
 		skb->len, idx, d->tx.bd[idx].adr_buf, d->tx.bd[idx].cfg_size,
 		d->tx.bd[idx].adr_bd_next, M2S_MAC_DMA(d)->tx_ctrl,
 		M2S_MAC_DMA(d)->tx_stat);
 
-	if (!(M2S_MAC_DMA(d)->tx_ctrl & M2S_MAC_DMA_CTRL_ENA))
-		M2S_MAC_DMA(d)->tx_ctrl = M2S_MAC_DMA_CTRL_ENA;
+	M2S_MAC_DMA(d)->tx_ctrl = M2S_MAC_DMA_CTRL_ENA;
 
-	return -ENODEV;
+	rv = NETDEV_TX_OK;
+out:
+	return rv;
 }
 
 static int m2s_mac_net_set_mac_address(struct net_device *dev, void *p)
@@ -1006,6 +1048,11 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 		random_ether_addr(mac);
 	}
 	memcpy(dev->dev_addr, mac, sizeof(mac));
+
+	/*
+	 * Use same NAPI weight as in AR71xx driver
+	 */
+	netif_napi_add(dev, &d->napi, m2s_mac_poll, 64);
 
 	rv = register_netdev(dev);
 	if (rv) {
