@@ -536,6 +536,12 @@ fec_enet_tx(struct net_device *dev)
 				netif_wake_queue(dev);
 		}
 	}
+	/*
+	 * Work around possible race condition in which TDAR is cleared
+	 * by the FEC even though the ready bit in the next BD is set.
+	 */
+	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
+
 	fep->dirty_tx = bdp;
 	spin_unlock(&fep->hw_lock);
 }
