@@ -14,3 +14,4 @@ obj-$(CONFIG_I2C_GPIO)		+= i2c-gpio.o
 obj-$(CONFIG_FB_ARMCLCD)	+= fb.o
 obj-$(CONFIG_LEDS_PCA9532)	+= ea-lpc1788-pca9532.o
 obj-$(CONFIG_GPIOLIB)		+= gpio.o
+obj-$(CONFIG_RTC_DRV_LPC178X)	+= rtc.o

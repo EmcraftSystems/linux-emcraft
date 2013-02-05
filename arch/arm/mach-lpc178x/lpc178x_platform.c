@@ -44,6 +44,7 @@
 #include <mach/sdcard.h>
 #include <mach/i2c.h>
 #include <mach/fb.h>
+#include <mach/rtc.h>
 
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
@@ -257,6 +258,13 @@ static void __init lpc178x_init(void)
 	if (lpc178x_platform_get() == PLATFORM_LPC178X_EA_LPC1788)
 		ea_lpc1788_pca9532_init();
 #endif /* CONFIG_LEDS_PCA9532 && CONFIG_LEDS_PCA9532_GPIO */
+
+#if defined(CONFIG_RTC_DRV_LPC178X)
+	/*
+	 * Initialize the on-chip real-time clock
+	 */
+	lpc178x_rtc_init();
+#endif /* CONFIG_RTC_DRV_LPC178x */
 
 #if defined(CONFIG_SND_LPC3XXX_SOC) || defined(CONFIG_SND_LPC3XXX_SOC_MODULE)
 	if (lpc178x_platform_get() == PLATFORM_LPC178X_EA_LPC1788) {

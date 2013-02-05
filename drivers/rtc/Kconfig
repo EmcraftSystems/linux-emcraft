@@ -875,4 +875,11 @@ config RTC_DRV_STM32F2
 	  If you say yes here you will get support for the
 	  STM32F2 On-Chip Real Time Clock.
 
+config RTC_DRV_LPC178X
+	tristate "LPC178X On-Chip RTC"
+	depends on ARCH_LPC178X
+	help
+	  If you say yes here you will get support for the
+	  LPC178x On-Chip Real Time Clock.
+
 endif # RTC_CLASS
