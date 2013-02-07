@@ -175,5 +175,51 @@ void __init m2s_spi_init(void)
 
 		spi_register_board_info(&m2s_som_sf_inf, 1);
 #endif
+	} else if (p == PLATFORM_SF2_DEV_KIT) {
+#if defined(CONFIG_M2S_MSS_SPI0) && defined(CONFIG_MTD_M25P80)
+		/*
+		 * SPI Flash partitioning:
+		 * 0-ffff:		U-boot environment
+		 * 10000-3fffff:	Linux bootable image
+		 * 400000-end of Flash:	JFFS2 filesystem
+		 */
+#		define SF2_DEV_KIT_SF_MTD_OFFSET	0x010000 /* 64 KB */
+#		define SF2_DEV_KIT_SF_MTD_SIZE0		0x3F0000 /* ~4 MB */
+#		define SF2_DEV_KIT_SF_MTD_SIZE1		0x400000 /*  4 MB */
+		static struct mtd_partition sf2_dev_kit_sf_mtd[] = {
+			{
+				.name = "spi_flash_uboot_env",
+				.offset = 0,
+				.size = SF2_DEV_KIT_SF_MTD_OFFSET,
+			}, {
+				.name = "spi_flash_linux_image",
+				.offset = SF2_DEV_KIT_SF_MTD_OFFSET,
+				.size = SF2_DEV_KIT_SF_MTD_SIZE0,
+			}, {
+				.name = "spi_flash_jffs2",
+				.offset = SF2_DEV_KIT_SF_MTD_OFFSET +
+					  SF2_DEV_KIT_SF_MTD_SIZE0,
+				.size = SF2_DEV_KIT_SF_MTD_SIZE1,
+			},
+		};
+
+		static struct flash_platform_data sf2_dev_kit_sf_data = {
+			.name = "at25df641",
+			.parts = sf2_dev_kit_sf_mtd,
+			.nr_parts = ARRAY_SIZE(sf2_dev_kit_sf_mtd),
+			.type = "at25df641",
+		};
+
+		static struct spi_board_info sf2_dev_kit_sf_inf = {
+			.modalias = "m25p32",
+			.max_speed_hz = 166000000/4,
+			.bus_num = 0,
+			.chip_select = 0,
+			.platform_data = &sf2_dev_kit_sf_data,
+			.mode = SPI_MODE_3,
+		};
+
+		spi_register_board_info(&sf2_dev_kit_sf_inf, 1);
+#endif
 	}
 }

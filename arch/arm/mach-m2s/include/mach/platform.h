@@ -25,8 +25,9 @@
 #ifndef __ASM_ARCH_PLATFORM_H
 #define __ASM_ARCH_PLATFORM_H
 
-#define PLATFORM_G4M_VB		0
-#define PLATFORM_M2S_SOM	1
+#define PLATFORM_G4M_VB			0
+#define PLATFORM_M2S_SOM		1
+#define PLATFORM_SF2_DEV_KIT	2
 
 extern int m2s_platform_get(void);
 

@@ -459,7 +459,6 @@ static void spi_m2s_xfer_start(struct m2s_spi_dsc *s)
 	struct spi_device *dev = s->msg->spi;
 	int wb = (dev->bits_per_word + 7) / 8;
 	int len;
-	int ret = 0;
 
 	if (s->xf == NULL) {
 		/* Should never come here. */

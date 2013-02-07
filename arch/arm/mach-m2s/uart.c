@@ -25,15 +25,20 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/serial_8250.h>
+#include <linux/console.h>
 #include <mach/m2s.h>
 #include <mach/clock.h>
 #include <mach/uart.h>
+#include <mach/platform.h>
 
 /*
  * The MSS subsystem of SmartFusion contains two UART ports that
  * provide the s/w compatibility with the 16550 device.
  */
 #define	MSS_UART_RGSZ		(0x20 - 1)
+
+#define UART0_RST_CLR		(1 << 7)
+#define UART1_RST_CLR		(1 << 8)
 
 /*
  * MSS UART_0
@@ -121,6 +126,15 @@ static struct platform_device mss_uart1_device = {
 void __init m2s_uart_init(void)
 {
 #if defined(CONFIG_M2S_MSS_UART0)
+
+	/*
+	 * Clear the reset bit.
+	 */
+	writel(readl(&M2S_SYSREG->soft_reset_cr) | UART0_RST_CLR,
+		&M2S_SYSREG->soft_reset_cr);
+	writel(readl(&M2S_SYSREG->soft_reset_cr) & ~UART0_RST_CLR,
+		&M2S_SYSREG->soft_reset_cr);
+
 	/*
 	 * Get the reference clock for this UART port
 	 */
@@ -130,8 +144,23 @@ void __init m2s_uart_init(void)
 	 * Register device for UART_0.
 	 */
 	(void) platform_device_register(&mss_uart0_device);
+#else
+	/*
+	 * Put UART0 into reset if it is not required.
+	 */
+	writel(readl(&M2S_SYSREG->soft_reset_cr) | UART0_RST_CLR,
+		&M2S_SYSREG->soft_reset_cr);
 #endif
 #if defined(CONFIG_M2S_MSS_UART1)
+
+	/*
+	 * Clear the reset bit.
+	 */
+	writel(readl(&M2S_SYSREG->soft_reset_cr) | UART1_RST_CLR,
+		&M2S_SYSREG->soft_reset_cr);
+	writel(readl(&M2S_SYSREG->soft_reset_cr) & ~UART1_RST_CLR,
+		&M2S_SYSREG->soft_reset_cr);
+
 	/*
 	 * Get the reference clock for this UART port
 	 */
@@ -141,5 +170,34 @@ void __init m2s_uart_init(void)
 	 * Register device for UART_1.
 	 */
 	(void) platform_device_register(&mss_uart1_device);
+#else
+	/*
+	 * Put UART1 into reset if it is not required.
+	 */
+	writel(readl(&M2S_SYSREG->soft_reset_cr) | UART1_RST_CLR,
+		&M2S_SYSREG->soft_reset_cr);
 #endif
 }
+
+static int __init m2s_add_console(void) {
+	int	p = m2s_platform_get();
+
+	if (p == PLATFORM_SF2_DEV_KIT) {
+		/*
+		 * Set UART1 as a preferred console. If the only UART1 port
+		 * is enabled, then it corresponds to the ttyS0 console name,
+		 * otherwise, if UART0 is enabled as well, then UART1
+		 * corresponds to ttyS1.
+		 *
+		 * This is default setting and can be overridden by user via the
+		 * "console=" boot argument.
+		 */
+#if defined(CONFIG_M2S_MSS_UART0) && defined(CONFIG_M2S_MSS_UART1)
+		add_preferred_console("ttyS", 1, "115200");
+#elif defined(CONFIG_M2S_MSS_UART1)
+		add_preferred_console("ttyS", 0, "115200");
+#endif
+	}
+	return 0;
+}
+console_initcall(m2s_add_console);

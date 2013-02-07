@@ -63,6 +63,7 @@ int m2s_device_get(void)
 	switch (m2s_platform) {
 	case PLATFORM_M2S_SOM:
 	case PLATFORM_G4M_VB:
+	case PLATFORM_SF2_DEV_KIT:
 	default:
 		r = DEVICE_M2S_050;
 		break;
@@ -80,6 +81,8 @@ static int __init m2s_platform_parse(char *s)
 		m2s_platform = PLATFORM_G4M_VB;
 	else if (!strcmp(s, "m2s-som"))
 		m2s_platform = PLATFORM_M2S_SOM;
+	else if (!strcmp(s, "sf2-dev-kit"))
+		m2s_platform = PLATFORM_SF2_DEV_KIT;
 
 	return 1;
 }

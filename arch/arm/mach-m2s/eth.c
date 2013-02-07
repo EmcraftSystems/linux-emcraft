@@ -85,7 +85,9 @@ void __init m2s_eth_init(void)
 		break;
 	}
 
-	platform_set_drvdata(&eth_m2s_dev, &eth_m2s_dev_data);
-	platform_device_register(&eth_m2s_dev);
+	if (platform != PLATFORM_SF2_DEV_KIT) { /* temporary disable ethetnet stuff on SF2-DEV-KIT since PHY driver is not ready yet */
+		platform_set_drvdata(&eth_m2s_dev, &eth_m2s_dev_data);
+		platform_device_register(&eth_m2s_dev);
+	}
 #endif
 }
