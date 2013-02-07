@@ -122,7 +122,8 @@
 #define M2S_MAC_DMA_IRQ_MSK	(M2S_MAC_DMA_IRQ_RBUS | M2S_MAC_DMA_IRQ_ROVF | \
 				 M2S_MAC_DMA_IRQ_RPKT |			       \
 				 M2S_MAC_DMA_IRQ_TBUS | M2S_MAC_DMA_IRQ_TPKT)
-#define M2S_MAC_DMA_IRQ_XMIT	(M2S_MAC_DMA_IRQ_RPKT | M2S_MAC_DMA_IRQ_TPKT)
+#define M2S_MAC_DMA_IRQ_XMIT	(M2S_MAC_DMA_IRQ_RPKT | M2S_MAC_DMA_IRQ_TPKT | \
+				 M2S_MAC_DMA_IRQ_ROVF)
 #define M2S_MAC_DMA_IRQ_ERR	(M2S_MAC_DMA_IRQ_RBUS | M2S_MAC_DMA_IRQ_TBUS)
 
 /*
@@ -293,7 +294,6 @@ struct m2s_mac_dma_bd {
 	u32	adr_bd_next;		/* Pointer to next BD in chain	      */
 };
 
-static void m2s_mac_hw_halt(struct m2s_mac_dev *d);
 static void m2s_mac_dump_regs(char *who, struct m2s_mac_dev *d);
 
 /******************************************************************************
@@ -589,17 +589,9 @@ static __init int m2s_mac_hw_init(struct m2s_mac_dev *d)
 	rv = 0;
 out:
 	if (rv)
-		m2s_mac_hw_halt(d);
+		M2S_SYSREG->soft_reset_cr |= M2S_SYS_SOFT_RST_CR_MAC;
 
 	return rv;
-}
-
-/*
- * Halt MAC
- */
-static void m2s_mac_hw_halt(struct m2s_mac_dev *d)
-{
-	M2S_SYSREG->soft_reset_cr |= M2S_SYS_SOFT_RST_CR_MAC;
 }
 
 /*
@@ -728,12 +720,14 @@ static int m2s_mac_poll(struct napi_struct *napi, int limit)
 						  napi);
 	int			tx_done, rx_done;
 	u32			status;
+	int			rv = 1;
 
 	tx_done = m2s_mac_tx_packets(d);
 	rx_done = m2s_mac_rx_packets(d, limit);
 
 	status = M2S_MAC_DMA(d)->rx_stat;
 	if (unlikely(status & M2S_MAC_DMA_STAT_RX_OF)) {
+		d->net_dev->stats.rx_fifo_errors++;
 		M2S_MAC_DMA(d)->rx_stat = M2S_MAC_DMA_STAT_RX_OF;
 		M2S_MAC_DMA(d)->rx_ctrl = M2S_MAC_DMA_CTRL_ENA;
 	}
@@ -746,11 +740,15 @@ static int m2s_mac_poll(struct napi_struct *napi, int limit)
 		if (status & M2S_MAC_DMA_STAT_TX_PS)
 			goto more;
 
+		rv = 0;
 		napi_complete(napi);
 		M2S_MAC_DMA(d)->irq_msk |= M2S_MAC_DMA_IRQ_XMIT;
 	}
 more:
-	return rx_done;
+	/*
+	 * Return 1: there are still packets waiting, 0: stop polling
+	 */
+	return rv;
 }
 
 /*
@@ -828,6 +826,11 @@ static int m2s_mac_net_open(struct net_device *dev)
 
 	napi_enable(&d->napi);
 
+	/*
+	 * Enable MAC Rx and Tx
+	 */
+	M2S_MAC_CFG(d)->cfg1 = M2S_MAC_CFG1_RX_ENA | M2S_MAC_CFG1_TX_ENA;
+
 	d->link = 0;
 	d->duplex = d->speed = -1;
 
@@ -856,7 +859,7 @@ static int m2s_mac_net_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
 
-	m2s_mac_hw_halt(d);
+	M2S_MAC_CFG(d)->cfg1 = 0;
 
 	napi_disable(&d->napi);
 
@@ -1148,11 +1151,6 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 		dev_err(&pd->dev, "mii init error %d", rv);
 		goto err_free_hw;
 	}
-
-	/*
-	 * Enable MAC Rx and Tx
-	 */
-	M2S_MAC_CFG(d)->cfg1 = M2S_MAC_CFG1_RX_ENA | M2S_MAC_CFG1_TX_ENA;
 
 	rv = 0;
 	goto out;
