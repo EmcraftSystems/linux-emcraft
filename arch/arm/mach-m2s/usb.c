@@ -27,14 +27,19 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/usb/musb.h>
+#include <linux/gpio.h>
 
 #include <mach/m2s.h>
 #include <mach/clock.h>
 #include <mach/usb.h>
+#include <mach/platform.h>
 
 #define M2S_USB_BASE		0x40043000
 #define M2S_USB_IRQ		20
 #define M2S_USB_DMA_IRQ		21
+
+/* MSS GPIO number to control the ULPI USB PHY reset on SF2-DEV-KIT. */
+#define ULPI_RST_GPIO	29
 
 #ifdef CONFIG_USB_MUSB_SOC
 
@@ -138,10 +143,21 @@ static void __init usb_musb_init(void)
 void __init m2s_usb_init(void)
 {
 #if defined(CONFIG_USB_MUSB_SOC)
+	int p = m2s_platform_get();
 	/*
 	 * Bring USB out of reset
 	 */
 	M2S_SYSREG->soft_reset_cr &= ~(1 << 14);
+	if (p == PLATFORM_SF2_DEV_KIT) {
+		/*
+		 * Bring USB PHY out of reset
+		 */
+		if (gpio_request(ULPI_RST_GPIO, "ULPI_RST") != 0 ||
+			gpio_direction_output(ULPI_RST_GPIO, 0) != 0) {
+			printk(KERN_ERR "Unable to bring USB PHY out of reset\n");
+			return;
+		}
+	}
 
 	usb_musb_init();
 #endif
