@@ -781,6 +781,7 @@ config ARCH_M2S
 	bool "Actel M2S (SmartFusion2) eSoC"
 	depends on !MMU
 	select ARM_CORTEXM3
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  This enables support for the Actel M2S (SmartFusion2) eSoC
 

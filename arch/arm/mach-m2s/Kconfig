@@ -74,6 +74,14 @@ config M2S_MSS_USB
 	help
 	  Include support for the MSS USB OTG port
 
+config M2S_MSS_GPIO
+	depends on ARCH_M2S
+	select GPIOLIB
+	bool "Enable MSS GPIO"
+	default y
+	help
+	  Include support for the MSS GPIOs
+
 endmenu
 
 endif

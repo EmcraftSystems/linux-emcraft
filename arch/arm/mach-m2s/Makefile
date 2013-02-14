@@ -9,3 +9,4 @@ obj-$(CONFIG_SPI_M2S)		+= spi.o
 obj-$(CONFIG_M2S_ETH)		+= eth.o
 obj-$(CONFIG_I2C_A2F)		+= i2c.o
 obj-$(CONFIG_M2S_MSS_USB)	+= usb.o
+obj-$(CONFIG_GPIOLIB)		+= gpio.o
