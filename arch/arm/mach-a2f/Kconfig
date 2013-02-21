@@ -176,7 +176,29 @@ config A2F_CUART7
 	bool "Enable A2F CoreUART7 port"
 	default n
 
-endmenu
+config A2F_MSS_GPIO
+	depends on ARCH_A2F
+	select GPIOLIB
+	bool "Enable MSS GPIO"
+	default y
+	help
+	  Include support for the MSS GPIOs
 
+config A2F_FPGA_GPIO
+	depends on ARCH_A2F
+	select GPIOLIB
+	bool "Enable FPGA GPIO"
+	default n
+	help
+	  Include support for the FPGA GPIOs
+
+config A2F_FPGA_GPIO_ADDR
+	hex "Base address of SmartFusion FPGA Core GPIO block"
+	depends on A2F_FPGA_GPIO
+	default "0x40050200"
+	help
+	  Specify base address of SmartFusion FPGA Core GPIO block
+
+endmenu
 
 endif

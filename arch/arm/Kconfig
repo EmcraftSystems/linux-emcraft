@@ -774,6 +774,7 @@ config ARCH_A2F
 	bool "Actel A2F (SmartFusion) SoC"
 	depends on !MMU
 	select ARM_CORTEXM3
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  This enables support for the Actel A2F (SmartFusion) SoC
 

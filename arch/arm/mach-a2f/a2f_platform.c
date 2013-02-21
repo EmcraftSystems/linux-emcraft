@@ -55,6 +55,7 @@
 #include <mach/spi.h>
 #include <mach/i2c.h>
 #include <mach/flash.h>
+#include <mach/gpio.h>
 
 /*
  * Define a particular platform (board)
@@ -137,22 +138,22 @@ static struct sys_timer a2f_timer = {
  */
 MACHINE_START(A2F, "Actel A2F")
 	/*
- 	 * Physical address of the serial port used for the early
+	 * Physical address of the serial port used for the early
 	 * kernel debugging (CONFIG_DEBUG_LL=y).
- 	 * This address is actually never used in the MMU-less kernel
- 	 * (since no mapping is needed to access this port),
- 	 * but let's keep these fields filled out for consistency.
- 	 */
+	 * This address is actually never used in the MMU-less kernel
+	 * (since no mapping is needed to access this port),
+	 * but let's keep these fields filled out for consistency.
+	 */
 	.phys_io	= MSS_UART0_BASE,
 	.io_pg_offst	= (IO_ADDRESS(MSS_UART0_BASE) >> 18) & 0xfffc,
 	.map_io		= a2f_map_io,
 	.init_irq	= a2f_init_irq,
-	.timer		= &a2f_timer, 
+	.timer		= &a2f_timer,
 	.init_machine	= a2f_init,
 MACHINE_END
 
 /*
- * Map required regions. 
+ * Map required regions.
  * This being the no-MMU Linux, I am not mapping anything
  * since all I/O registers are available at their physical addresses.
  */
@@ -224,8 +225,15 @@ static void __init a2f_init(void)
 
 #if defined(CONFIG_MTD_PHYSMAP)
 	/*
- 	 * Configure external Flash
- 	 */
+	 * Configure external Flash
+	 */
 	a2f_flash_init();
+#endif
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Configure GPIO
+	 */
+	a2f_gpio_init();
 #endif
 }
