@@ -61,7 +61,7 @@ static int vfpm_notifier(struct notifier_block *self, unsigned long cmd,
 
 	case THREAD_NOTIFY_SWITCH:
 		if (!old_vfp->hard.clean) {
-			save_vfp_context(last_vfp_context);
+			save_vfp_context(old_vfp);
 			last_vfp_context = old_vfp;
 		}
 		if (!vfp->hard.clean && last_vfp_context != vfp) {
