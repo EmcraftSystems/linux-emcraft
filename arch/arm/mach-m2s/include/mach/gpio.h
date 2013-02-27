@@ -23,10 +23,11 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _MACH_KINETIS_GPIO_H_
-#define _MACH_KINETIS_GPIO_H_
+#ifndef _MACH_M2S_GPIO_H_
+#define _MACH_M2S_GPIO_H_
 
-#define ARCH_NR_GPIOS		32
+/* 32 MSS and 32 CORE GPIOs */
+#define ARCH_NR_GPIOS		(32 + 32)
 
 #if defined(CONFIG_GPIOLIB)
 #define gpio_get_value	__gpio_get_value
@@ -39,4 +40,4 @@
 
 void __init m2s_gpio_init(void);
 
-#endif /* _MACH_KINETIS_GPIO_H_ */
+#endif /* _MACH_M2S_GPIO_H_ */

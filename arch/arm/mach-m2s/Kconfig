@@ -82,6 +82,21 @@ config M2S_MSS_GPIO
 	help
 	  Include support for the MSS GPIOs
 
+config M2S_FPGA_GPIO
+	depends on ARCH_M2S
+	select GPIOLIB
+	bool "Enable FPGA GPIO"
+	default n
+	help
+	  Include support for the FPGA GPIOs
+
+config M2S_FPGA_GPIO_ADDR
+	hex "Base address of SmartFusion2 Core GPIO block"
+	depends on M2S_FPGA_GPIO
+	default "0x30000000"
+	help
+	  Specify base address of SmartFusion2 Core GPIO block
+
 endmenu
 
 endif

@@ -1,7 +1,7 @@
 /*
  * (C) Copyright 2013
  * Emcraft Systems, <www.emcraft.com>
- * Vladimir Skvortsov <aspotashev@emcraft.com>
+ * Vladimir Skvortsov <vskvortsov@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -29,58 +29,67 @@
 #include <mach/gpio.h>
 
 /*
- * MSS GPIO registers map
+ * GPIO registers map
  */
-#define MSS_GPIO_BASE		0x40013000
-#define MSS_GPIO_CFG(port) ((MSS_GPIO_BASE) + ((port) << 2))
+#define MSS_GPIO_CFG		0x40013000
 #define MSS_GPIO_IRQ		0x40013080
-#define MSS_GPIO_IN			0x40013084
+#define MSS_GPIO_IN		0x40013084
 #define MSS_GPIO_OUT		0x40013088
 
+#define FPGA_GPIO_CFG		CONFIG_M2S_FPGA_GPIO_ADDR
+#define FPGA_GPIO_IRQ		(FPGA_GPIO_CFG + 0x80)
+#define FPGA_GPIO_IN		(FPGA_GPIO_CFG + 0x90)
+#define FPGA_GPIO_OUT		(FPGA_GPIO_CFG + 0xa0)
+
+#define FPGA_GPIO_BASE	32 /* Base number of the FPGA GPIOs in Linux */
+
+#define M2S_GPIO_CFG(base, port) ((base) + ((port) << 2))
+
 /*
- * MSS GPIO configuration register bits
+ * GPIO configuration register bits
  */
-#define MSS_GPIO_OUT_REG_EN	(1 << 0)
-#define MSS_GPIO_IN_REG_EN	(1 << 1)
-#define MSS_GPIO_OUT_BUF_EN	(1 << 2)
-#define MSS_GPIO_INT_EN		(1 << 3)
+#define GPIO_OUT_REG_EN		(1 << 0)
+#define GPIO_IN_REG_EN		(1 << 1)
+#define GPIO_OUT_BUF_EN		(1 << 2)
+#define GPIO_INT_EN		(1 << 3)
 
-#define MSS_GPIO_INT_TYPE_MSK	(7 << 5)
-#define MSS_GPIO_INT_TYPE_LH	(0 << 5)	/* Level High */
-#define MSS_GPIO_INT_TYPE_LL	(1 << 5)	/* Level Low */
-#define MSS_GPIO_INT_TYPE_EP	(2 << 5)	/* Edge Positive */
-#define MSS_GPIO_INT_TYPE_EN	(3 << 5)	/* Edge Negotive */
-#define MSS_GPIO_INT_TYPE_EB	(4 << 5)	/* Edge Both */
-
-
-/* Lock access to MSS GPIO block. */
-static	spinlock_t	mss_gpio_lock = SPIN_LOCK_UNLOCKED;
+struct m2s_gpio_chip {
+	struct gpio_chip chip;
+	u32 gpio_cfg;
+	u32 gpio_irq;
+	u32 gpio_in;
+	u32 gpio_out;
+	spinlock_t lock;
+};
 
 /*
  * Get the current state of a GPIO input pin
  */
-static int mss_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
+static int m2s_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
 {
-	u32 mss_gpio_in = readl(MSS_GPIO_IN);
-	return (mss_gpio_in >> gpio) & 1;
+	struct m2s_gpio_chip *m2s_chip
+		= container_of(chip, struct m2s_gpio_chip, chip);
+	return (readl(m2s_chip->gpio_in) >> gpio) & 1;
 }
 
 /*
  * Change the direction of a GPIO pin to input
  */
-static int mss_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
+static int m2s_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 {
-	u32 mss_gpio_cfg;
+	struct m2s_gpio_chip *m2s_chip
+		= container_of(chip, struct m2s_gpio_chip, chip);
+	u32 gpio_cfg;
 	unsigned long f;
 
-	spin_lock_irqsave(&mss_gpio_lock, f);
+	spin_lock_irqsave(&m2s_chip->lock, f);
 
-	mss_gpio_cfg = readl(MSS_GPIO_CFG(gpio));
-	mss_gpio_cfg |= MSS_GPIO_IN_REG_EN;
-	mss_gpio_cfg &= ~(MSS_GPIO_OUT_REG_EN | MSS_GPIO_OUT_BUF_EN);
-	writel(mss_gpio_cfg, MSS_GPIO_CFG(gpio));
+	gpio_cfg = readl(M2S_GPIO_CFG(m2s_chip->gpio_cfg, gpio));
+	gpio_cfg |= GPIO_IN_REG_EN;
+	gpio_cfg &= ~(GPIO_OUT_REG_EN | GPIO_OUT_BUF_EN);
+	writel(gpio_cfg, M2S_GPIO_CFG(m2s_chip->gpio_cfg, gpio));
 
-	spin_unlock_irqrestore(&mss_gpio_lock, f);
+	spin_unlock_irqrestore(&m2s_chip->lock, f);
 
 	return 0;
 }
@@ -88,68 +97,109 @@ static int mss_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
 /*
  * Set the state of a GPIO output pin
  */
-static void mss_gpio_set_value_locked(
-	struct gpio_chip *chip, unsigned gpio, int value)
+static void m2s_gpio_set_value_locked(struct m2s_gpio_chip *m2s_chip,
+				      unsigned gpio, int value)
 {
-	u32 mss_gpio_out = readl(MSS_GPIO_OUT);
+	u32 gpio_out = readl(m2s_chip->gpio_out);
 	if (value) {
-		mss_gpio_out |=  1 << gpio;
+		gpio_out |=  1 << gpio;
 	} else {
-		mss_gpio_out &=  ~(1 << gpio);
+		gpio_out &=  ~(1 << gpio);
 	}
-	writel(mss_gpio_out, MSS_GPIO_OUT);
+	writel(gpio_out, m2s_chip->gpio_out);
 }
 
-static void mss_gpio_set_value(
-	struct gpio_chip *chip, unsigned gpio, int value)
+static void m2s_gpio_set_value(struct gpio_chip *chip,
+			       unsigned gpio, int value)
 {
+	struct m2s_gpio_chip *m2s_chip
+		= container_of(chip, struct m2s_gpio_chip, chip);
 	unsigned long f;
 
-	spin_lock_irqsave(&mss_gpio_lock, f);
+	spin_lock_irqsave(&m2s_chip->lock, f);
 
-	mss_gpio_set_value_locked(chip, gpio, value);
+	m2s_gpio_set_value_locked(m2s_chip, gpio, value);
 
-	spin_unlock_irqrestore(&mss_gpio_lock, f);
+	spin_unlock_irqrestore(&m2s_chip->lock, f);
 }
 
 /*
  * Change the direction of a GPIO pin to output and
  * set the level on this pin.
  */
-static int mss_gpio_direction_output(
-	struct gpio_chip *chip, unsigned gpio, int level)
+static int m2s_gpio_direction_output(struct gpio_chip *chip,
+				     unsigned gpio, int level)
 {
-	u32 mss_gpio_cfg;
+	struct m2s_gpio_chip *m2s_chip
+		= container_of(chip, struct m2s_gpio_chip, chip);
+	u32 gpio_cfg;
 	unsigned long f;
 
-	spin_lock_irqsave(&mss_gpio_lock, f);
+	spin_lock_irqsave(&m2s_chip->lock, f);
 
-	mss_gpio_cfg = readl(MSS_GPIO_CFG(gpio));
-	mss_gpio_cfg |= MSS_GPIO_OUT_REG_EN | MSS_GPIO_OUT_BUF_EN;
-	mss_gpio_cfg &= ~(MSS_GPIO_IN_REG_EN);
-	writel(0, MSS_GPIO_CFG(gpio));
-	mss_gpio_set_value(chip, gpio, level);
-	writel(mss_gpio_cfg, MSS_GPIO_CFG(gpio));
+	gpio_cfg = readl(M2S_GPIO_CFG(m2s_chip->gpio_cfg, gpio));
+	gpio_cfg |= GPIO_OUT_REG_EN | GPIO_OUT_BUF_EN;
+	gpio_cfg &= ~(GPIO_IN_REG_EN);
+	writel(0, M2S_GPIO_CFG(m2s_chip->gpio_cfg, gpio));
+	m2s_gpio_set_value_locked(m2s_chip, gpio, level);
+	writel(gpio_cfg, M2S_GPIO_CFG(m2s_chip->gpio_cfg, gpio));
 
-	spin_unlock_irqrestore(&mss_gpio_lock, f);
+	spin_unlock_irqrestore(&m2s_chip->lock, f);
 
 	return 0;
 }
 
-static struct gpio_chip mss_gpio_chip = {
-	.label				= "mss_gpio",
-	.direction_input	= mss_gpio_direction_input,
-	.get				= mss_gpio_get_value,
-	.direction_output	= mss_gpio_direction_output,
-	.set				= mss_gpio_set_value,
-	.base				= 0,
-	.ngpio				= 32,
-	.can_sleep			= 0,
+#if defined (CONFIG_M2S_MSS_GPIO)
+static struct m2s_gpio_chip mss_gpio_chip = {
+	.chip = {
+		.label			= "mss_gpio",
+		.direction_input	= m2s_gpio_direction_input,
+		.get			= m2s_gpio_get_value,
+		.direction_output	= m2s_gpio_direction_output,
+		.set			= m2s_gpio_set_value,
+		.base			= 0,
+		.ngpio			= 32,
+		.can_sleep		= 0,
+	},
+	.gpio_cfg = MSS_GPIO_CFG,
+	.gpio_irq = MSS_GPIO_IRQ,
+	.gpio_in = MSS_GPIO_IN,
+	.gpio_out = MSS_GPIO_OUT,
+	.lock = SPIN_LOCK_UNLOCKED,
 };
+#endif
+
+#if defined (CONFIG_M2S_FPGA_GPIO)
+static struct m2s_gpio_chip fpga_gpio_chip = {
+	.chip = {
+		.label			= "fpga_gpio",
+		.direction_input	= m2s_gpio_direction_input,
+		.get			= m2s_gpio_get_value,
+		.direction_output	= m2s_gpio_direction_output,
+		.set			= m2s_gpio_set_value,
+		.base			= FPGA_GPIO_BASE,
+		.ngpio			= 32,
+		.can_sleep		= 0,
+	},
+	.gpio_cfg = FPGA_GPIO_CFG,
+	.gpio_irq = FPGA_GPIO_IRQ,
+	.gpio_in = FPGA_GPIO_IN,
+	.gpio_out = FPGA_GPIO_OUT,
+	.lock = SPIN_LOCK_UNLOCKED,
+};
+#endif
 
 void __init m2s_gpio_init(void)
 {
-	if (gpiochip_add(&mss_gpio_chip) < 0) {
+#if defined (CONFIG_M2S_MSS_GPIO)
+	if (gpiochip_add(&mss_gpio_chip.chip) < 0) {
 		pr_err("%s: gpiochip_add failed.\n", __func__);
 	}
+#endif
+
+#if defined (CONFIG_M2S_FPGA_GPIO)
+	if (gpiochip_add(&fpga_gpio_chip.chip) < 0) {
+		pr_err("%s: gpiochip_add failed.\n", __func__);
+	}
+#endif
 }
