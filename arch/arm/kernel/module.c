@@ -124,6 +124,13 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 		}
 
 		loc = dstsec->sh_addr + rel->r_offset;
+#if defined(CONFIG_M2S_CACHE)
+		/* Calculate relocation as the code is
+		   resided in the cached region on Smartfusion2. */
+		if ((symsec->sh_flags & SHF_WRITE) == 0) {
+			loc = m2s_phys_to_cached(loc);
+		}
+#endif
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
 		case R_ARM_NONE:
@@ -131,7 +138,14 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			break;
 
 		case R_ARM_ABS32:
-			*(u32 *)loc += sym->st_value;
+#if defined(CONFIG_M2S_CACHE)
+			if (m2s_addr_is_cached(loc)) {
+				*(u32 *)m2s_cached_to_phys(loc) += sym->st_value;
+			} else
+#endif
+			{
+				*(u32 *)loc += sym->st_value;
+			}
 			break;
 
 		case R_ARM_PC24:
@@ -154,22 +168,45 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 
 			offset >>= 2;
 
-			*(u32 *)loc &= 0xff000000;
-			*(u32 *)loc |= offset & 0x00ffffff;
+#if defined(CONFIG_M2S_CACHE)
+			if (m2s_addr_is_cached(loc)) {
+				*(u32 *)m2s_cached_to_phys(loc) &= 0xff000000;
+				*(u32 *)m2s_cached_to_phys(loc) |= offset & 0x00ffffff;
+			} else
+#endif
+			{
+				*(u32 *)loc &= 0xff000000;
+				*(u32 *)loc |= offset & 0x00ffffff;
+			}
 			break;
 
-	       case R_ARM_V4BX:
+		case R_ARM_V4BX:
 		       /* Preserve Rm and the condition code. Alter
 			* other bits to re-code instruction as
 			* MOV PC,Rm.
 			*/
-		       *(u32 *)loc &= 0xf000000f;
-		       *(u32 *)loc |= 0x01a0f000;
-		       break;
+#if defined(CONFIG_M2S_CACHE)
+			if (m2s_addr_is_cached(loc)) {
+				*(u32 *)m2s_cached_to_phys(loc) &= 0xf000000f;
+				*(u32 *)m2s_cached_to_phys(loc) |= 0x01a0f000;
+			} else
+#endif
+			{
+				*(u32 *)loc &= 0xf000000f;
+				*(u32 *)loc |= 0x01a0f000;
+			}
+			break;
 
 		case R_ARM_PREL31:
 			offset = *(u32 *)loc + sym->st_value - loc;
-			*(u32 *)loc = offset & 0x7fffffff;
+#if defined(CONFIG_M2S_CACHE)
+			if (m2s_addr_is_cached(loc)) {
+				*(u32 *)m2s_cached_to_phys(loc) = offset & 0x7fffffff;
+			} else
+#endif
+			{
+				*(u32 *)loc = offset & 0x7fffffff;
+			}
 			break;
 
 		case R_ARM_MOVW_ABS_NC:
@@ -181,10 +218,18 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			offset += sym->st_value;
 			if (ELF32_R_TYPE(rel->r_info) == R_ARM_MOVT_ABS)
 				offset >>= 16;
-
-			*(u32 *)loc &= 0xfff0f000;
-			*(u32 *)loc |= ((offset & 0xf000) << 4) |
+#if defined(CONFIG_M2S_CACHE)
+			if (m2s_addr_is_cached(loc)) {
+				*(u32 *)m2s_cached_to_phys(loc) &= 0xfff0f000;
+				*(u32 *)m2s_cached_to_phys(loc) |= ((offset & 0xf000) << 4) |
 					(offset & 0x0fff);
+			} else
+#endif
+			{
+				*(u32 *)loc &= 0xfff0f000;
+				*(u32 *)loc |= ((offset & 0xf000) << 4) |
+					(offset & 0x0fff);
+			}
 			break;
 
 #ifdef CONFIG_THUMB2_KERNEL
@@ -248,11 +293,22 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			sign = (offset >> 24) & 1;
 			j1 = sign ^ (~(offset >> 23) & 1);
 			j2 = sign ^ (~(offset >> 22) & 1);
-			*(u16 *)loc = (u16)((upper & 0xf800) | (sign << 10) |
-					    ((offset >> 12) & 0x03ff));
-			*(u16 *)(loc + 2) = (u16)((lower & 0xd000) |
-						  (j1 << 13) | (j2 << 11) |
-						  ((offset >> 1) & 0x07ff));
+#if defined(CONFIG_M2S_CACHE)
+			if (m2s_addr_is_cached(loc)) {
+				*(u16 *)m2s_cached_to_phys(loc) = (u16)((upper & 0xf800) | (sign << 10) |
+						    ((offset >> 12) & 0x03ff));
+				*(u16 *)m2s_cached_to_phys(loc + 2) = (u16)((lower & 0xd000) |
+							  (j1 << 13) | (j2 << 11) |
+							  ((offset >> 1) & 0x07ff));
+			} else
+#endif
+			{
+				*(u16 *)loc = (u16)((upper & 0xf800) | (sign << 10) |
+						    ((offset >> 12) & 0x03ff));
+				*(u16 *)(loc + 2) = (u16)((lower & 0xd000) |
+							  (j1 << 13) | (j2 << 11) |
+							  ((offset >> 1) & 0x07ff));
+			}
 			upper = *(u16 *)loc;
 			lower = *(u16 *)(loc + 2);
 			break;
@@ -281,12 +337,24 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			if (ELF32_R_TYPE(rel->r_info) == R_ARM_THM_MOVT_ABS)
 				offset >>= 16;
 
-			*(u16 *)loc = (u16)((upper & 0xfbf0) |
-					    ((offset & 0xf000) >> 12) |
-					    ((offset & 0x0800) >> 1));
-			*(u16 *)(loc + 2) = (u16)((lower & 0x8f00) |
-						  ((offset & 0x0700) << 4) |
-						  (offset & 0x00ff));
+#if defined(CONFIG_M2S_CACHE)
+			if (m2s_addr_is_cached(loc)) {
+				*(u16 *)m2s_cached_to_phys(loc) = (u16)((upper & 0xfbf0) |
+						    ((offset & 0xf000) >> 12) |
+						    ((offset & 0x0800) >> 1));
+				*(u16 *)m2s_cached_to_phys(loc + 2) = (u16)((lower & 0x8f00) |
+							  ((offset & 0x0700) << 4) |
+							  (offset & 0x00ff));
+			} else
+#endif
+			{
+				*(u16 *)loc = (u16)((upper & 0xfbf0) |
+						    ((offset & 0xf000) >> 12) |
+						    ((offset & 0x0800) >> 1));
+				*(u16 *)(loc + 2) = (u16)((lower & 0x8f00) |
+							  ((offset & 0x0700) << 4) |
+							  (offset & 0x00ff));
+			}
 			break;
 #endif
 

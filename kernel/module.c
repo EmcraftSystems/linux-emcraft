@@ -1516,8 +1516,16 @@ static int simplify_symbols(Elf_Shdr *sechdrs,
 			/* Divert to percpu allocation if a percpu var. */
 			if (sym[i].st_shndx == pcpuindex)
 				secbase = (unsigned long)mod->percpu;
-			else
+			else {
 				secbase = sechdrs[sym[i].st_shndx].sh_addr;
+#if defined(CONFIG_M2S_CACHE)
+				/* Use sector alias in the cached region for
+				   RO symbols on SmartFusion2. */
+				if ((sechdrs[sym[i].st_shndx].sh_flags & SHF_WRITE) == 0) {
+					secbase = m2s_phys_to_cached(secbase);
+				}
+#endif
+			}
 			sym[i].st_value += secbase;
 			break;
 		}
