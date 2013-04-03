@@ -21,16 +21,17 @@
 #define MMC_ERR_FAILED  4
 #define MMC_ERR_INVALID 5
 
-#define MCF_CLOCK_PLL_DR        (*(volatile unsigned long *)(0xFC0C0004))
-#define MCF_ESDHC_HOSTCAPBLT    (*(volatile unsigned long *)(0xFC0CC040))
-#define MCF_ESDHC_ADMAESR       (*(volatile unsigned long *)(0xFC0CC054))
-#define MCF_ESDHC_ADMASAR       (*(volatile unsigned long *)(0xFC0CC058))
-#define MCF_ESDHC_VSR           (*(volatile unsigned long *)(0xFC0CC0C0))
-#define MCF_ESDHC_HOSTVER       (*(volatile unsigned long *)(0xFC0CC0FC))
+//#define MCF_CLOCK_PLL_DR        (*(volatile unsigned long *)(0xFC0C0004))
+#define MCF_ESDHC_HOSTCAPBLT    (*(volatile unsigned long *)(0x400B1040))
+//#define MCF_ESDHC_ADMAESR       (*(volatile unsigned long *)(0xFC0CC054))
+//#define MCF_ESDHC_ADMASAR       (*(volatile unsigned long *)(0xFC0CC058))
+#define MCF_ESDHC_VSR           (*(volatile unsigned long *)(0x400B10C0))
+//#define MCF_ESDHC_HOSTVER       (*(volatile unsigned long *)(0xFC0CC0FC))
 /*
  * Controller registers (Big Endian)
  */
 
+#if 0
 #define MCF_GPIO_PAR_SDHC_DATA3   0x20
 #define MCF_GPIO_PAR_SDHC_DATA2   0x10
 #define MCF_GPIO_PAR_SDHC_DATA1   0x08
@@ -51,6 +52,7 @@
 #define MCF_GPIO_PCRL_SDHC_DATA0   0x10
 #define MCF_GPIO_PCRL_SDHC_CMD     0x08
 #define MCF_GPIO_PCRL_SDHC_CLK     0x04
+#endif
 
 #define MCF_INT_SDHC               63
 /* DMA System Address Register */
@@ -98,6 +100,7 @@
 #define ESDHC_PRESENT_STATE	0x24
 #define  ESDHC_CMD_INHIBIT	0x00000001
 #define  ESDHC_DATA_INHIBIT	0x00000002
+#define  ESDHC_SDSTB		0x00000008
 #define  ESDHC_DOING_WRITE	0x00000100
 #define  ESDHC_DOING_READ	0x00000200
 #define  ESDHC_SPACE_AVAILABLE	0x00000400
@@ -124,6 +127,7 @@
 #define ESDHC_CLOCK_DEFAULT	0x00008000
 #define ESDHC_PREDIV_SHIFT	8
 #define ESDHC_DIVIDER_SHIFT	4
+#define ESDHC_CLOCK_SDCLKEN	0x00000008
 #define ESDHC_CLOCK_CARD_EN	0x00000004
 #define ESDHC_CLOCK_INT_STABLE	0x00000002
 #define ESDHC_CLOCK_INT_EN	0x00000001
@@ -213,6 +217,8 @@
 #define ESDHC_FORCE_EVENT	0x50
 
 /* 54-FB reserved */
+
+#define ESDHC_VENDOR		0xC0
 
 /* Host Controller Version Register */
 #define ESDHC_HOST_VERSION	0xFC

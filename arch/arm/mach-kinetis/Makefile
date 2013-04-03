@@ -13,3 +13,4 @@ obj-$(CONFIG_KINETIS_EDMA)	+= dmainit.o dmac.o
 obj-$(CONFIG_USB_EHCI_MXC)	+= ehci.o
 obj-$(CONFIG_KINETIS_SPI_GPIO)	+= spi-gpio.o
 obj-$(CONFIG_GPIOLIB)		+= gpio.o
+obj-$(CONFIG_MMC_ESDHC)		+= esdhc.o

@@ -40,6 +40,7 @@
 #include <mach/eth.h>
 #include <mach/nand.h>
 #include <mach/fb.h>
+#include <mach/esdhc.h>
 
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
@@ -261,5 +262,12 @@ static void __init kinetis_init(void)
 	 * Configure SPI buses emulated using GPIOs
 	 */
 	kinetis_spi_gpio_init();
+#endif
+
+#if defined(CONFIG_MMC_ESDHC)
+	/*
+	 * Configure SPI buses emulated using GPIOs
+	 */
+	kinetis_esdhc_init();
 #endif
 }
