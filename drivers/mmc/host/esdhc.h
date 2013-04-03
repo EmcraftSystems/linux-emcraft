@@ -100,6 +100,7 @@
 #define ESDHC_PRESENT_STATE	0x24
 #define  ESDHC_CMD_INHIBIT	0x00000001
 #define  ESDHC_DATA_INHIBIT	0x00000002
+#define  ESDHC_DATA_DLA		0x00000004
 #define  ESDHC_SDSTB		0x00000008
 #define  ESDHC_DOING_WRITE	0x00000100
 #define  ESDHC_DOING_READ	0x00000200
@@ -116,6 +117,10 @@
 #define ESDHC_CTRL_D3_DETEC	0x00000008
 #define ESDHC_CTRL_DTCT_EN	0x00000080
 #define ESDHC_CTRL_DTCT_STATUS	0x00000040
+#define ESDHC_CTRL_DMAS_SDMA	0x00000000
+#define ESDHC_CTRL_DMAS_ADMA1	0x00000100
+#define ESDHC_CTRL_DMAS_ADMA2	0x00000200
+#define ESDHC_CTRL_SABGREQ	0x00010000
 #define ESDHC_CTRL_WU_CRM	0x04000000
 #define ESDHC_CTRL_WU_CINS	0x02000000
 #define ESDHC_CTRL_WU_CINT	0x01000000
@@ -238,12 +243,21 @@
 #define MPC837X_SDHCCM_MASK	0x0c000000
 #define MPC837X_SDHCCM_SHIFT	26
 
+#define ESDHC_ADMA_ACT_NOP	(0 << 4)
+#define ESDHC_ADMA_ACT_RSV	(1 << 4)
+#define ESDHC_ADMA_ACT_TRAN	(2 << 4)
+#define ESDHC_ADMA_ACT_LINK	(3 << 4)
+
+#define ESDHC_ADMA_INT		(1 << 2)
+#define ESDHC_ADMA_END		(1 << 1)
+#define ESDHC_ADMA_VALID	(1 << 0)
+
 #define esdhc_readl(addr) \
 	({ unsigned int __v = (*(volatile unsigned int *) (addr)); __v; })
 
 #define esdhc_writel(b, addr) (void)((*(volatile unsigned int *) (addr)) = (b))
 
-static inline u32 fsl_readl(unsigned __iomem *addr)
+static inline u32 _fsl_readl(const char *who, unsigned __iomem *addr)
 {
 	u32 val;
 	/*val = inl(addr);*/
@@ -251,11 +265,14 @@ static inline u32 fsl_readl(unsigned __iomem *addr)
 	return val;
 }
 
-static inline void fsl_writel(unsigned __iomem *addr, u32 val)
+static inline void _fsl_writel(const char *who, unsigned __iomem *addr, u32 val)
 {
 	/*outl(val, addr);*/
 	esdhc_writel(val, addr);
 }
+
+#define fsl_readl(adr)		_fsl_readl(__func__, adr)
+#define fsl_writel(adr, val)	_fsl_writel(__func__, adr, val)
 
 #define setbits32(_addr, _v) outl((_addr), inl(_addr) |  (_v))
 #define clrbits32(_addr, _v) outl((_addr), inl(_addr) & ~(_v))
@@ -290,6 +307,7 @@ struct esdhc_host {
 	char			slot_descr[20];	/* Name for reservations */
 
 	int			card_insert;
+	int			retries;
 
 	int			irq;		/* Device IRQ */
 	unsigned long		addr;		/* Bus address */
@@ -302,6 +320,7 @@ struct esdhc_host {
 	struct timer_list	timer;		/* Timer for timeouts */
 	void			*dma_tx_buf;
 	dma_addr_t		dma_tx_dmahandle;
+	unsigned int		dma_tx_blocks;
 };
 
 struct esdhc_chip {
@@ -311,6 +330,12 @@ struct esdhc_chip {
 
 	int			num_slots;	/* Slots on controller */
 	struct esdhc_host	*hosts[0];	/* Pointers to hosts */
+};
+
+struct adma_bd {
+	unsigned short		attr;
+	unsigned short		len;
+	unsigned int		addr;
 };
 
 #endif

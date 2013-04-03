@@ -14,7 +14,9 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-//#define CONFIG_ESDHC_FORCE_PIO
+
+#define CONFIG_ESDHC_FORCE_PIO
+#undef  USE_ADMA
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -34,8 +36,6 @@
 #include <asm/page.h>
 
 #include <linux/platform_device.h>
-//#include <asm/coldfire.h>
-//#include <asm/mcfsim.h>
 #include <mach/cache.h>
 
 #include "esdhc.h"
@@ -55,8 +55,10 @@
 #define SYS_BUSCLOCK 120000000
 #define ESDHC_DMA_SIZE	0x10000
 
-#define MMC_ESDHC_DEBUG
-#define MMC_ESDHC_DEBUG_REG
+#define ESDHC_ERR_RETRY	3
+
+#undef MMC_ESDHC_DEBUG
+#undef MMC_ESDHC_DEBUG_REG
 
 #ifdef MMC_ESDHC_DEBUG
 #define DBG(fmt, args...) printk(KERN_INFO "[%s] " fmt "\n", __func__, ## args)
@@ -66,52 +68,39 @@
 
 struct timer_list	timer1;		/* Timer for timeouts */
 
+static void esdhc_regs(struct esdhc_host *host)
+{
+	printk(KERN_INFO "========= REGISTER DUMP ==========\n");
+	printk(KERN_INFO "DSADDR:   0x%08x | BLKATTR:   0x%08x\n"
+			 "CMDARG:   0x%08x | XFERTYP:   0x%08x\n"
+			 "CMDRSP0:  0x%08x | CMDRSP1:   0x%08x\n"
+			 "CMDRSP2:  0x%08x | CMDRSP3:   0x%08x\n"
+			 "DATPORT:  0x%08x | PRSSTAT:   0x%08x\n"
+			 "PROCTL:   0x%08x | SYSCTL:    0x%08x\n"
+			 "IRQSTAT:  0x%08x | IRQSTATEN: 0x%08x\n"
+			 "IRQSIGEN: 0x%08x | AC12ERR:   0x%08x\n"
+			 "HTCAPBLT: 0x%08x | WML:       0x%08x\n"
+			 "FEVT:     0x%08x | ADMAES:    0x%08x\n"
+			 "ADSADDR:  0x%08x | VENDOR:    0x%08x\n"
+			 "MMCBOOT:  0x%08x | HOSTVER:   0x%08x\n",
+			fsl_readl(host->ioaddr + 0x00), fsl_readl(host->ioaddr + 0x04),
+			fsl_readl(host->ioaddr + 0x08), fsl_readl(host->ioaddr + 0x0c),
+			fsl_readl(host->ioaddr + 0x10), fsl_readl(host->ioaddr + 0x14),
+			fsl_readl(host->ioaddr + 0x18), fsl_readl(host->ioaddr + 0x1c),
+			fsl_readl(host->ioaddr + 0x20), fsl_readl(host->ioaddr + 0x24),
+			fsl_readl(host->ioaddr + 0x28), fsl_readl(host->ioaddr + 0x2c),
+			fsl_readl(host->ioaddr + 0x30), fsl_readl(host->ioaddr + 0x34),
+			fsl_readl(host->ioaddr + 0x38), fsl_readl(host->ioaddr + 0x3c),
+			fsl_readl(host->ioaddr + 0x40), fsl_readl(host->ioaddr + 0x44),
+			fsl_readl(host->ioaddr + 0x50), fsl_readl(host->ioaddr + 0x54),
+			fsl_readl(host->ioaddr + 0x58), fsl_readl(host->ioaddr + 0xc0),
+			fsl_readl(host->ioaddr + 0xc4), fsl_readl(host->ioaddr + 0xfc));
+	printk(KERN_INFO "==================================\n");
+}
 #ifdef MMC_ESDHC_DEBUG_REG
 static void esdhc_dumpregs(struct esdhc_host *host)
 {
-	printk(KERN_INFO "========= REGISTER DUMP ==========\n");
-
-	printk(KERN_INFO "Sysaddr: 0x%08x | Blkattr: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_DMA_ADDRESS),
-		fsl_readl(host->ioaddr + ESDHC_BLOCK_ATTR));
-	printk(KERN_INFO "Argument: 0x%08x | COMMAND: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_ARGUMENT),
-		fsl_readl(host->ioaddr + ESDHC_COMMAND));
-	printk(KERN_INFO "Present: 0x%08x | DMA ctl: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_PRESENT_STATE),
-			0/*fsl_readl(host->ioaddr + ESDHC_DMA_SYSCTL)*/);
-	printk(KERN_INFO "PROCTL: 0x%08x | SYSCTL: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_PROTOCOL_CONTROL),
-		fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL));
-	printk(KERN_INFO "Int stat: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_INT_STATUS));
-	printk(KERN_INFO "Intenab: 0x%08x | Sigenab: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_INT_ENABLE),
-		fsl_readl(host->ioaddr + ESDHC_SIGNAL_ENABLE));
-	printk(KERN_INFO "AC12 err: 0x%08x | Version: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_ACMD12_ERR),
-		fsl_readl(host->ioaddr + ESDHC_HOST_VERSION));
-	printk(KERN_INFO "Caps: 0x%08x | Watermark: 0x%08x\n",
-		fsl_readl(host->ioaddr + ESDHC_CAPABILITIES),
-		fsl_readl(host->ioaddr + ESDHC_WML));
-#if 0
-	printk(KERN_INFO "MCF_INTC1_IPRH: 0x%08x | MCF_INTC1_IPRL: 0x%08x\n",
-		(unsigned int)MCF_INTC1_IPRH,
-		(unsigned int)MCF_INTC1_IPRL);
-	printk(KERN_INFO "MCF_INTC1_IMRH: 0x%08x | MCF_INTC1_IMRL: 0x%08x\n",
-		(unsigned int)MCF_INTC1_IMRH,
-		(unsigned int)MCF_INTC1_IMRL);
-	printk(KERN_INFO "MCF_INTC1_INTFRCH: 0x%08x | MCF_INTC1_INTFRCL: 0x%08x\n",
-		(unsigned int)MCF_INTC1_INTFRCH,
-		(unsigned int)MCF_INTC1_INTFRCL);
-	printk(KERN_INFO "MCF_INTC1_INTFRCH: 0x%08x | MCF_INTC1_INTFRCL: 0x%08x\n",
-		(unsigned int)MCF_INTC1_INTFRCH,
-		(unsigned int)MCF_INTC1_INTFRCL);
-	printk(KERN_INFO "MCF_INTC1_ICR63: 0x%08x | MCF_INTC0_ICR36: 0x%08x\n",
-		(unsigned int)MCF_INTC1_ICR63,
-		(unsigned int)MCF_INTC0_ICR36);
-#endif
-	printk(KERN_INFO "==================================\n");
+	esdhc_regs(host);
 }
 #else
 static void esdhc_dumpregs(struct esdhc_host *host)
@@ -119,7 +108,6 @@ static void esdhc_dumpregs(struct esdhc_host *host)
 	do {} while (0);
 }
 #endif
-
 
 static unsigned int debug_nodma;
 static unsigned int debug_forcedma;
@@ -129,6 +117,8 @@ static unsigned int debug_quirks;
 #define ESDHC_QUIRK_FORCE_DMA				(1<<1)
 #define ESDHC_QUIRK_NO_CARD_NO_RESET			(1<<2)
 #define ESDHC_QUIRK_SINGLE_POWER_WRITE			(1<<3)
+
+static void esdhc_set_clock(struct esdhc_host *host, unsigned int clock);
 
 static void esdhc_prepare_data(struct esdhc_host *, struct mmc_data *);
 static void esdhc_finish_data(struct esdhc_host *);
@@ -153,7 +143,7 @@ static void esdhc_reset(struct esdhc_host *host, u8 mask)
 			return;
 	}
 
-	printk("esdhc_reset %x\n", mask);
+	DBG("esdhc_reset %x\n", mask);
 
 	timeout = fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL);
 	timeout = timeout | (mask << ESDHC_RESET_SHIFT);
@@ -187,10 +177,8 @@ static void esdhc_reset(struct esdhc_host *host, u8 mask)
 	fsl_writel(host->ioaddr + ESDHC_SYSTEM_CONTROL, timeout | ESDHC_CLOCK_SDCLKEN);
 }
 
-	static void esdhc_set_clock(struct esdhc_host *host, unsigned int clock);
 static void esdhc_init(struct esdhc_host *host)
 {
-#if 1
 	u32 intmask;
 	/*reset eSDHC chip*/
 	esdhc_reset(host, ESDHC_RESET_ALL);
@@ -218,50 +206,17 @@ static void esdhc_init(struct esdhc_host *host)
 	/*MCF_ESDHC_SCR = MCF_ESDHC_SCR  | ESDHC_DMA_SNOOP | 0xC0;*/
 
 	intmask = fsl_readl(host->ioaddr + ESDHC_PROTOCOL_CONTROL);
+#if defined(USE_ADMA)
+	intmask |= ESDHC_CTRL_DMAS_ADMA2;
+#endif
 	intmask &= ~ESDHC_CTRL_D3_DETEC;
-//	intmask &= ~0x30;
 
 	fsl_writel(host->ioaddr + ESDHC_PROTOCOL_CONTROL, intmask);
-	DBG(" init %x\n", fsl_readl(host->ioaddr + ESDHC_PROTOCOL_CONTROL));
+	DBG(" ### PROCTL: init %x\n", fsl_readl(host->ioaddr + ESDHC_PROTOCOL_CONTROL));
 
 	fsl_writel(host->ioaddr + ESDHC_SYSTEM_CONTROL,
 			fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) | 0x08000000);
 	while (fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) & 0x08000000);
-#else
-	fsl_writel(0x4004D000, 0);
-	fsl_writel(0x4004D004, 0);
-	fsl_writel(0x4004D008, 0);
-	fsl_writel(0x4004D00c, 0);
-	fsl_writel(0x4004D010, 0);
-	fsl_writel(0x4004D014, 0);
-
-	fsl_writel(host->ioaddr + ESDHC_VENDOR, 0);
-	fsl_writel(host->ioaddr + ESDHC_BLOCK_ATTR, (1 << 16) | 512);
-	fsl_writel(host->ioaddr + ESDHC_PROTOCOL_CONTROL, 0x20);
-	fsl_writel(host->ioaddr + ESDHC_WML, (1 << 16) | 2);
-
-	esdhc_set_clock(host, 400000);
-
-	while (fsl_readl(host->ioaddr + ESDHC_PRESENT_STATE) & 3);
-
-	fsl_writel(0x4004D000, 0x40);
-	fsl_writel(0x4004D004, 0x40);
-	fsl_writel(0x4004D008, 0x40);
-	fsl_writel(0x4004D00c, 0x40);
-	fsl_writel(0x4004D010, 0x40);
-	fsl_writel(0x4004D014, 0x40);
-
-	fsl_writel(host->ioaddr + ESDHC_INT_STATUS, 0xFFFF);
-	fsl_writel(host->ioaddr + ESDHC_INT_ENABLE, 0x1178013f);
-	fsl_writel(host->ioaddr + ESDHC_SIGNAL_ENABLE, 0x1178013f);
-
-	fsl_writel(host->ioaddr + ESDHC_SYSTEM_CONTROL,
-			fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) | 0x08000000);
-	while (fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) & 0x08000000);
-
-	fsl_writel(host->ioaddr + ESDHC_INT_STATUS,
-			fsl_readl(host->ioaddr + ESDHC_INT_STATUS) | 0x80);
-#endif
 }
 
 static void reset_regs(struct esdhc_host *host)
@@ -277,14 +232,19 @@ static void reset_regs(struct esdhc_host *host)
 		ESDHC_INT_DATA_AVAIL | ESDHC_INT_SPACE_AVAIL |
 		ESDHC_INT_DMA_END | ESDHC_INT_DATA_END | ESDHC_INT_RESPONSE;
 
-	fsl_writel(host->ioaddr + ESDHC_INT_ENABLE, intmask);
+	fsl_writel(host->ioaddr + ESDHC_INT_ENABLE, intmask & ~ESDHC_INT_RESPONSE);
 	fsl_writel(host->ioaddr + ESDHC_SIGNAL_ENABLE, intmask);
 
 	if (host->bus_width == MMC_BUS_WIDTH_4) {
 		intmask = fsl_readl(host->ioaddr + ESDHC_PROTOCOL_CONTROL);
+#if defined(USE_ADMA)
+		intmask |= ESDHC_CTRL_DMAS_ADMA2;
+#endif
 		intmask |= ESDHC_CTRL_4BITBUS;
 		fsl_writel(host->ioaddr + ESDHC_PROTOCOL_CONTROL, intmask);
 	}
+
+	DBG(" ### PROCTL: reset regs %x\n", fsl_readl(host->ioaddr + ESDHC_PROTOCOL_CONTROL));
 }
 
 /*****************************************************************************
@@ -448,8 +408,8 @@ static void esdhc_transfer_pio(struct esdhc_host *host)
 static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 {
 	u8 count;
-	unsigned blkattr = 0;
-	unsigned target_timeout, current_timeout;
+	unsigned int blkattr = 0;
+	unsigned int target_timeout, current_timeout;
 	unsigned int sysctl;
 
 	WARN_ON(host->data);
@@ -527,6 +487,14 @@ static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 		unsigned int wml_value;
 		unsigned int timeout;
 
+		unsigned int val;
+		val = fsl_readl(host->ioaddr + ESDHC_PRESENT_STATE);
+		if (val & (ESDHC_DOING_READ | ESDHC_DATA_DLA)) {
+			printk("### %s: is busy (0x%08x)\n", __func__, val);
+			while (fsl_readl(host->ioaddr + ESDHC_PRESENT_STATE) &
+					(ESDHC_DOING_READ | ESDHC_DATA_DLA));
+		}
+
 		/* DMA address eSDHC in Modelo must be 4 bytes aligned */
 		if ((data->sg->offset & 0x3) == 0)
 			host->offset = 0;
@@ -539,36 +507,27 @@ static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 					? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 
 		BUG_ON(sg_count != 1);
+
+#if !defined(USE_ADMA)
 		/* The data in SD card is little endian,
 		   the SD controller is big endian */
 		if ((data->flags & MMC_DATA_WRITE) == MMC_DATA_WRITE) {
 			unsigned char *buffer = sg_virt(data->sg);
 			unsigned char *buffer_tx =
 				(unsigned char *)host->dma_tx_buf;
-			int i;
 			/* Each sector is 512 Bytes, write 0x200 sectors */
-			memset(host->dma_tx_buf, 0, ESDHC_DMA_SIZE);
-#if 0
-			for (i = 0; i < data->sg->length; i = i + 4) {
-				*(buffer_tx + i + 3) = *(buffer + i);
-				*(buffer_tx + i + 2) = *(buffer + i + 1);
-				*(buffer_tx + i + 1) = *(buffer + i + 2);
-				*(buffer_tx + i)     = *(buffer + i + 3);
-			}
-#else
 			memcpy(buffer_tx, buffer, data->sg->length);
-#endif
-
 			fsl_writel(host->ioaddr + ESDHC_DMA_ADDRESS,
 				(unsigned long)host->dma_tx_dmahandle);
 		} else {
-			printk("addr %p %p %x\n", host->dma_tx_dmahandle,
-					sg_dma_address(data->sg), host->offset);
-			memset((void *)host->dma_tx_dmahandle, 0xaa, ESDHC_DMA_SIZE);
+			DBG("READ 0x%x(%dx%x) to %x/%x 0x%x\n",
+				data->blocks * data->blksz, data->blocks, data->blksz,
+				host->dma_tx_dmahandle, sg_dma_address(data->sg),
+				host->offset);
 			fsl_writel(host->ioaddr + ESDHC_DMA_ADDRESS,
 				(unsigned long)host->dma_tx_dmahandle);
-//				sg_dma_address(data->sg) + host->offset);
 		}
+#endif
 
 		/* Disable the BRR and BWR interrupt */
 		timeout = fsl_readl(host->ioaddr + ESDHC_INT_ENABLE);
@@ -618,10 +577,33 @@ static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 		fsl_writel(host->ioaddr + ESDHC_SIGNAL_ENABLE, timeout);
 	}
 
+#if defined(USE_ADMA)
+	{
+		volatile struct adma_bd	*chain;
+		unsigned char		*buf;
+
+		host->dma_tx_blocks = data->blocks;
+		chain = host->dma_tx_buf;
+		buf = sg_virt(data->sg);
+
+		for (i = 0; i < data->blocks; i++) {
+			chain[i].addr = buf;
+			chain[i].len  = data->blksz;
+			chain[i].attr = ESDHC_ADMA_ACT_TRAN | ESDHC_ADMA_VALID;
+
+			buf += data->blksz;
+		}
+		chain[i - 1].attr |= ESDHC_ADMA_INT | ESDHC_ADMA_END;
+
+		fsl_writel(host->ioaddr + 0x58, chain);
+	}
+#endif
+
 	/* We do not handle DMA boundaries */
 	blkattr = data->blksz;
 	blkattr |= (data->blocks << 16);
 	fsl_writel(host->ioaddr + ESDHC_BLOCK_ATTR, blkattr);
+
 	esdhc_dumpregs(host);
 }
 
@@ -654,9 +636,7 @@ static void esdhc_finish_data(struct esdhc_host *host)
 {
 	struct mmc_data *data;
 	u16 blocks;
-#ifdef CONFIG_ARCH_KINETIS
 	unsigned long cache_flags;
-#endif
 
 	BUG_ON(!host->data);
 
@@ -671,15 +651,14 @@ static void esdhc_finish_data(struct esdhc_host *host)
 		/* Data in SD card is little endian,
 		   SD controller is big endian */
 
-		//kinetis_ps_cache_save(&cache_flags);
+		kinetis_ps_cache_save(&cache_flags);
 
-		/*dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
-					(data->flags & MMC_DATA_READ)
-					? DMA_FROM_DEVICE : DMA_TO_DEVICE);*/
+#if !defined(USE_ADMA)
 		mdelay(100);
 		memcpy(buffer, (void *)host->dma_tx_dmahandle, data->sg->length);
+#endif
+
 		if (((data->flags & MMC_DATA_READ) == MMC_DATA_READ)) {
-#if 0
 			for (i = 0; i < data->sg->length; i = i + 4) {
 				C0  = *(buffer + host->offset + i);
 				C1  = *(buffer + host->offset + i + 1);
@@ -690,19 +669,8 @@ static void esdhc_finish_data(struct esdhc_host *host)
 				*(buffer+i+2) = C2;
 				*(buffer+i+3) = C3;
 			}
-#endif
-			buffer = (void *)host->dma_tx_dmahandle;
-			/*printk("sd read %i %p %02x %02x %02x %02x\n", data->sg->length, buffer,
-					*(buffer + 0), *(buffer + 1), *(buffer + 2),
-					*(buffer + 3));*/
-			for (i = 0; i < ESDHC_DMA_SIZE; i++) {
-				if (*(buffer + i) == 0xaa)
-					break;
-			}
-
-			printk("unchanged data at %x\n", i);
 		}
-		//kinetis_ps_cache_restore(&cache_flags);
+		kinetis_ps_cache_restore(&cache_flags);
 	}
 	/*
 	 * Controller doesn't count down when in single block mode.
@@ -711,7 +679,6 @@ static void esdhc_finish_data(struct esdhc_host *host)
 		blocks = 0;
 	else {
 		blocks = fsl_readl(host->ioaddr + ESDHC_BLOCK_ATTR) >> 16;
-		printk("blocks %i\n", blocks);
 		blocks = 0;
 		if (data->flags & MMC_DATA_READ)
 			data->stop = 0;
@@ -776,7 +743,7 @@ static void esdhc_send_command(struct esdhc_host *host, struct mmc_command *cmd)
 		if (timeout == 0) {
 			printk(KERN_ERR "%s: Controller never released "
 			       "inhibit bit(s).\n", mmc_hostname(host->mmc));
-			esdhc_dumpregs(host);
+			esdhc_regs(host);
 			cmd->error = MMC_ERR_FAILED;
 			tasklet_schedule(&host->finish_tasklet);
 			return;
@@ -1079,6 +1046,9 @@ static void esdhc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->bus_width = MMC_BUS_WIDTH_1;
 	}
 
+#if defined(USE_ADMA)
+	ctrl |= ESDHC_CTRL_DMAS_ADMA2;
+#endif
 	fsl_writel(host->ioaddr + ESDHC_PROTOCOL_CONTROL, ctrl);
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -1196,6 +1166,8 @@ static void esdhc_timeout_timer(unsigned long data)
 
 	host = (struct esdhc_host *)data;
 	printk(KERN_INFO "esdhc_timeout_timer\n");
+	esdhc_regs(host);
+
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->mrq) {
@@ -1234,7 +1206,6 @@ static void esdhc_timer1(unsigned long data)
 static void esdhc_cmd_irq(struct esdhc_host *host, u32 intmask)
 {
 	BUG_ON(intmask == 0);
-
 	if (!host->cmd) {
 		printk(KERN_ERR "%s: Got command interrupt even though no "
 			"command operation was in progress.\n",
@@ -1281,9 +1252,6 @@ static void esdhc_data_irq(struct esdhc_host *host, u32 intmask)
 		return;
 	}
 
-	printk("data irq %x\n", intmask);
-	esdhc_dumpregs(host);
-
 	if (intmask & ESDHC_INT_DATA_TIMEOUT)
 		host->data->error = MMC_ERR_TIMEOUT;
 	else if (intmask & ESDHC_INT_DATA_CRC)
@@ -1292,8 +1260,16 @@ static void esdhc_data_irq(struct esdhc_host *host, u32 intmask)
 		host->data->error = MMC_ERR_FAILED;
 
 	if (host->data->error != MMC_ERR_NONE) {
-		esdhc_finish_data(host);
+		if (host->retries < ESDHC_ERR_RETRY) {
+			host->retries++;
+			host->data->error = 0;
+			tasklet_schedule(&host->finish_tasklet);
+		} else {
+			host->retries = 0;
+			esdhc_finish_data(host);
+		}
 	} else {
+		host->retries = 0;
 		if (intmask & (ESDHC_INT_DATA_AVAIL | ESDHC_INT_SPACE_AVAIL))
 			esdhc_transfer_pio(host);
 		/*
@@ -1363,7 +1339,14 @@ static irqreturn_t esdhc_irq(int irq, void *dev_id)
 	spin_lock(&host->lock);
 
 	status = fsl_readl(host->ioaddr + ESDHC_INT_STATUS);
+/*
+ * Without this get 'mmc0: unrecognised SCR structure version 10'
+ */
+#if 0
 	printk("status %x %x\n", status, *(long *)0xE0082820);
+#else
+	mdelay(1);
+#endif
 
 	if (!status || status == 0xffffffff) {
 		result = IRQ_NONE;
@@ -1380,7 +1363,6 @@ static irqreturn_t esdhc_irq(int irq, void *dev_id)
 		fsl_writel(host->ioaddr + ESDHC_INT_STATUS,
 			status & ESDHC_INT_DATA_MASK);
 		esdhc_data_irq(host, status & ESDHC_INT_DATA_MASK);
-		printk("status %x\n", fsl_readl(host->ioaddr + ESDHC_INT_STATUS));
 	}
 
 	status &= ~(ESDHC_INT_CMD_MASK | ESDHC_INT_DATA_MASK);
@@ -1617,7 +1599,7 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 	if (host->flags & ESDHC_USE_DMA)
 		mmc->max_hw_segs = 1;
 	else
-		mmc->max_hw_segs = 16;
+		mmc->max_hw_segs = 1; //16;
 
 	/*
 	 * Maximum number of sectors in one transfer. Limited by DMA boundary
@@ -1648,7 +1630,7 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 	/*
 	 * Maximum block count.
 	 */
-	mmc->max_blk_count = /*65535*/0x80;
+	mmc->max_blk_count = 1;// 16/*65535*/0x80;
 
 	/*
 	 * Init tasklets.
@@ -1664,8 +1646,6 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 	mod_timer(&timer1, jiffies + 5 * HZ);
 
 	esdhc_init(host);
-
-	esdhc_dumpregs(host);
 
 	ret = request_irq(host->irq, esdhc_irq, IRQF_DISABLED,
 		host->slot_descr, host);
@@ -1694,6 +1674,8 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 		host->addr, host->irq,
 		(host->flags & ESDHC_USE_DMA) ? "DMA" : "PIO");
 
+#if !defined(USE_ADMA)
+
 #ifdef ESDHC_DMA_KMALLOC
 	host->dma_tx_buf = kmalloc(ESDHC_DMA_SIZE, GFP_DMA);
 	host->dma_tx_dmahandle = virt_to_phys(host->dma_tx_buf);
@@ -1705,13 +1687,19 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 	if (((unsigned int)host->dma_tx_buf == 0) ||
 	    ((unsigned int)host->dma_tx_dmahandle == 0))
 		printk(KERN_ERR "%s DMA alloc error\n", __func__);
+#else
+	host->dma_tx_buf = dma_alloc_coherent(NULL,
+					      8 * mmc->max_blk_count,
+					      &host->dma_tx_dmahandle,
+					      GFP_DMA | GFP_KERNEL);
+#endif
 
 	//esdhc_reset(host, ESDHC_INIT_CARD);
 	//host->card_insert = 1;
 	//mmc_detect_change(host->mmc, msecs_to_jiffies(500));
 	*(volatile unsigned int *)0x4004D0A0 |= 0xffffffff;
 	*(volatile unsigned int *)0x4004D070 = 0x80103;
-	printk("cd_sw %x %x\n", *(volatile unsigned int *)0x400ff0d0,
+	DBG("cd_sw %x %x\n", *(volatile unsigned int *)0x400ff0d0,
 		fsl_readl(host->ioaddr + ESDHC_INT_STATUS));
 
 	return 0;
