@@ -125,6 +125,41 @@ config MMC_SDHCI_PLTFM
 
 	  If unsure, say N.
 
+config MMC_ESDHC
+	tristate "Enhanced Secure Digital Host Controller Interface support"
+	depends on M5441X || MACH_KINETIS
+	help
+	  This select Freescale Enhanced SD Host Controller Interface.
+	  The controller is used in MCF5441x.
+	  If unsure, say N.
+
+config ESDHC_FORCE_PIO
+	tristate "eSDHC force to use PIO (no DMA) mode"
+	depends on MMC_ESDHC
+	help
+	  This select Freescale Enhanced SD Host Controller Interface.
+	  The controller is used in MCF5441x.
+	  If unsure, say N.
+
+choice
+	prompt "MMC/SD card detect "
+	depends on MMC_ESDHC
+
+config ESDHC_DETECT_USE_EXTERN_IRQ7
+	bool "based extern IRQ7"
+	depends on MMC_ESDHC
+	help
+	  MMC/SD cards using esdhc controller,
+	  we use the extern irq7 to detect card.
+config ESDHC_DETECT_USE_EXTERN_IRQ1
+	bool "based extern IRQ1"
+	depends on MMC_ESDHC
+	help
+	  MMC/SD cards using esdhc controller,
+	  we use the extern irq7 to detect card.
+
+endchoice
+
 config MMC_SDHCI_S3C
 	tristate "SDHCI support on Samsung S3C SoC"
 	depends on MMC_SDHCI && (PLAT_S3C24XX || PLAT_S3C64XX)
