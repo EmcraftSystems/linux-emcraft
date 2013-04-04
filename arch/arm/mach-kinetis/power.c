@@ -50,6 +50,10 @@ int kinetis_periph_enable(kinetis_clock_gate_t gate, int enable)
 	scgc = &KINETIS_SIM->scgc[KINETIS_CG_REG(gate)];
 	mask = 1 << KINETIS_CG_IDX(gate);
 
+	if (gate == KINETIS_CG_PORTF && enable) { /* K70 Errata #5234 */
+		mask |= (1 << KINETIS_CG_IDX(KINETIS_CG_PORTE));
+	}
+
 	if (enable)
 		*scgc |= mask;
 	else
