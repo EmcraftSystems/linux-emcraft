@@ -558,7 +558,7 @@ static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 
 		fsl_writel(host->ioaddr + ESDHC_WML, wml);
 	} else {
-		unsigned long timeout;
+		unsigned long v;
 
 		host->cur_sg = data->sg;
 		host->num_sg = data->sg_len;
@@ -566,15 +566,24 @@ static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 		host->offset = 0;
 		host->remain = host->cur_sg->length;
 
-		timeout = fsl_readl(host->ioaddr + ESDHC_INT_ENABLE);
-		timeout = timeout | ESDHC_INT_DATA_AVAIL
-				| ESDHC_INT_SPACE_AVAIL;
-		fsl_writel(host->ioaddr + ESDHC_INT_ENABLE, timeout);
+		v  = fsl_readl(host->ioaddr + ESDHC_INT_ENABLE);
+		v |= ESDHC_INT_DATA_AVAIL | ESDHC_INT_SPACE_AVAIL;
+		fsl_writel(host->ioaddr + ESDHC_INT_ENABLE, v);
 
-		timeout = fsl_readl(host->ioaddr + ESDHC_SIGNAL_ENABLE);
-		timeout = timeout | ESDHC_INT_DATA_AVAIL
-				| ESDHC_INT_SPACE_AVAIL;
-		fsl_writel(host->ioaddr + ESDHC_SIGNAL_ENABLE, timeout);
+		v  = fsl_readl(host->ioaddr + ESDHC_SIGNAL_ENABLE);
+		v |= ESDHC_INT_DATA_AVAIL | ESDHC_INT_SPACE_AVAIL;
+		fsl_writel(host->ioaddr + ESDHC_SIGNAL_ENABLE, v);
+
+		/* Generate request if blksize (or more) avail */
+		v = fsl_readl(host->ioaddr + ESDHC_WML);
+		if (data->flags & MMC_DATA_WRITE) {
+			v &= ~(0xFFFF << 16);
+			v |= (data->blksz >> 2) << 16;
+		} else {
+			v &= ~0xFFFF;
+			v |= (data->blksz >> 2);
+		}
+		fsl_writel(host->ioaddr + ESDHC_WML, v);
 	}
 
 #if defined(USE_ADMA)
@@ -1628,9 +1637,9 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 	mmc->max_blk_size = 512 << mmc->max_blk_size;
 
 	/*
-	 * Maximum block count.
+	 * Maximum block count: limited with BLKATTR[BLKCNT]
 	 */
-	mmc->max_blk_count = 1;// 16/*65535*/0x80;
+	mmc->max_blk_count = 0xFFFF;
 
 	/*
 	 * Init tasklets.
