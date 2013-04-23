@@ -1348,14 +1348,7 @@ static irqreturn_t esdhc_irq(int irq, void *dev_id)
 	spin_lock(&host->lock);
 
 	status = fsl_readl(host->ioaddr + ESDHC_INT_STATUS);
-/*
- * Without this get 'mmc0: unrecognised SCR structure version 10'
- */
-#if 0
-	printk("status %x %x\n", status, *(long *)0xE0082820);
-#else
-	mdelay(1);
-#endif
+	DBG("%s: status %x\n", __func__, status);
 
 	if (!status || status == 0xffffffff) {
 		result = IRQ_NONE;
