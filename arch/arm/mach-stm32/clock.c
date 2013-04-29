@@ -269,6 +269,9 @@ void __init stm32_clock_init(void)
 	case PLATFORM_STM32_STM3240G_EVAL:
 		hse_hz = 25000000;
 		break;
+	case PLATFORM_STM32_STM_SOM:
+		hse_hz = 12000000;
+		break;
 #endif
 	default:
 		/*

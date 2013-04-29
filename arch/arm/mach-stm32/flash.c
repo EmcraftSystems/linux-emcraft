@@ -135,6 +135,10 @@ void __init stm32_flash_init(void)
 		/* Size of NOR Flash on the STM-MEM add-on module */
 		size = 8*1024*1024;
 		break;
+	case PLATFORM_STM32_STM_SOM:
+		flash_dev.resource[0].start = 0x64000000;
+		size = 16*1024*1024;
+		break;
 	default:
 		printk(KERN_ERR "%s: Unknown platform %#x, exit\n", __func__,
 			stm32_platform_get());

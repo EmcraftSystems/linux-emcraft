@@ -282,6 +282,7 @@ void __init stm32_iomux_init(void)
 	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM3220G_EVAL:
 	case PLATFORM_STM32_STM3240G_EVAL:
+	case PLATFORM_STM32_STM_SOM:
 #if defined(CONFIG_STM32_USART1)
 		gpio_dsc.port = 0;
 		gpio_dsc.pin  = 9;
@@ -302,7 +303,7 @@ void __init stm32_iomux_init(void)
 #endif
 #if defined(CONFIG_STM32_MAC)
 		do {
-			static struct stm32f2_gpio_dsc mac_gpio[] = {
+			static struct stm32f2_gpio_dsc mii_gpio[] = {
 				{0,  1}, {0,  2}, {0,  7},
 				{1,  5}, {1,  8},
 				{2,  1}, {2,  2}, {2,  3}, {2,  4}, {2,  5},
@@ -310,11 +311,23 @@ void __init stm32_iomux_init(void)
 				{7,  2}, {7,  3}, {7,  6}, {7,  7},
 				{8, 10}
 			};
+			static struct stm32f2_gpio_dsc rmii_gpio[] = {
+				{0,  1}, {0,  2}, {0,  7},
+				{2,  1}, {2,  4}, {2,  5},
+				{6, 11}, {6, 13}, {6, 14},
+			};
 			int	i;
 
-			for (i = 0; i < ARRAY_SIZE(mac_gpio); i++) {
-				stm32f2_gpio_config(&mac_gpio[i],
-						    STM32F2_GPIO_ROLE_ETHERNET);
+			if (platform == PLATFORM_STM32_STM_SOM) {
+				for (i = 0; i < ARRAY_SIZE(rmii_gpio); i++) {
+					stm32f2_gpio_config(&rmii_gpio[i],
+							STM32F2_GPIO_ROLE_ETHERNET);
+				}
+			} else {
+				for (i = 0; i < ARRAY_SIZE(mii_gpio); i++) {
+					stm32f2_gpio_config(&mii_gpio[i],
+							STM32F2_GPIO_ROLE_ETHERNET);
+				}
 			}
 		} while (0);
 #endif
