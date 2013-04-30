@@ -153,6 +153,7 @@ static void __init lpc178x_init_irq(void)
 	nvic_init();
 }
 
+#if defined(CONFIG_SND_LPC3XXX_SOC) || defined(CONFIG_SND_LPC3XXX_SOC_MODULE)
 /*
  * Platform data for the UDA1380 audio codec.
  *
@@ -174,6 +175,7 @@ static struct i2c_board_info __initdata ealpc1788_i2c_board_info[] = {
 		.platform_data = &uda1380_info,
 	},
 };
+#endif
 
 /*
  * LPC178x/7x platform initialization.
