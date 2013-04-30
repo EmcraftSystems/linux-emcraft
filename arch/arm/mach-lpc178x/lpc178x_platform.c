@@ -199,7 +199,7 @@ static void __init lpc178x_init(void)
 	lpc178x_uart_init();
 #endif
 
-#if defined(CONFIG_LPC178X_MAC)
+#if defined(CONFIG_LPC178X_ETHER)
 	/*
 	 * Configure the LPC178x/7x MAC
 	 */
