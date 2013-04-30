@@ -38,13 +38,6 @@ struct stm32f2_pwr_regs {
 };
 
 /*
- * PWR registers base
- */
-#define STM32F2_PWR_BASE		0x40007000
-#define STM32F2_PWR			((volatile struct stm32f2_pwr_regs *) \
-					STM32F2_PWR_BASE)
-
-/*
  * PWR power control register
  */
 /* Disable backup domain write protection */
@@ -68,6 +61,13 @@ struct stm32f2_pwr_regs {
 #define STM32_RCC_ENR_PWREN		(1 << 28)
 
 #if defined(CONFIG_STM32_RTC)
+/*
+ * PWR registers base
+ */
+#define STM32F2_PWR_BASE		0x40007000
+#define STM32F2_PWR			((volatile struct stm32f2_pwr_regs *) \
+					STM32F2_PWR_BASE)
+
 static struct platform_device rtc_device = {
 	.name = "rtc-stm32f2",
 	.id   = -1,
