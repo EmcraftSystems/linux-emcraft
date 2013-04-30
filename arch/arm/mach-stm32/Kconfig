@@ -67,6 +67,11 @@ config STM32_SD_DMA
 	bool "Use DMA for the SD Card Interface"
 	default y
 
+config STM32_RTC
+	depends on ARCH_STM32 && RTC_DRV_STM32F2
+	bool "Enable STM32 RTC"
+	default n
+
 endmenu
 
 endif

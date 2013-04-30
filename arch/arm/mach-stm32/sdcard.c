@@ -31,8 +31,6 @@
 #include <mach/sdcard.h>
 #include <mach/platform.h>
 
-#if defined(CONFIG_STM32_SD)
-
 /*
  * SD card controller register map base and length
  */
@@ -46,6 +44,8 @@
  * STM32 SD card controller is almost compatible to ux500
  */
 #define U8500_SDI_V2_PERIPHID	0x10480180
+
+#if defined(CONFIG_STM32_SD)
 
 /*
  * This function will be called in the beginning of mmci_set_ios()

@@ -67,13 +67,16 @@ struct stm32f2_pwr_regs {
 /* STM32 ENR bit for Power Control module */
 #define STM32_RCC_ENR_PWREN		(1 << 28)
 
+#if defined(CONFIG_STM32_RTC)
 static struct platform_device rtc_device = {
 	.name = "rtc-stm32f2",
 	.id   = -1,
 };
+#endif
 
 void __init stm32_rtc_init(void)
 {
+#if defined(CONFIG_STM32_RTC)
 	int rv;
 
 	/* Enable PWR clock to access the RTC module */
@@ -108,4 +111,5 @@ void __init stm32_rtc_init(void)
 	rv = platform_device_register(&rtc_device);
 	if (rv != 0)
 		pr_err("%s: Failed to register RTC device\n", __func__);
+#endif
 }
