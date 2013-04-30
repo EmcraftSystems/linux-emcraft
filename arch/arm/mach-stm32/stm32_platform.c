@@ -221,12 +221,12 @@ static void __init stm32_init(void)
 	 * Configure SD card controller
 	 */
 	stm32_sdcard_init();
-#endif /* defined(CONFIG_MMC_ARMMMCI) */
+#endif
 
 #if defined(CONFIG_RTC_DRV_STM32F2)
 	/*
 	 * Initialize the on-chip real-time clock
 	 */
 	stm32_rtc_init();
-#endif /* CONFIG_RTC_DRV_STM32F2 */
+#endif
 }

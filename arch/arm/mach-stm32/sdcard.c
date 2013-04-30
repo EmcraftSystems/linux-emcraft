@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2012,2013
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -29,6 +30,8 @@
 #include <mach/stm32.h>
 #include <mach/sdcard.h>
 #include <mach/platform.h>
+
+#if defined(CONFIG_STM32_SD)
 
 /*
  * SD card controller register map base and length
@@ -83,8 +86,11 @@ static struct mmci_platform_data stm32_mci_data = {
 	.status = mmc_card_detect,
 };
 
+#endif /* CONFIG_STM32_SD */
+
 void __init stm32_sdcard_init(void)
 {
+#if defined(CONFIG_STM32_SD)
 	int platform;
 	int have_sd;
 
@@ -115,4 +121,5 @@ void __init stm32_sdcard_init(void)
 
 out:
 	;
+#endif
 }
