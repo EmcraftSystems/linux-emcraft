@@ -45,6 +45,7 @@
 #include <mach/i2c.h>
 #include <mach/fb.h>
 #include <mach/rtc.h>
+#include <mach/wdt.h>
 
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
@@ -274,4 +275,11 @@ static void __init lpc178x_init(void)
 			ARRAY_SIZE(ealpc1788_i2c_board_info));
 	}
 #endif /* CONFIG_SND_LPC3XXX_SOC || CONFIG_SND_LPC3XXX_SOC_MODULE */
+#if defined(CONFIG_LPC2K_WATCHDOG)
+	/*
+	 * Initialize the on-chip wdt
+	 */
+	lpc178x_wdt_init();
+#endif /* CONFIG_LPC178X_WATCHDOG */
+
 }

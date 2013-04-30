@@ -289,6 +289,17 @@ config ADX_WATCHDOG
 	  Say Y here if you want support for the watchdog timer on Avionic
 	  Design Xanthos boards.
 
+config LPC2K_WATCHDOG
+	tristate "LPC2K Watchdog"
+	depends on ARCH_LPC2K || ARCH_LPC178X
+	help
+	  Say Y here if to include support for the watchdog timer
+	  include in the LPC23xx and LPC24xx processors.
+	  This driver can be built as a module by choosing M. The module
+	  will be called lpc2k_wdt.
+
+	  Say N if you are unsure.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT
