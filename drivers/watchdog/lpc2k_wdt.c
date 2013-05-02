@@ -7,6 +7,11 @@
  *
  * Copyright (C) 2011 NXP Semiconductors
  *
+ * Port to LPC178X
+ * (C) Copyright 2013
+ * Emcraft Systems, <www.emcraft.com>
+ * Sergei Poselenov <sposelenov@emcraft.com>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -282,12 +287,14 @@ static int __devinit lpc2k_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_miscreg;
 
+#if !defined(CONFIG_ARCH_LPC178X) /* Not present on LPC178X */
 	/*
 	 * Leave WDT disabled until opened. Once opened, the WDT must
 	 * be continually serviced or it will reset, as the WDT cannot be
 	 * disabled.
 	 */
 	__raw_writel(LPC2K_USEPCLK, wdtdev->base + LPC2K_WDCLKSEL);
+#endif
 
 	lpc2k_wdt_show_warning();
 
