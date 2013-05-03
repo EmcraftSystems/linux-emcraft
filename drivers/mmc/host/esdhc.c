@@ -156,7 +156,7 @@ static void esdhc_reset(struct esdhc_host *host, u8 mask)
 	}
 
 	/* Wait max 100 ms */
-	timeout = 100;
+	timeout = 10000;
 
 	/* hw clears the bit when it's done */
 	sysctl = (mask << ESDHC_RESET_SHIFT);
@@ -168,7 +168,7 @@ static void esdhc_reset(struct esdhc_host *host, u8 mask)
 			return;
 		}
 		timeout--;
-		mdelay(1);
+		udelay(10);
 	}
 
 	while (!(fsl_readl(host->ioaddr + ESDHC_PRESENT_STATE) & ESDHC_SDSTB));
@@ -288,9 +288,6 @@ static void esdhc_read_block_pio(struct esdhc_host *host)
 
 	DBG("PIO reading\n");
 
-	/* Delay prevents data read error in big files */
-	udelay(100);
-
 	blksize = host->data->blksz;
 	chunk_remain = 0;
 	data = 0;
@@ -335,9 +332,6 @@ static void esdhc_write_block_pio(struct esdhc_host *host)
 	int bytes, size;
 
 	DBG("PIO writing\n");
-
-	/* Delay necessary when writing large data blocks to SD card */
-	udelay(100);
 
 	blksize = host->data->blksz;
 	chunk_remain = 4;
@@ -401,8 +395,6 @@ static void esdhc_transfer_pio(struct esdhc_host *host)
 	}
 
 	DBG("PIO transfer complete.\n");
-	/* Delay necessary when writing large data blocks to SD card */
-	udelay(100);
 }
 
 static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
@@ -737,7 +729,7 @@ static void esdhc_send_command(struct esdhc_host *host, struct mmc_command *cmd)
 	WARN_ON(host->cmd);
 
 	/* Wait max 10 ms */
-	timeout = 10;
+	timeout = 1000;
 
 	mask = ESDHC_CMD_INHIBIT;
 	if ((cmd->data != NULL) || (cmd->flags & MMC_RSP_BUSY))
@@ -758,7 +750,7 @@ static void esdhc_send_command(struct esdhc_host *host, struct mmc_command *cmd)
 			return;
 		}
 		timeout--;
-		mdelay(1);
+		udelay(10);
 	}
 
 	mod_timer(&host->timer, jiffies + 15 * HZ);
