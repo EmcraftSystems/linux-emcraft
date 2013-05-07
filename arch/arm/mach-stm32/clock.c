@@ -418,3 +418,4 @@ unsigned int stm32_clock_get(enum stm32_clock clk)
 {
 	return clock_val[clk];
 }
+EXPORT_SYMBOL(stm32_clock_get);
