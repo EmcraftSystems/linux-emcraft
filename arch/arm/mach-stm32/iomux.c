@@ -34,6 +34,7 @@
 #include <mach/stm32.h>
 
 #define CONFIG_STM32_SPI2
+#define CONFIG_STM32_SPI5
 
 /*
  * GPIO registers bases
@@ -412,10 +413,6 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.pin  = 6;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI5);
 
-		gpio_dsc.port = 7;	/* CS */
-		gpio_dsc.pin  = 5;
-		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI5);
-
 		gpio_dsc.port = 5;	/* DI */
 		gpio_dsc.pin  = 8;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI5);
@@ -423,6 +420,10 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.port = 5;	/* DO */
 		gpio_dsc.pin  = 9;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI5);
+
+		gpio_dsc.port = 7;	/* CS */
+		gpio_dsc.pin  = 5;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
 #endif
 #if defined(CONFIG_STM32_SPI6)
 #error		IOMUX for STM32_SPI6 undefined

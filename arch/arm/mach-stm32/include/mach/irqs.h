@@ -27,7 +27,7 @@
 #ifdef CONFIG_ARCH_STM32F1
 #define NR_IRQS		68	/* STM32F1 */
 #else
-#define NR_IRQS		81	/* STM32F2 */
+#define NR_IRQS		90	/* STM32F2 */
 #endif
 
 #endif
