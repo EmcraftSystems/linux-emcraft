@@ -256,6 +256,12 @@ config SPI_S3C64XX
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 
+config SPI_STM32
+	tristate "STM32 SPI Controller"
+	depends on MACH_STM32
+	help
+	  This is the SPI controller master driver for STM32F2/F4
+
 config SPI_SH_MSIOF
 	tristate "SuperH MSIOF SPI controller"
 	depends on SUPERH && HAVE_CLK

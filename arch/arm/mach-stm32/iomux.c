@@ -33,9 +33,6 @@
 #include <mach/platform.h>
 #include <mach/stm32.h>
 
-#define CONFIG_STM32_SPI2
-#define CONFIG_STM32_SPI5
-
 /*
  * GPIO registers bases
  */
@@ -383,7 +380,7 @@ void __init stm32_iomux_init(void)
 		} while (0);
 #endif
 #if defined(CONFIG_STM32_SPI1)
-#error		IOMUX for STM32_SPI3 undefined
+#error		IOMUX for STM32_SPI1 undefined
 #endif
 #if defined(CONFIG_STM32_SPI2)
 		gpio_dsc.port = 8;	/* CLCK */
