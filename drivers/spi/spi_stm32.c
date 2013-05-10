@@ -84,9 +84,8 @@ __setup("spi_stm32_debug=", spi_stm32_debug_setup);
 
 /*
  * Polled or interrupt driven PIO mode.
- * Interrupt driver mode is the default.
  */
-#if 0
+#if 1
 #define	CONFIG_SPI_STM32_POLLED
 #endif
 
