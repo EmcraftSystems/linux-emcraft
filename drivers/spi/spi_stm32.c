@@ -35,7 +35,7 @@
  * to avoid the performance and size overhead of debug messages.
  */
 #define SPI_STM32_DEBUG
-#if 0
+#if 1
 #undef SPI_STM32_DEBUG
 #endif
 

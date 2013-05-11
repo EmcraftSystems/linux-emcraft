@@ -1,8 +1,9 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2011-2013
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -39,6 +40,7 @@
 #include <mach/platform.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/spi.h>
 #include <mach/flash.h>
 #include <mach/sdcard.h>
 #include <mach/dmainit.h>
@@ -207,6 +209,13 @@ static void __init stm32_init(void)
 	 * Configure the STM32 MAC
 	 */
 	stm32_eth_init();
+#endif
+
+#if defined(CONFIG_SPI_STM32)
+	/*
+	 * Configure the STM32 SPI devices
+	 */
+	stm32_spi_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)
