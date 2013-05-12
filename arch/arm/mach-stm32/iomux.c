@@ -1,12 +1,9 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011-2013
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
- *
- * Add SDIO pin configuration for STM3220G-EVAL
- * (C) Copyright 2012
- * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -30,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <mach/iomux.h>
 #include <mach/platform.h>
@@ -76,6 +74,20 @@
 #define STM32F2_GPIO_PUPD_NO	0x00
 #define STM32F2_GPIO_PUPD_UP	0x01
 #define STM32F2_GPIO_PUPD_DOWN	0x02
+
+/*
+ * AF5 selection
+ */
+#define STM32F2_GPIO_AF_SPI1	0x05
+#define STM32F2_GPIO_AF_SPI2	0x05
+#define STM32F2_GPIO_AF_SPI4	0x05
+#define STM32F2_GPIO_AF_SPI5	0x05
+#define STM32F2_GPIO_AF_SPI6	0x05
+
+/*
+ * AF6 selection
+ */
+#define STM32F2_GPIO_AF_SPI3	0x06
 
 /*
  * AF7 selection
@@ -129,8 +141,16 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_USART5,	/* USART5			      */
 	STM32F2_GPIO_ROLE_USART6,	/* USART6			      */
 	STM32F2_GPIO_ROLE_ETHERNET,	/* MAC				      */
+	STM32F2_GPIO_ROLE_SPI1,		/* SPI1				      */
+	STM32F2_GPIO_ROLE_SPI2,		/* SPI2				      */
+	STM32F2_GPIO_ROLE_SPI3,		/* SPI3				      */
+	STM32F2_GPIO_ROLE_SPI4,		/* SPI4				      */
+	STM32F2_GPIO_ROLE_SPI5,		/* SPI5				      */
+	STM32F2_GPIO_ROLE_SPI6,		/* SPI6				      */
 	STM32F2_GPIO_ROLE_SDIO,		/* SDIO				      */
-	STM32F2_GPIO_ROLE_MCO		/* MC external output clock	      */
+	STM32F2_GPIO_ROLE_MCO,		/* MC external output clock	      */
+	STM32F2_GPIO_ROLE_OUT,		/* General purpose output	      */
+	STM32F2_GPIO_ROLE_IN		/* General purpose input	      */
 };
 
 /*
@@ -156,7 +176,10 @@ static const unsigned long io_base[] = {
 static const u32 af_val[] = {
 	STM32F2_GPIO_AF_USART1, STM32F2_GPIO_AF_USART2, STM32F2_GPIO_AF_USART3,
 	STM32F2_GPIO_AF_USART4, STM32F2_GPIO_AF_USART5, STM32F2_GPIO_AF_USART6,
-	STM32F2_GPIO_AF_MAC, STM32F2_GPIO_AF_SDIO,
+	STM32F2_GPIO_AF_MAC, 
+	STM32F2_GPIO_AF_SPI1, STM32F2_GPIO_AF_SPI2, STM32F2_GPIO_AF_SPI3,
+	STM32F2_GPIO_AF_SPI4, STM32F2_GPIO_AF_SPI5, STM32F2_GPIO_AF_SPI6,
+	STM32F2_GPIO_AF_SDIO,
 	0
 };
 
@@ -169,7 +192,7 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 {
 	volatile struct stm32f2_gpio_regs	*gpio_regs;
 
-	u32	otype, ospeed, pupd, i;
+	u32	otype, ospeed, pupd, mode, i;
 	int	rv;
 
 	/*
@@ -190,6 +213,12 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 	case STM32F2_GPIO_ROLE_USART4:
 	case STM32F2_GPIO_ROLE_USART5:
 	case STM32F2_GPIO_ROLE_USART6:
+	case STM32F2_GPIO_ROLE_SPI1:
+	case STM32F2_GPIO_ROLE_SPI2:
+	case STM32F2_GPIO_ROLE_SPI3:
+	case STM32F2_GPIO_ROLE_SPI4:
+	case STM32F2_GPIO_ROLE_SPI5:
+	case STM32F2_GPIO_ROLE_SPI6:
 		otype  = STM32F2_GPIO_OTYPE_PP;
 		ospeed = STM32F2_GPIO_SPEED_50M;
 		pupd   = STM32F2_GPIO_PUPD_UP;
@@ -201,6 +230,11 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 		pupd   = STM32F2_GPIO_PUPD_NO;
 		break;
 	case STM32F2_GPIO_ROLE_SDIO:
+		otype  = STM32F2_GPIO_OTYPE_PP;
+		ospeed = STM32F2_GPIO_SPEED_50M;
+		pupd   = STM32F2_GPIO_PUPD_NO;
+		break;
+	case STM32F2_GPIO_ROLE_OUT:
 		otype  = STM32F2_GPIO_OTYPE_PP;
 		ospeed = STM32F2_GPIO_SPEED_50M;
 		pupd   = STM32F2_GPIO_PUPD_NO;
@@ -220,7 +254,10 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 	 */
 	STM32_RCC->ahb1enr |= 1 << dsc->port;
 
-	if (role != STM32F2_GPIO_ROLE_MCO) {
+	if (role != STM32F2_GPIO_ROLE_MCO &&
+	    role != STM32F2_GPIO_ROLE_OUT &&
+	    role != STM32F2_GPIO_ROLE_IN) {
+
 		/*
 		 * Connect PXy to the specified controller (role)
 		 */
@@ -229,19 +266,30 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 		gpio_regs->afr[dsc->pin >> 3] |= af_val[role] << i;
 	}
 
-	i = dsc->pin * 2;
-
-	/*
-	 * Set Alternative function mode
-	 */
-	gpio_regs->moder &= ~(0x3 << i);
-	gpio_regs->moder |= STM32F2_GPIO_MODE_AF << i;
+	i = dsc->pin;
 
 	/*
 	 * Output mode configuration
 	 */
-	gpio_regs->otyper &= ~(0x3 << i);
+	gpio_regs->otyper &= ~(0x1 << i);
 	gpio_regs->otyper |= otype << i;
+
+	i = dsc->pin * 2;
+
+	/*
+	 * Set mode
+	 */
+	if (role == STM32F2_GPIO_ROLE_OUT) {
+		mode = STM32F2_GPIO_MODE_OUT;
+	}
+	else if (role == STM32F2_GPIO_ROLE_IN) {
+		mode = STM32F2_GPIO_MODE_IN;
+	}
+	else {
+		mode = STM32F2_GPIO_MODE_AF;
+	}
+	gpio_regs->moder &= ~(0x3 << i);
+	gpio_regs->moder |= mode << i;
 
 	/*
 	 * Speed mode configuration
@@ -282,6 +330,7 @@ void __init stm32_iomux_init(void)
 	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM3220G_EVAL:
 	case PLATFORM_STM32_STM3240G_EVAL:
+	case PLATFORM_STM32_STM_SOM:
 #if defined(CONFIG_STM32_USART1)
 		gpio_dsc.port = 0;
 		gpio_dsc.pin  = 9;
@@ -302,7 +351,7 @@ void __init stm32_iomux_init(void)
 #endif
 #if defined(CONFIG_STM32_MAC)
 		do {
-			static struct stm32f2_gpio_dsc mac_gpio[] = {
+			static struct stm32f2_gpio_dsc mii_gpio[] = {
 				{0,  1}, {0,  2}, {0,  7},
 				{1,  5}, {1,  8},
 				{2,  1}, {2,  2}, {2,  3}, {2,  4}, {2,  5},
@@ -310,13 +359,71 @@ void __init stm32_iomux_init(void)
 				{7,  2}, {7,  3}, {7,  6}, {7,  7},
 				{8, 10}
 			};
+			static struct stm32f2_gpio_dsc rmii_gpio[] = {
+				{0,  1}, {0,  2}, {0,  7},
+				{2,  1}, {2,  4}, {2,  5},
+				{6, 11}, {6, 13}, {6, 14},
+			};
 			int	i;
 
-			for (i = 0; i < ARRAY_SIZE(mac_gpio); i++) {
-				stm32f2_gpio_config(&mac_gpio[i],
-						    STM32F2_GPIO_ROLE_ETHERNET);
+			if (platform == PLATFORM_STM32_STM_SOM) {
+				for (i = 0; i < ARRAY_SIZE(rmii_gpio); i++) {
+					stm32f2_gpio_config(&rmii_gpio[i],
+						STM32F2_GPIO_ROLE_ETHERNET);
+				}
+			} else {
+				for (i = 0; i < ARRAY_SIZE(mii_gpio); i++) {
+					stm32f2_gpio_config(&mii_gpio[i],
+						STM32F2_GPIO_ROLE_ETHERNET);
+				}
 			}
 		} while (0);
+#endif
+#if defined(CONFIG_STM32_SPI1)
+#error		IOMUX for STM32_SPI1 undefined
+#endif
+#if defined(CONFIG_STM32_SPI2)
+		gpio_dsc.port = 8;	/* CLCK */
+		gpio_dsc.pin  = 1;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI2);
+
+		gpio_dsc.port = 1;	/* DI */
+		gpio_dsc.pin  = 14;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI2);
+
+		gpio_dsc.port = 1;	/* DO */
+		gpio_dsc.pin  = 15;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI2);
+
+		gpio_dsc.port = 1;	/* CS */
+		gpio_dsc.pin  = 9;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
+#endif
+#if defined(CONFIG_STM32_SPI3)
+#error		IOMUX for STM32_SPI3 undefined
+#endif
+#if defined(CONFIG_STM32_SPI4)
+#error		IOMUX for STM32_SPI4 undefined
+#endif
+#if defined(CONFIG_STM32_SPI5)
+		gpio_dsc.port = 7;	/* CLCK */
+		gpio_dsc.pin  = 6;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI5);
+
+		gpio_dsc.port = 5;	/* DI */
+		gpio_dsc.pin  = 8;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI5);
+
+		gpio_dsc.port = 5;	/* DO */
+		gpio_dsc.pin  = 9;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI5);
+
+		gpio_dsc.port = 7;	/* CS */
+		gpio_dsc.pin  = 5;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
+#endif
+#if defined(CONFIG_STM32_SPI6)
+#error		IOMUX for STM32_SPI6 undefined
 #endif
 #if defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE)
 		do {
@@ -352,3 +459,23 @@ void __init stm32_iomux_init(void)
 		break;
 	}
 }
+
+/*
+ * Set value of a general-purpose output
+ */
+void stm32_io_out(int port, int pin, int v)
+{
+	volatile struct stm32f2_gpio_regs *gpio_regs;
+
+	/*
+	 * Get reg base
+	 */
+	gpio_regs = (struct stm32f2_gpio_regs *) io_base[port];
+
+	/*
+	 * Set the output
+	 */
+	gpio_regs->odr &= ~(1 << pin);
+	gpio_regs->odr |= (v << pin);
+}
+EXPORT_SYMBOL(stm32_io_out);

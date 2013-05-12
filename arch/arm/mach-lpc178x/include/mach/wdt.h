@@ -1,6 +1,7 @@
 /*
- * (C) Copyright (C) 2009
- * ARM Ltd.
+ * (C) Copyright 2013
+ * Emcraft Systems, <www.emcraft.com>
+ * Sergei Poselenov <sposelenov@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -21,13 +22,11 @@
  * MA 02111-1307 USA
  */
 
-#ifndef __ASM_ARCH_IRQS_H
-#define __ASM_ARCH_IRQS_H
+#ifndef _MACH_LPC178X_WDT_H_
+#define _MACH_LPC178X_WDT_H_
 
-#ifdef CONFIG_ARCH_STM32F1
-#define NR_IRQS		68	/* STM32F1 */
-#else
-#define NR_IRQS		90	/* STM32F2 */
-#endif
+#include <linux/init.h>
 
-#endif
+void __init lpc178x_wdt_init(void);
+
+#endif /* _MACH_LPC178X_WDT_H_ */

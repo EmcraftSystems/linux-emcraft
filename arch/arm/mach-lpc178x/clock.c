@@ -325,6 +325,16 @@ static struct clk clk_i2s = {
 };
 
 /*
+ * Clock for the WDT module of the MCU.
+ * The clock rate is fixed at 500 kHz.
+ * The clocks are enabled automatically by enabling WDT.
+ */
+static struct clk clk_wdt = {
+	.pconp_mask	= 0,
+	.rate		= 500000
+};
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -342,6 +352,7 @@ static struct clk_lookup lpc178x_clkregs[] = {
 	INIT_CLKREG(&clk_i2c[2], "lpc2k-i2c.2", NULL),
 	INIT_CLKREG(&clk_lcd, "dev:clcd", NULL),
 	INIT_CLKREG(&clk_i2s, NULL, "i2s0_ck"),
+	INIT_CLKREG(&clk_wdt, "lpc2k-wdt", NULL),
 };
 
 /*

@@ -1,8 +1,9 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2011-2013
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -39,6 +40,7 @@
 #include <mach/platform.h>
 #include <mach/timer.h>
 #include <mach/uart.h>
+#include <mach/spi.h>
 #include <mach/flash.h>
 #include <mach/sdcard.h>
 #include <mach/dmainit.h>
@@ -100,6 +102,9 @@ int stm32_device_get(void)
 	case PLATFORM_STM32_STM3240G_EVAL:
 		r = DEVICE_STM32F407IG;
 		break;
+	case PLATFORM_STM32_STM_SOM:
+		r = DEVICE_STM32F437II;
+		break;
 #endif
 	default:
 #ifdef CONFIG_ARCH_STM32F1
@@ -127,6 +132,8 @@ static int __init stm32_platform_parse(char *s)
 		stm32_platform = PLATFORM_STM32_STM3220G_EVAL;
 	else if (!strcmp(s, "stm3240g-eval"))
 		stm32_platform = PLATFORM_STM32_STM3240G_EVAL;
+	else if (!strcmp(s, "stm-som"))
+		stm32_platform = PLATFORM_STM32_STM_SOM;
 #endif
 
 	return 1;
@@ -204,6 +211,13 @@ static void __init stm32_init(void)
 	stm32_eth_init();
 #endif
 
+#if defined(CONFIG_SPI_STM32)
+	/*
+	 * Configure the STM32 SPI devices
+	 */
+	stm32_spi_init();
+#endif
+
 #if defined(CONFIG_MTD_PHYSMAP)
 	/*
 	 * Configure external Flash
@@ -216,12 +230,12 @@ static void __init stm32_init(void)
 	 * Configure SD card controller
 	 */
 	stm32_sdcard_init();
-#endif /* defined(CONFIG_MMC_ARMMMCI) */
+#endif
 
 #if defined(CONFIG_RTC_DRV_STM32F2)
 	/*
 	 * Initialize the on-chip real-time clock
 	 */
 	stm32_rtc_init();
-#endif /* CONFIG_RTC_DRV_STM32F2 */
+#endif
 }

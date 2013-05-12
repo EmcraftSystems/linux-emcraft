@@ -28,5 +28,6 @@
 #include <linux/init.h>
 
 void __init stm32_iomux_init(void);
+void stm32_io_out(int port, int pin, int v);
 
 #endif	/*_MACH_STM32_IOMUX_H_ */

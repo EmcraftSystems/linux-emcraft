@@ -45,6 +45,11 @@ config LPC178X_SD_DMA
 	bool "Use DMA for the SD Card Interface"
 	default y
 
+config LPC178X_WATCHDOG
+	depends on ARCH_LPC178X && LPC2K_WATCHDOG
+	bool "Enable LPC178x Watchdog"
+	default n
+
 endmenu
 
 endif

@@ -17,6 +17,11 @@ config ARCH_STM32F1
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
 
+config STM32_DMA
+	depends on ARCH_STM32
+	bool "Enable STM32 DMA controller for peripherals"
+	default n
+
 config STM32_USART1
 	depends on ARCH_STM32 && SERIAL_STM32
 	bool "Enable STM32 USART1 port"
@@ -52,15 +57,50 @@ config STM32_MAC
 	bool "Enable STM32 Ethernet port"
 	default y
 
-config STM32_DMA
-	depends on ARCH_STM32
-	bool "Enable STM32 DMA controller for peripherals"
+config STM32_SPI1
+	depends on ARCH_STM32 && SPI_STM32
+	bool "Enable STM32 SPI1 port"
+	default n
+
+config STM32_SPI2
+	depends on ARCH_STM32 && SPI_STM32
+	bool "Enable STM32 SPI2 port"
+	default n
+
+config STM32_SPI3
+	depends on ARCH_STM32 && SPI_STM32
+	bool "Enable STM32 SPI3 port"
+	default n
+
+config STM32_SPI4
+	depends on ARCH_STM32 && SPI_STM32
+	bool "Enable STM32 SPI4 port"
+	default n
+
+config STM32_SPI5
+	depends on ARCH_STM32 && SPI_STM32
+	bool "Enable STM32 SPI5 port"
+	default n
+
+config STM32_SPI6
+	depends on ARCH_STM32 && SPI_STM32
+	bool "Enable STM32 SPI6 port"
+	default n
+
+config STM32_SD
+	depends on ARCH_STM32 && MMC_ARMMMCI
+	bool "Enable STM32 SD Card interface"
 	default n
 
 config STM32_SD_DMA
-	depends on ARCH_STM32 && MMC_ARMMMCI && STM32_DMA && MMC_BLOCK_BOUNCE
+	depends on STM32_SD && STM32_DMA && MMC_BLOCK_BOUNCE
 	bool "Use DMA for the SD Card Interface"
 	default y
+
+config STM32_RTC
+	depends on ARCH_STM32 && RTC_DRV_STM32F2
+	bool "Enable STM32 RTC"
+	default n
 
 endmenu
 
