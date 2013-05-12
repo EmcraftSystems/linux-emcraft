@@ -443,7 +443,7 @@ static int __kinetis_start_rx_dma(struct kinetis_uart_priv *up,
 	if (rv < 0)
 		goto out;
 	/* Enable UART Rx DMA channel */
-	rv = kinetis_dma_ch_enable(up->dma_ch_rx);
+	rv = kinetis_dma_ch_enable(up->dma_ch_rx, 0);
 	if (rv < 0)
 		goto out;
 

@@ -27,5 +27,6 @@
 
 void kinetis_ps_cache_save(unsigned long *flags);
 void kinetis_ps_cache_restore(unsigned long *flags);
+void kinetis_ps_cache_flush(void);
 
 #endif /* _MACH_KINETIS_CACHE_H_ */

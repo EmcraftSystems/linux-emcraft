@@ -36,6 +36,7 @@
 #define KINETIS_DMACH_UART3_RX	3
 #define KINETIS_DMACH_UART4_RX	4
 #define KINETIS_DMACH_UART5_RX	5
+#define KINETIS_DMACH_ESDHC	6
 
 void __init kinetis_dma_init(void);
 void __init kinetis_dmac_init(void);

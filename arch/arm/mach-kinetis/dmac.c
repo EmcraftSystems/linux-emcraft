@@ -281,9 +281,12 @@ out:								\
  * Enable or disable a DMA channel (by index ch: 0 .. 31) by setting a bit
  * in DMA_ERQ.
  */
-static int __kinetis_dma_ch_enable(int ch, int enable)
+static int __kinetis_dma_ch_enable(int ch, int enable, int single)
 {
 	DMAAPI_LOCKED_BEGIN
+
+	if (single)
+		KINETIS_DMA->tcd[ch].csr |= (1 << 3);
 
 	/* Enable or disable channel */
 	if (enable)
@@ -297,9 +300,9 @@ static int __kinetis_dma_ch_enable(int ch, int enable)
 /*
  * Enable a DMA channel (by index ch: 0 .. 31) by setting a bit in DMA_ERQ.
  */
-int kinetis_dma_ch_enable(int ch)
+int kinetis_dma_ch_enable(int ch, int single)
 {
-	return __kinetis_dma_ch_enable(ch, 1);
+	return __kinetis_dma_ch_enable(ch, 1, single);
 }
 EXPORT_SYMBOL(kinetis_dma_ch_enable);
 
@@ -308,7 +311,7 @@ EXPORT_SYMBOL(kinetis_dma_ch_enable);
  */
 int kinetis_dma_ch_disable(int ch)
 {
-	return __kinetis_dma_ch_enable(ch, 0);
+	return __kinetis_dma_ch_enable(ch, 0, 0);
 }
 EXPORT_SYMBOL(kinetis_dma_ch_disable);
 
@@ -566,6 +569,15 @@ int kinetis_dma_ch_iter_done(int ch)
 	return KINETIS_DMA->tcd[ch].biter - KINETIS_DMA->tcd[ch].citer;
 }
 EXPORT_SYMBOL(kinetis_dma_ch_iter_done);
+
+/*
+ * Get DMA channel busy status
+ */
+int kinetis_dma_ch_is_active(int ch)
+{
+	return KINETIS_DMA->hrs & (1 << ch);
+}
+EXPORT_SYMBOL(kinetis_dma_ch_is_active);
 
 /*
  * Initialize the DMA controller driver

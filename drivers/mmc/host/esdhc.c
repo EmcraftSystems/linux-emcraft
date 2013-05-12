@@ -16,6 +16,7 @@
  */
 
 #define CONFIG_ESDHC_FORCE_PIO
+#define USE_EDMA
 #undef  USE_ADMA
 
 #include <linux/module.h>
@@ -34,6 +35,8 @@
 
 #include <asm/dma.h>
 #include <asm/page.h>
+#include <mach/dmac.h>
+#include <mach/dmainit.h>
 
 #include <linux/platform_device.h>
 #include <mach/cache.h>
@@ -281,10 +284,10 @@ static inline int esdhc_next_sg(struct esdhc_host *host)
 
 static void esdhc_read_block_pio(struct esdhc_host *host)
 {
-	int blksize, chunk_remain;
+
+	int blksize, chunk_remain, rv;
 	u32 data;
 	char *buffer;
-	int size;
 
 	DBG("PIO reading\n");
 
@@ -294,7 +297,42 @@ static void esdhc_read_block_pio(struct esdhc_host *host)
 
 	buffer = esdhc_sg_to_buffer(host) + host->offset;
 
+#if defined(USE_EDMA)
+	if (host->dma_run && kinetis_dma_ch_is_active(KINETIS_DMACH_ESDHC))
+		return;
+
+	host->dma_run = 1;
+	rv = kinetis_dma_ch_init(KINETIS_DMACH_ESDHC);
+	if (rv < 0)
+		printk("%s: init err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_src(KINETIS_DMACH_ESDHC,
+				    (u32)host->ioaddr + ESDHC_BUFFER, 0,
+				    KINETIS_DMA_WIDTH_32BIT, 0);
+	if (rv < 0)
+		printk("%s: set src err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_dest(KINETIS_DMACH_ESDHC, (u32)buffer, 4,
+				     KINETIS_DMA_WIDTH_32BIT, 0);
+	if (rv < 0)
+		printk("%s: set dest err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_nbytes(KINETIS_DMACH_ESDHC, blksize);
+	if (rv < 0)
+		printk("%s: set nbytes err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_iter_num(KINETIS_DMACH_ESDHC, 1);
+	if (rv < 0)
+		printk("%s: set iter err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_enable(KINETIS_DMACH_ESDHC, 1);
+	if (rv < 0)
+		printk("%s: enable err %d\n", __func__, rv);
+
+	host->offset += blksize;
+	host->remain -= blksize;
+
+	if (!host->remain)
+		esdhc_next_sg(host);
+#else
 	while (blksize) {
+		int size;
+
 		if (chunk_remain == 0) {
 			data = fsl_readl(host->ioaddr + ESDHC_BUFFER);
 			chunk_remain = min(blksize, 4);
@@ -322,14 +360,14 @@ static void esdhc_read_block_pio(struct esdhc_host *host)
 			buffer = esdhc_sg_to_buffer(host);
 		}
 	}
+#endif
 }
 
 static void esdhc_write_block_pio(struct esdhc_host *host)
 {
-	int blksize, chunk_remain;
+	int blksize, chunk_remain, bytes, rv;
 	u32 data;
 	char *buffer;
-	int bytes, size;
 
 	DBG("PIO writing\n");
 
@@ -340,7 +378,42 @@ static void esdhc_write_block_pio(struct esdhc_host *host)
 	bytes = 0;
 	buffer = esdhc_sg_to_buffer(host) + host->offset;
 
+#if defined(USE_EDMA)
+	if (host->dma_run && kinetis_dma_ch_is_active(KINETIS_DMACH_ESDHC))
+		return;
+
+	host->dma_run = 1;
+	rv = kinetis_dma_ch_init(KINETIS_DMACH_ESDHC);
+	if (rv < 0)
+		printk("%s: init err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_src(KINETIS_DMACH_ESDHC, (u32)buffer, 4,
+				    KINETIS_DMA_WIDTH_32BIT, 0);
+	if (rv < 0)
+		printk("%s: set src err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_dest(KINETIS_DMACH_ESDHC,
+				     (u32)host->ioaddr + ESDHC_BUFFER, 0,
+				     KINETIS_DMA_WIDTH_32BIT, 0);
+	if (rv < 0)
+		printk("%s: set dest err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_nbytes(KINETIS_DMACH_ESDHC, blksize);
+	if (rv < 0)
+		printk("%s: set nbytes err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_set_iter_num(KINETIS_DMACH_ESDHC, 1);
+	if (rv < 0)
+		printk("%s: set iter err %d\n", __func__, rv);
+	rv = kinetis_dma_ch_enable(KINETIS_DMACH_ESDHC, 1);
+	if (rv < 0)
+		printk("%s: enable err %d\n", __func__, rv);
+
+	host->offset += blksize;
+	host->remain -= blksize;
+
+	if (!host->remain)
+		esdhc_next_sg(host);
+#else
 	while (blksize) {
+		int size;
+
 		size = min(host->remain, chunk_remain);
 
 		chunk_remain -= size;
@@ -368,6 +441,7 @@ static void esdhc_write_block_pio(struct esdhc_host *host)
 			buffer = esdhc_sg_to_buffer(host);
 		}
 	}
+#endif
 }
 
 static void esdhc_transfer_pio(struct esdhc_host *host)
@@ -600,6 +674,10 @@ static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 	}
 #endif
 
+#if defined(USE_EDMA)
+	kinetis_ps_cache_flush();
+#endif
+
 	/* We do not handle DMA boundaries */
 	blkattr = data->blksz;
 	blkattr |= (data->blocks << 16);
@@ -640,6 +718,10 @@ static void esdhc_finish_data(struct esdhc_host *host)
 	unsigned long cache_flags;
 
 	BUG_ON(!host->data);
+
+#if defined(USE_EDMA)
+	kinetis_ps_cache_flush();
+#endif
 
 	data = host->data;
 	host->data = NULL;
@@ -1669,6 +1751,12 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 		(host->flags & ESDHC_USE_DMA) ? "DMA" : "PIO");
 
 #if !defined(USE_ADMA)
+
+#if defined(USE_EDMA)
+	ret = kinetis_dma_ch_get(KINETIS_DMACH_ESDHC);
+	if (ret < 0)
+		printk("%s: failed get eDMA chan %d (%d)\n", __func__, KINETIS_DMACH_ESDHC, ret);
+#endif
 
 #ifdef ESDHC_DMA_KMALLOC
 	host->dma_tx_buf = kmalloc(ESDHC_DMA_SIZE, GFP_DMA);

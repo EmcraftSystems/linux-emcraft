@@ -304,6 +304,8 @@ struct esdhc_host {
 	int			offset;		/* Offset into current sg */
 	int			remain;		/* Bytes left in current */
 
+	int			dma_run;
+
 	char			slot_descr[20];	/* Name for reservations */
 
 	int			card_insert;

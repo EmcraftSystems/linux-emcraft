@@ -154,6 +154,8 @@ static const struct kinetis_dma_ch_config k70_dmamux_table[] = {
 #if defined(CONFIG_KINETIS_UART5)
 	{KINETIS_DMACH_UART5_RX, 12},
 #endif /* CONFIG_KINETIS_UART5 */
+
+	{KINETIS_DMACH_ESDHC, 54},
 };
 
 /*

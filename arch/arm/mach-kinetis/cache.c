@@ -79,3 +79,16 @@ void kinetis_ps_cache_restore(unsigned long *flags)
 	while (KINETIS_LMEM_PSCCR & KINETIS_LMEM_CCR_GO_MSK);
 }
 EXPORT_SYMBOL(kinetis_ps_cache_restore);
+
+/*
+ * Flush Kinetis Processor System (PS) cache
+ */
+void kinetis_ps_cache_flush(void)
+{
+	unsigned long	flags;
+
+	kinetis_ps_cache_save(&flags);
+	kinetis_ps_cache_restore(&flags);
+}
+EXPORT_SYMBOL(kinetis_ps_cache_flush);
+
