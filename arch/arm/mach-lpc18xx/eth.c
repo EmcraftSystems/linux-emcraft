@@ -68,7 +68,7 @@ static struct stm32_eth_data hitex_lpc4350_eth_data = {
  * Ethernet platform device instance
  */
 static struct platform_device eth_device = {
-	.name		= "blackfin-eth",
+	.name		= STM32_ETH_DRV_NAME,
 	.num_resources	= ARRAY_SIZE(eth_resources),
 	.resource	= eth_resources,
 /*

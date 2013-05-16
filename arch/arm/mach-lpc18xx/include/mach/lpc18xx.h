@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2011-2013
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -37,5 +38,11 @@
 #ifndef __LITTLE_ENDIAN
 #error This LPC18XX port assumes that the CPU works in little-endian mode
 #endif
+
+/*
+ * Peripheral memory map
+ */
+#define LPC18XX_PERIPH_BASE		0x40000000
+#define LPC18XX_APB0PERIPH_BASE		0x40080000
 
 #endif /* _MACH_LPC18XX_H_ */

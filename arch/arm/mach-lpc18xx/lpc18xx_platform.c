@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2012, 2013
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusianov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -37,6 +38,7 @@
 #include <mach/timer.h>
 #include <mach/uart.h>
 #include <mach/eth.h>
+#include <mach/spi.h>
 #include <mach/nor-flash.h>
 
 /*
@@ -160,11 +162,18 @@ static void __init lpc18xx_init(void)
 	lpc18xx_uart_init();
 #endif
 
-#if defined(CONFIG_LPC18XX_MAC)
+#if defined(CONFIG_STM32_ETHER)
 	/*
 	 * Configure the LPC18xx MAC
 	 */
 	lpc18xx_eth_init();
+#endif
+
+#if defined(CONFIG_SPI_PL022)
+	/*
+	 * Configure the SSP/SPI
+	 */
+	lpc18xx_spi_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)

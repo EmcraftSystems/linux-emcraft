@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2011-2013
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov, <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -260,6 +261,17 @@ static struct clk clk_uart[4];
 static struct clk clk_net;
 
 /*
+ * Clocks for the two SSP/SPI ports of the LPC18xx/LPC43xx.
+ * The clock rates are initialized in `lpc18xx_clock_init()`.
+ */
+#if defined (CONFIG_LPC18XX_SPI0)
+static struct clk clk_ssp0;
+#endif
+#if defined (CONFIG_LPC18XX_SPI1)
+static struct clk clk_ssp1;
+#endif
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -274,6 +286,12 @@ static struct clk_lookup lpc18xx_clkregs[] = {
 	INIT_CLKREG(&clk_uart[2], NULL, "lpc18xx-uart.2"),
 	INIT_CLKREG(&clk_uart[3], NULL, "lpc18xx-uart.3"),
 	INIT_CLKREG(&clk_net, "eth0", NULL),
+#if defined (CONFIG_LPC18XX_SPI0)
+	INIT_CLKREG(&clk_ssp0, "dev:ssp0", NULL),
+#endif
+#if defined (CONFIG_LPC18XX_SPI1)
+	INIT_CLKREG(&clk_ssp1, "dev:ssp1", NULL),
+#endif
 };
 
 /*
@@ -382,9 +400,23 @@ void __init lpc18xx_clock_init(void)
 	 */
 	/* CLK_M4_ETHERNET is branch clock of BASE_M4_CLK, same frequencies */
 	clk_net.rate = clock_val[CLOCK_CCLK];
+
 	/* All UART clocks are sourced from PLL1 without dividers */
 	for (i = 0; i < ARRAY_SIZE(clk_uart); i++)
 		clk_uart[i].rate = pll1_out;
+
+	/* All SSP/SPI clocks are sourced from PLL1 without dividers */
+#if defined (CONFIG_LPC18XX_SPI0)
+	LPC18XX_CGU->ssp0_clk = LPC18XX_CGU_CLKSEL_PLL1 |
+			LPC18XX_CGU_PLL1CTRL_AUTOBLOCK_MSK;
+	clk_ssp0.rate = pll1_out;
+#endif
+#if defined (CONFIG_LPC18XX_SPI1)
+	LPC18XX_CGU->ssp1_clk = LPC18XX_CGU_CLKSEL_PLL1 |
+			LPC18XX_CGU_PLL1CTRL_AUTOBLOCK_MSK;
+	clk_ssp1.rate = pll1_out;
+#endif
+
 	/*
 	 * Register clocks with the `clk_*` infrastructure
 	 */

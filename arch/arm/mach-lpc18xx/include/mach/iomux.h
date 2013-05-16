@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2011-2013
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -27,6 +28,19 @@
 
 #include <linux/init.h>
 
+/*
+ * Set up direction of a GPIO: 1-> out; 0-> in
+ */
+void lpc18xx_gpio_dir(int port, int pin, int d);
+
+/*
+ * Define the value of a general-purpose output
+ */
+void lpc18xx_gpio_out(int port, int pin, int v);
+
+/*
+ * Set up IOMUX configuration of various processor chips
+ */
 void __init lpc18xx_iomux_init(void);
 
 #endif	/*_MACH_LPC18XX_IOMUX_H_ */

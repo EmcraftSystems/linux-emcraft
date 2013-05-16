@@ -35,6 +35,16 @@ config LPC18XX_MAC
 	bool "Enable LPC18xx Ethernet port"
 	default y
 
+config LPC18XX_SPI0
+	depends on ARCH_LPC18XX && SPI_PL022
+	bool "Enable LPC18xx SSP/SPI0 port"
+	default n
+
+config LPC18XX_SPI1
+	depends on ARCH_LPC18XX && SPI_PL022
+	bool "Enable LPC18xx SSP/SPI1 port"
+	default n
+
 endmenu
 
 endif

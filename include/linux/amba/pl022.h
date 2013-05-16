@@ -67,6 +67,7 @@ enum ssp_hierarchy {
 struct ssp_clock_params {
 	u8 cpsdvsr; /* value from 2 to 254 (even only!) */
 	u8 scr;	    /* value from 0 to 255 */
+	u16 dummy;  /* dummy field to ensure a 4-byte alignment */	
 };
 
 /**

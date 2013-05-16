@@ -807,6 +807,7 @@ config ARCH_LPC18XX
 	bool "NXP LPC18xx/43xx MCU"
 	depends on !MMU
 	select ARM_CORTEXM3
+	select ARM_AMBA
 	help
 	  This enables support for the NXP LPC18xx/43xx MCUs
 
