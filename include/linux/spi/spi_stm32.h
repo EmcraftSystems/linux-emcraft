@@ -24,8 +24,7 @@
  * Slave-specific parameters that the SPI controller driver cares about
  */
 struct spi_stm32_slv {
-	int				cs_port;	/* CS GPIO port */
-	int				cs_pin;		/* CS GPIO pin */
+	int				cs_gpio;	/* CS GPIO number */
 	int				timeout;	/* Timeout in secs */
 };
 

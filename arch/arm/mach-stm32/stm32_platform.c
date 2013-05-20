@@ -45,6 +45,7 @@
 #include <mach/sdcard.h>
 #include <mach/dmainit.h>
 #include <mach/rtc.h>
+#include <mach/gpio.h>
 
 /*
  * Prototypes
@@ -185,17 +186,17 @@ static void __init stm32_init_irq(void)
  */
 static void __init stm32_init(void)
 {
+	/*
+	 * Configure the IOMUXes of STM32
+	 */
+	stm32_iomux_init();
+
 #if defined(CONFIG_STM32_DMA)
 	/*
 	 * Configure DMA controller and its driver's API
 	 */
 	stm32_dma_init();
 #endif
-
-	/*
-	 * Configure the IOMUXes of STM32
-	 */
-	stm32_iomux_init();
 
 #if defined(CONFIG_SERIAL_STM32)
 	/*
@@ -237,5 +238,12 @@ static void __init stm32_init(void)
 	 * Initialize the on-chip real-time clock
 	 */
 	stm32_rtc_init();
+#endif
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Register the MCU GPIO chip
+	 */
+	stm32_gpio_init();
 #endif
 }

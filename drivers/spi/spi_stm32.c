@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
@@ -290,23 +291,22 @@ static int spi_stm32_hw_cs_max(struct spi_stm32 *c)
 /*
  * Set chip select
  * @param c		controller data structure
- * @param port		GPIO port for CS
- * @param pin		GPIO pin for CS
+ * @param n		GPIO number for CS
  * @param activate	1->CS=low (activated); 0->CS=high (deactivated)
  * @returns		0->good,!=0->bad
  */
 static inline int spi_stm32_hw_cs_set(
-	struct spi_stm32 *c, int port, int pin, int activate)
+	struct spi_stm32 *c, int n, int activate)
 {
 	int ret = 0;
 
 	/*
  	 * Drive the CS GPIO manually
  	 */
-	stm32_io_out(port, pin, !activate);
+	gpio_set_value(n, !activate);
 
-	d_printk(4, "bus=%d,cs=%d,%d,b=%d,ret=%d\n", 
-		c->bus, port, pin, activate, ret);
+	d_printk(4, "bus=%d,cs=%d,b=%d,ret=%d\n", 
+		c->bus, n, activate, ret);
 	return ret;
 }
 
@@ -641,7 +641,7 @@ static void spi_stm32_capture_slave(struct spi_stm32 *c, struct spi_device *s)
 	/*
  	 * Activate CS for this slave
  	 */
-	if (spi_stm32_hw_cs_set(c, v->cs_port, v->cs_pin, 1)) {
+	if (spi_stm32_hw_cs_set(c, v->cs_gpio, 1)) {
 		dev_err(&c->slave->dev, "incorrect chip select: %d\n", 
 			s->chip_select);
 		goto Done;
@@ -663,7 +663,7 @@ static void spi_stm32_release_slave(struct spi_stm32 *c, struct spi_device *s)
 	/*
  	 * Release CS for this slave
  	 */
-	if (spi_stm32_hw_cs_set(c, v->cs_port, v->cs_pin, 0)) {
+	if (spi_stm32_hw_cs_set(c, v->cs_gpio, 0)) {
 		dev_err(&c->slave->dev, "incorrect chip select: %d\n", 
 			s->chip_select);
 		goto Done;

@@ -259,6 +259,7 @@ config SPI_S3C64XX
 config SPI_STM32
 	tristate "STM32 SPI Controller"
 	depends on MACH_STM32
+	select GPIOLIB
 	help
 	  This is the SPI controller master driver for STM32F2/F4
 

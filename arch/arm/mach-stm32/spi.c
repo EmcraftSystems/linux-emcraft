@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -307,13 +308,20 @@ void __init stm32_spi_init(void)
 		};
 #endif
 
+#define SPI_FLASH_CS_PORT__STM32F4_SOM		7
+#define SPI_FLASH_CS_PIN__STM32F4_SOM		5
+#define SPI_FLASH_CS_GPIO__STM32F4_SOM		\
+	STM32_GPIO_PORTPIN2NUM(			\
+		SPI_FLASH_CS_PORT__STM32F4_SOM, \
+		SPI_FLASH_CS_PIN__STM32F4_SOM)
+
 		/*
  		 * SPI slave
  		 */
 		static struct spi_stm32_slv 
 			spi_stm32_flash_slv__stm32f4_som  = {
-			.cs_port = 7,
-			.cs_pin = 5,
+			.cs_gpio = SPI_FLASH_CS_GPIO__STM32F4_SOM,
+			.timeout = 3,
 		};
 		static struct spi_board_info 
 			spi_stm32_flash_info__stm32f4_som = {
@@ -333,6 +341,14 @@ void __init stm32_spi_init(void)
 			.mode = SPI_MODE_3,
 		};
 
+		/*
+		 * Set up the Chip Select GPIO for the SPI Flash
+		 */
+		gpio_direction_output(SPI_FLASH_CS_GPIO__STM32F4_SOM, 1);
+
+		/*
+		 * Register SPI slaves
+		 */
 		spi_register_board_info(&spi_stm32_flash_info__stm32f4_som,
 			sizeof(spi_stm32_flash_info__stm32f4_som) / 
 			sizeof(struct spi_board_info));

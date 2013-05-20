@@ -34,19 +34,6 @@
 #include <mach/stm32.h>
 
 /*
- * GPIO registers bases
- */
-#define STM32F2_GPIOA_BASE	(STM32_AHB1PERITH_BASE + 0x0000)
-#define STM32F2_GPIOB_BASE	(STM32_AHB1PERITH_BASE + 0x0400)
-#define STM32F2_GPIOC_BASE	(STM32_AHB1PERITH_BASE + 0x0800)
-#define STM32F2_GPIOD_BASE	(STM32_AHB1PERITH_BASE + 0x0C00)
-#define STM32F2_GPIOE_BASE	(STM32_AHB1PERITH_BASE + 0x1000)
-#define STM32F2_GPIOF_BASE	(STM32_AHB1PERITH_BASE + 0x1400)
-#define STM32F2_GPIOG_BASE	(STM32_AHB1PERITH_BASE + 0x1800)
-#define STM32F2_GPIOH_BASE	(STM32_AHB1PERITH_BASE + 0x1C00)
-#define STM32F2_GPIOI_BASE	(STM32_AHB1PERITH_BASE + 0x2000)
-
-/*
  * GPIO configuration mode
  */
 #define STM32F2_GPIO_MODE_IN	0x00
@@ -115,22 +102,6 @@
 #define STM32F2_GPIO_AF_SDIO	0x0C
 
 /*
- * GPIO register map
- */
-struct stm32f2_gpio_regs {
-	u32	moder;		/* GPIO port mode			      */
-	u32	otyper;		/* GPIO port output type		      */
-	u32	ospeedr;	/* GPIO port output speed		      */
-	u32	pupdr;		/* GPIO port pull-up/pull-down		      */
-	u32	idr;		/* GPIO port input data			      */
-	u32	odr;		/* GPIO port output data		      */
-	u16	bsrrl;		/* GPIO port bit set/reset low		      */
-	u16	bsrrh;		/* GPIO port bit set/reset high		      */
-	u32	lckr;		/* GPIO port configuration lock		      */
-	u32	afr[2];		/* GPIO alternate function		      */
-};
-
-/*
  * GPIO roles (alternative functions); role determines by whom GPIO is used
  */
 enum stm32f2_gpio_role {
@@ -164,7 +135,7 @@ struct stm32f2_gpio_dsc {
 /*
  * Register map bases
  */
-static const unsigned long io_base[] = {
+static const unsigned long stm32_gpio_base[] = {
 	STM32F2_GPIOA_BASE, STM32F2_GPIOB_BASE, STM32F2_GPIOC_BASE,
 	STM32F2_GPIOD_BASE, STM32F2_GPIOE_BASE, STM32F2_GPIOF_BASE,
 	STM32F2_GPIOG_BASE, STM32F2_GPIOH_BASE, STM32F2_GPIOI_BASE
@@ -247,7 +218,7 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 	/*
 	 * Get reg base
 	 */
-	gpio_regs = (struct stm32f2_gpio_regs *)io_base[dsc->port];
+	gpio_regs = (struct stm32f2_gpio_regs *)stm32_gpio_base[dsc->port];
 
 	/*
 	 * Enable GPIO clocks
@@ -438,7 +409,23 @@ void __init stm32_iomux_init(void)
 						    STM32F2_GPIO_ROLE_SDIO);
 			}
 		} while (0);
-#endif /* defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE) */
+#endif /* CONFIG_MMC_ARMMMCI */
+
+#if defined(CONFIG_GPIOLIB) && defined(CONFIG_GPIO_SYSFS)
+
+	/*
+	 * Pin configuration for the User LED of the SOM-BSB-EXT baseboard.
+	 * !!! That GPIO may have other connections on other baseboards.
+	 */
+	if (platform == PLATFORM_STM32_STM_SOM) {
+		/* PB2 = LED DS4 */
+		gpio_dsc.port = 1;
+		gpio_dsc.pin  = 2;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
+	}
+
+#endif /* CONFIG_GPIOLIB */
+
 		break;
 #else
 	/* STM32F1-based platforms */
@@ -459,23 +446,3 @@ void __init stm32_iomux_init(void)
 		break;
 	}
 }
-
-/*
- * Set value of a general-purpose output
- */
-void stm32_io_out(int port, int pin, int v)
-{
-	volatile struct stm32f2_gpio_regs *gpio_regs;
-
-	/*
-	 * Get reg base
-	 */
-	gpio_regs = (struct stm32f2_gpio_regs *) io_base[port];
-
-	/*
-	 * Set the output
-	 */
-	gpio_regs->odr &= ~(1 << pin);
-	gpio_regs->odr |= (v << pin);
-}
-EXPORT_SYMBOL(stm32_io_out);
