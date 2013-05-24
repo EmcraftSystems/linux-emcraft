@@ -39,6 +39,29 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+static int phy_state_timeout_init = 20;
+static int phy_state_timeout = 100;
+
+#ifndef MODULE
+
+static int __init phy_state_timeout_init_parse(char *str)
+{
+	phy_state_timeout_init = simple_strtol(str, NULL, 0);
+
+	return 1;
+}
+static int __init phy_state_timeout_parse(char *str)
+{
+	phy_state_timeout = simple_strtol(str, NULL, 0);
+
+	return 1;
+}
+
+__setup("phy_state_timeout_init=", phy_state_timeout_init_parse);
+__setup("phy_state_timeout=", phy_state_timeout_parse);
+
+#endif
+
 /**
  * phy_print_status - Convenience function to print out the current phy status
  * @phydev: the phy_device struct
@@ -429,7 +452,9 @@ void phy_start_machine(struct phy_device *phydev,
 {
 	phydev->adjust_state = handler;
 
-	schedule_delayed_work(&phydev->state_queue, HZ);
+	schedule_delayed_work(&phydev->state_queue,
+		phy_state_timeout_init > 0 ? phy_state_timeout_init : HZ);
+
 }
 
 /**
@@ -960,5 +985,7 @@ void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
-	schedule_delayed_work(&phydev->state_queue, PHY_STATE_TIME * HZ);
+	schedule_delayed_work(&phydev->state_queue,
+		phy_state_timeout > 0 ? phy_state_timeout :
+		PHY_STATE_TIME * HZ);
 }

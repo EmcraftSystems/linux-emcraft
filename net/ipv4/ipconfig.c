@@ -103,6 +103,29 @@
 #define NONE cpu_to_be32(INADDR_NONE)
 #define ANY cpu_to_be32(INADDR_ANY)
 
+
+static int conf_pre_open = 1;
+static int conf_post_open = 1;
+
+#ifndef MODULE
+
+static int __init conf_pre_open_parse(char *str)
+{
+	conf_pre_open = simple_strtol(str, NULL, 0);
+
+	return 1;
+}
+static int __init conf_post_open_parse(char *str)
+{
+	conf_post_open = simple_strtol(str, NULL, 0);
+
+	return 1;
+}
+
+__setup("conf_pre_open=", conf_pre_open_parse);
+__setup("conf_post_open=", conf_post_open_parse);
+
+#endif
 /*
  * Public IP configuration
  */
@@ -1326,14 +1349,24 @@ static int __init ip_auto_config(void)
  try_try_again:
 #endif
 	/* Give hardware a chance to settle */
-	msleep(CONF_PRE_OPEN);
+	if (conf_pre_open > 0) {
+		msleep(conf_pre_open);
+	}
+	else {
+		msleep(CONF_PRE_OPEN);
+	}
 
 	/* Setup all network devices */
 	if (ic_open_devs() < 0)
 		return -1;
 
 	/* Give drivers a chance to settle */
-	ssleep(CONF_POST_OPEN);
+	if (conf_post_open > 0) {
+		msleep(conf_post_open);
+	}
+	else {
+		ssleep(CONF_POST_OPEN);
+	}
 
 	/*
 	 * If the config information is insufficient (e.g., our IP address or
