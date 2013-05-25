@@ -39,7 +39,7 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-static int phy_state_timeout_init = 20;
+static int phy_state_timeout_init = 10;
 static int phy_state_timeout = 100;
 
 #ifndef MODULE
