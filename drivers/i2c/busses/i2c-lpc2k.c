@@ -6,6 +6,7 @@
  * Make SMBus byte and word transactions work on LPC178x/7x
  * Copyright (c) 2012
  * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ * Anton Protopopov, Emcraft Systems, antonp@emcraft.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -360,6 +361,7 @@ static int lpc2k_process_msg(struct lpc2k_i2c *i2c, int msgidx)
 	/* Wait for transfer completion */
 	if (wait_event_timeout(i2c->wait, i2c->msg_status != -EBUSY,
 		HZ) == 0) {
+		disable_irq_nosync(i2c->irq);
 		dev_dbg(&i2c->adap.dev, "Transfer timed out!\n");
 		ret = -ETIMEDOUT;
 	} else {
