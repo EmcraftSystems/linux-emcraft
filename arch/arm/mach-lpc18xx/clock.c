@@ -272,6 +272,13 @@ static struct clk clk_ssp1;
 #endif
 
 /*
+ * Clocks for each of the two I2C interfaces supported by the LPC18xx MCU.
+ */
+#if defined (CONFIG_I2C_LPC2K)
+static struct clk clk_i2c[2];
+#endif
+
+/*
  * Array of all clock to register with the `clk_*` infrastructure
  */
 #define INIT_CLKREG(_clk,_devname,_conname)		\
@@ -291,6 +298,10 @@ static struct clk_lookup lpc18xx_clkregs[] = {
 #endif
 #if defined (CONFIG_LPC18XX_SPI1)
 	INIT_CLKREG(&clk_ssp1, "dev:ssp1", NULL),
+#endif
+#if defined (CONFIG_I2C_LPC2K)
+	INIT_CLKREG(&clk_i2c[0], "lpc2k-i2c.0", NULL),
+	INIT_CLKREG(&clk_i2c[1], "lpc2k-i2c.1", NULL),
 #endif
 };
 
@@ -394,6 +405,7 @@ void __init lpc18xx_clock_init(void)
 	 */
 	clock_val[CLOCK_CCLK] = pll1_out;
 	clock_val[CLOCK_SYSTICK] = pll1_out;
+	clock_val[CLOCK_PCLK] = pll1_out;
 
 	/*
 	 * Initialize the `clk_*` structures
@@ -415,6 +427,11 @@ void __init lpc18xx_clock_init(void)
 	LPC18XX_CGU->ssp1_clk = LPC18XX_CGU_CLKSEL_PLL1 |
 			LPC18XX_CGU_PLL1CTRL_AUTOBLOCK_MSK;
 	clk_ssp1.rate = pll1_out;
+#endif
+
+#if defined (CONFIG_I2C_LPC2K)
+	for (i = 0; i < ARRAY_SIZE(clk_i2c); i++)
+		clk_i2c[i].rate = clock_val[CLOCK_PCLK];
 #endif
 
 	/*

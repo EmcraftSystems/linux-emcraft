@@ -1,7 +1,7 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2013
  * Emcraft Systems, <www.emcraft.com>
- * Alexander Potashev <aspotashev@emcraft.com>
+ * Anton Protopopov <antonp@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -22,27 +22,11 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _MACH_LPC18XX_CLOCK_H_
-#define _MACH_LPC18XX_CLOCK_H_
+#ifndef _MACH_LPC18XX_I2C_H_
+#define _MACH_LPC18XX_I2C_H_
 
-/*
- * Clocks enumeration
- */
-enum lpc18xx_clock {
-	CLOCK_CCLK,		/* CPU clock frequency expressed in Hz        */
-	CLOCK_SYSTICK,		/* Systimer clock frequency expressed in Hz   */
-	CLOCK_PCLK,		/* Peripheral clock frequency expressed in Hz */
-	CLOCK_END		/* for internal usage			      */
-};
+#include <mach/lpc18xx.h>
 
-/*
- * Initialize the clock section of the LPC18xx/LPC43xx
- */
-void __init lpc18xx_clock_init(void);
+void __init lpc18xx_i2c_init(void);
 
-/*
- * Return a clock value for the specified clock
- */
-unsigned int lpc18xx_clock_get(enum lpc18xx_clock clk);
-
-#endif	/*_MACH_LPC18XX_CLOCK_H_ */
+#endif /* _MACH_LPC18XX_I2C_H_ */

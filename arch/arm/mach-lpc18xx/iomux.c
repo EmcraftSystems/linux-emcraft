@@ -3,6 +3,7 @@
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  * Vladimir Khusainov <vlad@emcraft.com>
+ * Anton Protopopov <antonp@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -137,6 +138,11 @@ struct lpc18xx_gpio_regs {
 #define LPC18XX_PIN(group,pin) \
 	(*(volatile u32 *)LPC18XX_PIN_REG_ADDR(group,pin))
 
+
+#if defined(CONFIG_I2C_LPC2K)
+#define LPC18XX_SFSI2C0 ((u32 volatile *) (LPC18XX_SCU_BASE + 0xC84))
+#endif
+
 /*
  * Check that the given (pin group, pin) pair is a valid LPC18xx pin.
  * Returns 0 on success, -EINVAL otherwise.
@@ -233,7 +239,31 @@ void __init lpc18xx_iomux_init(void)
 		lpc18xx_pin_config(0x3, 7, LPC18XX_IOMUX_CONFIG_OUT(5));
 		lpc18xx_pin_config(0x3, 8, LPC18XX_IOMUX_CONFIG_OUT(4));
 #endif
-	}
 
+#if defined(CONFIG_I2C_LPC2K)
+		/*
+		 * The I2C0 pins are configured using special SFSI2C0 register
+		 * (see section 15.4.5 of User manual). SFSI2C0 register
+		 * contains eight configuration bits: four for I2C0_SCL, and
+		 * four for I2C0_SDA.  To configure I2C0 interface, we should
+		 * set up the following values (also see Remark from the
+		 * section 15.2 of UM):
+		 *    bit | name | val | meaning
+		 *    0/8 | EFP  |  0  | Glitch filter time: 0=50ns, 1=3ns
+		 *    2/A | EHD  |  0  | I2C mode: 0=Standard/Fast, 1=Fast-mode
+		 *    3/B | EZI  |  1  | 1=Enable the input receiver
+		 *    7/F | ZIF  |  1  | Glitch filter: 0=Enable, 1=Disable
+		 * The above configuration corresponds to the 0x8888 hex value.
+		 */
+		*LPC18XX_SFSI2C0 = 0x8888;
+
+		/*
+		 * Configure I2C1 pins I2C1_SDA and I2C1_SCL: setup EHS, EZI,
+		 * ZIF bits (refer to section 15.4.1 of UM)
+		 */
+		lpc18xx_pin_config(0xE, 13, LPC18XX_IOMUX_CONFIG(2, 0, 0, 1, 1, 1));
+		lpc18xx_pin_config(0xE, 15, LPC18XX_IOMUX_CONFIG(2, 0, 0, 1, 1, 1));
+#endif
+	}
 }
 

@@ -40,6 +40,7 @@
 #include <mach/eth.h>
 #include <mach/spi.h>
 #include <mach/nor-flash.h>
+#include <mach/i2c.h>
 
 /*
  * Prototypes
@@ -181,5 +182,12 @@ static void __init lpc18xx_init(void)
 	 * Configure external NOR flash
 	 */
 	lpc18xx_nor_flash_init();
+#endif
+
+#if defined(CONFIG_I2C_LPC2K)
+	/*
+	 * Configure the I2C bus
+	 */
+	lpc18xx_i2c_init();
 #endif
 }
