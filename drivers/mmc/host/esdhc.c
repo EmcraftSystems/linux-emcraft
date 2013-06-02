@@ -98,6 +98,20 @@ static void esdhc_regs(struct esdhc_host *host)
 			fsl_readl(host->ioaddr + 0x50), fsl_readl(host->ioaddr + 0x54),
 			fsl_readl(host->ioaddr + 0x58), fsl_readl(host->ioaddr + 0xc0),
 			fsl_readl(host->ioaddr + 0xc4), fsl_readl(host->ioaddr + 0xfc));
+#if defined(USE_ADMA)
+	{
+		volatile struct adma_bd *chain;
+		int i, inum = host->data ? host->data->blocks : 0;
+
+		chain = host->dma_tx_buf;
+		printk("ADMA chain:\n");
+		for (i = 0; i < inum; i++) {
+			printk("[%02d]: %p: adr=0x%08x,len=0x%04x,atr=0x%04x\n",
+				i, &chain[i],
+				chain[i].addr, chain[i].len, chain[i].attr);
+		}
+	}
+#endif
 	printk(KERN_INFO "==================================\n");
 }
 #ifdef MMC_ESDHC_DEBUG_REG
@@ -258,7 +272,7 @@ static void reset_regs(struct esdhc_host *host)
 /* Return the SG's virtual address */
 static inline char *esdhc_sg_to_buffer(struct esdhc_host *host)
 {
-	DBG("cur_sg %x virt %x\n", host->cur_sg, sg_virt(host->cur_sg));
+	DBG("cur_sg %p virt %p\n", host->cur_sg, sg_virt(host->cur_sg));
 	return sg_virt(host->cur_sg);
 }
 
@@ -352,7 +366,8 @@ static void esdhc_read_block_pio(struct esdhc_host *host)
 			size--;
 		}
 
-		if (host->remain == 0) {
+		rv = host->remain;
+		if (rv == 0) {
 			if (esdhc_next_sg(host) == 0) {
 				BUG_ON(blksize != 0);
 				return;
@@ -433,7 +448,8 @@ static void esdhc_write_block_pio(struct esdhc_host *host)
 			chunk_remain = min(blksize, 4);
 		}
 
-		if (host->remain == 0) {
+		rv = host->remain;
+		if (rv == 0) {
 			if (esdhc_next_sg(host) == 0) {
 				BUG_ON(blksize != 0);
 				return;
@@ -656,21 +672,22 @@ static void esdhc_prepare_data(struct esdhc_host *host, struct mmc_data *data)
 	{
 		volatile struct adma_bd	*chain;
 		unsigned char		*buf;
+		int			i;
 
 		host->dma_tx_blocks = data->blocks;
 		chain = host->dma_tx_buf;
 		buf = sg_virt(data->sg);
 
 		for (i = 0; i < data->blocks; i++) {
-			chain[i].addr = buf;
+			chain[i].addr = (u32)buf;
 			chain[i].len  = data->blksz;
 			chain[i].attr = ESDHC_ADMA_ACT_TRAN | ESDHC_ADMA_VALID;
 
 			buf += data->blksz;
 		}
-		chain[i - 1].attr |= ESDHC_ADMA_INT | ESDHC_ADMA_END;
+		chain[i - 1].attr |= ESDHC_ADMA_END;
 
-		fsl_writel(host->ioaddr + 0x58, chain);
+		fsl_writel(host->ioaddr + 0x58, (u32)chain);
 	}
 #endif
 
@@ -783,7 +800,7 @@ static void esdhc_finish_data(struct esdhc_host *host)
 	}
 
 	if (data->stop) {
-		DBG("%s data->stop %x\n", __func__, data->stop);
+		DBG("%s data->stop %p\n", __func__, data->stop);
 		/*
 		 * The controller needs a reset of internal state machines
 		 * upon error conditions.
@@ -1057,7 +1074,7 @@ static void esdhc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct esdhc_host *host;
 	unsigned long flags;
 
-	DBG("esdhc_request %i\n", mrq->cmd);
+	DBG("esdhc_request %p\n", mrq->cmd);
 	host = mmc_priv(mmc);
 
 	spin_lock_irqsave(&host->lock, flags);
