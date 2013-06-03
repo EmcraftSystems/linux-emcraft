@@ -1499,7 +1499,7 @@ static int esdhc_suspend(struct platform_device *pdev, pm_message_t state)
 	for (i = 0; i < chip->num_slots; i++) {
 		if (!chip->hosts[i])
 			continue;
-		ret = mmc_suspend_host(chip->hosts[i]->mmc);
+		ret = mmc_suspend_host(chip->hosts[i]->mmc, state);
 		if (ret) {
 			for (i--; i >= 0; i--)
 				mmc_resume_host(chip->hosts[i]->mmc);
