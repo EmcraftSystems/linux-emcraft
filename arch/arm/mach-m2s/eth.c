@@ -81,13 +81,15 @@ void __init m2s_eth_init(void)
 	case PLATFORM_M2S_SOM:
 		eth_m2s_dev_data.freq_src = m2s_clock_get(CLCK_SYSREF);
 		break;
+	case PLATFORM_SF2_DEV_KIT:
+		eth_m2s_dev_data.freq_src = m2s_clock_get(CLCK_SYSREF);
+		eth_m2s_dev_data.flags = ETH_M2S_FLAGS_MODE_SGMII;
+		break;
 	default:
 		break;
 	}
 
-	if (platform != PLATFORM_SF2_DEV_KIT) { /* temporary disable ethetnet stuff on SF2-DEV-KIT since PHY driver is not ready yet */
-		platform_set_drvdata(&eth_m2s_dev, &eth_m2s_dev_data);
-		platform_device_register(&eth_m2s_dev);
-	}
+	platform_set_drvdata(&eth_m2s_dev, &eth_m2s_dev_data);
+	platform_device_register(&eth_m2s_dev);
 #endif
 }

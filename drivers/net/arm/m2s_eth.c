@@ -70,11 +70,17 @@
 /*
  * CFG2 register fields
  */
-#define M2S_MAC_CFG2_MODE_BIT	8		/* MAC interface mode	      */
-#define M2S_MAC_CFG2_MODE_MSK	0x3
-#define M2S_MAC_CFG2_MODE_MII	0x1		/* Nibble mode		      */
-#define M2S_MAC_CFG2_PAD_CRC	(1 << 2)	/* PAD&CRC appending enable   */
-#define M2S_MAC_CFG2_FULL_DUP	(1 << 0)	/* PE-MCXMAC Full duplex      */
+#define M2S_MAC_CFG2_PREAM_LEN_BIT	12
+#define M2S_MAC_CFG2_PREAM_LEN_MSK	0xf
+#define M2S_MAC_CFG2_MODE_BIT		8	/* MAC interface mode	      */
+#define M2S_MAC_CFG2_MODE_MSK		0x3
+#define M2S_MAC_CFG2_MODE_BYTE		0x2	/* Byte mode		      */
+#define M2S_MAC_CFG2_MODE_MII		0x1	/* Nibble mode		      */
+#define M2S_MAC_CFG2_HUGE_FRAME_EN	(1 << 5)
+#define M2S_MAC_CFG2_LEN_CHECK		(1 << 4)
+#define M2S_MAC_CFG2_PAD_CRC		(1 << 2) /* PAD&CRC appending enable   */
+#define M2S_MAC_CFG2_CRC_EN		(1 << 1)
+#define M2S_MAC_CFG2_FULL_DUP		(1 << 0) /* PE-MCXMAC Full duplex      */
 
 /*
  * MII_COMMAND register fields
@@ -127,6 +133,12 @@
 #define M2S_MAC_DMA_IRQ_ERR	(M2S_MAC_DMA_IRQ_RBUS | M2S_MAC_DMA_IRQ_TBUS)
 
 /*
+ * Interface Control register fields
+ */
+#define M2S_MAC_INTF_RESET		(1 << 31) /* Reset interface module */
+#define M2S_MAC_INTF_SPEED_100		(1 << 4)  /* MII PHY speed 100Mbit */
+
+/*
  * FIFO_CFG0 register fields
  */
 #define M2S_MAC_FIFO_CFG0_FTFENRPLY	(1 << 20) /* Fabric tx iface ena ack  */
@@ -165,8 +177,9 @@
 /*
  * MAC Configuration Register in Sysreg block fields
  */
-#define M2S_SYS_MAC_CR_PM_BIT 	2		/* PHY mode		      */
+#define M2S_SYS_MAC_CR_PM_BIT	2		/* PHY mode		      */
 #define M2S_SYS_MAC_CR_PM_MSK	0x7
+#define M2S_SYS_MAC_CR_PM_TBI	0x2		/* Use TBI mode		      */
 #define M2S_SYS_MAC_CR_PM_MII	0x3		/* Use MII mode		      */
 #define M2S_SYS_MAC_CR_LS_BIT	0		/* Line speed		      */
 #define M2S_SYS_MAC_CR_LS_MSK	0x3
@@ -238,6 +251,7 @@ struct m2s_mac_dev {
 
 	u32				freq_src;	/* Source freq	      */
 	u32				freq_mdc;	/* MDC freq	      */
+	u32				flags;		/* Various flags      */
 
 	u32				link;		/* Link status	      */
 	u32				speed;		/* Speed value	      */
@@ -295,6 +309,7 @@ struct m2s_mac_dma_bd {
 };
 
 static void m2s_mac_dump_regs(char *who, struct m2s_mac_dev *d);
+static int msgmii_phy_autonegotiate(struct mii_bus *bus);
 
 /******************************************************************************
  * miiphy routines
@@ -333,12 +348,15 @@ speed:
 	M2S_SYSREG->mac_cr &= ~(M2S_SYS_MAC_CR_LS_MSK << M2S_SYS_MAC_CR_LS_BIT);
 	switch (phy_dev->speed) {
 	case 10:
+		M2S_MAC_CFG(d)->if_ctrl &= ~M2S_MAC_INTF_SPEED_100;
 		msk = M2S_SYS_MAC_CR_LS_10 << M2S_SYS_MAC_CR_LS_BIT;
 		break;
 	case 100:
+		M2S_MAC_CFG(d)->if_ctrl |= M2S_MAC_INTF_SPEED_100;
 		msk = M2S_SYS_MAC_CR_LS_100 << M2S_SYS_MAC_CR_LS_BIT;
 		break;
 	case 1000:
+		M2S_MAC_CFG(d)->if_ctrl &= ~M2S_MAC_INTF_SPEED_100;
 		msk = M2S_SYS_MAC_CR_LS_1000 << M2S_SYS_MAC_CR_LS_BIT;
 		break;
 	default:
@@ -366,7 +384,8 @@ done:
 	if (!change)
 		goto out;
 
-	if (d->link) {
+	if (d->link && (!(d->flags & ETH_M2S_FLAGS_MODE_SGMII)
+			|| msgmii_phy_autonegotiate(d->mii_bus) >= 0)) {
 		printk(KERN_INFO "%s: link up (%d/%s)\n", dev->name,
 			d->speed, d->duplex == DUPLEX_FULL ? "full" : "half");
 	} else {
@@ -504,6 +523,98 @@ done:
 	return rv;
 }
 
+#define SF2_MSGMII_PHY_ADDR	0x1e
+#define M2S_AUTONEG_TOUT	10000
+
+static int msgmii_phy_init(struct mii_bus *bus)
+{
+	int rv;
+
+	/* Reset M-SGMII. */
+	rv = m2s_mii_write(bus, SF2_MSGMII_PHY_ADDR, 0x00, 0x9000u);
+	if (rv != 0) {
+		return -1;
+	}
+	/* Register 0x04 of M-SGMII must be always be set to 0x0001. */
+	rv = m2s_mii_write(bus, SF2_MSGMII_PHY_ADDR, 0x04, 0x0001);
+	if (rv != 0) {
+		return -1;
+	}
+	/*
+	 * Enable auto-negotiation inside SmartFusion2 SGMII block.
+	 */
+	rv = m2s_mii_read(bus, SF2_MSGMII_PHY_ADDR, 0);
+	if (rv < 0) {
+		return -1;
+	}
+	rv |= 0x1000;
+	rv = m2s_mii_write(bus, SF2_MSGMII_PHY_ADDR, 0x0, rv);
+	if (rv != 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int msgmii_phy_autonegotiate(struct mii_bus *bus)
+{
+	int rv;
+	int timeout;
+
+	rv = m2s_mii_read(bus, SF2_MSGMII_PHY_ADDR, MII_BMSR);
+	if (rv < 0) {
+		goto out;
+	}
+
+	if (rv & BMSR_ANEGCOMPLETE) {
+		/* no need to start auto-negotiation if it is already done */
+		goto out;
+	}
+
+	rv = m2s_mii_write(bus, SF2_MSGMII_PHY_ADDR, MII_BMCR,
+			BMCR_ANRESTART | BMCR_ANENABLE);
+	if (rv < 0) {
+		goto out;
+	}
+
+	/*
+	 * Wait until auto-negotiation completes
+	 */
+	timeout = M2S_AUTONEG_TOUT/10;
+	while (timeout--) {
+		rv = m2s_mii_read(bus, SF2_MSGMII_PHY_ADDR, MII_BMSR);
+
+		if (rv < 0) {
+			printk("mii err %d.\n", rv);
+			goto out;
+		}
+		if (!(rv & BMSR_ANEGCOMPLETE)) {
+			if (timeout % 100 != 0) {
+				mdelay(10);
+				continue;
+			}
+
+			/* restart auto-negotiation if it is not complete
+			   in a second */
+			rv = m2s_mii_write(bus, SF2_MSGMII_PHY_ADDR, MII_BMCR,
+					BMCR_ANRESTART | BMCR_ANENABLE);
+			if (rv != 0) {
+				goto out;
+			}
+
+			continue;
+		}
+		break;
+	}
+	if (timeout <= 0)
+		debug("MSGMII PHY auto-negotiaiton timed out!\n");
+
+ out:
+	return rv;
+
+
+}
+
 /*
  * MAC Hardware initialization
  */
@@ -521,7 +632,12 @@ static __init int m2s_mac_hw_init(struct m2s_mac_dev *d)
 	 * Set-up CR
 	 */
 	M2S_SYSREG->mac_cr &= ~(M2S_SYS_MAC_CR_PM_MSK << M2S_SYS_MAC_CR_PM_BIT);
-	M2S_SYSREG->mac_cr |= M2S_SYS_MAC_CR_PM_MII << M2S_SYS_MAC_CR_PM_BIT;
+	if (!(d->flags & ETH_M2S_FLAGS_MODE_SGMII))
+		M2S_SYSREG->mac_cr |=
+			M2S_SYS_MAC_CR_PM_MII << M2S_SYS_MAC_CR_PM_BIT;
+	else
+		M2S_SYSREG->mac_cr |=
+			M2S_SYS_MAC_CR_PM_TBI << M2S_SYS_MAC_CR_PM_BIT;
 
 	/*
 	 * Reset all PE-MCXMAC modules, and configure
@@ -529,9 +645,19 @@ static __init int m2s_mac_hw_init(struct m2s_mac_dev *d)
 	M2S_MAC_CFG(d)->cfg1 |= M2S_MAC_CFG1_RST;
 	M2S_MAC_CFG(d)->cfg1 &= ~M2S_MAC_CFG1_RST;
 
+	M2S_MAC_CFG(d)->if_ctrl &= ~M2S_MAC_INTF_RESET;
+
 	M2S_MAC_CFG(d)->cfg2 &= ~(M2S_MAC_CFG2_MODE_MSK<<M2S_MAC_CFG2_MODE_BIT);
-	M2S_MAC_CFG(d)->cfg2 |= (M2S_MAC_CFG2_MODE_MII<<M2S_MAC_CFG2_MODE_BIT) |
-				M2S_MAC_CFG2_PAD_CRC;
+	if (!(d->flags & ETH_M2S_FLAGS_MODE_SGMII))
+		M2S_MAC_CFG(d)->cfg2 |=
+			(M2S_MAC_CFG2_MODE_MII<<M2S_MAC_CFG2_MODE_BIT) |
+			M2S_MAC_CFG2_PAD_CRC;
+	else
+		M2S_MAC_CFG(d)->cfg2 =
+			M2S_MAC_CFG2_FULL_DUP | M2S_MAC_CFG2_CRC_EN
+			| M2S_MAC_CFG2_PAD_CRC | M2S_MAC_CFG2_LEN_CHECK
+			| (M2S_MAC_CFG2_MODE_BYTE << M2S_MAC_CFG2_MODE_BIT)
+			| (0x7 << M2S_MAC_CFG2_PREAM_LEN_BIT);
 
 	M2S_MAC_CFG(d)->max_frame_length = M2S_MAC_FRM_SIZE;
 
@@ -1001,6 +1127,7 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 
 	d->freq_src = pdat->freq_src;
 	d->freq_mdc = pdat->freq_mdc;
+	d->flags = pdat->flags;
 
 	if (!M2S_RX_NUM || !M2S_TX_NUM) {
 		dev_err(&pd->dev, "bad rx/tx %d/%d buf number",
@@ -1151,6 +1278,10 @@ static int __init m2s_mac_probe(struct platform_device *pd)
 		dev_err(&pd->dev, "mii init error %d", rv);
 		goto err_free_hw;
 	}
+
+	if ((d->flags & ETH_M2S_FLAGS_MODE_SGMII)
+			&& msgmii_phy_init(d->mii_bus) < 0)
+		goto out;
 
 	rv = 0;
 	goto out;

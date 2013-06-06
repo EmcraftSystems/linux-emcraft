@@ -581,6 +581,18 @@ static struct phy_driver marvell_drivers[] = {
 		.config_intr = &marvell_config_intr,
 		.driver = { .owner = THIS_MODULE },
 	},
+	{
+		.phy_id = 0x01410dc0,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1340",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_aneg = &marvell_config_aneg,
+		.read_status = &marvell_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = { .owner = THIS_MODULE },
+	},
 };
 
 static int __init marvell_init(void)
