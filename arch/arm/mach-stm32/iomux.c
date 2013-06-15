@@ -63,42 +63,45 @@
 #define STM32F2_GPIO_PUPD_DOWN	0x02
 
 /*
- * AF5 selection
+ * I2C AF
+ */
+#define STM32F2_GPIO_AF_I2C1	0x04
+#define STM32F2_GPIO_AF_I2C2	0x04
+#define STM32F2_GPIO_AF_I2C3	0x04
+
+/*
+ * SPI AF
  */
 #define STM32F2_GPIO_AF_SPI1	0x05
 #define STM32F2_GPIO_AF_SPI2	0x05
+#define STM32F2_GPIO_AF_SPI3	0x06
 #define STM32F2_GPIO_AF_SPI4	0x05
 #define STM32F2_GPIO_AF_SPI5	0x05
 #define STM32F2_GPIO_AF_SPI6	0x05
 
 /*
- * AF6 selection
- */
-#define STM32F2_GPIO_AF_SPI3	0x06
-
-/*
- * AF7 selection
+ * USART AF
  */
 #define STM32F2_GPIO_AF_USART1	0x07
 #define STM32F2_GPIO_AF_USART2	0x07
 #define STM32F2_GPIO_AF_USART3	0x07
-
-/*
- * AF8 selection
- */
 #define STM32F2_GPIO_AF_USART4	0x08
 #define STM32F2_GPIO_AF_USART5	0x08
 #define STM32F2_GPIO_AF_USART6	0x08
 
 /*
- * AF11 selection
+ * MAC AF
  */
 #define STM32F2_GPIO_AF_MAC	0x0B
 
 /*
- * AF12 selection
+ * FSMC AF
  */
 #define STM32F2_GPIO_AF_FSMC	0x0C
+
+/*
+ * SDIO AF
+ */
 #define STM32F2_GPIO_AF_SDIO	0x0C
 
 /*
@@ -118,6 +121,9 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_SPI4,		/* SPI4				      */
 	STM32F2_GPIO_ROLE_SPI5,		/* SPI5				      */
 	STM32F2_GPIO_ROLE_SPI6,		/* SPI6				      */
+	STM32F2_GPIO_ROLE_I2C1,		/* I2C1				      */
+	STM32F2_GPIO_ROLE_I2C2,		/* I2C2				      */
+	STM32F2_GPIO_ROLE_I2C3,		/* I2C3				      */
 	STM32F2_GPIO_ROLE_SDIO,		/* SDIO				      */
 	STM32F2_GPIO_ROLE_MCO,		/* MC external output clock	      */
 	STM32F2_GPIO_ROLE_OUT,		/* General purpose output	      */
@@ -150,6 +156,7 @@ static const u32 af_val[] = {
 	STM32F2_GPIO_AF_MAC, 
 	STM32F2_GPIO_AF_SPI1, STM32F2_GPIO_AF_SPI2, STM32F2_GPIO_AF_SPI3,
 	STM32F2_GPIO_AF_SPI4, STM32F2_GPIO_AF_SPI5, STM32F2_GPIO_AF_SPI6,
+	STM32F2_GPIO_AF_I2C1, STM32F2_GPIO_AF_I2C2, STM32F2_GPIO_AF_I2C3,
 	STM32F2_GPIO_AF_SDIO,
 	0
 };
@@ -192,6 +199,13 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 	case STM32F2_GPIO_ROLE_SPI6:
 		otype  = STM32F2_GPIO_OTYPE_PP;
 		ospeed = STM32F2_GPIO_SPEED_50M;
+		pupd   = STM32F2_GPIO_PUPD_UP;
+		break;
+	case STM32F2_GPIO_ROLE_I2C1:
+	case STM32F2_GPIO_ROLE_I2C2:
+	case STM32F2_GPIO_ROLE_I2C3:
+		otype  = STM32F2_GPIO_OTYPE_OD;
+		ospeed = STM32F2_GPIO_SPEED_2M;
 		pupd   = STM32F2_GPIO_PUPD_UP;
 		break;
 	case STM32F2_GPIO_ROLE_ETHERNET:
@@ -297,11 +311,13 @@ void __init stm32_iomux_init(void)
 	 */
 	platform = stm32_platform_get();
 	switch (platform) {
+
 #ifndef CONFIG_ARCH_STM32F1
 	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM3220G_EVAL:
 	case PLATFORM_STM32_STM3240G_EVAL:
 	case PLATFORM_STM32_STM_SOM:
+
 #if defined(CONFIG_STM32_USART1)
 		gpio_dsc.port = 0;
 		gpio_dsc.pin  = 9;
@@ -320,6 +336,7 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.pin  = 11;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
 #endif
+
 #if defined(CONFIG_STM32_MAC)
 		do {
 			static struct stm32f2_gpio_dsc mii_gpio[] = {
@@ -350,8 +367,9 @@ void __init stm32_iomux_init(void)
 			}
 		} while (0);
 #endif
+
 #if defined(CONFIG_STM32_SPI1)
-#error		IOMUX for STM32_SPI1 undefined
+#error		IOMUX for STM32 SPI1 undefined
 #endif
 #if defined(CONFIG_STM32_SPI2)
 		gpio_dsc.port = 8;	/* CLCK */
@@ -371,10 +389,10 @@ void __init stm32_iomux_init(void)
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
 #endif
 #if defined(CONFIG_STM32_SPI3)
-#error		IOMUX for STM32_SPI3 undefined
+#error		IOMUX for STM32 SPI3 undefined
 #endif
 #if defined(CONFIG_STM32_SPI4)
-#error		IOMUX for STM32_SPI4 undefined
+#error		IOMUX for STM32 SPI4 undefined
 #endif
 #if defined(CONFIG_STM32_SPI5)
 		gpio_dsc.port = 7;	/* CLCK */
@@ -394,8 +412,25 @@ void __init stm32_iomux_init(void)
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
 #endif
 #if defined(CONFIG_STM32_SPI6)
-#error		IOMUX for STM32_SPI6 undefined
+#error		IOMUX for STM32 SPI6 undefined
 #endif
+
+#if defined(CONFIG_STM32_I2C1)
+		gpio_dsc.port = 1;	/* SCL */
+		gpio_dsc.pin  = 9;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C1);
+
+		gpio_dsc.port = 1;	/* SDA */
+		gpio_dsc.pin  = 8;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C1);
+#endif
+#if defined(CONFIG_STM32_I2C2)
+#error		IOMUX for STM32 I2C2 undefined
+#endif
+#if defined(CONFIG_STM32_I2C3)
+#error		IOMUX for STM32 I2C3 undefined
+#endif
+
 #if defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE)
 		do {
 			static struct stm32f2_gpio_dsc sdcard_gpio[] = {

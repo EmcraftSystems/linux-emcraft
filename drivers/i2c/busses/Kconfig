@@ -557,6 +557,12 @@ config I2C_SIMTEC
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-simtec.
 
+config I2C_STM32
+	tristate "STM32 I2C support"
+	depends on MACH_STM32
+	help
+	  This is the I2C bus driver for the STM32F2/F4.
+
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
 	depends on MACH_U300

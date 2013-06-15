@@ -25,14 +25,10 @@
  */
 
 #include <linux/init.h>
-
 #include <asm/mach-types.h>
-
 #include <asm/hardware/nvic.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-
 #include <mach/clock.h>
 #include <mach/eth.h>
 #include <mach/hardware.h>
@@ -41,6 +37,7 @@
 #include <mach/timer.h>
 #include <mach/uart.h>
 #include <mach/spi.h>
+#include <mach/i2c.h>
 #include <mach/flash.h>
 #include <mach/sdcard.h>
 #include <mach/dmainit.h>
@@ -217,6 +214,13 @@ static void __init stm32_init(void)
 	 * Configure the STM32 SPI devices
 	 */
 	stm32_spi_init();
+#endif
+
+#if defined(CONFIG_I2C_STM32)
+	/*
+	 * Configure the STM32 I2C devices
+	 */
+	stm32_i2c_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)
