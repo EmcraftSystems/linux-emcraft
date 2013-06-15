@@ -492,3 +492,4 @@ unsigned int lpc178x_clock_get(enum lpc178x_clock clk)
 {
 	return clock_val[clk];
 }
+EXPORT_SYMBOL(lpc178x_clock_get);
