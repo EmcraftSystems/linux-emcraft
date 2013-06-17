@@ -66,6 +66,13 @@ struct platform_device lpc18xx_i2c## uid ##_device = {			\
 I2C_PLAT_DEVICE(0);
 I2C_PLAT_DEVICE(1);
 
+/*
+ * Declare the eeprom device supported by the EEPROM_AT24 driver
+ */
+#if defined(CONFIG_EEPROM_AT24)
+static struct i2c_board_info i2c0_eeprom = { I2C_BOARD_INFO("24c02", 0x50) };
+#endif
+
 void __init lpc18xx_i2c_init(void)
 {
 	/*
@@ -73,4 +80,8 @@ void __init lpc18xx_i2c_init(void)
 	 */
 	platform_device_register(&lpc18xx_i2c0_device);
 	platform_device_register(&lpc18xx_i2c1_device);
+
+#if defined(CONFIG_EEPROM_AT24)
+	i2c_register_board_info(0, &i2c0_eeprom, 1);
+#endif
 }
