@@ -402,7 +402,7 @@ static int i2c_lpc2k_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	dev_dbg(&i2c->adap.dev, "Processing total messages = %d\n", msg_num);
 
 	/* Process a single message at a time */
-	for (i = 0; i < msg_num && ret == 0; i++) {
+	for (i = 0; i < msg_num; i++) {
 		/* Save message pointer and current message data index */
 		i2c->msg = &msgs[i];
 		i2c->msg_idx = 0;
@@ -410,9 +410,11 @@ static int i2c_lpc2k_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		i2c->is_last = (i == (msg_num - 1));
 
 		ret = lpc2k_process_msg(i2c, i);
+		if (ret)
+			return ret;
 	}
 
-	return ret;
+	return msg_num;
 }
 
 static irqreturn_t i2c_lpc2k_handler(int this_irq, void *dev_id)
