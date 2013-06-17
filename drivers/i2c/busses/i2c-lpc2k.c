@@ -385,9 +385,6 @@ static int i2c_lpc2k_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	unsigned long stat;
 	struct lpc2k_i2c *i2c = adap->algo_data;
 
-	/* Reset I2C to a known state */
-	i2c_lpc2k_reset(i2c);
-
 	/* Check for bus idle condition */
 	stat = i2c_readl(i2c->reg_base + LPC24XX_I2STAT);
 	if (stat != m_i2c_idle) {
