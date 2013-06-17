@@ -177,8 +177,9 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 				"(0x%02x)\n", i2c->msg->buf[i2c->msg_idx]);
 		} else if (i2c->is_last) {
 			/* Last message, send stop */
-			i2c_writel(LPC24XX_STO,
+			i2c_writel(LPC24XX_STO | LPC24XX_AA,
 				i2c->reg_base + LPC24XX_I2CONSET);
+			i2c_writel(LPC24XX_SI, i2c->reg_base + LPC24XX_I2CONCLR);
 			i2c->msg_status = 0;
 			dev_dbg(&i2c->adap.dev, "ACK ok, sending stop\n");
 			disable_irq_nosync(i2c->irq);
@@ -230,8 +231,9 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 		 * If transfer is done, send STOP
 		 */
 		if (i2c->msg_idx >= i2c->msg->len - 1 && i2c->is_last) {
-			i2c_writel(LPC24XX_STO,
+			i2c_writel(LPC24XX_STO | LPC24XX_AA,
 				i2c->reg_base + LPC24XX_I2CONSET);
+			i2c_writel(LPC24XX_SI, i2c->reg_base + LPC24XX_I2CONCLR);
 			i2c->msg_status = 0;
 			dev_dbg(&i2c->adap.dev, "ACK ok, sending stop\n");
 		}
@@ -383,6 +385,9 @@ static int i2c_lpc2k_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	unsigned long stat;
 	struct lpc2k_i2c *i2c = adap->algo_data;
 
+	/* Reset I2C to a known state */
+	i2c_lpc2k_reset(i2c);
+
 	/* Check for bus idle condition */
 	stat = i2c_readl(i2c->reg_base + LPC24XX_I2STAT);
 	if (stat != m_i2c_idle) {
@@ -406,9 +411,6 @@ static int i2c_lpc2k_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 		ret = lpc2k_process_msg(i2c, i);
 	}
-
-	/* Reset I2C to a known state */
-	i2c_lpc2k_reset(i2c);
 
 	return ret;
 }
