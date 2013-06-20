@@ -30,17 +30,28 @@
 #include <mach/platform.h>
 
 /*
- * I2C interfaces' registers bases
+ * I2C0 interface register and "Interrupt ID"
  */
+#if defined(CONFIG_LPC178X_I2C0)
 #define LPC178X_I2C0_BASE	(LPC178X_APB_PERIPH_BASE + 0x0001C000)
-#define LPC178X_I2C1_BASE	(LPC178X_APB_PERIPH_BASE + 0x0005C000)
-#define LPC178X_I2C2_BASE	(LPC178X_APB_PERIPH_BASE + 0x000A0000)
-/*
- * "Interrupt ID" in Table 43 in the LPC178x/7x User Manual (page 70)
- */
 #define LPC178X_I2C0_IRQ	10
+#endif
+
+/*
+ * I2C1 interface register and "Interrupt ID"
+ */
+#if defined(CONFIG_LPC178X_I2C1)
+#define LPC178X_I2C1_BASE	(LPC178X_APB_PERIPH_BASE + 0x0005C000)
 #define LPC178X_I2C1_IRQ	11
+#endif
+
+/*
+ * I2C2 interface register and "Interrupt ID"
+ */
+#if defined(CONFIG_LPC178X_I2C2)
+#define LPC178X_I2C2_BASE	(LPC178X_APB_PERIPH_BASE + 0x000A0000)
 #define LPC178X_I2C2_IRQ	12
+#endif
 
 /*
  * I2C platform devices and resources they use
@@ -64,19 +75,33 @@ struct platform_device lpc178x_i2c## uid ##_device = {			\
 	.resource       = lpc178x_i2c## uid ##_resources,		\
 }
 
-/*
- * Declare 3 platform devices
- */
+#if defined(CONFIG_LPC178X_I2C0)
 I2C_PLAT_DEVICE(0);
+#endif
+
+#if defined(CONFIG_LPC178X_I2C1)
 I2C_PLAT_DEVICE(1);
+#endif
+
+#if defined(CONFIG_LPC178X_I2C2)
 I2C_PLAT_DEVICE(2);
+#endif
 
 void __init lpc178x_i2c_init(void)
 {
 	/*
 	 * Register platform devices
 	 */
+
+#if defined(CONFIG_LPC178X_I2C0)
 	platform_device_register(&lpc178x_i2c0_device);
+#endif
+
+#if defined(CONFIG_LPC178X_I2C1)
 	platform_device_register(&lpc178x_i2c1_device);
+#endif
+
+#if defined(CONFIG_LPC178X_I2C2)
 	platform_device_register(&lpc178x_i2c2_device);
+#endif
 }

@@ -411,7 +411,11 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 	{{1, 12}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
 #endif /* defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE) */
 
-#if defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE)
+#if defined(CONFIG_LPC178X_I2C0) && (defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE))
+#error CONFIG_LPC178X_I2C0 and CONFIG_I2C_GPIO cannot be used at the same time
+#endif
+
+#if defined(CONFIG_LPC178X_I2C0)
 	/*
 	 * Pin configuration for the I2C0 interface. I2C1 and I2C2 are not used
 	 * on EA-LPC1788.
@@ -420,7 +424,7 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 	{{0, 27}, LPC178X_GPIO_CONFIG_I(1, 0, 1, 1)},
 	/* P0.28 (I) = I2C0_SDL */
 	{{0, 28}, LPC178X_GPIO_CONFIG_I(1, 0, 1, 1)},
-#endif /* defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE) */
+#endif
 
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	/*
@@ -430,12 +434,7 @@ static const struct lpc178x_gpio_pin_config ea_lpc1788_gpio[] = {
 	{{0, 27}, LPC178X_GPIO_CONFIG_I(0, 0, 0, 0)},
 	/* P0.28 (I) = I2C0_SDL (GPIO) */
 	{{0, 28}, LPC178X_GPIO_CONFIG_I(0, 0, 0, 0)},
-
-#if defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE)
-#error I2C_LPC2K and I2C_GPIO drivers cannot be used at the same time
-#endif /* defined(CONFIG_I2C_LPC2K) || defined(CONFIG_I2C_LPC2K_MODULE) */
-
-#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+#endif
 
 #if defined(CONFIG_FB_ARMCLCD) || defined(CONFIG_FB_ARMCLCD_MODULE)
 	/*

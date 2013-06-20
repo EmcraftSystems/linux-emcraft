@@ -296,11 +296,15 @@ static struct clk clk_mci = {
  * Clocks for each of the three I2C interfaces supported by the LPC178x/7x MCU.
  * The clock rate is initialized in `lpc178x_clock_init()`.
  */
-static struct clk clk_i2c[3] = {
-	{ .pconp_mask = LPC178X_SCC_PCONP_PCI2C0_MSK },
-	{ .pconp_mask = LPC178X_SCC_PCONP_PCI2C1_MSK },
-	{ .pconp_mask = LPC178X_SCC_PCONP_PCI2C2_MSK },
-};
+#if defined(CONFIG_LPC178X_I2C0)
+static struct clk clk_i2c0 = { .pconp_mask = LPC178X_SCC_PCONP_PCI2C0_MSK };
+#endif
+#if defined(CONFIG_LPC178X_I2C1)
+static struct clk clk_i2c1 = { .pconp_mask = LPC178X_SCC_PCONP_PCI2C1_MSK };
+#endif
+#if defined(CONFIG_LPC178X_I2C2)
+static struct clk clk_i2c2 = { .pconp_mask = LPC178X_SCC_PCONP_PCI2C2_MSK };
+#endif
 
 /*
  * Clock for the LCD contoller module of the MCU.
@@ -347,9 +351,15 @@ static struct clk_lookup lpc178x_clkregs[] = {
 	INIT_CLKREG(&clk_net, "lpc-net.0", NULL),
 	INIT_CLKREG(&clk_dma, NULL, "clk_dmac"),
 	INIT_CLKREG(&clk_mci, "dev:mmc0", NULL),
-	INIT_CLKREG(&clk_i2c[0], "lpc2k-i2c.0", NULL),
-	INIT_CLKREG(&clk_i2c[1], "lpc2k-i2c.1", NULL),
-	INIT_CLKREG(&clk_i2c[2], "lpc2k-i2c.2", NULL),
+#if defined(CONFIG_LPC178X_I2C0)
+	INIT_CLKREG(&clk_i2c0, "lpc2k-i2c.0", NULL),
+#endif
+#if defined(CONFIG_LPC178X_I2C1)
+	INIT_CLKREG(&clk_i2c1, "lpc2k-i2c.1", NULL),
+#endif
+#if defined(CONFIG_LPC178X_I2C2)
+	INIT_CLKREG(&clk_i2c2, "lpc2k-i2c.2", NULL),
+#endif
 	INIT_CLKREG(&clk_lcd, "dev:clcd", NULL),
 	INIT_CLKREG(&clk_i2s, NULL, "i2s0_ck"),
 	INIT_CLKREG(&clk_wdt, "lpc2k-wdt", NULL),
@@ -472,8 +482,15 @@ void __init lpc178x_clock_init(void)
 	clk_net.rate = clock_val[CLOCK_CCLK];	/* AHB clock = CPU clock */
 	clk_dma.rate = clock_val[CLOCK_CCLK];	/* AHB clock = CPU clock */
 	clk_mci.rate = clock_val[CLOCK_PCLK];
-	for (i = 0; i < ARRAY_SIZE(clk_i2c); i++)
-		clk_i2c[i].rate = clock_val[CLOCK_PCLK];
+#if defined(CONFIG_LPC178X_I2C0)
+	clk_i2c0.rate = clock_val[CLOCK_PCLK];
+#endif
+#if defined(CONFIG_LPC178X_I2C1)
+	clk_i2c1.rate = clock_val[CLOCK_PCLK];
+#endif
+#if defined(CONFIG_LPC178X_I2C2)
+	clk_i2c2.rate = clock_val[CLOCK_PCLK];
+#endif
 	clk_i2s.rate = clock_val[CLOCK_CCLK];
 	/*
 	 * Register clocks with the `clk_*` infrastructure
