@@ -45,6 +45,16 @@ config LPC18XX_SPI1
 	bool "Enable LPC18xx SSP/SPI1 port"
 	default n
 
+config LPC18XX_I2C0
+	depends on ARCH_LPC18XX && I2C_LPC2K
+	bool "Enable LPC18XX I2C0 port"
+	default n
+
+config LPC18XX_I2C1
+	depends on ARCH_LPC18XX && I2C_LPC2K
+	bool "Enable LPC18XX I2C1 port"
+	default n
+
 endmenu
 
 endif

@@ -138,8 +138,10 @@ struct lpc18xx_gpio_regs {
 #define LPC18XX_PIN(group,pin) \
 	(*(volatile u32 *)LPC18XX_PIN_REG_ADDR(group,pin))
 
-
-#if defined(CONFIG_I2C_LPC2K)
+/*
+ * I2C0 configuration register
+ */
+#if defined(CONFIG_LPC18XX_I2C0)
 #define LPC18XX_SFSI2C0 ((u32 volatile *) (LPC18XX_SCU_BASE + 0xC84))
 #endif
 
@@ -240,7 +242,7 @@ void __init lpc18xx_iomux_init(void)
 		lpc18xx_pin_config(0x3, 8, LPC18XX_IOMUX_CONFIG_OUT(4));
 #endif
 
-#if defined(CONFIG_I2C_LPC2K)
+#if defined(CONFIG_LPC18XX_I2C0)
 		/*
 		 * The I2C0 pins are configured using special SFSI2C0 register
 		 * (see section 15.4.5 of User manual). SFSI2C0 register
@@ -256,7 +258,9 @@ void __init lpc18xx_iomux_init(void)
 		 * The above configuration corresponds to the 0x8888 hex value.
 		 */
 		*LPC18XX_SFSI2C0 = 0x8888;
+#endif
 
+#if defined(CONFIG_LPC18XX_I2C1)
 		/*
 		 * Configure I2C1 pins I2C1_SDA and I2C1_SCL: setup EHS, EZI,
 		 * ZIF bits (refer to section 15.4.1 of UM)
