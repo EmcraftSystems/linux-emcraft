@@ -113,9 +113,9 @@ void __init m2s_i2c_init(void)
 	/*
  	 * Reset the I2C controller and then bring it out of reset
  	 */
-	writel(readl(&M2S_SYSREG->soft_reset_cr) | I2C0_RST_CLR, 
+	writel(readl(&M2S_SYSREG->soft_reset_cr) | I2C0_RST_CLR,
 		&M2S_SYSREG->soft_reset_cr);
-	writel(readl(&M2S_SYSREG->soft_reset_cr) & ~I2C0_RST_CLR, 
+	writel(readl(&M2S_SYSREG->soft_reset_cr) & ~I2C0_RST_CLR,
 		&M2S_SYSREG->soft_reset_cr);
 
 	/*
@@ -127,7 +127,7 @@ void __init m2s_i2c_init(void)
 	/*
 	 * Register a platform device for this interface
 	 */
-	platform_device_register(&i2c_m2s_dev0);		
+	platform_device_register(&i2c_m2s_dev0);
 #endif
 
 #if defined(CONFIG_M2S_MSS_I2C1)
@@ -135,9 +135,9 @@ void __init m2s_i2c_init(void)
 	/*
  	 * Reset the I2C controller and then bring it out of reset
  	 */
-	writel(readl(&M2S_SYSREG->soft_reset_cr) | I2C1_RST_CLR, 
+	writel(readl(&M2S_SYSREG->soft_reset_cr) | I2C1_RST_CLR,
 		&M2S_SYSREG->soft_reset_cr);
-	writel(readl(&M2S_SYSREG->soft_reset_cr) & ~I2C1_RST_CLR, 
+	writel(readl(&M2S_SYSREG->soft_reset_cr) & ~I2C1_RST_CLR,
 		&M2S_SYSREG->soft_reset_cr);
 
 	/*
@@ -149,13 +149,13 @@ void __init m2s_i2c_init(void)
 	/*
 	 * Register a platform device for this interface
 	 */
-	platform_device_register(&i2c_m2s_dev1);		
+	platform_device_register(&i2c_m2s_dev1);
 #endif
 
 	/*
  	 * Perform board-specific I2C device registration
  	 */
-	if (p == PLATFORM_M2S_SOM) {
+	if (p == PLATFORM_M2S_SOM || p == PLATFORM_M2S_FG484_SOM) {
 #if defined(CONFIG_M2S_MSS_I2C1)
 
 		/*

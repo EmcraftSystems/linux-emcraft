@@ -79,6 +79,7 @@ void __init m2s_eth_init(void)
 	platform = m2s_platform_get();
 	switch (platform) {
 	case PLATFORM_M2S_SOM:
+	case PLATFORM_M2S_FG484_SOM:
 		eth_m2s_dev_data.freq_src = m2s_clock_get(CLCK_SYSREF);
 		break;
 	case PLATFORM_SF2_DEV_KIT:

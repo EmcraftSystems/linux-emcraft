@@ -129,7 +129,7 @@ void __init m2s_spi_init(void)
 	platform_device_register(&spi_m2s_dev1);
 #endif
 
-	if (p == PLATFORM_M2S_SOM) {
+	if (p == PLATFORM_M2S_SOM || p == PLATFORM_M2S_FG484_SOM) {
 #if defined(CONFIG_M2S_MSS_SPI0) && defined(CONFIG_MTD_M25P80)
 		/*
 		 * SPI Flash partitioning:
