@@ -30,13 +30,20 @@
 #include <mach/platform.h>
 
 /*
- * I2C interfaces' registers bases
+ * I2C0 interface register and "Interrupt ID"
  */
-#define LPC18XX_I2C0_BASE	(0x400A1000)
-#define LPC18XX_I2C1_BASE	(0x400E0000)
-
+#if defined(CONFIG_LPC18XX_I2C0)
 #define LPC18XX_I2C0_IRQ	18
+#define LPC18XX_I2C0_BASE	(0x400A1000)
+#endif
+
+/*
+ * I2C1 interface register and "Interrupt ID"
+ */
+#if defined(CONFIG_LPC18XX_I2C1)
+#define LPC18XX_I2C1_BASE	(0x400E0000)
 #define LPC18XX_I2C1_IRQ	19
+#endif
 
 /*
  * I2C platform devices and resources they use
@@ -63,25 +70,46 @@ struct platform_device lpc18xx_i2c## uid ##_device = {			\
 /*
  * Declare 3 platform devices
  */
+#if defined(CONFIG_LPC18XX_I2C0)
 I2C_PLAT_DEVICE(0);
+#endif
+
+#if defined(CONFIG_LPC18XX_I2C1)
 I2C_PLAT_DEVICE(1);
+#endif
 
 /*
  * Declare the eeprom device supported by the EEPROM_AT24 driver
+ * on the Hitex LPC4350 board
  */
 #if defined(CONFIG_EEPROM_AT24)
-static struct i2c_board_info i2c0_eeprom = { I2C_BOARD_INFO("24c02", 0x50) };
+static struct i2c_board_info hitex_lpc4350_i2c0_eeprom = {
+	I2C_BOARD_INFO("24c02", 0x50)
+};
 #endif
 
 void __init lpc18xx_i2c_init(void)
 {
+	int platform;
+
+	platform = lpc18xx_platform_get();
+
 	/*
 	 * Register platform devices
 	 */
+#if defined(CONFIG_LPC18XX_I2C0)
 	platform_device_register(&lpc18xx_i2c0_device);
+#endif
+
+#if defined(CONFIG_LPC18XX_I2C1)
 	platform_device_register(&lpc18xx_i2c1_device);
+#endif
 
 #if defined(CONFIG_EEPROM_AT24)
-	i2c_register_board_info(0, &i2c0_eeprom, 1);
+	switch (platform) {
+	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
+		i2c_register_board_info(0, &hitex_lpc4350_i2c0_eeprom, 1);
+		break;
+	}
 #endif
 }

@@ -257,7 +257,7 @@ void __init lpc18xx_iomux_init(void)
 		 *    7/F | ZIF  |  1  | Glitch filter: 0=Enable, 1=Disable
 		 * The above configuration corresponds to the 0x8888 hex value.
 		 */
-		*LPC18XX_SFSI2C0 = 0x8888;
+		writel(0x8888, LPC18XX_SFSI2C0);
 #endif
 
 #if defined(CONFIG_LPC18XX_I2C1)
