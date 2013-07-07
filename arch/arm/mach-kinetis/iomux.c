@@ -151,9 +151,9 @@ out:
 static const struct kinetis_gpio_pin_config common_iomux[] = {
 #if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
 	/* E.18 = GPIO (for I2C_SDA) */
-	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_ODEDSE(1)}, /* ODEDSE - really necessary? -psl */
 	/* E.19 = GPIO (for I2C_SCL) */
-	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
+	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_ODEDSE(1)},
 #endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
 
 #if defined(CONFIG_USB_EHCI_MXC) || defined(CONFIG_USB_EHCI_MXC_MODULE)
@@ -497,7 +497,8 @@ void __init kinetis_iomux_init(void)
 	 */
 	if (lcdtype == LCD_TWR_LCD_RGB ||
 		((lcdtype == LCD_FUT_TWR_NL8048 ||
-			lcdtype == LCD_FUT_TWR_PIM_41WVGA) &&
+			lcdtype == LCD_FUT_TWR_PIM_41WVGA ||
+			lcdtype == LCD_FUT_TWR_AZD) &&
 		(platform == PLATFORM_KINETIS_K70_SOM ||
 			platform == PLATFORM_KINETIS_TWR_K70F120M))) {
 		kinetis_gpio_config_table(

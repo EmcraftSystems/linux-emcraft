@@ -51,5 +51,7 @@ int kinetis_lcdtype_get(void);
 #define LCD_FUT_TWR_NL8048		2
 /* Future Electronics TWR-PIM-41WVGA */
 #define LCD_FUT_TWR_PIM_41WVGA		3
+/* Future Electronics with AZD display */
+#define LCD_FUT_TWR_AZD		4
 
 #endif /* __ASM_ARCH_PLATFORM_H */

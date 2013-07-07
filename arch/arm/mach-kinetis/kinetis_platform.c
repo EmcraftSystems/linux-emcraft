@@ -142,6 +142,8 @@ static int __init kinetis_lcdtype_parse(char *s)
 	} else if (!strcmp(s, "fut-twr-pim-41wvga")) {
 		kinetis_lcdtype = LCD_FUT_TWR_PIM_41WVGA;
 #endif
+	} else if (!strcmp(s, "fut-twr-azd")) {
+		kinetis_lcdtype = LCD_FUT_TWR_AZD;
 	} else {
 		pr_err("%s: An unknown LCD type requested: %s\n", __func__, s);
 	}

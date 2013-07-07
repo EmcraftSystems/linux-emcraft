@@ -40,6 +40,8 @@
 #define KINETIS_GPIO_CONFIG_PS_MSK	(1 << KINETIS_GPIO_CONFIG_PS_BIT)
 /* Drive Strength Enable (high drive strength) */
 #define KINETIS_GPIO_CONFIG_DSE_MSK	(1 << 6)
+/* Open drain enable */
+#define KINETIS_GPIO_CONFIG_ODE_MSK	(1 << 5)
 
 /*
  * These macros should be used to compute the value for the second argument of
@@ -59,6 +61,13 @@
 /* Also enable high drive strength */
 #define KINETIS_GPIO_CONFIG_DSE(mux) \
 	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_DSE_MSK)
+/* Also enable open drain */
+#define KINETIS_GPIO_CONFIG_ODE(mux) \
+	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_ODE_MSK)
+
+#define KINETIS_GPIO_CONFIG_ODEDSE(mux) \
+	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_ODE_MSK |  KINETIS_GPIO_CONFIG_DSE_MSK)
+
 /*
  * TBD: similar macros with more options
  */

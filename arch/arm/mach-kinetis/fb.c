@@ -274,6 +274,61 @@ static struct imx_fb_platform_data ea_lcd_004_fb_data = {
 		(0x60 << KINETIS_LCDC_LDCR_TM_BITS),
 };
 
+
+
+/*
+ * Future Electronics with American Zettler Displays (AZD) LCD
+ */
+static struct imx_fb_videomode fut_twr_azd_fb_modes[] = {
+	{
+		.mode = {
+			.name		= "AZ ATM0700D6A",
+			.refresh	= 54,	/* VSYNC rate in Hz (30MHz/(525*1056) */
+			.xres		= 800,
+			.yres		= 480,
+			.pixclock	= KHZ2PICOS(30000),	/* 30 MHz */
+			.left_margin	= 209,	/* Horiz. front porch */
+			.hsync_len	= 1,	/* Horiz. pulse width */
+			.right_margin	= 46,	/* Horiz. back porch */
+			.upper_margin	= 21,	/* Vert. front porch */
+			.vsync_len	= 1,	/* Vert. pulse width */
+			.lower_margin	= 23,	/* Vert. back porch */
+		},
+		/*
+		 * The screen is 24bpp, but every pixel occupies 32 bits
+		 * of memory.
+		 */
+		.bpp		= 32,
+		.pcr		=
+			PCR_END_SEL |		/* Big Endian */
+			PCR_TFT | PCR_COLOR |	/* Color TFT */
+			PCR_SCLK_SEL |		/* Always enable LSCLK */
+			PCR_SCLKIDLE |
+			PCR_CLKPOL |		/* Polarities */
+			PCR_FLMPOL |
+			PCR_LPPOL,
+	},
+};
+
+static struct imx_fb_platform_data fut_twr_azd_fb_data = {
+	.mode = fut_twr_azd_fb_modes,
+	.num_modes = ARRAY_SIZE(fut_twr_azd_fb_modes),
+
+	/* LSCR1 is not supported on Kinetis */
+	.lscr1		= 0x00000000,
+	/* Disable PWM contrast control */
+	.pwmr		= 0x00000000,
+	/*
+	 * DMA control register value. We use default values for the
+	 * `DMA high mark` and the `DMA trigger mark`. The burst length is
+	 * dynamic.
+	 */
+	.dmacr		=
+		(0x04 << KINETIS_LCDC_LDCR_HM_BITS) |
+		(0x60 << KINETIS_LCDC_LDCR_TM_BITS),
+};
+
+
 /*
  * Framebuffer platform device instance
  */
@@ -404,7 +459,7 @@ static struct i2c_driver ealcd004_pca9532_driver = {
  * on the TWR-LCD-RGB board. We register it with the driver `crtouch_mt`.
  */
 static struct i2c_board_info __initdata twr_lcd_rgb_crtouch = {
-	I2C_BOARD_INFO("crtouchId", 0x49),
+	I2C_BOARD_INFO("crtouchId", 0x4b),
 };
 #endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 
@@ -494,8 +549,20 @@ void __init kinetis_fb_init(void)
 			goto out;
 #endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 #endif /* CONFIG_KINETIS_SPI2_GPIO */
+	} else	if (lcdtype == LCD_FUT_TWR_AZD) {
+		kinetis_fb_device.dev.platform_data = &fut_twr_azd_fb_data;
+		printk("%s: selected AZD FB data\n", __func__);//psldbg
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT) || \
+    defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT_MODULE)
+		/*
+		 * Register the I2C-connected CRTouch touchscreen installed
+		 * on TWR-LCD-RGB.
+		 */
+		ret = i2c_register_board_info(0, &twr_lcd_rgb_crtouch, 1);
+		if (ret < 0)
+			goto out;
+#endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 	}
-
 	/*
 	 * Initialize the LCD controller and register the platform device
 	 */
