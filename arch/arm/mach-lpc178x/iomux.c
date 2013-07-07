@@ -24,6 +24,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/errno.h>
 
 #include <mach/lpc178x.h>
@@ -279,6 +280,30 @@ int lpc178x_gpout_set(const struct lpc178x_gpio_dsc *dsc, int state)
 
 	return rv;
 }
+
+/*
+ * Set up direction of a GPIO: 1-> out; 0-> in
+ */
+void lpc178x_gpio_dir(int port, int pin, int d)
+{
+	struct lpc178x_gpio_dsc gpio_dsc;
+	gpio_dsc.port = port;
+	gpio_dsc.pin = pin;
+	lpc178x_gpio_config_direction(&gpio_dsc, d);
+}
+EXPORT_SYMBOL(lpc178x_gpio_dir);
+
+/*
+ * Define the value of a general-purpose output
+ */
+void lpc178x_gpio_out(int port, int pin, int v)
+{
+	struct lpc178x_gpio_dsc gpio_dsc;
+	gpio_dsc.port = port;
+	gpio_dsc.pin = pin;
+	lpc178x_gpout_set(&gpio_dsc, v);
+}
+EXPORT_SYMBOL(lpc178x_gpio_out);
 
 /*
  * Return the state of an input GPIO.
@@ -545,6 +570,20 @@ static const struct lpc178x_gpio_pin_config lpc_lnx_evb_gpio[] = {
 	/* P1.17 (D) = RMII MDIO */
 	{{1, 17}, LPC178X_GPIO_CONFIG_D(1, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
 #endif /* CONFIG_LPC178X_ETHER */
+
+#ifdef CONFIG_LPC178X_SPI0
+	/*
+	 * GPIO configuration for SPI/SSP0
+	 */
+	/* P0.15 (D) = SSP0_SCK */
+	{{0, 15}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P0.16 (D) = P0[16] (driver controlled GPIO) */
+	{{0, 16}, LPC178X_GPIO_CONFIG_D(0, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P0.17 (D) = SSP0_MISO */
+	{{0, 17}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+	/* P0.18 (D) = SSP0_MOSI */
+	{{0, 18}, LPC178X_GPIO_CONFIG_D(2, LPC178X_NO_PULLUP, 0, 0, 0, 0)},
+#endif
 };
 
 /*

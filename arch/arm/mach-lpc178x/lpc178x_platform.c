@@ -39,6 +39,7 @@
 #include <mach/timer.h>
 #include <mach/uart.h>
 #include <mach/eth.h>
+#include <mach/spi.h>
 #include <mach/flash.h>
 #include <mach/dma.h>
 #include <mach/sdcard.h>
@@ -205,6 +206,13 @@ static void __init lpc178x_init(void)
 	 * Configure the LPC178x/7x MAC
 	 */
 	lpc178x_eth_init();
+#endif
+
+#if defined(CONFIG_SPI_PL022)
+	/*
+	 * Configure the SPI devices
+	 */
+	lpc178x_spi_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)

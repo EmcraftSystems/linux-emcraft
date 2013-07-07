@@ -27,6 +27,16 @@
 
 #include <linux/init.h>
 
+/*
+ * Set up direction of a GPIO: 1-> out; 0-> in
+ */
+void lpc178x_gpio_dir(int port, int pin, int d);
+
+/*
+ * Define the value of a general-purpose output
+ */
+void lpc178x_gpio_out(int port, int pin, int v);
+
 void __init lpc178x_iomux_init(void);
 
 #endif	/*_MACH_LPC178X_IOMUX_H_ */

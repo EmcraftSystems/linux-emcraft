@@ -35,6 +35,16 @@ config LPC178X_UART4
 	bool "Enable LPC178x/7x UART4 port"
 	default n
 
+config LPC178X_MAC
+	depends on ARCH_LPC178X && LPC178X_ETHER
+	bool "Enable LPC178x/7x Ethernet port"
+	default y
+
+config LPC178X_SPI0
+	depends on ARCH_LPC178X && SPI_PL022
+	bool "Enable LPC178x/7x SSP/SPI0 port"
+	default n
+
 config LPC178X_I2C0
 	depends on ARCH_LPC178X && I2C_LPC2K
 	bool "Enable LPC178X I2C0 port"
@@ -49,11 +59,6 @@ config LPC178X_I2C2
 	depends on ARCH_LPC178X && I2C_LPC2K
 	bool "Enable LPC178X I2C2 port"
 	default n
-
-config LPC178X_MAC
-	depends on ARCH_LPC178X && LPC178X_ETHER
-	bool "Enable LPC178x/7x Ethernet port"
-	default y
 
 config LPC178X_SD_DMA
 	depends on ARCH_LPC178X && MMC_ARMMMCI
