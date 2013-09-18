@@ -87,6 +87,10 @@ typedef u32 kinetis_clock_gate_t;
 #define KINETIS_CG_ADC3		KINETIS_MKCG(2, 28)	/* SIM_SCGC3[28] */
 /* ESDHC */
 #define KINETIS_CG_ESDHC	KINETIS_MKCG(2, 17)	/* SIM_SCGC3[17] */
+/* SPI */
+#define KINETIS_CG_SPI0		KINETIS_MKCG(5, 12)	/* SIM_SCGC6[12] */
+#define KINETIS_CG_SPI1		KINETIS_MKCG(5, 13)	/* SIM_SCGC6[13] */
+#define KINETIS_CG_SPI2		KINETIS_MKCG(2, 12)	/* SIM_SCGC3[12] */
 
 #ifndef __ASSEMBLY__
 

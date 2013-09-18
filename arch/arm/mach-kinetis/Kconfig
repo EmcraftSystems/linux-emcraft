@@ -95,6 +95,22 @@ config KINETIS_EDMA
 	bool "Enable Kinetis eDMA controller for peripherals"
 	default y
 
+config KINETIS_SPI0
+	depends on ARCH_KINETIS && SPI
+	bool "Enable Kinetis SPI0"
+	default n
+
+config KINETIS_SPI1
+	depends on ARCH_KINETIS && SPI
+	bool "Enable Kinetis SPI1"
+	default n
+
+config KINETIS_SPI2
+	depends on ARCH_KINETIS && SPI
+	bool "Enable Kinetis SPI2"
+	default n
+
+
 endmenu
 
 endif

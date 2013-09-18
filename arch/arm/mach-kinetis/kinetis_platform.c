@@ -41,6 +41,7 @@
 #include <mach/nand.h>
 #include <mach/fb.h>
 #include <mach/esdhc.h>
+#include <mach/spi.h>
 
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
@@ -255,6 +256,13 @@ static void __init kinetis_init(void)
 	 * Configure the Freescale Kinetis USB High Speed controller
 	 */
 	kinetis_ehci_init();
+#endif
+
+#if defined(CONFIG_SPI)
+	/*
+	 * Configure SPI controllers
+	 */
+	kinetis_spi_init();
 #endif
 
 #if defined(CONFIG_KINETIS_SPI_GPIO)

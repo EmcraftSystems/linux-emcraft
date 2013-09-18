@@ -322,6 +322,14 @@ config SPI_NUC900
 	help
 	  SPI driver for Nuvoton NUC900 series ARM SoCs
 
+config SPI_KINETIS
+	tristate "Freescale Faraday DSPI controllers"
+	depends on ARCH_KINETIS
+	default y
+	help
+	  This enables using the Freescale Faraday SPI controllers in master
+	  mode.
+
 #
 # Add new SPI master controllers in alphabetical order above this line
 #

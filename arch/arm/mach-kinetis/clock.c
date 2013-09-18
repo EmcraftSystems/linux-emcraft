@@ -336,6 +336,25 @@ static struct clk clk_lcdc = {
 static struct clk clk_uart[6];
 
 /*
+ * Clocks for each of the 3 SPI controllers supported by the Kinetis K70 MCUs.
+ */
+#ifdef CONFIG_KINETIS_SPI0
+static struct clk clk_spi0 = {
+	.gate = KINETIS_CG_SPI0,
+};
+#endif
+#ifdef CONFIG_KINETIS_SPI1
+static struct clk clk_spi1 = {
+	.gate = KINETIS_CG_SPI1,
+};
+#endif
+#ifdef CONFIG_KINETIS_SPI2
+static struct clk clk_spi2 = {
+	.gate = KINETIS_CG_SPI2,
+};
+#endif
+
+/*
  * Enable the USB-HS module clock
  */
 static void usbhs_clk_enable(struct clk *clk)
@@ -373,6 +392,15 @@ static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_uart[3], "kinetis-uart.3", NULL),
 	INIT_CLKREG(&clk_uart[4], "kinetis-uart.4", NULL),
 	INIT_CLKREG(&clk_uart[5], "kinetis-uart.5", NULL),
+#ifdef CONFIG_KINETIS_SPI0
+	INIT_CLKREG(&clk_spi0, "kinetis-dspi.0", NULL),
+#endif
+#ifdef CONFIG_KINETIS_SPI1
+	INIT_CLKREG(&clk_spi1, "kinetis-dspi.1", NULL),
+#endif
+#ifdef CONFIG_KINETIS_SPI2
+	INIT_CLKREG(&clk_spi2, "kinetis-dspi.2", NULL),
+#endif
 	INIT_CLKREG(&clk_usbhs, "mxc-ehci.0", "usb"),
 };
 
@@ -677,6 +705,16 @@ void __init kinetis_clock_init(void)
 	 */
 	for (i = 0; i < ARRAY_SIZE(clk_uart); i++)
 		clk_uart[i].rate = clock_val[i <= 1 ? CLOCK_CCLK : CLOCK_PCLK];
+
+#ifdef CONFIG_KINETIS_SPI0
+	clk_spi0.rate = clock_val[CLOCK_PCLK];
+#endif
+#ifdef CONFIG_KINETIS_SPI1
+	clk_spi1.rate = clock_val[CLOCK_PCLK];
+#endif
+#ifdef CONFIG_KINETIS_SPI2
+	clk_spi2.rate = clock_val[CLOCK_PCLK];
+#endif
 
 	/*
 	 * Register clocks with the `clk_*` infrastructure

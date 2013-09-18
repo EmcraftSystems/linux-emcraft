@@ -345,6 +345,17 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 //	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16) | 3},
 	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16)},
 #endif
+
+#if defined(CONFIG_KINETIS_SPI1)
+	/* B.10 = SPI1_PCS0 */
+	{{KINETIS_GPIO_PORT_B, 10}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* B.11 = SPI1_SCK */
+	{{KINETIS_GPIO_PORT_B, 11}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* B.16 = SPI1_SOUT */
+	{{KINETIS_GPIO_PORT_B, 16}, KINETIS_GPIO_CONFIG_MUX(2)},
+	/* B.17 = SPI1_SIN */
+	{{KINETIS_GPIO_PORT_B, 17}, KINETIS_GPIO_CONFIG_MUX(2)},
+#endif /* CONFIG_KINETIS_SPI1 */
 };
 
 /*
