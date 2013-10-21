@@ -277,13 +277,15 @@ struct lpc18xx_creg_regs {
 	(7 << LPC18XX_CREG_CREG6_ETHMODE_BITS)
 #define LPC18XX_CREG_CREG6_ETHMODE_MII \
 	(0 << LPC18XX_CREG_CREG6_ETHMODE_BITS)
+#define LPC18XX_CREG_CREG6_ETHMODE_RMII \
+	(4 << LPC18XX_CREG_CREG6_ETHMODE_BITS)
 /* EMC_CLK divided clock select */
 #define LPC18XX_CREG_CREG6_EMCCLKSEL_MSK	(1 << 16)
 
 /*
  * Initialize the Ethernet controller
  */
-static int __init eth_setup(void)
+static int __init eth_setup(int rmii)
 {
 	int timeout;
 	int rv;
@@ -294,20 +296,23 @@ static int __init eth_setup(void)
 	 */
 	lpc18xx_clock_init();
 
-	/*
-	 * This clock configuration is valid only for MII
-	 */
-	LPC18XX_CGU->phy_rx_clk =
-		LPC18XX_CGU_CLKSEL_ENET_RX | LPC18XX_CGU_AUTOBLOCK_MSK;
-	LPC18XX_CGU->phy_tx_clk =
-		LPC18XX_CGU_CLKSEL_ENET_TX | LPC18XX_CGU_AUTOBLOCK_MSK;
+	if (!rmii) {
+		/*
+		 * This clock configuration is valid only for MII
+		 */
+		LPC18XX_CGU->phy_rx_clk =
+			LPC18XX_CGU_CLKSEL_ENET_RX | LPC18XX_CGU_AUTOBLOCK_MSK;
+		LPC18XX_CGU->phy_tx_clk =
+			LPC18XX_CGU_CLKSEL_ENET_TX | LPC18XX_CGU_AUTOBLOCK_MSK;
+	}
 
 	/*
 	 * Choose the MII Ethernet mode
 	 */
 	LPC18XX_CREG->creg6 =
 		(LPC18XX_CREG->creg6 & ~LPC18XX_CREG_CREG6_ETHMODE_MSK) |
-		LPC18XX_CREG_CREG6_ETHMODE_MII;
+		(rmii ? LPC18XX_CREG_CREG6_ETHMODE_RMII :
+			LPC18XX_CREG_CREG6_ETHMODE_MII);
 
 	/*
 	 * Reset the Ethernet module of the MCU
@@ -339,19 +344,16 @@ static int __init eth_setup(void)
 
 void __init lpc18xx_eth_init(void)
 {
-	int	platform;
-
-	/*
-	 * Initialize the Ethernet controller
-	 */
-	if (eth_setup() < 0)
-		goto out;
+	int	platform, rmii = 0;
 
 	/*
 	 * Fix-up and register platform device
 	 */
 	platform = lpc18xx_platform_get();
 	switch (platform) {
+	case PLATFORM_LPC18XX_EA_LPC4357_EVAL:
+		rmii = 1;
+		/* Pass thru */
 	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
 	case PLATFORM_LPC18XX_HITEX_LPC1850_EVAL:
 		eth_device.dev.platform_data = &hitex_lpc4350_eth_data;
@@ -359,6 +361,13 @@ void __init lpc18xx_eth_init(void)
 	default:
 		break;
 	}
+
+	/*
+	 * Initialize the Ethernet controller
+	 */
+	if (eth_setup(rmii) < 0)
+		goto out;
+
 
 	platform_device_register(&eth_device);
 out:
