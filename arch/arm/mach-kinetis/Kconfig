@@ -90,6 +90,11 @@ config KINETIS_SPI2_GPIO
 	bool "Enable the Kinetis SPI2 bus emulated using GPIO"
 	default n
 
+config KINETIS_GPIO_INT
+	depends on ARCH_KINETIS && GPIOLIB
+	bool "Enable GPIO interrupts"
+	default n
+
 config KINETIS_EDMA
 	depends on ARCH_KINETIS
 	bool "Enable Kinetis eDMA controller for peripherals"

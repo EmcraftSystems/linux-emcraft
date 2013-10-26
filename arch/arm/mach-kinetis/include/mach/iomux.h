@@ -73,6 +73,29 @@
 #define KINETIS_GPIO_PORTS	6
 
 /*
+ * PORTx register map
+ */
+struct kinetis_port_regs {
+	u32 pcr[32];	/* Pin Control Registers */
+	u32 gpclr;	/* Global Pin Control Low Register */
+	u32 gpchr;	/* Global Pin Control High Register */
+	u32 rsv0[6];
+	u32 isfr;	/* Interrupt Status Flag Register */
+	u32 rsv1[7];
+	u32 dfer;	/* Digital Filter Enable Register */
+	u32 dfcr;	/* Digital Filter Clock Register */
+	u32 dfwr;	/* Digital Filter Width Register */
+};
+
+/*
+ * PORTx registers base
+ */
+#define KINETIS_PORT_BASE(port)		(KINETIS_AIPS0PERIPH_BASE + \
+					0x00049000 + (port) * 0x1000)
+#define KINETIS_PORT(port)		((volatile struct kinetis_port_regs *) \
+					KINETIS_PORT_BASE(port))
+
+/*
  * GPIO ports
  */
 #define KINETIS_GPIO_PORT_A	0
@@ -96,6 +119,8 @@ struct kinetis_gpio_pin_config {
 };
 
 int kinetis_gpio_config(const struct kinetis_gpio_dsc *dsc, u32 regval);
+int kinetis_gpio_config_mask(const struct kinetis_gpio_dsc *dsc, u32 mask);
+int kinetis_gpio_config_unmask(const struct kinetis_gpio_dsc *dsc, u32 mask);
 
 void __init kinetis_iomux_init(void);
 

@@ -32,29 +32,6 @@
 #include <mach/iomux.h>
 
 /*
- * PORTx register map
- */
-struct kinetis_port_regs {
-	u32 pcr[32];	/* Pin Control Registers */
-	u32 gpclr;	/* Global Pin Control Low Register */
-	u32 gpchr;	/* Global Pin Control High Register */
-	u32 rsv0[6];
-	u32 isfr;	/* Interrupt Status Flag Register */
-	u32 rsv1[7];
-	u32 dfer;	/* Digital Filter Enable Register */
-	u32 dfcr;	/* Digital Filter Clock Register */
-	u32 dfwr;	/* Digital Filter Width Register */
-};
-
-/*
- * PORTx registers base
- */
-#define KINETIS_PORT_BASE(port)		(KINETIS_AIPS0PERIPH_BASE + \
-					0x00049000 + (port) * 0x1000)
-#define KINETIS_PORT(port)		((volatile struct kinetis_port_regs *) \
-					KINETIS_PORT_BASE(port))
-
-/*
  * Clock gates for the I/O ports: 0..5 <-> A..F
  *
  * These values can be passed into the `kinetis_periph_enable()` function.
@@ -120,6 +97,42 @@ int kinetis_gpio_config(const struct kinetis_gpio_dsc *dsc, u32 regval)
 	rv = 0;
 out:
 	return rv;
+}
+
+/*
+ * Updates GPIO pin configuration by masking PCR register value
+ *
+ * Returns 0 on success, -EINVAL otherwise.
+ */
+int kinetis_gpio_config_mask(const struct kinetis_gpio_dsc *dsc, u32 mask)
+{
+	int rv;
+
+	rv = kinetis_validate_gpio(dsc);
+	if (rv != 0)
+		return rv;
+
+	KINETIS_PORT(dsc->port)->pcr[dsc->pin] |= mask;
+
+	return 0;
+}
+
+/*
+ * Updates GPIO pin configuration by unmasking PCR register value
+ *
+ * Returns 0 on success, -EINVAL otherwise.
+ */
+int kinetis_gpio_config_unmask(const struct kinetis_gpio_dsc *dsc, u32 mask)
+{
+	int rv;
+
+	rv = kinetis_validate_gpio(dsc);
+	if (rv != 0)
+		return rv;
+
+	KINETIS_PORT(dsc->port)->pcr[dsc->pin] &= ~mask;
+
+	return 0;
 }
 
 /*
@@ -229,6 +242,26 @@ static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
 //	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16) | 3},
 	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16)},
 #endif
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Pin configuration for the User LEDs and the "User Button" installed
+	 * on the TWR-K70-SOM-BSB-1A baseboard. Other baseboards may need
+	 * different pin configurations.
+	 */
+#if 0
+	/*
+	 * The "User Button" is emulated using the PTB9/PTC0 pins corresponding
+	 * to the P11.1 and P11.2 outputs on the board.
+	 */
+	{{KINETIS_GPIO_PORT_C, 0}, KINETIS_GPIO_CONFIG_PULLUP(1)},
+	{{KINETIS_GPIO_PORT_B, 9}, KINETIS_GPIO_CONFIG_MUX(1)},
+
+	/* LEDs DS3 and DS4, correspondingly */
+	{{KINETIS_GPIO_PORT_B, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+	{{KINETIS_GPIO_PORT_B, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif
+#endif /* CONFIG_GPIOLIB */
 };
 
 /*
@@ -313,17 +346,17 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 
 #if defined(CONFIG_GPIOLIB)
 	/*
-	 * Pin configuration for the User LEDs and the User Button installed
-	 * on the SOM-BSB baseboard. Other baseboards may need different pin
+	 * Pin configuration for the User LEDs and the User Button installed on
+	 * the SOM-BSB-EXT baseboard. Other baseboards may need different pin
 	 * configurations.
 	 */
 #if 0
 	/* E.9 = GPIO 137: User button (S2) */
 	{{KINETIS_GPIO_PORT_E,  9}, KINETIS_GPIO_CONFIG_PULLUP(1)},
-	/* E.11 = GPIO 139: LED DS3 */
-	{{KINETIS_GPIO_PORT_E, 11}, KINETIS_GPIO_CONFIG_MUX(1)},
-	/* E.12 = GPIO 140: LED DS4 */
-	{{KINETIS_GPIO_PORT_E, 12}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* E.8 = GPIO 136: LED DS3 */
+	{{KINETIS_GPIO_PORT_E, 8}, KINETIS_GPIO_CONFIG_MUX(1)},
+	/* A.19 = GPIO 19: LED DS4 */
+	{{KINETIS_GPIO_PORT_A, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
 #endif
 #endif /* CONFIG_GPIOLIB */
 

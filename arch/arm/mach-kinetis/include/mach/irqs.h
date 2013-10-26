@@ -34,6 +34,17 @@
  * See Table 3-4 in the K70 Sub-Family Reference Manual.
  * The Kinetis K60 MCU has less IRQs.
  */
-#define NR_IRQS		106
+#define NVIC_IRQS       106
+
+#if defined (CONFIG_KINETIS_GPIO_INT)
+/*
+ * K70 has 6 GPIO ports: PORT_A, ..., PORT_F; 32 pins each.
+ * So we have 192 pins to possibly have interrupts
+ */
+#define KINETIS_GPIO_IRQS 192
+#define NR_IRQS		(NVIC_IRQS + KINETIS_GPIO_IRQS)
+#else
+#define NR_IRQS		NVIC_IRQS
+#endif
 
 #endif

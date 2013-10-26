@@ -91,7 +91,7 @@ void __init nvic_init(void)
 	/*
 	 * Setup the Linux IRQ subsystem.
 	 */
-	for (i = 0; i < NR_IRQS; i++) {
+	for (i = 0; i < NVIC_IRQS; i++) {
 		set_irq_chip(i, &nvic_chip);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
