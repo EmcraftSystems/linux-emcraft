@@ -136,6 +136,7 @@ void __init stm32_flash_init(void)
 		size = 8*1024*1024;
 		break;
 	case PLATFORM_STM32_STM_SOM:
+	case PLATFORM_STM32_STM_STM32F439_SOM:
 		flash_dev.resource[0].start = 0x64000000;
 		size = 16*1024*1024;
 		break;

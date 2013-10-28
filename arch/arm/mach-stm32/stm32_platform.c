@@ -103,6 +103,9 @@ int stm32_device_get(void)
 	case PLATFORM_STM32_STM_SOM:
 		r = DEVICE_STM32F437II;
 		break;
+	case PLATFORM_STM32_STM_STM32F439_SOM:
+		r = DEVICE_STM32F439II;
+		break;
 #endif
 	default:
 #ifdef CONFIG_ARCH_STM32F1
@@ -132,6 +135,8 @@ static int __init stm32_platform_parse(char *s)
 		stm32_platform = PLATFORM_STM32_STM3240G_EVAL;
 	else if (!strcmp(s, "stm-som"))
 		stm32_platform = PLATFORM_STM32_STM_SOM;
+	else if (!strcmp(s, "stm32f4x9-som"))
+		stm32_platform = PLATFORM_STM32_STM_STM32F439_SOM;
 #endif
 
 	return 1;

@@ -186,7 +186,8 @@ void __init stm32_i2c_init(void)
 	/*
  	 * Perform board-specific I2C device registration
  	 */
-	if (p == PLATFORM_STM32_STM_SOM) {
+	if (p == PLATFORM_STM32_STM_SOM ||
+	    p == PLATFORM_STM32_STM_STM32F439_SOM) {
 #if defined(CONFIG_STM32_I2C1)
 
 		/*

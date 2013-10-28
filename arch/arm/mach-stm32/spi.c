@@ -257,7 +257,8 @@ void __init stm32_spi_init(void)
 	platform_device_register(&spi_stm32_dev6);
 #endif
 
-	if (p == PLATFORM_STM32_STM_SOM) {
+	if (p == PLATFORM_STM32_STM_SOM ||
+	    p == PLATFORM_STM32_STM_STM32F439_SOM) {
 
 		/* This assumes that there is an SPI Flash device
 		 * handwired to SPI5 on the breadboard area of SOM-BSB-EXT.
