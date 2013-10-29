@@ -1441,7 +1441,7 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (stm32_mii_init(stm) != 0) {
+	if ((rv = stm32_mii_init(stm)) != 0) {
 		goto out;
 	}
 
