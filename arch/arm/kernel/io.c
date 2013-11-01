@@ -17,6 +17,32 @@ void _memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 	}
 }
 
+void _memcpy_fromiow(void *to, const volatile void __iomem *from, size_t count)
+{
+	unsigned short *t = to;
+
+	BUG_ON(count % 2);
+	while (count) {
+		count -= 2;
+		*t = readw(from);
+		t++;
+		from += 2;
+	}
+}
+
+void _memcpy_fromiol(void *to, const volatile void __iomem *from, size_t count)
+{
+	unsigned long *t = to;
+
+	BUG_ON(count % 4);
+	while (count) {
+		count -= 4;
+		*t = readl(from);
+		t++;
+		from += 4;
+	}
+}
+
 /*
  * Copy data from "real" memory space to IO memory space.
  * This needs to be optimized.
@@ -29,6 +55,32 @@ void _memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 		writeb(*f, to);
 		f++;
 		to++;
+	}
+}
+
+void _memcpy_toiow(volatile void __iomem *to, const void *from, size_t count)
+{
+	const unsigned short *f = from;
+
+	BUG_ON(count % 2);
+	while (count) {
+		count -= 2;
+		writew(*f, to);
+		f++;
+		to += 2;
+	}
+}
+
+void _memcpy_toiol(volatile void __iomem *to, const void *from, size_t count)
+{
+	const unsigned long *f = from;
+
+	BUG_ON(count % 4);
+	while (count) {
+		count -= 4;
+		writel(*f, to);
+		f++;
+		to += 4;
 	}
 }
 
@@ -46,5 +98,9 @@ void _memset_io(volatile void __iomem *dst, int c, size_t count)
 }
 
 EXPORT_SYMBOL(_memcpy_fromio);
+EXPORT_SYMBOL(_memcpy_fromiow);
+EXPORT_SYMBOL(_memcpy_fromiol);
 EXPORT_SYMBOL(_memcpy_toio);
+EXPORT_SYMBOL(_memcpy_toiow);
+EXPORT_SYMBOL(_memcpy_toiol);
 EXPORT_SYMBOL(_memset_io);

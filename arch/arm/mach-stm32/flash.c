@@ -1,9 +1,10 @@
 /*
  * Flash resource initialization for ST-MEM board
  *
- * Copyright (C) 2011
+ * Copyright (C) 2011-2013
  * Vladimir Khusainov, Emcraft Systems, vlad@emcraft.com
  * Sergei Poselenov, Emcraft Systems, sposelenov@emcraft.com
+ * Pavel Boldin, Emcraft Systems, paboldin@emcraft.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +29,7 @@
 #include <linux/irq.h>
 #include <linux/serial_8250.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/stm32f4.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <asm/mach/flash.h>
@@ -100,7 +102,14 @@ static struct mtd_partition flash_partitions[] = {
 	},
 #endif
 };
-static struct physmap_flash_data flash_data = {
+
+static struct physmap_flash_data physmap_flash_data = {
+	.width		= 2,
+	.nr_parts	= ARRAY_SIZE(flash_partitions),
+	.parts		= flash_partitions,
+};
+
+static struct stm32f4_flash_data stm32f4_flash_data = {
 	.width		= 2,
 	.nr_parts	= ARRAY_SIZE(flash_partitions),
 	.parts		= flash_partitions,
@@ -115,9 +124,11 @@ static struct platform_device flash_dev = {
 	.num_resources  = ARRAY_SIZE(flash_resources),
 	.resource       = flash_resources,
 	.dev		= {
-	.platform_data = &flash_data,
+		.platform_data = &physmap_flash_data,
 	},
 };
+
+char stm32f4x9_flash_dev_name[] = "stm32f4-flash";
 
 /*
  * Register the Flash platform device with the kernel.
@@ -135,8 +146,10 @@ void __init stm32_flash_init(void)
 		/* Size of NOR Flash on the STM-MEM add-on module */
 		size = 8*1024*1024;
 		break;
-	case PLATFORM_STM32_STM_SOM:
 	case PLATFORM_STM32_STM_STM32F439_SOM:
+		flash_dev.name = stm32f4x9_flash_dev_name;
+		flash_dev.dev.platform_data = &stm32f4_flash_data;
+	case PLATFORM_STM32_STM_SOM:
 		flash_dev.resource[0].start = 0x64000000;
 		size = 16*1024*1024;
 		break;

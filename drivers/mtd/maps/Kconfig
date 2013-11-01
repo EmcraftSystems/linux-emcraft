@@ -566,4 +566,21 @@ config MTD_PISMO
 
 	  When built as a module, it will be called pismo.ko
 
+config MTD_STM32F4_MAP
+	tristate "Flash device in STM32F4"
+	depends on MTD_CFI || MTD_JEDECPROBE || MTD_ROM || MTD_LPDDR
+	depends on MTD_COMPLEX_MAPPINGS
+	depends on STM32_ETHER_BUF_IN_SRAM
+	help
+	  This provide ability to use NOR flash under Linux in STM32F4X9
+	  chips. See Errata 2.8.7 for details. This requires also
+	  placing Ethernet's DMA in SRAM
+
+config MTD_STM32F4_SRAM_BUFFER_SIZE
+	hex "Buffer size for STM32F4 map in SRAM"
+	depends on MTD_STM32F4_MAP
+	default "0x400"
+	help
+	  Specify SRAM buffer size for STM32F4 mapper.
+
 endmenu

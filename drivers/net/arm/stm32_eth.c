@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011-2013
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
+ * Pavel Boldin <paboldin@emcraft.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -36,6 +37,12 @@
 #include <asm/setup.h>
 
 #include <mach/eth.h>
+
+#if defined(CONFIG_STM32_ETHER_BUF_IN_SRAM)
+# define STM32_SRAM	(SRAM_PHYS_OFFSET + CONFIG_STM32_ETHER_BUF_IN_SRAM_BASE)
+#else
+# undef	STM32_SRAM
+#endif
 
 /*
  * Define this to enable debugging msgs
@@ -244,6 +251,16 @@ struct stm32_eth_dma_bd {
 	dma_addr_t		next;	/* Pointer to next BD in chain	      */
 };
 
+#ifdef STM32_SRAM
+/*
+ * Fake sk_buff, has only data and len
+ */
+struct stm32_sk_buff_fake {
+	unsigned int len;
+	char data[0];
+};
+#endif
+
 /*
  * Private ethernet device data
  */
@@ -292,8 +309,13 @@ struct stm32_eth_priv {
 	/*
 	 * ETH DMAed buffers, and indexes
 	 */
+#ifndef STM32_SRAM
 	struct sk_buff			**rx_skb;
 	struct sk_buff			**tx_skb;
+#else
+	struct stm32_sk_buff_fake	**rx_skb;
+	struct stm32_sk_buff_fake	**tx_skb;
+#endif
 
 	u32				rx_done_idx;
 
@@ -309,6 +331,13 @@ struct stm32_eth_priv {
 	u32				frame_max_size;
 	u32				rx_buf_num;
 	u32				tx_buf_num;
+
+#ifdef STM32_SRAM
+	/*
+	 * DMA in SRAM additional info
+	 */
+	u32				sram_pointer;
+#endif
 };
 
 /*
@@ -317,6 +346,10 @@ struct stm32_eth_priv {
 static void stm32_eth_hw_stop(struct net_device *dev);
 static void stm32_eth_buffers_free(struct net_device *dev);
 static int  stm32_plat_remove(struct platform_device *pdev);
+#ifdef STM32_SRAM
+static void* stm32_sram_alloc(struct stm32_eth_priv *priv, size_t size);
+#endif
+
 
 /*
  * Hw initialization
@@ -481,6 +514,91 @@ static void stm32_eth_put_mdio_clock(struct net_device *dev)
 }
 #endif /* CONFIG_ARCH_LPC18XX */
 
+#ifdef STM32_SRAM
+static void* stm32_sram_alloc(struct stm32_eth_priv *priv, size_t size)
+{
+	u32 base = priv->sram_pointer;
+
+	priv->sram_pointer += ALIGN(size, 4) + 4;
+	BUG_ON(priv->sram_pointer >= SRAM_PHYS_OFFSET + SRAM_PHYS_SIZE);
+
+	return (void*)base;
+}
+
+/*
+ * Allocate SRAM buffer and descriptors necessary for net device
+ */
+static int stm32_eth_buffers_alloc(struct net_device *dev)
+{
+	struct stm32_eth_priv	*stm = netdev_priv(dev);
+	int			rv, i, skb_size;
+
+	/*
+	 * Allocate RX and TX buffer descriptors
+	 */
+	stm->rx_bd = stm32_sram_alloc(stm,
+			sizeof(struct stm32_eth_dma_bd) * stm->rx_buf_num);
+	stm->rx_bd_dma_addr = (dma_addr_t)stm->rx_bd;
+
+	stm->tx_bd = stm32_sram_alloc(stm,
+			sizeof(struct stm32_eth_dma_bd) * stm->tx_buf_num);
+	stm->tx_bd_dma_addr = (dma_addr_t)stm->tx_bd;
+
+	/*
+	 * We allocate 4 bytes more to have a place for CRC
+	 */
+	skb_size = sizeof(struct stm32_sk_buff_fake) + stm->frame_max_size + 4;
+
+	/*
+	 * Allocate skbs for RX buffers, init RX descriptors, and RX chain.
+	 */
+	for (i = 0; i < stm->rx_buf_num; i++) {
+		stm->rx_skb[i] = stm32_sram_alloc(stm, skb_size);
+
+		stm->rx_bd[i].stat = STM32_DMA_RBD_DMA_OWN;
+		stm->rx_bd[i].ctrl = STM32_DMA_RBD_RCH | stm->frame_max_size;
+		stm->rx_bd[i].buf  = (u32)stm->rx_skb[i]->data;
+
+		stm->rx_bd[i].next = stm->rx_bd_dma_addr +
+				      (sizeof(struct stm32_eth_dma_bd) *
+				       ((i + 1) % stm->rx_buf_num));
+	}
+
+	/*
+	 * We can't use direct skbs for sending, because DMA access
+	 * can happen while SDRAM is being disabled (and Flash is accessed)
+	 */
+	for (i = 0; i < stm->tx_buf_num; i++) {
+		stm->tx_skb[i] = stm32_sram_alloc(stm, skb_size);
+
+		stm->tx_bd[i].stat = STM32_DMA_TBD_TCH;
+		stm->tx_bd[i].ctrl = 0;
+		stm->tx_bd[i].buf  = (u32)stm->tx_skb[i]->data;
+		stm->tx_bd[i].next = stm->tx_bd_dma_addr +
+				     (sizeof(struct stm32_eth_dma_bd) *
+				      ((i + 1) % stm->tx_buf_num));
+	}
+
+	rv = 0;
+
+	return rv;
+}
+
+static void stm32_eth_buffers_free(struct net_device *dev)
+{
+	struct stm32_eth_priv	*stm = netdev_priv(dev);
+
+	u32 total_alloc_size;
+	total_alloc_size =
+		sizeof(struct stm32_eth_dma_bd) +
+		sizeof(struct stm32_sk_buff_fake) +
+		stm->frame_max_size + 4;
+	total_alloc_size *= (stm->rx_buf_num + stm->tx_buf_num);
+
+	stm->sram_pointer -= total_alloc_size;
+}
+#else /* !STM32_SRAM */
+
 /*
  * Allocate buffer and descriptors necessary for net device
  */
@@ -596,6 +714,8 @@ out:
 	return;
 }
 
+#endif /* STM32_SRAM */
+
 /*
  * Walk through the list of ready descriptors, fetch rxed frames,
  * and copy data to skbufs
@@ -652,8 +772,11 @@ static int stm32_eth_rx_get(struct net_device *dev, int processed, int budget)
 			goto next;
 		}
 
+#ifndef STM32_SRAM
 		dma_sync_single_for_cpu(NULL, stm->rx_bd[idx].buf,
 					len, DMA_FROM_DEVICE);
+#endif
+
 		skb_copy_to_linear_data(skb, stm->rx_skb[idx]->data, len);
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, dev);
@@ -759,10 +882,15 @@ static void stm32_eth_tx_complete(struct net_device *dev)
 						STM32_DMA_TBD_CC_MSK;
 		}
 
+#ifndef STM32_SRAM
+		/*
+		 * tx_skb are in SRAM, dont unmap them
+		 */
 		dma_unmap_single(&dev->dev, stm->tx_bd[idx].buf,
 				 stm->tx_skb[idx]->len, DMA_TO_DEVICE);
 		dev_kfree_skb_irq(stm->tx_skb[idx]);
 		stm->tx_skb[idx] = NULL;
+#endif
 
 		stm->tx_pending--;
 		stm->tx_done_idx = (stm->tx_done_idx + 1) % stm->tx_buf_num;
@@ -990,14 +1118,28 @@ static int stm32_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->trans_start = jiffies;
 
+#ifndef STM32_SRAM
 	/*
 	 * We have no limitations on the buffer address alignment
 	 */
 	stm->tx_skb[idx] = skb;
+#else
+	/*
+	 * Copy into SRAM and free
+	 */
+	skb_copy_from_linear_data(skb, stm->tx_skb[idx]->data, skb->len);
+	stm->tx_skb[idx]->len = skb->len;
+	dev_kfree_skb(skb);
+#endif
 
 	stm->tx_bd[idx].ctrl  = skb->len;
+#ifndef STM32_SRAM
+	/*
+	 * Buffer pointer is set once and for all in buffers_alloc
+	 */
 	stm->tx_bd[idx].buf   = dma_map_single(&dev->dev, skb->data,
 					       skb->len, DMA_TO_DEVICE);
+#endif
 	stm->tx_bd[idx].stat |= STM32_DMA_TBD_FS | STM32_DMA_TBD_LS |
 				STM32_DMA_TBD_DMA_OWN;
 
@@ -1381,6 +1523,12 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 	stm->dev = dev;
 	stm->pdev = pdev;
 
+#ifdef STM32_SRAM
+	stm->sram_pointer = ALIGN(STM32_SRAM, 4);
+	printk(STM32_INFO ": Using SRAM for DMA buffers from %x\n", stm->sram_pointer);
+#endif
+
+
 	netif_napi_add(dev, &stm->napi, stm32_eth_rx_poll, 64);
 
 	platform_set_drvdata(pdev, dev);
@@ -1425,6 +1573,7 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 	/*
 	 * Allocate bufs for pointers
 	 */
+#ifndef STM32_SRAM
 	stm->rx_skb = kmalloc(stm->rx_buf_num * sizeof(void *), GFP_KERNEL);
 	stm->tx_skb = kmalloc(stm->tx_buf_num * sizeof(void *), GFP_KERNEL);
 	if (!stm->rx_skb || !stm->tx_skb) {
@@ -1433,6 +1582,12 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 		rv = -ENOMEM;
 		goto out;
 	}
+#else
+	stm->rx_skb = stm32_sram_alloc(stm,
+		stm->rx_buf_num * sizeof(void *));
+	stm->tx_skb = stm32_sram_alloc(stm,
+		stm->tx_buf_num * sizeof(void *));
+#endif
 
 	rv = register_netdev(dev);
 	if (rv) {
@@ -1479,6 +1634,7 @@ static int stm32_plat_remove(struct platform_device *pdev)
 	unregister_netdev(dev);
 	stm32_eth_buffers_free(dev);
 
+#ifndef STM32_SRAM
 	if (stm->tx_skb) {
 		kfree(stm->tx_skb);
 		stm->tx_skb = NULL;
@@ -1488,6 +1644,7 @@ static int stm32_plat_remove(struct platform_device *pdev)
 		kfree(stm->rx_skb);
 		stm->rx_skb = NULL;
 	}
+#endif
 
 	free_netdev(dev);
 out:

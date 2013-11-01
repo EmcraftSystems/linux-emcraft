@@ -1339,15 +1339,10 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	/* Write length of data to come */
 	words = len / map_bankwidth(map);
 	map_write(map, CMD(words - 1), cmd_adr);
-	/* Write data */
-	z = 0;
-	while(z < words * map_bankwidth(map)) {
-		datum = map_word_load(map, buf);
-		map_write(map, datum, adr + z);
 
-		z += map_bankwidth(map);
-		buf += map_bankwidth(map);
-	}
+	/* Write data */
+	z = words * map_bankwidth(map);
+	map_copy_to(map, adr, buf, z);
 	z -= map_bankwidth(map);
 
 	adr += z;

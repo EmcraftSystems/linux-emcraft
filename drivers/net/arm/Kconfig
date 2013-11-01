@@ -81,6 +81,22 @@ config STM32_ETHER
 	  Say Y here if you want to use the built-in Ethernet port
 	  on the STM32 processor.
 
+config STM32_ETHER_BUF_IN_SRAM
+	bool "Whether STM32 ETH buffers reside in eSRAM"
+	depends on STM32_ETHER
+	default y
+	help
+	  Specify Y if you want for the RX / TX buffer and decriptors
+	  to reside in the STM32 embedded SRAM.
+
+config STM32_ETHER_BUF_IN_SRAM_BASE
+	hex "Base address of STM32 buffers in eSRAM"
+	depends on STM32_ETHER_BUF_IN_SRAM
+	default "0x1000"
+	help
+	  Specify base address of the RX/ TX buffers and descriptors
+	  in the STM32 embedded SRAM.
+
 config LPC178X_ETHER
 	tristate "LPC178x/7x Ethernet support"
 	depends on ARM && ARCH_LPC178X

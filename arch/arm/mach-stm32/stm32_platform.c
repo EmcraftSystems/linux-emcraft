@@ -228,7 +228,7 @@ static void __init stm32_init(void)
 	stm32_i2c_init();
 #endif
 
-#if defined(CONFIG_MTD_PHYSMAP)
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_STM32F4_MAP)
 	/*
 	 * Configure external Flash
 	 */
