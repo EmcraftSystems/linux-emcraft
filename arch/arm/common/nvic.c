@@ -21,6 +21,12 @@
 
 static DEFINE_SPINLOCK(irq_controller_lock);
 
+#if !defined(NVIC_IRQS) && defined(NR_IRQS)
+# define	NVIC_IRQS	NR_IRQS
+#elif !defined(NR_IRQS)
+# error	"Either NR_IRQS or NVIC_IRQS should be defined"
+#endif
+
 /*
  * Routines to acknowledge, disable and enable interrupts
  *
