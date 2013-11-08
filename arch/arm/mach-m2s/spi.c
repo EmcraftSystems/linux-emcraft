@@ -183,7 +183,7 @@ void __init m2s_spi_init(void)
 
 		/*
 		 * SPI Flash partitioning for
-		 * the first on-dongle SPI Flash (SPI1, CS 0):
+		 * the first on-dongle SPI Flash (SPI1, CS0):
 		 */
 #		define FLASH_PART1_OFFSET__DONGLE1	(1024 * 1024 * 1)
 #		define FLASH_SIZE__DONGLE1		(1024 * 1024 * 4)
@@ -203,7 +203,7 @@ void __init m2s_spi_init(void)
 		};
 
 		/*
-		 * SPI Flash
+		 * SPI Flash data for the first on-dongle Flash
 		 */
 		static struct flash_platform_data
 			spi_flash_data__dongle1 = {
@@ -222,7 +222,7 @@ void __init m2s_spi_init(void)
 
 		/*
 		 * SPI Flash partitioning for
-		 * the first on-dongle SPI Flash (SPI1, CS 1):
+		 * the second on-dongle SPI Flash (SPI1, CS1):
 		 */
 #		define FLASH_PART1_OFFSET__DONGLE2	(1024 * 1024 * 1)
 #		define FLASH_SIZE__DONGLE2		(1024 * 1024 * 4)
@@ -242,7 +242,7 @@ void __init m2s_spi_init(void)
 		};
 
 		/*
-		 * SPI Flash
+		 * SPI Flash data for the second on-dongle Flash
 		 */
 		static struct flash_platform_data
 			spi_flash_data__dongle2 = {
@@ -262,7 +262,7 @@ void __init m2s_spi_init(void)
 
 #if defined(CONFIG_M2S_MSS_SPI0) && defined(CONFIG_MTD_M25P80)
 		/*
-		 * On-module SPI Flash (resides at SPI0,CS 0)
+		 * On-module SPI Flash (resides at SPI0,CS0)
 		 */
 		{
 			.modalias = "m25p32",
@@ -293,6 +293,10 @@ void __init m2s_spi_init(void)
 		 * On-dongle SPI Flash (resides at SPI1,CS1)
 		 */
 		{
+			/*
+			 * Can be accessed either as an MTD Flash
+			 * or using the SPI user-space interface
+			 */
 #if defined(CONFIG_SPI_SPIDEV)
 			.modalias = "spidev",
 #else
