@@ -1,6 +1,8 @@
 /*
  * Device driver for the SPI controller of the SmartFusion2 SoC.
  * Author: Yuri Tikhonov, Emcraft Systems, yur@emcraft.com
+ * Vladimir Khusainov, Emcraft Systems:
+ * - Enhanced to support simultaneous use of SPI0 and SPI1
  * Copyright 2012-2013 Emcraft Systems
  *
  * The code contained herein is licensed under the GNU General Public
@@ -95,7 +97,7 @@ struct m2s_spi_dsc {
 	void			*spi_regs;	/* SPI registers base	*/
 	void			*pdma_regs;	/* DMA registers base	*/
 	struct spi_device	*slave;		/* Generic slave	*/
-	int				irq;		/* DMA IRQ		*/
+	int			irq;		/* DMA IRQ		*/
 
 	int			bus;		/* SPI bus ID		*/
 	struct list_head	queue;		/* Message queue	*/
@@ -116,6 +118,13 @@ struct m2s_spi_dsc {
 	u8			stopping;	/* Stopping status	*/
 	u8			dummy;		/* Dummy buffer		*/
 };
+
+/*
+ * These are variables that need to be visible to the entire module
+ */
+static void * spi_m2s_pdma_regs = NULL;
+static int spi_m2s_irq = -1;
+static struct m2s_spi_dsc *spi_m2s_dsc_tbl[8];
 
 /*
  * Description of the the SmartFusion SPI hardware interfaces.
@@ -627,14 +636,28 @@ static void spi_m2s_handle_queue(struct work_struct *w)
  */
 static irqreturn_t spi_m2s_irq_cb(int irq, void *ptr)
 {
-	struct m2s_spi_dsc				*s = ptr;
-	volatile struct m2s_pdma_chan	*chan;
-	struct spi_message *msg = s->msg;
-	struct spi_transfer *xf = s->xf;
-	int wb = (((struct spi_device *)s->msg->spi)->bits_per_word + 7) / 8;
+	struct m2s_spi_dsc *s = ptr;
+	volatile struct m2s_pdma_chan *chan;
+	struct spi_message *msg;
+	struct spi_transfer *xf;
+	int wb, i;
 
 	/*
-	 * Clear statuses
+	 * This is somewhat hacky code resulting from the fact that
+	 * there is a single IRQ line shared by all PDMA channels.
+	 * We need to figure out which SPI controller that PDMA interrupt
+	 * refers to. Hence the below search to mape a PDMA channel
+	 * to a corresponding SPI controller data structure.
+	 */
+	for (i = 0; ! (M2S_PDMA(s)->status & (0x3 << (i*2))); i++);
+	s = spi_m2s_dsc_tbl[i];
+
+	msg = s->msg;
+	xf = s->xf;
+	wb = (((struct spi_device *)s->msg->spi)->bits_per_word + 7) / 8;
+
+	/*
+	 * Clear status
 	 */
 	chan = &M2S_PDMA(s)->chan[s->drx];
 	if (chan->status & PDMA_STATUS_CH_COMP_A) {
@@ -658,7 +681,8 @@ static irqreturn_t spi_m2s_irq_cb(int irq, void *ptr)
 		xf = NULL;
 	} else if (xf->transfer_list.next != NULL &&
 			   xf->transfer_list.next != &msg->transfers) {
-		xf = list_entry(xf->transfer_list.next, struct spi_transfer, transfer_list);
+		xf = list_entry(xf->transfer_list.next,
+				struct spi_transfer, transfer_list);
 	} else {
 		xf = NULL;
 	}
@@ -866,6 +890,13 @@ static int __devinit spi_m2s_probe(struct platform_device *pdev)
 	s->dtx = pd->dma_tx;
 
 	/*
+	 * Remember which SPI controller device these PDMA channels are for.
+	 * We will need this to figure out what to do in the PDMA IRQ handler
+	 */
+	spi_m2s_dsc_tbl[s->drx] = s;
+	spi_m2s_dsc_tbl[s->dtx] = s;
+
+	/*
 	 * Set-up SPI controller index specific masks
 	 */
 	switch (bus) {
@@ -892,22 +923,41 @@ static int __devinit spi_m2s_probe(struct platform_device *pdev)
 		goto error_release_master;
 	}
 
-	s->pdma_regs = ioremap(pdma_regs->start, resource_size(pdma_regs));
-	if (!s->pdma_regs) {
-		dev_err(&pdev->dev, "unable to map registers for "
-			"PDMA controller %d, base=%08x\n", bus,
-			pdma_regs->start);
-		ret = -EINVAL;
-		goto error_release_spi_regs;
+	/*
+	 * PDMA registers are shared between all SPI channels
+	 * hence the single ioremap
+	 */
+	if (spi_m2s_pdma_regs == NULL) {
+		s->pdma_regs =
+			ioremap(pdma_regs->start, resource_size(pdma_regs));
+		if (!s->pdma_regs) {
+			dev_err(&pdev->dev, "unable to map registers for "
+				"PDMA controller %d, base=%08x\n", bus,
+				pdma_regs->start);
+			ret = -EINVAL;
+			goto error_release_spi_regs;
+		}
+		spi_m2s_pdma_regs = s->pdma_regs;
+	}
+	else {
+		s->pdma_regs = spi_m2s_pdma_regs;
 	}
 
+	/*
+	 * PDMA IRQ is shared between all SPI channels
+	 * hence the single request_irq
+	 */
 	s->irq = irq;
-	ret = request_irq(irq, spi_m2s_irq_cb, 0, dev_name(&pdev->dev), s);
-	if (ret) {
-		dev_err(&pdev->dev, "request irq %d failed for "
-			"SPI controller %d\n", irq, bus);
-		ret = -EINVAL;
-		goto error_release_pdma_regs;
+	if (spi_m2s_irq == -1) {
+		ret = request_irq(irq, spi_m2s_irq_cb,
+					0, dev_name(&pdev->dev), s);
+		if (ret) {
+			dev_err(&pdev->dev, "request irq %d failed for "
+				"SPI controller %d\n", irq, bus);
+			ret = -EINVAL;
+			goto error_release_pdma_regs;
+		}
+		spi_m2s_irq = irq;
 	}
 
 	/*
@@ -979,9 +1029,15 @@ static int __devinit spi_m2s_probe(struct platform_device *pdev)
 error_release_hardware:
 	spi_m2s_hw_release(s);
 error_release_irq:
-	free_irq(s->irq, s);
+	if (spi_m2s_irq != -1) {
+		free_irq(s->irq, s);
+		spi_m2s_irq = -1;
+	}
 error_release_pdma_regs:
-	iounmap(s->pdma_regs);
+	if (spi_m2s_pdma_regs != NULL) {
+		iounmap(s->pdma_regs);
+		spi_m2s_pdma_regs = NULL;
+	}
 error_release_spi_regs:
 	iounmap(s->spi_regs);
 error_release_master:
@@ -1019,9 +1075,15 @@ static int __devexit spi_m2s_remove(struct platform_device *pdev)
 	 * Release kernel resources.
 	 */
 	spi_unregister_master(m);
-	free_irq(s->irq, s);
+	if (spi_m2s_irq != -1) {
+		free_irq(s->irq, s);
+		spi_m2s_irq = -1;
+	}
 	iounmap(s->spi_regs);
-	iounmap(s->pdma_regs);
+	if (spi_m2s_pdma_regs != NULL) {
+		iounmap(s->pdma_regs);
+		spi_m2s_pdma_regs = NULL;
+	}
 	spi_master_put(m);
 	platform_set_drvdata(pdev, NULL);
 
