@@ -41,6 +41,7 @@
 #include <mach/nand.h>
 #include <mach/fb.h>
 #include <mach/esdhc.h>
+#include <mach/khci.h>
 #include <mach/spi.h>
 
 #if defined(CONFIG_GPIOLIB)
@@ -256,6 +257,13 @@ static void __init kinetis_init(void)
 	 * Configure the Freescale Kinetis USB High Speed controller
 	 */
 	kinetis_ehci_init();
+#endif
+
+#if defined(CONFIG_USB_KHCI_HCD)
+	/*
+	 * Configure the Freescale Kinetis USB Full Speed controller
+	 */
+	kinetis_khci_init();
 #endif
 
 #if defined(CONFIG_SPI)

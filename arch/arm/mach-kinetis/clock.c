@@ -50,6 +50,11 @@
 #define KINETIS_USBHS_REQ_RATE		60000000
 
 /*
+ * The USB Full Speed clock rate must be 48MHz
+ */
+#define KINETIS_USBFS_REQ_RATE		48000000
+
+/*
  * MCG Control 5 Register
  */
 /* PLL External Reference Divider */
@@ -58,6 +63,8 @@
 	(((1 << 3) - 1) << KINETIS_MCG_C5_PRDIV_BITS)
 /* PLL Stop Enable */
 #define KINETIS_MCG_C5_PLLSTEN_MSK	(1 << 5)
+/* PLL Clock Enable */
+#define KINETIS_MCG_C5_PLLCLKEN_MSK	(1 << 6)
 /* PLL External Reference Select (for K70@120MHz) */
 #define KINETIS_MCG_C5_PLLREFSEL_BIT	7
 #define KINETIS_MCG_C5_PLLREFSEL_MSK	(1 << KINETIS_MCG_C5_PLLREFSEL_BIT)
@@ -106,6 +113,13 @@
 #define KINETIS_SIM_SOPT2_USBHSRC_PLL0	(1 << KINETIS_SIM_SOPT2_USBHSRC_BITS)
 #define KINETIS_SIM_SOPT2_USBHSRC_PLL1	(2 << KINETIS_SIM_SOPT2_USBHSRC_BITS)
 
+/* USB FS clock source select */
+#define KINETIS_SIM_SOPT2_USBFSRC_BITS	22
+#define KINETIS_SIM_SOPT2_USBFSRC_MSK	(3 << KINETIS_SIM_SOPT2_USBFSRC_BITS)
+#define KINETIS_SIM_SOPT2_USBFSRC_PLL0	(1 << KINETIS_SIM_SOPT2_USBFSRC_BITS)
+#define KINETIS_SIM_SOPT2_USBFSRC_PLL1	(2 << KINETIS_SIM_SOPT2_USBFSRC_BITS)
+#define KINETIS_SIM_SOPT2_USBF_CLKSEL	(1 << 18)
+
 /*
  * System Clock Divider Register 1
  */
@@ -129,6 +143,15 @@
 #define KINETIS_SIM_CLKDIV2_USBHSDIV_BIT	9
 #define KINETIS_SIM_CLKDIV2_USBHSDIV_MSK \
 	(7 << KINETIS_SIM_CLKDIV2_USBHSDIV_BIT)
+
+/* USB FS clock divider fraction */
+#define KINETIS_SIM_CLKDIV2_USBFSFRAC_BIT	0
+#define KINETIS_SIM_CLKDIV2_USBFSFRAC_MSK \
+	(1 << KINETIS_SIM_CLKDIV2_USBFSFRAC_BIT)
+/* USB FS clock divider divisor */
+#define KINETIS_SIM_CLKDIV2_USBFSDIV_BIT	1
+#define KINETIS_SIM_CLKDIV2_USBFSDIV_MSK \
+	(7 << KINETIS_SIM_CLKDIV2_USBFSDIV_BIT)
 
 /*
  * System Clock Divider Register 3
@@ -355,9 +378,9 @@ static struct clk clk_spi2 = {
 #endif
 
 /*
- * Enable the USB-HS module clock
+ * Enable the USB-HS/FS module clock
  */
-static void usbhs_clk_enable(struct clk *clk)
+static void usb_clk_enable(struct clk *clk)
 {
 	local_clk_enable(clk);
 
@@ -371,7 +394,15 @@ static void usbhs_clk_enable(struct clk *clk)
  */
 static struct clk clk_usbhs = {
 	.gate = KINETIS_CG_USBHS,
-	.clk_enable = usbhs_clk_enable,
+	.clk_enable = usb_clk_enable,
+};
+
+/*
+ * USB-FS module clock
+ */
+static struct clk clk_usbfs = {
+	.gate = KINETIS_CG_USBFS,
+	.clk_enable = usb_clk_enable,
 };
 
 /*
@@ -402,6 +433,7 @@ static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_spi2, "kinetis-dspi.2", NULL),
 #endif
 	INIT_CLKREG(&clk_usbhs, "mxc-ehci.0", "usb"),
+	INIT_CLKREG(&clk_usbfs, "khci-hcd.0", "khci"),
 };
 
 /*
@@ -540,9 +572,9 @@ void __init kinetis_clock_init(void)
 	int osc_sel;
 	/* Frequency at the MCGOUTCLK output of the MCG */
 	int mcgout;
-	/* USB High Speed clock divider values */
-	int usbhs_div;
-	int usbhs_frac;
+	/* USBs clock divider values */
+	int usb_div;
+	int usb_frac;
 
 	/*
 	 * Default values for the MCU-specific parameters
@@ -668,13 +700,13 @@ void __init kinetis_clock_init(void)
 	 * USB High Speed controller clock
 	 */
 	/* Use fractional divider if "msgout" is not a multiple of 60MHz */
-	usbhs_frac = (mcgout % KINETIS_USBHS_REQ_RATE) != 0;
-	usbhs_div = mcgout * (usbhs_frac + 1) / KINETIS_USBHS_REQ_RATE - 1;
-	if (usbhs_div < 0)
-		usbhs_div = 0;
-	if (usbhs_div > 7)
-		usbhs_div = 7;
-	clock_val[CLOCK_USBHS] = mcgout * (usbhs_frac + 1) / (usbhs_div + 1);
+	usb_frac = (mcgout % KINETIS_USBHS_REQ_RATE) != 0;
+	usb_div = mcgout * (usb_frac + 1) / KINETIS_USBHS_REQ_RATE - 1;
+	if (usb_div < 0)
+		usb_div = 0;
+	if (usb_div > 7)
+		usb_div = 7;
+	clock_val[CLOCK_USBHS] = mcgout * (usb_frac + 1) / (usb_div + 1);
 	/* Write USB-HS clock configuration to registers */
 	if (clock_val[CLOCK_USBHS] == KINETIS_USBHS_REQ_RATE) {
 		/* Do not output the 60MHz ULPI clock */
@@ -689,11 +721,54 @@ void __init kinetis_clock_init(void)
 			(KINETIS_SIM->clkdiv2 &
 				(KINETIS_SIM_CLKDIV2_USBHSDIV_MSK |
 				KINETIS_SIM_CLKDIV2_USBHSFRAC_MSK)) |
-			(usbhs_frac << KINETIS_SIM_CLKDIV2_USBHSFRAC_BIT) |
-			(usbhs_div << KINETIS_SIM_CLKDIV2_USBHSDIV_BIT);
+			(usb_frac << KINETIS_SIM_CLKDIV2_USBHSFRAC_BIT) |
+			(usb_div << KINETIS_SIM_CLKDIV2_USBHSDIV_BIT);
 	} else {
 		clock_val[CLOCK_USBHS] = 0;
 	}
+
+	/*
+	 * USB Full Speed controller clock.
+	 * If PLL0 enabled - try it, otherwise - try PLL1.
+	 */
+	if (KINETIS_MCG->c5 & KINETIS_MCG_C5_PLLCLKEN_MSK) {
+		mcgout = CONFIG_KINETIS_OSC1_RATE;
+		mcgout /= ((KINETIS_MCG->c5 & KINETIS_MCG_C5_PRDIV_MSK) >>
+			  KINETIS_MCG_C5_PRDIV_BITS) + 1;
+		mcgout *= ((KINETIS_MCG->c6 & KINETIS_MCG_C6_VDIV_MSK) >>
+			  KINETIS_MCG_C6_VDIV_BITS) + vdiv_min;
+		mcgout /= vco_div;
+		pll_sel = 0;
+	}
+
+	/* Use fractional divider if "mcgout" is not a multiple of 48MHz */
+	usb_frac = (mcgout % KINETIS_USBFS_REQ_RATE) != 0;
+	usb_div = mcgout * (usb_frac + 1) / KINETIS_USBFS_REQ_RATE - 1;
+	if (usb_div < 0)
+		usb_div = 0;
+	if (usb_div > 7)
+		usb_div = 7;
+	clock_val[CLOCK_USBFS] = mcgout * (usb_frac + 1) / (usb_div + 1);
+
+	/* Write USB-FS clock configuration to registers */
+	if (clock_val[CLOCK_USBFS] != KINETIS_USBFS_REQ_RATE) {
+		printk("WARN: USB-FS operates on %dMHz instead of %dMHz",
+			clock_val[CLOCK_USBFS] / 1000000,
+			KINETIS_USBFS_REQ_RATE / 1000000);
+	}
+	/* Clock source: MCGOUT clock (PLL0 or PLL1) */
+	KINETIS_SIM->sopt2 =
+		(KINETIS_SIM->sopt2 & ~KINETIS_SIM_SOPT2_USBFSRC_MSK) |
+		KINETIS_SIM_SOPT2_USBF_CLKSEL |
+		(pll_sel ? KINETIS_SIM_SOPT2_USBFSRC_PLL1 :
+			KINETIS_SIM_SOPT2_USBFSRC_PLL0);
+	/* Clock divider */
+	KINETIS_SIM->clkdiv2 =
+		(KINETIS_SIM->clkdiv2 &
+			(KINETIS_SIM_CLKDIV2_USBFSDIV_MSK |
+			 KINETIS_SIM_CLKDIV2_USBFSFRAC_MSK)) |
+		(usb_frac << KINETIS_SIM_CLKDIV2_USBFSFRAC_BIT) |
+		(usb_div << KINETIS_SIM_CLKDIV2_USBFSDIV_BIT);
 
 	/*
 	 * Initialize the `clk_*` structures

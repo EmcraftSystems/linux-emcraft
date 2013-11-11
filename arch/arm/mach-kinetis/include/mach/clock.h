@@ -35,6 +35,7 @@ enum kinetis_clock {
 	CLOCK_PCLK,		/* Bus clock frequency expressed in Hz        */
 	CLOCK_MACCLK,		/* MAC module clock frequency expressed in Hz */
 	CLOCK_USBHS,		/* USB-HS clock frequency expressed in Hz     */
+	CLOCK_USBFS,		/* USB-FS clock frequency expressed in Hz     */
 	CLOCK_END		/* for internal usage			      */
 };
 

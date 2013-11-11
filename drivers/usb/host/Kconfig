@@ -17,6 +17,17 @@ config USB_C67X00_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called c67x00.
 
+config USB_KHCI_HCD
+	tristate "Freescale KHCI (USB-FS) HCD support"
+	depends on USB
+	help
+	   The Freescale KHCI controllers are dual-role host/peripheral/OTG
+	   USB controllers implemented in Kinetis (K70,K60,...) processors,
+	   and in some Coldfire (MCF52259,...) processors.
+
+	   Enable this options to support this chip in host controller mode.
+	   If unsure, say N.
+
 config USB_XHCI_HCD
 	tristate "xHCI HCD (USB 3.0) support (EXPERIMENTAL)"
 	depends on USB && PCI && EXPERIMENTAL

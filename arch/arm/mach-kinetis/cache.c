@@ -27,10 +27,10 @@
 /*
  * Local Memory Controller: Cache control register
  */
-/* Code bus cache */
-#define KINETIS_LMEM_PCCCR		(*(volatile u32 *)0xe0082000)
-/* System bus cache */
 #define KINETIS_LMEM_PSCCR		(*(volatile u32 *)0xe0082800)
+#define KINETIS_LMEM_PSCLCR		(*(volatile u32 *)0xe0082804)
+#define KINETIS_LMEM_PSCSAR		(*(volatile u32 *)0xe0082808)
+
 /* Initiate Cache Command */
 #define KINETIS_LMEM_CCR_GO_MSK		(1 << 31)
 /* Push Way 1 */
@@ -45,6 +45,14 @@
 #define KINETIS_LMEM_CCR_ENWRBUF_MSK	(1 << 1)
 /* Cache enable */
 #define KINETIS_LMEM_CCR_ENCACHE_MSK	(1 << 0)
+
+#define KINETIS_LMEM_LCR_LADSEL_MSK	(1 << 26)
+#define KINETIS_LMEM_LCR_LCMD		24
+
+#define KINETIS_LMEM_SAR_LGO_MSK	(1 << 0)
+
+/* Cache line size */
+#define KINETIS_CACHE_LINE_SIZE		0x10
 
 /*
  * Disable Kinetis Processor System (PS) cache and save previous state
@@ -91,4 +99,44 @@ void kinetis_ps_cache_flush(void)
 	kinetis_ps_cache_restore(&flags);
 }
 EXPORT_SYMBOL(kinetis_ps_cache_flush);
+
+/*
+ * Flush data cache lines
+ */
+void kinetis_ps_cache_flush_mlines(void *adr, unsigned long len)
+{
+	void	*end_adr = (void *)((u32)adr + len);
+
+	adr = (void *)((u32)adr & ~(KINETIS_CACHE_LINE_SIZE - 1));
+	do {
+		KINETIS_LMEM_PSCLCR = KINETIS_LMEM_LCR_LADSEL_MSK |
+				      (0x2 << KINETIS_LMEM_LCR_LCMD);
+		KINETIS_LMEM_PSCSAR = ((u32)adr & ~0x3) |
+				      KINETIS_LMEM_SAR_LGO_MSK;
+		while (KINETIS_LMEM_PSCSAR & KINETIS_LMEM_SAR_LGO_MSK);
+
+		adr = (void *)((u32)adr + KINETIS_CACHE_LINE_SIZE);
+	} while (adr < end_adr);
+}
+EXPORT_SYMBOL(kinetis_ps_cache_flush_mlines);
+
+/*
+ * Invalidate data cache lines
+ */
+void kinetis_ps_cache_inval_mlines(void *adr, unsigned long len)
+{
+	void	*end_adr = (void *)((u32)adr + len);
+
+	adr = (void *)((u32)adr & ~(KINETIS_CACHE_LINE_SIZE - 1));
+	do {
+		KINETIS_LMEM_PSCLCR = KINETIS_LMEM_LCR_LADSEL_MSK |
+				      (0x1 << KINETIS_LMEM_LCR_LCMD);
+		KINETIS_LMEM_PSCSAR = ((u32)adr & ~0x3) |
+				      KINETIS_LMEM_SAR_LGO_MSK;
+		while (KINETIS_LMEM_PSCSAR & KINETIS_LMEM_SAR_LGO_MSK);
+
+		adr = (void *)((u32)adr + KINETIS_CACHE_LINE_SIZE);
+	} while (adr < end_adr);
+}
+EXPORT_SYMBOL(kinetis_ps_cache_inval_mlines);
 

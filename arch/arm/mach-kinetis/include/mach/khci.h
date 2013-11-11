@@ -1,7 +1,7 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2013
  * Emcraft Systems, <www.emcraft.com>
- * Alexander Potashev <aspotashev@emcraft.com>
+ * Yuri Tikhonov <yur@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -22,14 +22,11 @@
  * MA 02111-1307 USA
  */
 
-#ifndef _MACH_KINETIS_CACHE_H_
-#define _MACH_KINETIS_CACHE_H_
+#ifndef _MACH_KINETIS_KHCI_H_
+#define _MACH_KINETIS_KHCI_H_
 
-void kinetis_ps_cache_save(unsigned long *flags);
-void kinetis_ps_cache_restore(unsigned long *flags);
-void kinetis_ps_cache_flush(void);
+#include <linux/init.h>
 
-void kinetis_ps_cache_flush_mlines(void *adr, unsigned long len);
-void kinetis_ps_cache_inval_mlines(void *adr, unsigned long len);
+void __init kinetis_khci_init(void);
 
-#endif /* _MACH_KINETIS_CACHE_H_ */
+#endif /* _MACH_KINETIS_KHCI_H_ */
