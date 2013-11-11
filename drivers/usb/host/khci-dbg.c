@@ -60,7 +60,7 @@ void khci_dbg_dump_reg(struct khci_hcd *khci)
 		khci->bdt[2].flg, khci->bdt[2].adr,
 		khci->bdt[3].flg, khci->bdt[3].adr);
 
-	if (!khci->td) {
+	if (khci->td) {
 		td = khci->td;
 		printk("Curr TD: %d/%d %s %d/%d %08x.%08x %02x.%02x.%02x.%02x "
 		    "%ld.%06ld->%ld.%06ld %d.%d.%d.%d.%d %s\n",
