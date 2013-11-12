@@ -1,3 +1,4 @@
+#include <asm/unaligned.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/io.h>
@@ -20,26 +21,28 @@ void _memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 void _memcpy_fromiow(void *to, const volatile void __iomem *from, size_t count)
 {
 	unsigned short *t = to;
+	unsigned short *f = from;
 
 	BUG_ON(count % 2);
 	while (count) {
 		count -= 2;
-		*t = readw(from);
+		put_unaligned(get_unaligned(f), t);
 		t++;
-		from += 2;
+		f++;
 	}
 }
 
 void _memcpy_fromiol(void *to, const volatile void __iomem *from, size_t count)
 {
 	unsigned long *t = to;
+	unsigned long *f = from;
 
 	BUG_ON(count % 4);
 	while (count) {
 		count -= 4;
-		*t = readl(from);
+		put_unaligned(get_unaligned(f), t);
 		t++;
-		from += 4;
+		f++;
 	}
 }
 
@@ -65,7 +68,7 @@ void _memcpy_toiow(volatile void __iomem *to, const void *from, size_t count)
 	BUG_ON(count % 2);
 	while (count) {
 		count -= 2;
-		writew(*f, to);
+		writew(get_unaligned(f), to);
 		f++;
 		to += 2;
 	}
@@ -78,7 +81,7 @@ void _memcpy_toiol(volatile void __iomem *to, const void *from, size_t count)
 	BUG_ON(count % 4);
 	while (count) {
 		count -= 4;
-		writel(*f, to);
+		writel(get_unaligned(f), to);
 		f++;
 		to += 4;
 	}
