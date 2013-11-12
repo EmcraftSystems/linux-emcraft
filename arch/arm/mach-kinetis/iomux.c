@@ -242,26 +242,6 @@ static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
 //	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16) | 3},
 	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16)},
 #endif
-
-#if defined(CONFIG_GPIOLIB)
-	/*
-	 * Pin configuration for the User LEDs and the "User Button" installed
-	 * on the TWR-K70-SOM-BSB-1A baseboard. Other baseboards may need
-	 * different pin configurations.
-	 */
-#if 0
-	/*
-	 * The "User Button" is emulated using the PTB9/PTC0 pins corresponding
-	 * to the P11.1 and P11.2 outputs on the board.
-	 */
-	{{KINETIS_GPIO_PORT_C, 0}, KINETIS_GPIO_CONFIG_PULLUP(1)},
-	{{KINETIS_GPIO_PORT_B, 9}, KINETIS_GPIO_CONFIG_MUX(1)},
-
-	/* LEDs DS3 and DS4, correspondingly */
-	{{KINETIS_GPIO_PORT_B, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
-	{{KINETIS_GPIO_PORT_B, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
-#endif
-#endif /* CONFIG_GPIOLIB */
 };
 
 /*
@@ -345,18 +325,38 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 #endif /* CONFIG_KINETIS_UART5 */
 
 #if defined(CONFIG_GPIOLIB)
+#if 0
 	/*
 	 * Pin configuration for the User LEDs and the User Button installed on
 	 * the SOM-BSB-EXT baseboard. Other baseboards may need different pin
 	 * configurations.
 	 */
-#if 0
+
 	/* E.9 = GPIO 137: User button (S2) */
 	{{KINETIS_GPIO_PORT_E,  9}, KINETIS_GPIO_CONFIG_PULLUP(1)},
 	/* E.8 = GPIO 136: LED DS3 */
 	{{KINETIS_GPIO_PORT_E, 8}, KINETIS_GPIO_CONFIG_MUX(1)},
 	/* A.19 = GPIO 19: LED DS4 */
 	{{KINETIS_GPIO_PORT_A, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif
+
+#if 0
+	/*
+	 * Pin configuration for the User LEDs and the "User Button" installed
+	 * on the TWR-K70-SOM-BSB-1A baseboard. Other baseboards may need
+	 * different pin configurations.
+	 */
+
+	/*
+	 * The "User Button" is emulated using the PTB9/PTC0 pins corresponding
+	 * to the P11.1 and P11.2 outputs on the board.
+	 */
+	{{KINETIS_GPIO_PORT_C, 0}, KINETIS_GPIO_CONFIG_PULLUP(1)},
+	{{KINETIS_GPIO_PORT_B, 9}, KINETIS_GPIO_CONFIG_MUX(1)},
+
+	/* LEDs DS3 and DS4, correspondingly */
+	{{KINETIS_GPIO_PORT_B, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+	{{KINETIS_GPIO_PORT_B, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
 #endif
 #endif /* CONFIG_GPIOLIB */
 
