@@ -50,7 +50,7 @@
 //#elif defined(CONFIG_ESDHC_DETECT_USE_EXTERN_IRQ7)
 //#define card_detect_extern_irq (64 + 7)
 //#else
-#define card_detect_extern_irq 91
+#define card_detect_extern_irq 91 /* K70 PORT E int */
 //#endif
 
 #undef ESDHC_DMA_KMALLOC
@@ -1393,13 +1393,12 @@ static irqreturn_t esdhc_detect_irq(int irq, void *dev_id)
 {
 	irqreturn_t result = IRQ_HANDLED;
 	struct esdhc_host *host = dev_id;
-	u8  irq_status = 0;
+	u32  irq_status = 0;
 #if 1
 	spin_lock(&host->lock);
 
-	*(volatile unsigned int *)0x4004D070 = 0xb0103;
-	irq_status = *(volatile unsigned int *)0x400ff0d0 & (1 << 28);
-	*(volatile unsigned int *)0x4004D0A0 |= 0xffffffff;
+	irq_status = *(volatile unsigned int *)0x400ff110 & (1 << 28);
+	*(volatile unsigned int *)0x4004D0A0 = (1 << 28);/* clear PTE28 int */
 	DBG("***Extern IRQ %x\n", irq_status);
 	if (irq_status == 0x0) {
 		DBG("***  Card insert interrupt Extern IRQ\n");
@@ -1796,9 +1795,9 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 	//esdhc_reset(host, ESDHC_INIT_CARD);
 	//host->card_insert = 1;
 	//mmc_detect_change(host->mmc, msecs_to_jiffies(500));
-	*(volatile unsigned int *)0x4004D0A0 |= 0xffffffff;
-	*(volatile unsigned int *)0x4004D070 = 0x80103;
-	DBG("cd_sw %x %x\n", *(volatile unsigned int *)0x400ff0d0,
+	/* clear Card Detect pending int */
+	*(volatile unsigned int *)0x4004D0A0 = (1 << 28);
+	DBG("cd_sw %x %x\n", *(volatile unsigned int *)0x400ff110,
 		fsl_readl(host->ioaddr + ESDHC_INT_STATUS));
 
 	return 0;

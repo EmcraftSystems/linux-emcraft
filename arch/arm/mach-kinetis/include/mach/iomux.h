@@ -41,6 +41,15 @@
 /* Drive Strength Enable (high drive strength) */
 #define KINETIS_GPIO_CONFIG_DSE_MSK	(1 << 6)
 
+/* Interrupt */
+#define KINETIS_GPIO_CONFIG_IRQC_MSK	(0xf << 16)
+#define KINETIS_GPIO_CONFIG_IRQC_LOW	(0x8 << 16)
+#define KINETIS_GPIO_CONFIG_IRQC_RISE	(0x9 << 16)
+#define KINETIS_GPIO_CONFIG_IRQC_FALL	(0xa << 16)
+#define KINETIS_GPIO_CONFIG_IRQC_EITHER	(0xb << 16)
+#define KINETIS_GPIO_CONFIG_IRQC_HIGH	(0xc << 16)
+
+
 /*
  * These macros should be used to compute the value for the second argument of
  * `kinetis_gpio_config()` (`regval`). This value will be copied into a PCR

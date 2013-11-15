@@ -375,8 +375,8 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 	/* E.5 = SDHC0_D2 */
 	{{KINETIS_GPIO_PORT_E, 5}, KINETIS_GPIO_CONFIG_MUX(4)},
 	/* E.28 = GPIO (Card detect) */
-//	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16) | 3},
-	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_MUX(1) | (0xb << 16)},
+	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_PULLUP(1) |
+	 KINETIS_GPIO_CONFIG_IRQC_EITHER},
 #endif
 
 #if defined(CONFIG_KINETIS_SPI1)
