@@ -503,21 +503,10 @@ static int i2c_lpc2k_probe(struct platform_device *dev)
 
 	disable_irq_nosync(irq);
 
-	i2c_lpc2k_reset(i2c);
-
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &dev->dev;
 
-	ret = i2c_add_numbered_adapter(&i2c->adap);
-	if (ret < 0) {
-		dev_err(&dev->dev, "Failed to add bus!\n");
-		goto eadapt;
-	}
-
 	platform_set_drvdata(dev, i2c);
-
-	printk(KERN_INFO "I2C: %s: LPC2K I2C adapter\n",
-	       dev_name(&i2c->adap.dev));
 
 	/* Place controller is a known state */
 	i2c_lpc2k_reset(i2c);
@@ -535,9 +524,20 @@ static int i2c_lpc2k_probe(struct platform_device *dev)
 	i2c_writel(clkrate, i2c->reg_base + LPC24XX_I2SCLL);
 	i2c_writel(clkrate, i2c->reg_base + LPC24XX_I2SCLH);
 
+	ret = i2c_add_numbered_adapter(&i2c->adap);
+	if (ret < 0) {
+		dev_err(&dev->dev, "Failed to add bus!\n");
+		goto eadapt;
+	}
+
+	printk(KERN_INFO "I2C: %s: LPC2K I2C adapter\n",
+	       dev_name(&i2c->adap.dev));
+
 	return 0;
 
 eadapt:
+	platform_set_drvdata(dev, NULL);
+
 	free_irq(irq, i2c);
 ereqirq:
 	clk_disable(i2c->clk);
