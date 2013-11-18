@@ -24,7 +24,8 @@
 #define CLCD_LBAS		0x00000014
 
 #if !defined(CONFIG_ARCH_VERSATILE) && !defined(CONFIG_ARCH_REALVIEW) && \
-    !defined(CONFIG_ARCH_VEXPRESS) && !defined(CONFIG_ARCH_LPC178X)
+    !defined(CONFIG_ARCH_VEXPRESS) && !defined(CONFIG_ARCH_LPC178X) && \
+    !defined(CONFIG_ARCH_LPC18XX)
 /*
  * PL110
  */

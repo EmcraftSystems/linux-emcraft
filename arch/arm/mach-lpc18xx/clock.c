@@ -3,6 +3,7 @@
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  * Vladimir Khusainov, <vlad@emcraft.com>
+ * Pavel Boldin, <paboldin@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -33,6 +34,11 @@
 #include <mach/platform.h>
 #include <mach/clock.h>
 #include <mach/lpc18xx.h>
+
+#if defined (CONFIG_FB_ARMCLCD)
+# include <linux/amba/clcd.h>
+# include <mach/fb.h>
+#endif
 
 /*
  * PLL0* register map
@@ -159,6 +165,7 @@ struct clk {
 
 	/* Custom `clk_*` functions */
 	unsigned long (*clk_get_rate)(struct clk *clk);
+	unsigned long (*clk_set_rate)(struct clk *clk, unsigned long rate);
 };
 
 static DEFINE_SPINLOCK(clocks_lock);
@@ -232,7 +239,11 @@ EXPORT_SYMBOL(clk_get_rate);
  */
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return -EINVAL;
+	int ret = -EINVAL;
+	if (clk->clk_set_rate)
+		ret = clk->clk_set_rate(clk, rate);
+
+	return ret;
 }
 EXPORT_SYMBOL(clk_set_rate);
 
@@ -281,6 +292,75 @@ static struct clk clk_i2c0;
 static struct clk clk_i2c1;
 #endif
 
+#if defined (CONFIG_FB_ARMCLCD)
+/*
+ * The `amba-clcd` driver expects this function to configure the LCD clock
+ * divider and set the desired pixel clock rate.
+ *
+ * The code in this function is based on the code from
+ * `linux-2.6.34-lpc32xx/arch/arm/mach-lpc32xx/clock.c` from
+ * `http://lpclinux.com/`.
+ */
+static int lcd_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 tmp, prate, div;
+
+	tmp = __raw_readl(LPC18XX_LCD_BASE + CLCD_TIM2) | TIM2_BCD;
+	/* CPU clock is the source clock for the LCD controller */
+	prate = lpc18xx_clock_get(CLOCK_CCLK);
+
+	if (rate < prate) {
+		/* Find closest divider */
+		div = prate / rate;
+		if (div >= 2) {
+			div -= 2;
+			tmp &= ~TIM2_BCD;
+		}
+
+		tmp &= ~(0xF800001F);
+		tmp |= (div & 0x1F);
+		tmp |= (((div >> 5) & 0x1F) << 27);
+	}
+
+	__raw_writel(tmp, LPC18XX_LCD_BASE + CLCD_TIM2);
+
+	return 0;
+}
+
+/*
+ * The `amba-clcd` driver does not really call this function, but we implement
+ * just in case. Similarly to `lcd_clk_set_rate()`, this function returns
+ * the actual pixel clock rate.
+ *
+ * The code in this function is based on the code from
+ * `linux-2.6.34-lpc32xx/arch/arm/mach-lpc32xx/clock.c` from
+ * `http://lpclinux.com/`.
+ */
+unsigned long lcd_clk_get_rate(struct clk *clk)
+{
+	u32 tmp, div, rate;
+
+	/* The LCD clock must be on when accessing an LCD register */
+	tmp = __raw_readl(LPC18XX_LCD_BASE + CLCD_TIM2);
+
+	/* CPU clock is the source clock for the LCD controller */
+	rate = lpc18xx_clock_get(CLOCK_CCLK);
+
+	/* Only supports internal clocking */
+	if (!(tmp & TIM2_BCD)) {
+		div = (tmp & 0x1F) | ((tmp & 0xF8) >> 22);
+		rate /= (2 + div);
+	}
+
+	return rate;
+}
+
+static struct clk clk_lcd = {
+	.clk_set_rate	= lcd_clk_set_rate,
+	.clk_get_rate	= lcd_clk_get_rate,
+};
+#endif
+
 /*
  * Array of all clock to register with the `clk_*` infrastructure
  */
@@ -307,6 +387,9 @@ static struct clk_lookup lpc18xx_clkregs[] = {
 #endif
 #if defined (CONFIG_LPC18XX_I2C1)
 	INIT_CLKREG(&clk_i2c1, "lpc2k-i2c.1", NULL),
+#endif
+#if defined (CONFIG_FB_ARMCLCD)
+	INIT_CLKREG(&clk_lcd, "dev:clcd", NULL),
 #endif
 };
 
@@ -432,6 +515,12 @@ void __init lpc18xx_clock_init(void)
 	LPC18XX_CGU->ssp1_clk = LPC18XX_CGU_CLKSEL_PLL1 |
 			LPC18XX_CGU_PLL1CTRL_AUTOBLOCK_MSK;
 	clk_ssp1.rate = pll1_out;
+#endif
+
+#if defined (CONFIG_FB_ARMCLCD)
+	LPC18XX_CGU->lcd_clk = LPC18XX_CGU_CLKSEL_PLL1 |
+			LPC18XX_CGU_PLL1CTRL_AUTOBLOCK_MSK;
+	clk_lcd.rate = pll1_out;
 #endif
 
 #if defined (CONFIG_LPC18XX_I2C0)

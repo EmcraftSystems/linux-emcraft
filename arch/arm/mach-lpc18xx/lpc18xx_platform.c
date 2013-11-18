@@ -3,6 +3,7 @@
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  * Vladimir Khusianov <vlad@emcraft.com>
+ * Pavel Boldin <paboldin@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -41,6 +42,7 @@
 #include <mach/spi.h>
 #include <mach/nor-flash.h>
 #include <mach/i2c.h>
+#include <mach/fb.h>
 
 /*
  * Prototypes
@@ -185,6 +187,13 @@ static void __init lpc18xx_init(void)
 	 * Configure external NOR flash
 	 */
 	lpc18xx_nor_flash_init();
+#endif
+
+#if defined(CONFIG_FB_ARMCLCD)
+	/*
+	 * Configure framebuffer
+	 */
+	lpc18xx_fb_init();
 #endif
 
 #if defined(CONFIG_I2C_LPC2K)
