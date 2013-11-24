@@ -183,7 +183,12 @@ void traps_v7m_common(struct pt_regs *regs, enum interrupts in)
 					hstatus, lstatus);
 		}
 #endif
-		send_sig(SIGSEGV, current, 0);
+		if (lstatus & UNDEFINSTR) {
+			send_sig(SIGTRAP, current, 0);
+		}
+		else {
+			send_sig(SIGSEGV, current, 0);
+		}
 	} else {
 		traps_v7m_print_message("KERNEL", regs, in, addr,
 				hstatus, lstatus);
