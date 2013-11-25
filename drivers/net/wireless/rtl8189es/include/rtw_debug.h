@@ -25,6 +25,7 @@
 #include <drv_types.h>
 
 
+#define _drv_none_		0
 #define _drv_always_		1
 #define _drv_emerg_			2
 #define _drv_alert_			3
@@ -188,7 +189,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 #endif
 
 #define DRIVER_PREFIX	"RTL871X: "
-#define DEBUG_LEVEL	(_drv_err_)
+#define DEBUG_LEVEL	(_drv_none_)
 #if 	defined (_dbgdump)
 	#undef DBG_871X_LEVEL
 	#define DBG_871X_LEVEL(level, fmt, arg...)     \

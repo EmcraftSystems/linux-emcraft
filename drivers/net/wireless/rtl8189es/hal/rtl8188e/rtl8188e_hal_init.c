@@ -44,7 +44,6 @@ static void iol_mode_enable(PADAPTER padapter, u8 enable)
 		
 		if(padapter->bFWReady == _FALSE)
 		{
-			printk("bFWReady == _FALSE call reset 8051...\n");
 			_8051Reset88E(padapter);
 		}		
 			
@@ -448,8 +447,7 @@ static s32 iol_read_efuse(
 s32 rtl8188e_iol_efuse_patch(PADAPTER padapter)
 {
 	s32	result = _SUCCESS;
-	printk("==> %s \n",__FUNCTION__);
-	
+
 	if(rtw_IOL_applied(padapter)){
 		iol_mode_enable(padapter, 1);
 		result = iol_execute(padapter, CMD_READ_EFUSE_MAP);
@@ -3133,11 +3131,10 @@ Hal_EfuseParseIDCode88E(
 {
 	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 //	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	u16			EEPROMId;
-
+	u16			EEPROMId = (hwinfo[0] << 8) | hwinfo[1];
 
 	// Checl 0x8129 again for making sure autoload status!!
-	EEPROMId = le16_to_cpu(*((u16*)hwinfo));
+	EEPROMId = le16_to_cpu(EEPROMId);
 	if (EEPROMId != RTL_EEPROM_ID)
 	{
 		DBG_8192C("EEPROM ID(%#x) is invalid!!\n", EEPROMId);

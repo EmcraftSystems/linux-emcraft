@@ -2465,8 +2465,6 @@ static void hw_var_set_bssid(PADAPTER Adapter, u8 variable, u8* val)
 		reg_bssid = REG_BSSID;
 	}
 
-printk("hw_var_set_bssid   reg=%x \n", reg_bssid);
-
 	for(idx = 0 ; idx < 6; idx++)
 	{
 		rtw_write8(Adapter, (reg_bssid+idx), val[idx]);
