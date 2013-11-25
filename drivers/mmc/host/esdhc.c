@@ -1358,6 +1358,12 @@ static void esdhc_data_irq(struct esdhc_host *host, u32 intmask)
 		host->data->error = MMC_ERR_BADCRC;
 	else if (intmask & ESDHC_INT_DATA_END_BIT)
 		host->data->error = MMC_ERR_FAILED;
+	/*
+	 * With NYK we observe ACMD12ERR with 'timeout' status sometimes.
+	 * According to RM we should resend CMD12 manually in this case,
+	 * we don't do this since these timeouts don't bring any problems
+	 * for now.
+	 */
 
 	if (host->data->error != MMC_ERR_NONE) {
 		if (host->retries < ESDHC_ERR_RETRY) {

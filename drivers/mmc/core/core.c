@@ -1095,6 +1095,12 @@ void mmc_rescan(struct work_struct *work)
 	mmc_claim_host(host);
 
 	mmc_power_up(host);
+
+	/*
+	 * sdhci_reset will generate CMD52 to reset card. SD/eMMC cards
+	 * ignore this
+	 */
+	sdio_reset(host);
 	mmc_go_idle(host);
 
 	mmc_send_if_cond(host, host->ocr_avail);
