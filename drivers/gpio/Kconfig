@@ -124,6 +124,12 @@ config GPIO_PCA953X
 	  This driver can also be built as a module.  If so, the module
 	  will be called pca953x.
 
+config GPIO_PCAL6416A
+	tristate "PCAL6416A I2C GPIO"
+	depends on I2C && GPIOLIB
+	help
+	  Say yes here to provide access to PCAL6416A I2C GPIO device
+
 config GPIO_PCF857X
 	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
 	depends on I2C

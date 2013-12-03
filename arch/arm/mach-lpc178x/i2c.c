@@ -28,6 +28,10 @@
 #include <mach/i2c.h>
 #include <mach/power.h>
 #include <mach/platform.h>
+#if defined(CONFIG_GPIO_PCAL6416A)
+#include <mach/gpio.h>
+#include <linux/i2c/pcal6416a.h>
+#endif
 
 /*
  * I2C0 interface register and "Interrupt ID"
@@ -77,6 +81,23 @@ struct platform_device lpc178x_i2c## uid ##_device = {			\
 
 #if defined(CONFIG_LPC178X_I2C0)
 I2C_PLAT_DEVICE(0);
+
+#if defined(CONFIG_GPIO_PCAL6416A)
+static struct pcal6416a_platform_data ea_lpc1788_pcal6416a_gpio_pdata = {
+	.gpio_base = LPC178X_GPIO_LEN_MCU,
+};
+#endif
+
+static struct i2c_board_info __initdata ea_lpc1788_bdinfo_i2c0[] = {
+
+#if defined(CONFIG_GPIO_PCAL6416A)
+	{
+	I2C_BOARD_INFO("pcal6416a", 0x21),
+	.platform_data = &ea_lpc1788_pcal6416a_gpio_pdata,
+	},
+#endif
+};
+
 #endif
 
 #if defined(CONFIG_LPC178X_I2C1)
@@ -89,12 +110,27 @@ I2C_PLAT_DEVICE(2);
 
 void __init lpc178x_i2c_init(void)
 {
+#if	defined(CONFIG_LPC178X_I2C0) || \
+	defined(CONFIG_LPC178X_I2C1) || \
+	defined(CONFIG_LPC178X_I2C2)
+
+	int platform = lpc178x_platform_get();
+#endif
 	/*
 	 * Register platform devices
 	 */
-
 #if defined(CONFIG_LPC178X_I2C0)
 	platform_device_register(&lpc178x_i2c0_device);
+
+	switch (platform) {
+	case PLATFORM_LPC178X_EA_LPC1788:
+		i2c_register_board_info(0, ea_lpc1788_bdinfo_i2c0,
+			sizeof(ea_lpc1788_bdinfo_i2c0) /
+			sizeof (struct i2c_board_info));
+		break;
+	default:
+		break;
+	}
 #endif
 
 #if defined(CONFIG_LPC178X_I2C1)
