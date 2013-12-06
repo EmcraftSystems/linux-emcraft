@@ -1038,7 +1038,7 @@ end:
 
 	while (!(fsl_readl(host->ioaddr + ESDHC_PRESENT_STATE) & ESDHC_SDSTB));
 	fsl_writel(host->ioaddr + ESDHC_SYSTEM_CONTROL,
-			fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) | 0xc);
+			fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) | 0x8);
 	fsl_writel(host->ioaddr + ESDHC_INT_STATUS,
 			fsl_readl(host->ioaddr + ESDHC_INT_STATUS) | 0x100000);
 #endif
@@ -1664,7 +1664,7 @@ static int esdhc_probe_slot(struct platform_device *pdev, int slot)
 #ifdef CONFIG_MPC5441X
 	host->max_clk = 17000000;
 #else
-	host->max_clk = 25000000;
+	host->max_clk = 50000000;
 #endif
 
 	/* if 4 bit , freq can be 50MHz */
