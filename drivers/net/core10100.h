@@ -366,7 +366,7 @@ static int get_mdio_data(struct mdiobb_ctrl *ctrl);
 
 
 #ifdef  DEBUG
-#define debug(fmt,args...)  printf (fmt ,##args)
+#define debug(fmt,args...)  printk (fmt ,##args)
 #else
 #define debug(fmt,args...)
 #endif  /* DEBUG */

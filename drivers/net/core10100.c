@@ -579,6 +579,8 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 	u32 intr_status;
 
 	intr_status = read_reg(CSR5);
+	write_reg(CSR5, intr_status);
+
 	/* Transmit */
 	if (intr_status & CSR5_TI) {			
 		debug(KERN_NOTICE "received TX irq\n");
@@ -591,8 +593,6 @@ static irqreturn_t core10100_interrupt (int irq, void *dev_id)
 		rx_handler(dev);
 		handled = 1;
 	}
-
-	write_reg(CSR5, intr_status);
 
 	return IRQ_RETVAL(handled);
 }
