@@ -273,6 +273,9 @@ void __init stm32_clock_init(void)
 	case PLATFORM_STM32_STM_STM32F439_SOM:
 		hse_hz = 12000000;
 		break;
+	case PLATFORM_STM32_STM_DISCO:
+		hse_hz = 8000000;
+		break;
 #endif
 	default:
 		/*
