@@ -1358,7 +1358,8 @@ static int stm32_mii_probe(struct net_device *ndev)
 
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (stm->mii_bus->phy_map[phy_addr]) {
+		if (stm->mii_bus->phy_map[phy_addr] &&
+			stm->mii_bus->phy_map[phy_addr]->phy_id != 0xFFFF) {
 			phydev = stm->mii_bus->phy_map[phy_addr];
 			printk(KERN_INFO "found PHY id 0x%x addr %d\n",
 			       phydev->phy_id, phydev->addr);

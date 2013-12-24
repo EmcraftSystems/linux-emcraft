@@ -372,6 +372,7 @@ uartdone:
 			int	i;
 
 			if (platform == PLATFORM_STM32_STM_SOM ||
+			    platform == PLATFORM_STM32_STM_DISCO ||
 			    platform == PLATFORM_STM32_STM_STM32F439_SOM) {
 				for (i = 0; i < ARRAY_SIZE(rmii_gpio); i++) {
 					stm32f2_gpio_config(&rmii_gpio[i],
