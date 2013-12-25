@@ -244,6 +244,34 @@ process_ifarch() {
 	rm -f ${temp_file}
 }
 
+# Process 'ifnarch' commands. These commands have the following format:
+#
+# ifnarch <mcu> <str>, where:
+# - <mcu> specifies the processor architecture (eg. A2F, STM32, etc)
+# - <str> is a normal file, dir, node, etc string.
+#
+# If an <mcu> in an 'ifnarch' command is different from the value of
+# the env var ${MCU}, we put the corresponding <str> into
+# the resultant file (i.e. the corresponding file, dir, node, etc
+# gets put into the resultant file system). If they are the same - we remove
+# that line from the resultant file (i.e. the corresponding
+# file, dir, node, etc is not copied into the file system).
+process_ifnarch() {
+	local temp_file="$(mktemp ${TMPDIR:-/tmp}/cpiolist.XXXXXX)"
+	cat "$1" | while read word arch str ; do
+		if [ "$word" == "ifnarch" ]; then
+			if [ "$arch" != "${MCU}" ]; then
+				echo "$str" >> ${temp_file}
+			fi
+		else
+			echo "$word $arch $str" >> ${temp_file}
+		fi
+	done
+
+	cp ${temp_file} ${cpio_list}
+	rm -f ${temp_file}
+}
+
 prog=$0
 root_uid=0
 root_gid=0
@@ -314,6 +342,8 @@ if [ ! -z ${output_file} ]; then
 		cpio_tfile="$(mktemp ${TMPDIR:-/tmp}/cpiofile.XXXXXX)"
 		# Process the 'ifarch' command 
 		process_ifarch ${cpio_list}
+		# Process the 'ifnarch' command
+		process_ifnarch ${cpio_list}
 		usr/gen_init_cpio ${cpio_list} > ${cpio_tfile}
 	else
 		cpio_tfile=${cpio_file}
