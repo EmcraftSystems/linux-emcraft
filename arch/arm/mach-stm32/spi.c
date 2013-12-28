@@ -224,7 +224,8 @@ static struct platform_device spi_stm32_dev6 = {
  */
 void __init stm32_spi_init(void)
 {
-	int	p = stm32_platform_get();
+	int bus, port, pin;
+	int p = stm32_platform_get();
 
 #if defined(CONFIG_STM32_SPI1)
 	platform_set_drvdata(&spi_stm32_dev1, 
@@ -257,8 +258,27 @@ void __init stm32_spi_init(void)
 	platform_device_register(&spi_stm32_dev6);
 #endif
 
+#define SPI_FLASH_CS_PORT__STM32F4_SOM		7
+#define SPI_FLASH_CS_PIN__STM32F4_SOM		5
+#define SPI_FLASH_CS_PORT__STM32F4_DISCO	4
+#define SPI_FLASH_CS_PIN__STM32F4_DISCO		4
+
 	if (p == PLATFORM_STM32_STM_SOM ||
 	    p == PLATFORM_STM32_STM_STM32F439_SOM) {
+		bus = 4;
+		port = SPI_FLASH_CS_PORT__STM32F4_SOM;
+		pin = SPI_FLASH_CS_PIN__STM32F4_SOM;
+	}
+	else if (p == PLATFORM_STM32_STM_DISCO) {
+		bus = 3;
+		port = SPI_FLASH_CS_PORT__STM32F4_DISCO;
+		pin = SPI_FLASH_CS_PIN__STM32F4_DISCO;
+	}
+
+
+	if (p == PLATFORM_STM32_STM_SOM ||
+	    p == PLATFORM_STM32_STM_STM32F439_SOM ||
+	    p == PLATFORM_STM32_STM_DISCO) {
 
 		/* This assumes that there is an SPI Flash device
 		 * handwired to SPI5 on the breadboard area of SOM-BSB-EXT.
@@ -267,8 +287,7 @@ void __init stm32_spi_init(void)
 		 * If SPIDEV is disabled, then SPI Flash can be
 		 * accessed via the Flash MTD interface
 		 */
-#if defined(CONFIG_STM32_SPI5) && \
-	(defined(CONFIG_MTD_M25P80) || defined(CONFIG_SPI_SPIDEV))
+#if (defined(CONFIG_MTD_M25P80) || defined(CONFIG_SPI_SPIDEV))
 
 		/* 
 		 * Flash MTD partitioning.
@@ -279,20 +298,20 @@ void __init stm32_spi_init(void)
 		/*
 		 * SPI Flash partitioning:
 		 */
-#		define FLASH_JFFS2_OFFSET__STM32F4_SOM	(1024 * 1024 * 1)
-#		define FLASH_SIZE__STM32F4_SOM		(1024 * 1024 * 4)
+#		define FLASH_JFFS2_OFFSET__DONGLE	(1024 * 1024 * 1)
+#		define FLASH_SIZE__DONGLE		(1024 * 1024 * 4)
 		static struct mtd_partition 
-			spi_stm32_flash_partitions__stm32f4_som[] = {
+			spi_stm32_flash_partitions__dongle[] = {
 			{
 				.name = "spi_flash_part0",
-				.size = FLASH_JFFS2_OFFSET__STM32F4_SOM,
+				.size = FLASH_JFFS2_OFFSET__DONGLE,
 				.offset = 0,
 			},
 			{
 				.name = "spi_flash_part1",
-				.size = FLASH_SIZE__STM32F4_SOM - 
-					FLASH_JFFS2_OFFSET__STM32F4_SOM,
-				.offset = FLASH_JFFS2_OFFSET__STM32F4_SOM,
+				.size = FLASH_SIZE__DONGLE -
+					FLASH_JFFS2_OFFSET__DONGLE,
+				.offset = FLASH_JFFS2_OFFSET__DONGLE,
 			},
 		};
 
@@ -300,32 +319,24 @@ void __init stm32_spi_init(void)
 		 * SPI Flash
  		 */
 		static struct flash_platform_data 
-			spi_stm32_flash_data__stm32f4_som = {
+			spi_stm32_flash_data__dongle = {
 			.name = "m25p32",
-			.parts =  spi_stm32_flash_partitions__stm32f4_som,
+			.parts =  spi_stm32_flash_partitions__dongle,
 			.nr_parts = 
-			ARRAY_SIZE(spi_stm32_flash_partitions__stm32f4_som),
+			ARRAY_SIZE(spi_stm32_flash_partitions__dongle),
 			.type = "m25p32",
 		};
 #endif
-
-#define SPI_FLASH_CS_PORT__STM32F4_SOM		7
-#define SPI_FLASH_CS_PIN__STM32F4_SOM		5
-#define SPI_FLASH_CS_GPIO__STM32F4_SOM		\
-	STM32_GPIO_PORTPIN2NUM(			\
-		SPI_FLASH_CS_PORT__STM32F4_SOM, \
-		SPI_FLASH_CS_PIN__STM32F4_SOM)
 
 		/*
  		 * SPI slave
  		 */
 		static struct spi_stm32_slv 
-			spi_stm32_flash_slv__stm32f4_som  = {
-			.cs_gpio = SPI_FLASH_CS_GPIO__STM32F4_SOM,
+			spi_stm32_flash_slv__dongle = {
 			.timeout = 3,
 		};
 		static struct spi_board_info 
-			spi_stm32_flash_info__stm32f4_som = {
+			spi_stm32_flash_info__dongle = {
 			/*
 			 * SPIDEV has precedence over Flash MTD
 			 */
@@ -333,25 +344,28 @@ void __init stm32_spi_init(void)
 			.modalias = "spidev",
 #else
 			.modalias = "m25p32",
-			.platform_data = &spi_stm32_flash_data__stm32f4_som,
+			.platform_data = &spi_stm32_flash_data__dongle,
 #endif
 			.max_speed_hz = 25000000,
-			.bus_num = 4,
 			.chip_select = 0,
-			.controller_data = &spi_stm32_flash_slv__stm32f4_som,
+			.controller_data = &spi_stm32_flash_slv__dongle,
 			.mode = SPI_MODE_3,
 		};
+
+		spi_stm32_flash_info__dongle.bus_num = bus;
+		spi_stm32_flash_slv__dongle.cs_gpio =
+			STM32_GPIO_PORTPIN2NUM(port, pin),
 
 		/*
 		 * Set up the Chip Select GPIO for the SPI Flash
 		 */
-		gpio_direction_output(SPI_FLASH_CS_GPIO__STM32F4_SOM, 1);
+		gpio_direction_output(STM32_GPIO_PORTPIN2NUM(port, pin), 1);
 
 		/*
 		 * Register SPI slaves
 		 */
-		spi_register_board_info(&spi_stm32_flash_info__stm32f4_som,
-			sizeof(spi_stm32_flash_info__stm32f4_som) / 
+		spi_register_board_info(&spi_stm32_flash_info__dongle,
+			sizeof(spi_stm32_flash_info__dongle) /
 			sizeof(struct spi_board_info));
 #endif
 	}

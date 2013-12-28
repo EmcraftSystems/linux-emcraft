@@ -411,7 +411,21 @@ uartdone:
 #error		IOMUX for STM32 SPI3 undefined
 #endif
 #if defined(CONFIG_STM32_SPI4)
-#error		IOMUX for STM32 SPI4 undefined
+		gpio_dsc.port = 4;	/* CLCK */
+		gpio_dsc.pin  = 2;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI4);
+
+		gpio_dsc.port = 4;	/* DI */
+		gpio_dsc.pin  = 5;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI4);
+
+		gpio_dsc.port = 4;	/* DO */
+		gpio_dsc.pin  = 6;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_SPI4);
+
+		gpio_dsc.port = 4;	/* CS */
+		gpio_dsc.pin  = 4;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
 #endif
 #if defined(CONFIG_STM32_SPI5)
 		gpio_dsc.port = 7;	/* CLCK */
@@ -447,7 +461,13 @@ uartdone:
 #error		IOMUX for STM32 I2C2 undefined
 #endif
 #if defined(CONFIG_STM32_I2C3)
-#error		IOMUX for STM32 I2C3 undefined
+		gpio_dsc.port = 0;	/* SCL */
+		gpio_dsc.pin  = 8;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C3);
+
+		gpio_dsc.port = 2;	/* SDA */
+		gpio_dsc.pin  = 9;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C3);
 #endif
 
 #if defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE)
@@ -475,6 +495,27 @@ uartdone:
 		/* PB2 = LED DS4 */
 		gpio_dsc.port = 1;
 		gpio_dsc.pin  = 2;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
+	}
+
+	/*
+	 * Pin configuration for the User Push Button and User LEDs
+	 * on the STM32F429 Discovery board.
+	 * !!! That GPIO may have other connections on other boards.
+	 */
+	if (platform == PLATFORM_STM32_STM_DISCO) {
+		/* PA0 = User Push Button */
+		gpio_dsc.port = 0;
+		gpio_dsc.pin  = 0;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_IN);
+		/* PE3 = LED_3
+		 * Here, things are tricky. The default hardware routes
+		 * the LED to a pin that interferes with RMII. The config
+		 * below assumes that the RMII signal is disconnected from
+		 * the LED and instead the LED is connected to the PE3 GPIO.
+		 */
+		gpio_dsc.port = 4;
+		gpio_dsc.pin  = 3;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
 	}
 
