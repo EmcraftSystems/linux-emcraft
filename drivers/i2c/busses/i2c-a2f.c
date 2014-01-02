@@ -650,15 +650,6 @@ static int __devinit i2c_a2f_probe(struct platform_device *dev)
 	c->adap.dev.parent = &dev->dev;
 
 	/* 
- 	 * Register the I2C adapter
- 	 */
-	if (i2c_add_numbered_adapter(&c->adap)) {
-		dev_err(&dev->dev, "unable to add adapter\n");
-		ret = -ENXIO;
-		goto Error_release_irq;
-	}
-
-	/* 
  	 * Set up the wait queue
  	 */
 	init_waitqueue_head(&c->wait);
@@ -668,9 +659,17 @@ static int __devinit i2c_a2f_probe(struct platform_device *dev)
  	 */
 	ret = i2c_a2f_hw_init(c);
 	if (ret) {
-		goto Error_release_adapter;
+		goto Error_release_irq;
 	}
 
+	/*
+	 * Register the I2C adapter
+	 */
+	if (i2c_add_numbered_adapter(&c->adap)) {
+		dev_err(&dev->dev, "unable to add adapter\n");
+		ret = -ENXIO;
+		goto Error_release_hw;
+	}
 	/*
 	 * If we are here, we are successful
 	 */
@@ -681,8 +680,8 @@ static int __devinit i2c_a2f_probe(struct platform_device *dev)
 	/*
 	 * Error processing
 	 */
-Error_release_adapter: 
-	i2c_del_adapter(&c->adap);
+Error_release_hw:
+	i2c_a2f_hw_release(c);
 Error_release_irq: 
 	free_irq(c->irq, c);
 Error_release_regs: 

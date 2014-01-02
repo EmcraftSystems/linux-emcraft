@@ -517,7 +517,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 
 	/*
 	 * Store the software parameters of the message.
-	 * There will be used by the IRQ handler.
+	 * These will be used by the IRQ handler.
 	 */
 	c->msg = &m[0];
 	c->msg_i = 0;
@@ -531,7 +531,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 
 	/*
 	 * A transfer is kicked off by initiating a start condition.
-	 * Actual transfer is handled by the state maching implemented
+	 * Actual transfer is handled by the state machine implemented
 	 * in the IRQ routine.
 	 */
 	writel(readl(&I2C_STM32(c)->cr1) | I2C_STM32_CR1_STA, 
@@ -563,7 +563,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 
 #if defined(I2C_STM32_DEBUG)
 	for (i = 0; i < n; i++) {
-		d_printk(4, "%d:flags=0x%x,addr=0x%x,len=%d\n", 
+		d_printk(4, "%d:flags=0x%x,addr=0x%x,len=%d\n",
 			 i, m[i].flags, m[i].addr, m[i].len);
 		for (j = 0; j < m[i].len; j++) {
 			d_printk(4, "%d=%x\n", j, m[i].buf[j]);
@@ -715,11 +715,10 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	c->adap.dev.parent = &dev->dev;
 
 	/* 
- 	 * Register the I2C adapter
+	 * Initialize the controller hardware
  	 */
-	if (i2c_add_numbered_adapter(&c->adap)) {
-		dev_err(&dev->dev, "unable to add adapter\n");
-		ret = -ENXIO;
+	ret = i2c_stm32_hw_init(c);
+	if (ret) {
 		goto Error_release_irq2;
 	}
 
@@ -729,11 +728,12 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	init_waitqueue_head(&c->wait);
 
 	/* 
- 	 * Initialize the controller hardware
+	 * Register the I2C adapter
  	 */
-	ret = i2c_stm32_hw_init(c);
-	if (ret) {
-		goto Error_release_adapter;
+	if (i2c_add_numbered_adapter(&c->adap)) {
+		dev_err(&dev->dev, "unable to add adapter\n");
+		ret = -ENXIO;
+		goto Error_release_hw;
 	}
 
 	/*
@@ -746,8 +746,8 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	/*
 	 * Error processing
 	 */
-Error_release_adapter: 
-	i2c_del_adapter(&c->adap);
+Error_release_hw:
+	i2c_stm32_hw_release(c);
 Error_release_irq2: 
 	free_irq(c->irq + 1, c);
 Error_release_irq1: 
