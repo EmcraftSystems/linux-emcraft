@@ -54,7 +54,7 @@
  */
 
 #define ARCH_NR_GPIOS				\
-	(STM32_GPIO_LEN - STM32_GPIO_OFF)
+	(STM32_GPIO_LEN - STM32_GPIO_OFF + 16)
 
 #if defined(CONFIG_GPIOLIB)
 

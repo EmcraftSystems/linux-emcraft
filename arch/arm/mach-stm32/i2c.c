@@ -29,6 +29,10 @@
 #include <mach/platform.h>
 #include <mach/clock.h>
 #include <mach/i2c.h>
+#if defined(CONFIG_GPIO_PCAL6416A)
+#include <mach/gpio.h>
+#include <linux/i2c/pcal6416a.h>
+#endif
 
 /* 
  * Size of the I2C controller register area
@@ -195,15 +199,46 @@ void __init stm32_i2c_init(void)
 		 * wired to I2C_1 in the baseboard area.
 		 */
 #if defined(CONFIG_EEPROM_AT24)
-		static struct i2c_board_info i2c_eeprom__stm32_som= {
+		static struct i2c_board_info i2c_eeprom__dongle = {
 			I2C_BOARD_INFO("24c512", 0x57)
 		};
 #endif
 
 #if defined(CONFIG_EEPROM_AT24)
-		i2c_register_board_info(0, &i2c_eeprom__stm32_som, 1);
+		i2c_register_board_info(0, &i2c_eeprom__dongle, 1);
 #endif
 
+#endif
+	}
+	else if (p == PLATFORM_STM32_STM_DISCO) {
+#if defined(CONFIG_STM32_I2C3)
+
+#if defined(CONFIG_GPIO_PCAL6416A)
+		static struct pcal6416a_platform_data
+			stm32f4_pcal6416a_gpio_pdata = {
+			.gpio_base = STM32_GPIO_LEN,
+		};
+#endif
+
+		static struct i2c_board_info __initdata
+			stm32f4_bdinfo_i2c3[] = {
+
+#if defined(CONFIG_GPIO_PCAL6416A)
+		{
+			I2C_BOARD_INFO("pcal6416a", 0x21),
+			.platform_data = &stm32f4_pcal6416a_gpio_pdata,
+		},
+#endif
+#if defined(CONFIG_EEPROM_AT24)
+		{
+			I2C_BOARD_INFO("24c512", 0x57)
+		},
+#endif
+};
+
+		i2c_register_board_info(2, stm32f4_bdinfo_i2c3,
+			sizeof(stm32f4_bdinfo_i2c3) /
+			sizeof (struct i2c_board_info));
 #endif
 	}
 }
