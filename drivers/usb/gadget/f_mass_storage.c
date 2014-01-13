@@ -614,7 +614,9 @@ static int fsg_setup(struct usb_function *f,
 			return -EDOM;
 		VDBG(fsg, "get max LUN\n");
 		*(u8 *) req->buf = fsg->common->nluns - 1;
-		return 1;
+		/* Backport from current kernel: queue req here */
+		req->length = min((u16)1, w_length);
+        return ep0_queue(fsg->common);
 	}
 
 	VDBG(fsg,
@@ -2530,7 +2532,6 @@ static void handle_exception(struct fsg_common *common)
 			DBG(common, "ep0 set halt\n");
 			usb_ep_set_halt(common->ep0);
 		} else {			/* Complete the status stage */
-			ep0_queue(common);
 		}
 		break;
 
