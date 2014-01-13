@@ -304,6 +304,20 @@ config USB_S3C_HSOTG
 	depends on USB_GADGET_S3C_HSOTG
 	default USB_GADGET
 	select USB_GADGET_SELECTED
+	
+config USB_GADGET_KHCI_GCD
+	boolean "Freescale KHCI (USB-FS) Device controller"
+	depends on KINETIS_USBFS
+	help
+	  The Freescale KHCI controllers are dual-role host/peripheral/OTG
+          USB controllers implemented in Kinetis (K70,K60,...) processors,
+          and in some Coldfire (MCF52259,...) processors.
+
+config USB_KHCI_GCD
+	tristate
+	depends on USB_GADGET_KHCI_GCD
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 config USB_GADGET_IMX
 	boolean "Freescale IMX USB Peripheral Controller"
