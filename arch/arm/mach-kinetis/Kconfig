@@ -115,6 +115,10 @@ config KINETIS_SPI2
 	bool "Enable Kinetis SPI2"
 	default n
 
+config KINETIS_NO_IDLE_SLEEP
+	depends on ARCH_KINETIS
+	bool "Do not sleep in Idle state"
+	default y
 
 endmenu
 
