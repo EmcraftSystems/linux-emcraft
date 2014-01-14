@@ -30,14 +30,14 @@ struct endpoint_register{
 			unsigned stall:1;
 			unsigned txen:1;
 			unsigned rxen:1;
-			unsigned disablecontrol:1; /* disable control transfer */
-			unsigned :1;
+			unsigned disablecontrol:1; /* disable control transfer*/
+			unsigned:1;
 			unsigned retrydis:1;
 			unsigned hostwohub:1;
-		}__attribute__ ((packed));
+		} __attribute__ ((packed));
 		u8 reg_value;
-	}__attribute__ ((packed));
-}__attribute__ ((packed)) ;
+	} __attribute__ ((packed));
+} __attribute__ ((packed)) ;
 
 #define INT_USBRST 0
 #define INT_ERROR 1
@@ -57,9 +57,9 @@ struct k70_usb0_regs{
 	u8 x2[3];
 	struct{
 		unsigned iehost:1;
-		unsigned :2;
+		unsigned:2;
 		unsigned irqnum:5;
-	}__attribute__ ((packed)) addinfo;
+	} __attribute__ ((packed)) addinfo;
 
 	u8 x30[3];
 	u8 otgistat;
@@ -81,9 +81,9 @@ struct k70_usb0_regs{
 			unsigned resume:1;
 			unsigned attach:1;
 			unsigned stall:1;
-		}__attribute__ ((packed));
+		} __attribute__ ((packed));
 		u8 regvalue;
-	}__attribute__ ((packed)) istat;
+	} __attribute__ ((packed)) istat;
 	u8 x7[3];
 	union{
 		struct{
@@ -95,9 +95,9 @@ struct k70_usb0_regs{
 			unsigned resume:1;
 			unsigned attach:1;
 			unsigned stall:1;
-		}__attribute__ ((packed));
+		} __attribute__ ((packed));
 		u8 regvalue;
-	}__attribute__ ((packed)) inten;
+	} __attribute__ ((packed)) inten;
 	u8 x8[3];
 
 	union{
@@ -110,9 +110,9 @@ struct k70_usb0_regs{
 			unsigned dmaerr:1;
 			unsigned resv:1;
 			unsigned btserr:1;
-		}__attribute__ ((packed));
+		} __attribute__ ((packed));
 		u8 regvalue;
-	}__attribute__ ((packed)) errstat;
+	} __attribute__ ((packed)) errstat;
 	u8 x9[3];
 	union{
 		struct{
@@ -124,20 +124,20 @@ struct k70_usb0_regs{
 			unsigned dmaerr:1;
 			unsigned resv:1;
 			unsigned btserr:1;
-		}__attribute__ ((packed));
+		} __attribute__ ((packed));
 		u8 regvalue;
-	}__attribute__ ((packed)) erren;
+	} __attribute__ ((packed)) erren;
 	u8 x10[3];
 
 	union status_register_union{
 		struct status_register{
-			unsigned :2;
+			unsigned:2;
 			unsigned odd:1;
 			unsigned tx:1;
 			unsigned endp:4;
-		}__attribute__ ((packed)) stat;
+		} __attribute__ ((packed)) stat;
 		u8 regvalue;
-	}__attribute__ ((packed)) stat;
+	} __attribute__ ((packed)) stat;
 	u8 x11[3];
 	struct{
 		unsigned usben:1;
@@ -148,12 +148,12 @@ struct k70_usb0_regs{
 		unsigned suspend_busy:1;
 		unsigned se0:1;
 		unsigned jstate:1;
-	}__attribute__ ((packed)) ctl;
+	} __attribute__ ((packed)) ctl;
 	u8 x12[3];
 	struct{
 		unsigned addr:7;
 		unsigned lsen:1;
-	}__attribute__ ((packed)) addr;
+	} __attribute__ ((packed)) addr;
 	u8 x13[3];
 	u8 bdtpage1;
 	u8 x14[3];
@@ -166,7 +166,7 @@ struct k70_usb0_regs{
 	struct{
 		unsigned endpt:4;
 		unsigned pid:4;
-	}__attribute__ ((packed)) token;
+	} __attribute__ ((packed)) token;
 	u8 x17[3];
 
 	u8 softhld;
@@ -180,63 +180,62 @@ struct k70_usb0_regs{
 	struct endpoint_register endpoints[16*4];
 
 	struct {
-		unsigned :6;
+		unsigned:6;
 		unsigned pde:1; /* enable weak pulldowns on D+ and D- */
 		unsigned susp:1; /* USb transceiver suspend state */
-	}__attribute__ ((packed)) usbctrl;
+	} __attribute__ ((packed)) usbctrl;
 	u8 x21[3];
 	struct{
-		unsigned :4;
+		unsigned:4;
 		unsigned dmpd:1; /* D- pulldown state (0 = disable) */
-		unsigned :1;
+		unsigned:1;
 		unsigned dppd:1; /* D+ pulldown state (0 = disable) */
 		unsigned dppu:1; /* D+ pullup state (0 = disable) */
-	}__attribute__ ((packed)) observe;
+	} __attribute__ ((packed)) observe;
 	u8 x22[3];
 	struct{
-		unsigned :4;
+		unsigned:4;
 		unsigned dppluuup:1; /* D+ pullup enable (non OTG mode) */
-		unsigned :3;
-	}__attribute__ ((packed)) control;
+		unsigned:3;
+	} __attribute__ ((packed)) control;
 	u8 x23[3];
 	struct{
 		unsigned resume_int:1;
 		unsigned sync_det:1;
-		unsigned :3;
+		unsigned:3;
 		unsigned async_resume_int_en:1;
 		unsigned strange:1;
 		unsigned reset:1;
-	}__attribute__ ((packed)) usbtrc0;
+	} __attribute__ ((packed)) usbtrc0;
 	u8 x24[7];
 	u8 usbfrmadjust;
 };
 
 /* Representation for Buffer Descriptor Table */
 
-struct k70_bd_entry
-{
+struct k70_bd_entry{
 	union{
 		struct{
-			unsigned :2;
+			unsigned:2;
 			unsigned stall:1;
 			unsigned dts:1;
 			unsigned no_adress_increment:1;
 			unsigned keep:1;
 			unsigned data0_1:1;
 			unsigned own:1;
-		}__attribute__ ((packed));
+		} __attribute__ ((packed));
 
 		struct{
-			unsigned :2;
+			unsigned:2;
 			unsigned tok_pid:4;
-		}__attribute__ ((packed));
-	}__attribute__ ((packed));
+		} __attribute__ ((packed));
+	} __attribute__ ((packed));
 
 
     u8 dummy;
     u16 bytecount; 		/* Bit 0..9: Byte Count */
     u32 addr;		/* Buffer Adress */
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 #define REQ_PACKET_PENDING 1
 #define REQ_DATA_BUFFER 2
@@ -326,10 +325,12 @@ struct fsl_udc {
 	/*
 	 * Spinlock to save hardware registers and buffer descriptors
 	 *
-	 * all fsl_* functions can be called from gadget layer without the lock held
+	 * all fsl_* functions can be called from gadget layer
+	 * without the lock held
 	 * they do spin_locK_irqsave() to disable the usb interrupt
 	 *
-	 * all callback_* functions are called in interrupt context and use spin_lock()
+	 * all callback_* functions are called in interrupt context and
+	 * use spin_lock()
 	 *
 	 * all dr_* functions are internal and called with the spinlock held
 	 */
@@ -341,7 +342,7 @@ struct fsl_udc {
 	unsigned remote_wakeup:1;
 
 	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
-	struct fsl_req *ep0_req_out, *ep0_req_in, *ep0_req_setup;	/* ep0 status request */
+	struct fsl_req *ep0_req_out, *ep0_req_in, *ep0_req_setup;
 
 	/* Buffer Descriptor Table (must at a 512-byte memory boundary!) */
 	struct k70_bd_entry *bd_table;
@@ -398,17 +399,18 @@ struct fsl_udc {
 #define DBG(fmt, args...) 	printk(KERN_DEBUG "[%s] " fmt "\n", \
 				__func__, ## args)
 
-#define MARKER() printk(KERN_ALERT "DEBUG: Passed %s %d \n",__FUNCTION__,__LINE__)
+#define MARKER() printk(KERN_ALERT \
+		"DEBUG: Passed %s %d \n", __func__, __LINE__)
 #else
-#define DBG(fmt, args...)	do{}while(0)
+#define DBG(fmt, args...)	do {} while (0)
 
-#define MARKER() do{}while(0)
+#define MARKER() do {} while (0)
 #endif
 
 #ifdef VERBOSE
 #define VDBG		DBG
 #else
-#define VDBG(stuff...)	do{}while(0)
+#define VDBG(stuff...)	do {} while (0)
 #endif
 
 #define ERR(stuff...)		pr_err("khci-udc: " stuff)

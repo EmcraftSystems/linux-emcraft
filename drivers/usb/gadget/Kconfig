@@ -304,7 +304,7 @@ config USB_S3C_HSOTG
 	depends on USB_GADGET_S3C_HSOTG
 	default USB_GADGET
 	select USB_GADGET_SELECTED
-	
+
 config USB_GADGET_KHCI_GCD
 	boolean "Freescale KHCI (USB-FS) Device controller"
 	depends on KINETIS_USBFS

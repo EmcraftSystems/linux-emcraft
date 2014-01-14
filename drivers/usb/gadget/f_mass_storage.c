@@ -616,7 +616,7 @@ static int fsg_setup(struct usb_function *f,
 		*(u8 *) req->buf = fsg->common->nluns - 1;
 		/* Backport from current kernel: queue req here */
 		req->length = min((u16)1, w_length);
-        return ep0_queue(fsg->common);
+		return ep0_queue(fsg->common);
 	}
 
 	VDBG(fsg,

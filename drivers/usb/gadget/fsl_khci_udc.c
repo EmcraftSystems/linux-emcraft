@@ -49,7 +49,7 @@ static const char driver_name[] = "fsl_khci_udc";
 static const char driver_desc[] = DRIVER_DESC;
 
 /* it is initialized in probe()  */
-struct fsl_udc *udc = NULL;
+struct fsl_udc *udc;
 
 volatile struct k70_usb0_regs *regs;
 
@@ -73,26 +73,29 @@ MODULE_PARM_DESC(use_own_buffer, "use extra buffer for OUT requests");
 
 /*-------------------------------------------------------------------------*/
 static void fsl_ep_fifo_flush(struct usb_ep *_ep);
-static void callback_dr_ep0_setup(struct usb_ep *_ep, struct usb_request *_req);
-static void callback_ep0_in_status(struct usb_ep *_ep, struct usb_request *_req);
-static void callback_ep0_out_status(struct usb_ep *_ep, struct usb_request *_req);
+static void callback_dr_ep0_setup(struct usb_ep *_ep,
+		struct usb_request *_req);
+static void callback_ep0_in_status(struct usb_ep *_ep,
+		struct usb_request *_req);
+static void callback_ep0_out_status(struct usb_ep *_ep,
+		struct usb_request *_req);
 
 /********************************************************************
 	Internal helper functions
 ********************************************************************/
-static struct k70_bd_entry* get_bd_entry(u8 endpoint_num, u8 dir, u8 odd)
+static struct k70_bd_entry *get_bd_entry(u8 endpoint_num, u8 dir, u8 odd)
 {
 	u32 num;
 
-	if(endpoint_num >= USB_NUM_ENDPOINTS){
+	if (endpoint_num >= USB_NUM_ENDPOINTS) {
 		ERR("get_bd_entry: endpoint_num not valid");
 		return NULL;
 	}
-	if(dir > 1){
+	if (dir > 1) {
 		ERR("get_bd_entry: dir not valid");
 		return NULL;
 	}
-	if(odd > 1){
+	if (odd > 1) {
 		ERR("get_bd_entry: odd not valid");
 		return NULL;
 	}
@@ -102,18 +105,19 @@ static struct k70_bd_entry* get_bd_entry(u8 endpoint_num, u8 dir, u8 odd)
 }
 
 /* get ODD Buffer for EVEN Buffer and EVEN for ODD */
-static struct k70_bd_entry* get_bd_entry_alt(struct k70_bd_entry* bd)
+static struct k70_bd_entry *get_bd_entry_alt(struct k70_bd_entry *bd)
 {
-	return (void*)((u32)bd ^ (1<<3));
+	return (void *)((u32)bd ^ (1<<3));
 }
 
-u8 bd_entry_is_odd(struct k70_bd_entry* bd)
+u8 bd_entry_is_odd(struct k70_bd_entry *bd)
 {
 	return !!((u32)bd & (1<<3));
 }
 
 
-volatile struct endpoint_register* endpt_reg(u8 num){
+volatile struct endpoint_register *endpt_reg(u8 num)
+{
 	return &(regs->endpoints[num * 4]);
 }
 
@@ -125,10 +129,10 @@ void print_data(void *data, int length)
 {
 #ifdef VERBOSE
 	int i;
-	printk(KERN_INFO "Data (%u byte): ",length);
-	for(i=0;i<length;i++){
-		printk(" %02X",((u8*)data)[i]);
-	}
+	printk(KERN_INFO "Data (%u byte): ", length);
+	for (i = 0; i < length; i++)
+		printk(" %02X", ((u8 *)data)[i]);
+
 	printk("\n");
 #endif
 }
@@ -136,17 +140,18 @@ void print_data(void *data, int length)
 static void check_bd_adress(void)
 {
 	u32 bd_entry_addr = (u32)udc->bd_table_dma;
-	u32 bd_adr=0;
+	u32 bd_adr = 0;
 
 	bd_adr |= (u32)regs->bdtpage3 << 24;
 	bd_adr |= (u32)regs->bdtpage2 << 16;
 	bd_adr |= (u32)regs->bdtpage1 << 8;
 
-	if(bd_entry_addr != bd_adr){
-		ERR("BD Address mismatch! (u32)bd = %X  !=  bd_adr = %X",bd_entry_addr,bd_adr);
+	if (bd_entry_addr != bd_adr) {
+		ERR("BD Address mismatch! (u32)bd = %X  !=  bd_adr = %X",
+				bd_entry_addr, bd_adr);
 	}
 
-	if((bd_entry_addr & 0x1FF) != 0)
+	if ((bd_entry_addr & 0x1FF) != 0)
 		DBG("BD Table not on 512 byte boundary!");
 }
 
@@ -154,22 +159,28 @@ static void check(void)
 {
 #ifdef DEBUG
 	/* Test some addresses */
-	if((u32)&(regs->perid) != 0x40072000)
-		ERR("address of regs->perid != 0x40072000 (0x%X)",(u32)&(regs->perid) );
-	if((u32)&(regs->usbfrmadjust) != 0x40072114)
-		ERR("address of regs->usbfrmadjust != 0x40072114 (0x%X)",(u32)&(regs->usbfrmadjust) );
-	if((u32)&(regs->ctl) != 0x40072094)
-		ERR("address of regs->ctl != 0x40072094 (0x%X)",(u32)&(regs->ctl) );
+	if ((u32)&(regs->perid) != 0x40072000)
+		ERR("address of regs->perid != 0x40072000 (0x%X)",
+				(u32)&(regs->perid));
+	if ((u32)&(regs->usbfrmadjust) != 0x40072114)
+		ERR("address of regs->usbfrmadjust != 0x40072114 (0x%X)",
+				(u32)&(regs->usbfrmadjust));
+	if ((u32)&(regs->ctl) != 0x40072094)
+		ERR("address of regs->ctl != 0x40072094 (0x%X)",
+				(u32)&(regs->ctl));
 
-	if((u32)&(endpt_reg(0)->reg_value) != 0x400720C0)
-		ERR("address of regs->endpt0 != 0x400720C0 (0x%X)",(u32)&(endpt_reg(0)->reg_value) );
-	if((u32)&(endpt_reg(15)->reg_value) != 0x400720FC)
-		ERR("address of regs->endpt15 != 0x400720FC (0x%X)",(u32)&(endpt_reg(15)->reg_value) );
+	if ((u32)&(endpt_reg(0)->reg_value) != 0x400720C0)
+		ERR("address of regs->endpt0 != 0x400720C0 (0x%X)",
+				(u32)&(endpt_reg(0)->reg_value));
+	if ((u32)&(endpt_reg(15)->reg_value) != 0x400720FC)
+		ERR("address of regs->endpt15 != 0x400720FC (0x%X)",
+				(u32)&(endpt_reg(15)->reg_value));
 
-	if((u32)&(regs->usbctrl) != 0x40072100)
-		ERR("address of regs->usbctrl != 0x40072100 (0x%X)",(u32)&(regs->usbctrl) );
+	if ((u32)&(regs->usbctrl) != 0x40072100)
+		ERR("address of regs->usbctrl != 0x40072100 (0x%X)",
+				(u32)&(regs->usbctrl));
 
-	if(sizeof(struct k70_bd_entry) * USB_NUM_ENDPOINTS_BUFFERS != 512)
+	if (sizeof(struct k70_bd_entry) * USB_NUM_ENDPOINTS_BUFFERS != 512)
 		ERR("total size of buffer descriptor table mismatch!");
 #endif
 }
@@ -183,17 +194,19 @@ static void dr_unbuffer(struct fsl_req *req)
 
 	buf = ep->next_free_bd;
 
-	if(!buf){
+	if (!buf) {
 		/* all buffers are used */
 		buf = ep->next_use_bd;
 	}
 	buf = buf->alt_buffer;
 
-	for(i=0;i<=1;i++){
-		if(!buf->in_use) continue;
-		if(buf->req != req) continue;
+	for (i = 0; i <= 1; i++) {
+		if (!buf->in_use)
+			continue;
+		if (buf->req != req)
+			continue;
 
-		if(buf->bd_entry->own){
+		if (buf->bd_entry->own) {
 			/* buffer was not used for a transmission */
 			buf->bd_entry->own = 0;
 			buf->bd_entry->stall = 0;
@@ -203,7 +216,7 @@ static void dr_unbuffer(struct fsl_req *req)
 
 		buf->in_use = 0;
 		buf->req = NULL;
-		req->ep->stat.buffers_freed ++;
+		req->ep->stat.buffers_freed++;
 
 		buf = buf->alt_buffer;
 	}
@@ -219,18 +232,19 @@ static void dr_done(struct fsl_ep *ep, struct fsl_req *req, int status)
 	list_del_init(&req->queue);
 
 	dr_unbuffer(req);
-	ep->stat.requests_complete ++;
+	ep->stat.requests_complete++;
 
-	if(req->req.length > 0){
-		if(req->ep->dir == EP_DIR_IN){
+	if (req->req.length > 0) {
+		if (req->ep->dir == EP_DIR_IN) {
 			dma_unmap_single(NULL, req->req.dma, req->req.length,
-				req->ep->dir == EP_DIR_IN ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+				req->ep->dir == EP_DIR_IN ?
+					DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		}
 		mb();
 		kinetis_ps_cache_flush();
 	}
 
-	if(udc->ep0_dir == USB_DIR_IN && ep == &udc->eps[1])
+	if (udc->ep0_dir == USB_DIR_IN && ep == &udc->eps[1])
 		ep = &udc->eps[0]; /* switch back to EP0.0 */
 
 	req->req.status = status;
@@ -249,7 +263,7 @@ static void dr_done(struct fsl_ep *ep, struct fsl_req *req, int status)
  *--------------------------------------------------------------*/
 static void dr_nuke(struct fsl_ep *ep, int status)
 {
-	int c=0;
+	int c = 0;
 
 	while (!list_empty(&ep->queue)) {
 		struct fsl_req *req = NULL;
@@ -265,7 +279,8 @@ static void dr_nuke(struct fsl_ep *ep, int status)
 	fsl_ep_fifo_flush(&ep->ep);
 	spin_lock(&udc->lock);
 
-	if(c) VDBG("entries %s: %u",ep->name,c);
+	if (c)
+		VDBG("entries %s: %u", ep->name, c);
 }
 
 /*
@@ -307,27 +322,28 @@ static void dr_reset_data0_1(struct fsl_ep *ep)
 static int dr_ep_set_buffer_descriptor(struct fsl_req *req,
 		struct fsl_buffer_descriptor *bd)
 {
-	int remaining_bytes =req->req.length - req->planned;
+	int remaining_bytes = req->req.length - req->planned;
 	int datalength = min(remaining_bytes, (int)req->ep->ep.maxpacket);
-	u8 *curr_buf = (u8*)req->req.dma + (u32)req->planned;
+	u8 *curr_buf = (u8 *)req->req.dma + (u32)req->planned;
 	struct k70_bd_entry *bd_ptr = bd->bd_entry;
 
-	VDBG("%s %s %s: %u bytes  %u/%u (DATA%u) %s",req->ep->ep.name,
-			req->ep->dir ? "IN ":"OUT",
-			bd_entry_is_odd(bd_ptr) ? "ODD ":"EVEN",
-			datalength,req->planned, req->req.length, req->data0_1,
-			(req->stall)?"STALL":"");
+	VDBG("%s %s %s: %u bytes  %u/%u (DATA%u) %s", req->ep->ep.name,
+			req->ep->dir ? "IN " : "OUT",
+			bd_entry_is_odd(bd_ptr) ? "ODD " : "EVEN",
+			datalength, req->planned, req->req.length, req->data0_1,
+			(req->stall) ? "STALL" : "");
 
-	if(req->ep->dir == EP_DIR_IN || !use_own_buffer)
+	if (req->ep->dir == EP_DIR_IN || !use_own_buffer)
 		bd_ptr->addr = (u32)curr_buf;
 
 	bd_ptr->bytecount = datalength;
 
 	/*
 	 * Data0_1 change only for EP0
-	 * all other endpoints keep one buffer for data0 and the other for data 1
+	 * all other endpoints keep one buffer for data0
+	 * and the other for data 1
 	 */
-	if(ep_index(req->ep)==0){
+	if (ep_index(req->ep) == 0) {
 		bd_ptr->data0_1 = req->data0_1;
 		req->data0_1 = !req->data0_1;
 	}
@@ -342,7 +358,7 @@ static int dr_ep_set_buffer_descriptor(struct fsl_req *req,
 	bd->in_use = 1;
 	bd->req = req;
 
-	req->ep->stat.buffers_set ++;
+	req->ep->stat.buffers_set++;
 
 	return datalength;
 }
@@ -358,30 +374,30 @@ static void dr_fill_buffer(struct fsl_req *req)
 	req->planned += datalength;
 
 	/* zero length packet already queued */
-	if(datalength == 0){
+	if (datalength == 0) {
 		req->state = REQ_READY;
 		return;
 	}
 
 	/* data completely queued but zero length packet needed */
-	if(req->planned == req->req.length && req->send_zero_packet){
+	if (req->planned == req->req.length && req->send_zero_packet) {
 		req->state = REQ_PACKET_PENDING;
 		return;
 	}
 	/* last queued packet was last data packet and not full */
-	if(req->planned == req->req.length && datalength > 0){
+	if (req->planned == req->req.length && datalength > 0) {
 		req->state = REQ_READY;
 		return;
 	}
 
 	/* for OUT requests only use one buffer at a time */
-	if(req->ep->dir == EP_DIR_OUT && datalength!=0){
+	if (req->ep->dir == EP_DIR_OUT && datalength != 0) {
 		req->state = REQ_DATA_BUFFER;
 		return;
 	}
 
 	/* data pending */
-	if(req->planned < req->req.length){
+	if (req->planned < req->req.length) {
 		req->state = REQ_PACKET_PENDING;
 		return;
 	}
@@ -393,29 +409,27 @@ static void dr_check_dequeue(struct fsl_ep *ep)
 	struct fsl_req *req, *temp_req;
 	u8 num_free_buffers = 0;
 
-	if(list_empty(&ep->queue)){
+	if (list_empty(&ep->queue))
 		return;
-	}
 
-	if(ep->ep_bd[0]->in_use == 0)
+	if (ep->ep_bd[0]->in_use == 0)
 		num_free_buffers++;
-	if(ep->ep_bd[1]->in_use == 0)
+	if (ep->ep_bd[1]->in_use == 0)
 		num_free_buffers++;
 
 
 	/* all buffers currently used */
-	if(ep->next_free_bd == NULL || num_free_buffers == 0)
+	if (ep->next_free_bd == NULL || num_free_buffers == 0)
 		return;
 
 	req = list_first_entry(&ep->queue, struct fsl_req, queue);
 	list_for_each_entry_safe_from(req, temp_req, &ep->queue, queue) {
-		while(req->state == REQ_PACKET_PENDING){
-
+		while (req->state == REQ_PACKET_PENDING) {
 			dr_fill_buffer(req);
 
 			num_free_buffers--;
 
-			if(num_free_buffers == 0){
+			if (num_free_buffers == 0) {
 				ep->next_free_bd = NULL;
 				return;
 			}
@@ -424,7 +438,7 @@ static void dr_check_dequeue(struct fsl_ep *ep)
 		}
 
 		/* OUT traffic does not know how much data will be send */
-		if(req->state == REQ_DATA_BUFFER)
+		if (req->state == REQ_DATA_BUFFER)
 			return;
 	}
 }
@@ -433,16 +447,18 @@ static void dr_check_dequeue(struct fsl_ep *ep)
 static int dr_queue_request(struct fsl_req *req)
 {
 	/* DMA map the data buffer */
-	if(req->req.length > 0){
+	if (req->req.length > 0) {
 		kinetis_ps_cache_flush();
 		mb();
 
-		if(req->ep->dir == EP_DIR_IN || !use_own_buffer){
-			req->req.dma = dma_map_single(NULL, req->req.buf, req->req.length,
-				req->ep->dir == EP_DIR_IN ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		if (req->ep->dir == EP_DIR_IN || !use_own_buffer) {
+			req->req.dma = dma_map_single(
+				NULL, req->req.buf, req->req.length,
+				req->ep->dir == EP_DIR_IN ?
+					DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
-			if(dma_mapping_error(NULL, req->req.dma)){
-				ERR("dma mapping error %s",req->ep->name);
+			if (dma_mapping_error(NULL, req->req.dma)) {
+				ERR("dma mapping error %s", req->ep->name);
 				return -ENOMEM;
 			}
 		}
@@ -452,7 +468,7 @@ static int dr_queue_request(struct fsl_req *req)
 	req->req.actual = 0;
 	req->planned = 0;
 
-	req->ep->stat.requests_set ++;
+	req->ep->stat.requests_set++;
 
 	list_add_tail(&req->queue, &req->ep->queue);
 
@@ -532,13 +548,12 @@ static void dr_ep_setup(u8 ep_num, u8 dir, u8 ep_type, u8 enable)
 			ep_num, dir, ep_type, enable);
 
 	ep->stall = 0;
-	if(dir == USB_SEND){
+	if (dir == USB_SEND)
 		ep->txen = enable;
-	}else{
+	else
 		ep->rxen = enable;
-	}
 
-	switch(ep_type){
+	switch (ep_type) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		ep->handshake = 1;
 		ep->disablecontrol = 0;
@@ -563,21 +578,21 @@ static void dr_ep_setup(u8 ep_num, u8 dir, u8 ep_type, u8 enable)
  */
 static void dr_ep_change_stall(struct fsl_ep *ep, u8 value)
 {
-	VDBG("%s stall %u => %u",ep->name, ep->endpt_reg->stall, value);
+	VDBG("%s stall %u => %u", ep->name, ep->endpt_reg->stall, value);
 
 	/* EP0 */
-	if(ep_index(ep)==0){
-		endpt_reg(0)->stall = (value) ? 1: 0;
-		regs->inten.stall = (value) ? 1: 0;
+	if (ep_index(ep) == 0) {
+		endpt_reg(0)->stall = (value) ? 1 : 0;
+		regs->inten.stall = (value) ? 1 : 0;
 		return;
 	}
 
-	if(ep->endpt_reg->stall == 0 && value == 1){
+	if (ep->endpt_reg->stall == 0 && value == 1) {
 		ep->endpt_reg->stall = 1;
 		dr_nuke(ep, -ESHUTDOWN);
 	}
 
-	if(ep->endpt_reg->stall == 1 && value == 0){
+	if (ep->endpt_reg->stall == 1 && value == 0) {
 		endpt_reg(1)->stall = 0;
 		dr_reset_data0_1(ep);
 	}
@@ -585,7 +600,7 @@ static void dr_ep_change_stall(struct fsl_ep *ep, u8 value)
 
 /* Get stall status of a specific ep
    Return: 0: not stalled; 1:stalled */
-static volatile int dr_ep_get_stall(struct fsl_ep *ep)
+static int dr_ep_get_stall(struct fsl_ep *ep)
 {
 	return ep->endpt_reg->stall;
 }
@@ -636,9 +651,9 @@ static void dr_controller_stop(void)
 	regs->control.dppluuup = 0;
 }
 
-/*-----------------------------------------------------------------------------
+/*----------------------------------------------------------------------------
  * endpoint-specific parts of the api to the usb controller hardware
- *-----------------------------------------------------------------------------*/
+ *---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------
  * allocate a request object used by this endpoint
@@ -661,7 +676,8 @@ fsl_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	req->stall = 0;
 	req->data0_1 = 0;
 
-	DBG("alloc request for %s addr=%X b %X",_ep->name, (u32)req, (u32)req->req.buf);
+	DBG("alloc request for %s addr=%X b %X", _ep->name, (u32)req,
+			(u32)req->req.buf);
 	return &req->req;
 }
 
@@ -669,9 +685,8 @@ static void fsl_free_request(struct usb_ep *ep, struct usb_request *_req)
 {
 	struct fsl_req *req = NULL;
 
-	DBG("free request for %s",ep->name);
+	DBG("free request for %s", ep->name);
 	req = container_of(_req, struct fsl_req, req);
-
 
 	if (_req)
 		kfree(req);
@@ -694,7 +709,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 	int ret = 0;
 	unsigned long flags;
 
-	VDBG("enabling %s",_ep->name);
+	VDBG("enabling %s", _ep->name);
 
 	/* catch various bogus parameters */
 	if (!_ep || !desc || ep->desc
@@ -704,7 +719,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 	if (!udc->driver || (udc->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
 
-	if((desc->bmAttributes & 0x03) == USB_ENDPOINT_XFER_ISOC){
+	if ((desc->bmAttributes & 0x03) == USB_ENDPOINT_XFER_ISOC) {
 		ERR("Isochronous endpoints not supported!");
 		return -EINVAL;
 	}
@@ -718,7 +733,8 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 
 	/* Init endpoint ctrl register */
 	dr_ep_setup((u8) ep_index(ep),
-			(u8) ((desc->bEndpointAddress & USB_DIR_IN)	? USB_SEND : USB_RECV),
+			(u8) ((desc->bEndpointAddress & USB_DIR_IN)	?
+					USB_SEND : USB_RECV),
 			(u8) (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK),
 			1);
 
@@ -735,7 +751,7 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 {
 	struct fsl_ep *ep = container_of(_ep, struct fsl_ep, ep);
 	unsigned long flags;
-	VDBG("disabling %s",_ep->name);
+	VDBG("disabling %s", _ep->name);
 
 	/* catch various bogus parameters */
 	if (!_ep || !ep->desc || ep_index(ep) == 0)
@@ -745,8 +761,10 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 
 	/* Init endpoint ctrl register */
 	dr_ep_setup((u8) ep_index(ep),
-			(u8) ((ep->desc->bEndpointAddress & USB_DIR_IN)	? USB_SEND : USB_RECV),
-			(u8) (ep->desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK),
+			(u8) ((ep->desc->bEndpointAddress & USB_DIR_IN)	?
+					USB_SEND : USB_RECV),
+			(u8) (ep->desc->bmAttributes &
+					USB_ENDPOINT_XFERTYPE_MASK),
 			0);
 
 
@@ -780,50 +798,48 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		return -EINVAL;
 	}
 	if (ep->desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
-		if (req->req.length > ep->ep.maxpacket){
-			ERR("req->req.length = %u > ep->ep.maxpacket = %u",req->req.length,
-					ep->ep.maxpacket);
+		if (req->req.length > ep->ep.maxpacket) {
+			ERR("req->req.length = %u > ep->ep.maxpacket = %u",
+					req->req.length, ep->ep.maxpacket);
 			return -EMSGSIZE;
 		}
 		return -EINVAL;
 	}
 
-	if (!udc->driver){
+	if (!udc->driver) {
 		ERR("ep_queues: no driver: error shutdown");
 		return -ESHUTDOWN;
 	}
-	if (udc->gadget.speed == USB_SPEED_UNKNOWN){
-		ERR("ep_queues: error shutdown (udc->gadget.speed == USB_SPEED_UNKNOWN)");
+	if (udc->gadget.speed == USB_SPEED_UNKNOWN) {
+		ERR("ep_queues: error shutdown (USB_SPEED_UNKNOWN)");
 		return -ESHUTDOWN;
 	}
 
 	req->stall = 0;
 	req->data0_1 = 0;
 
-
-	if(ep_index(ep) == 0){
+	if (ep_index(ep) == 0) {
 		req->data0_1 = 1;
-		if(udc->ep0_dir == 123){
+		if (udc->ep0_dir == 123) {
 			DBG("no EP0 DIR!");
 			return -EINVAL;
 		}
 
-		if(udc->ep0_dir == USB_DIR_IN){
+		if (udc->ep0_dir == USB_DIR_IN)
 			req->ep = &udc->eps[1];
-		}else{
+		else
 			req->ep = &udc->eps[0];
-		}
 	}
 
 	req->send_zero_packet = 0;
 	/* check if zero packet is needed */
-	if(req->req.zero && req->ep->dir == EP_DIR_IN){
-		if((req->req.length % req->ep->ep.maxpacket) == 0)
+	if (req->req.zero && req->ep->dir == EP_DIR_IN) {
+		if ((req->req.length % req->ep->ep.maxpacket) == 0)
 			req->send_zero_packet = 1;
 	}
 
-	VDBG("gadget have request in %s! %d byte %X", req->ep->ep.name, req->req.length,
-			(u32)req->req.buf);
+	VDBG("gadget have request in %s! %d byte %X", req->ep->ep.name,
+			req->req.length, (u32)req->req.buf);
 
 	spin_lock_irqsave(&udc->lock, flags);
 	ret = dr_queue_request(req);
@@ -841,9 +857,8 @@ static int fsl_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	VDBG("dequeue request for %s", ep->name);
 
-	if(req->ep != ep){
+	if (req->ep != ep)
 		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&udc->lock, flags);
 	dr_done(ep, req, -ECONNRESET);
@@ -948,7 +963,7 @@ static int fsl_vbus_draw(struct usb_gadget *gadget, unsigned mA)
  */
 static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 {
-	DBG("Pull UP = %u",is_on);
+	DBG("Pull UP = %u", is_on);
 	regs->control.dppluuup = (is_on) ? 1 : 0;
 	return 0;
 }
@@ -975,20 +990,21 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	printk(KERN_INFO "%s: bind to driver %s\n",
 			udc->gadget.name, driver->driver.name);
-	if (!udc){
+	if (!udc) {
 		retval = -ENODEV;
 		goto out;
 	}
 
 	if (!driver
-			|| (driver->speed != USB_SPEED_FULL && driver->speed != USB_SPEED_HIGH)
+			|| (driver->speed != USB_SPEED_FULL
+					&& driver->speed != USB_SPEED_HIGH)
 			|| !driver->bind || !driver->disconnect
-			|| !driver->setup){
+			|| !driver->setup) {
 		retval = -EINVAL;
 		goto out;
 	}
 
-	if (udc->driver){
+	if (udc->driver) {
 		retval = -EBUSY;
 		goto out;
 	}
@@ -1075,36 +1091,33 @@ EXPORT_SYMBOL(usb_gadget_unregister_driver);
 	Internal Hardware related function
  ------------------------------------------------------------------*/
 
-
 static void __init dr_controller_setup(void)
 {
 	u32 dma_adr = (u32)udc->bd_table_dma;
 
 	DBG("controller setup");
 	regs->usbtrc0.reset = 1;
-	while(regs->usbtrc0.reset == 1){;}
+	while (regs->usbtrc0.reset == 1)
+		;
 
-
-	regs->bdtpage1=(u8)(dma_adr >> 8);
-	regs->bdtpage2=(u8)(dma_adr >> 16);
-	regs->bdtpage3=(u8)(dma_adr >> 24);
+	regs->bdtpage1 = (u8)(dma_adr >> 8);
+	regs->bdtpage2 = (u8)(dma_adr >> 16);
+	regs->bdtpage3 = (u8)(dma_adr >> 24);
 
 	check_bd_adress();
 
-	regs->ctl.hostmode=0;
+	regs->ctl.hostmode = 0;
 
 	/* Clear Interrupt Flags */
 	clear_all_int_flags();
 	clear_all_err_flags();
 
-	regs->usbtrc0.strange=1;
-
 	/* Activate USB transceiver  */
-	regs->usbctrl.susp=0;
-	regs->usbctrl.pde=0;
+	regs->usbctrl.susp = 0;
+	regs->usbctrl.pde = 0;
 
 	/* Enable USB module */
-	regs->ctl.usben=1;
+	regs->ctl.usben = 1;
 }
 
 /*
@@ -1114,23 +1127,20 @@ void dr_reset_handler(void)
 {
 	int i;
 
-	regs->usbtrc0.strange=1;
-
 	dr_reset_queues();
 
     /* Disable all EP registers */
-    for(i=0;i<USB_NUM_ENDPOINTS;i++){
-    	endpt_reg(i)->reg_value=0;
-    }
+    for (i = 0; i < USB_NUM_ENDPOINTS; i++)
+	endpt_reg(i)->reg_value = 0;
 
-    for(i=0;i<USB_NUM_PIPES;i++){
-    	udc->eps[i].next_free_bd = udc->eps[i].ep_bd[0];
-    	udc->eps[i].next_use_bd = udc->eps[i].ep_bd[0];
+    for (i = 0; i < USB_NUM_PIPES; i++) {
+		udc->eps[i].next_free_bd = udc->eps[i].ep_bd[0];
+		udc->eps[i].next_use_bd = udc->eps[i].ep_bd[0];
 
-    	udc->eps[i].ep_bd[0]->in_use = 0;
-    	udc->eps[i].ep_bd[0]->req = NULL;
-    	udc->eps[i].ep_bd[1]->in_use = 0;
-    	udc->eps[i].ep_bd[1]->req = NULL;
+		udc->eps[i].ep_bd[0]->in_use = 0;
+		udc->eps[i].ep_bd[0]->req = NULL;
+		udc->eps[i].ep_bd[1]->in_use = 0;
+		udc->eps[i].ep_bd[1]->req = NULL;
     }
 	regs->ctl.oddrst = 1;
 
@@ -1164,8 +1174,8 @@ void dr_reset_handler(void)
 	regs->ctl.suspend_busy = 0;
 	regs->ctl.oddrst = 0;
 
-	regs->usbctrl.susp=0;
-	regs->usbctrl.pde=0;
+	regs->usbctrl.susp = 0;
+	regs->usbctrl.pde = 0;
 
 	/* Enable EP0 */
 	dr_ep_setup(0, USB_SEND, USB_ENDPOINT_XFER_CONTROL, 1);
@@ -1249,7 +1259,8 @@ static void callback_dr_ep0_setup(struct usb_ep *_ep, struct usb_request *_req)
 	u16 wIndex = le16_to_cpu(setup->wIndex);
 	u16 wLength = le16_to_cpu(setup->wLength);
 
-	if(req->req.status < 0) return;
+	if (req->req.status < 0)
+		return;
 
 	spin_lock(&udc->lock);
 
@@ -1280,7 +1291,8 @@ static void callback_dr_ep0_setup(struct usb_ep *_ep, struct usb_request *_req)
 
 		if ((setup->bRequestType & (USB_RECIP_MASK | USB_TYPE_MASK))
 				== (USB_RECIP_ENDPOINT | USB_TYPE_STANDARD)) {
-			struct fsl_ep *target_ep = &udc->eps[get_pipe_by_windex(wIndex)];
+			struct fsl_ep *target_ep =
+					&udc->eps[get_pipe_by_windex(wIndex)];
 
 			if (wValue != 0 || wLength != 0 ||
 					target_ep->ep.maxpacket == 0xFFFF){
@@ -1289,7 +1301,8 @@ static void callback_dr_ep0_setup(struct usb_ep *_ep, struct usb_request *_req)
 			}
 
 			dr_ep_change_stall(target_ep,
-					setup->bRequest == USB_REQ_SET_FEATURE ? 1 : 0);
+					setup->bRequest ==
+						USB_REQ_SET_FEATURE ? 1 : 0);
 
 		} else
 			break;
@@ -1320,15 +1333,15 @@ static void callback_dr_ep0_setup(struct usb_ep *_ep, struct usb_request *_req)
 	spin_lock(&udc->lock);
 
 	/* error returned: stall ep0 */
-	if(ret < 0){
+	if (ret < 0) {
 		dr_ep0_setup_token();
-		dr_ep_change_stall(&udc->eps[0],1);
+		dr_ep_change_stall(&udc->eps[0], 1);
 		goto out;
 	}
 
 	if (wLength) {
 		/* Data phase from gadget, status phase from udc */
-		if(udc->ep0_dir == USB_DIR_IN)
+		if (udc->ep0_dir == USB_DIR_IN)
 			dr_ep0_out_status(0);
 		else
 			dr_ep0_in_status(0);
@@ -1344,27 +1357,29 @@ static void callback_dr_ep0_setup(struct usb_ep *_ep, struct usb_request *_req)
 	goto out;
 
 out:
-	regs->ctl.suspend_busy=0;
+	regs->ctl.suspend_busy = 0;
 	spin_unlock(&udc->lock);
 }
 
 static void callback_ep0_in_status(struct usb_ep *_ep, struct usb_request *_req)
 {
 	udc->ep0_state = WAIT_FOR_SETUP;
-	if(_req->status < 0) return;
+	if (_req->status < 0)
+		return;
 
 	spin_lock(&udc->lock);
-	if(udc->usb_state == USB_STATE_ADDRESS && regs->addr.addr == 0){
-		INFO("address %u",udc->device_address);
+	if (udc->usb_state == USB_STATE_ADDRESS && regs->addr.addr == 0) {
+		INFO("address %u", udc->device_address);
 		regs->addr.addr = udc->device_address;
 		dr_ep0_reset();
 	}
 
 	spin_unlock(&udc->lock);
 }
-static void callback_ep0_out_status(struct usb_ep *_ep, struct usb_request *_req)
+static void callback_ep0_out_status(struct usb_ep *_ep,
+		struct usb_request *_req)
 {
-	if(udc->ep0_state == DATA_IN){
+	if (udc->ep0_state == DATA_IN) {
 		VDBG("Reset IN queue");
 		spin_lock(&udc->lock);
 		dr_reset_pipe(1);
@@ -1374,13 +1389,14 @@ static void callback_ep0_out_status(struct usb_ep *_ep, struct usb_request *_req
 	}
 }
 
-char* get_pid_name(u8 pid){
+static char *get_pid_name(u8 pid)
+{
 	return pid == USB_PID_SETUP ? "SETUP" :
 			pid == USB_PID_OUT ? "OUT" :
 					pid == USB_PID_IN ? "IN" : "ERR";
 }
 
-static struct fsl_buffer_descriptor* buffer_for_entry(struct k70_bd_entry *bd,
+static struct fsl_buffer_descriptor *buffer_for_entry(struct k70_bd_entry *bd,
 		struct fsl_ep *ep){
 	return ep->ep_bd[0]->bd_entry == bd ? ep->ep_bd[0] : ep->ep_bd[1];
 }
@@ -1402,78 +1418,78 @@ static void dr_token_handler(struct status_register stat)
 
 	ep->next_use_bd = buffer_alt;
 
-	VDBG("EP%u %s %s\t%u byte %s (%u) Data%u",stat.endp,stat.tx ? "IN":"OUT",
+	VDBG("EP%u %s %s\t%u byte %s (%u) Data%u", stat.endp,
+		stat.tx ? "IN" : "OUT",
 		stat.odd ? "ODD" : "EVEN", bd->bytecount,
 		get_pid_name(bd->tok_pid),
 		bd->tok_pid,
 		bd->data0_1);
 
-	if(dr_ep_get_stall(ep)){
+	if (dr_ep_get_stall(ep)) {
 		DBG("%s stalled", ep->name);
 		return;
 	}
 
-	if(list_empty(&ep->queue)){
-		ERR("No requests in %s queue!",ep->ep.name);
+	if (list_empty(&ep->queue)) {
+		ERR("No requests in %s queue!", ep->ep.name);
 		return;
 	}
 	req = list_first_entry(&ep->queue, struct fsl_req, queue);
 
-	if(req != buffer->req){
+	if (req != buffer->req)
 		ERR("Requests do not match!");
-	}
 
-	if(bd->own){
+	if (bd->own) {
 		ERR("Buffer descriptor is owned by SIE!");
 		return;
 	}
 
 	target = req->req.buf + req->req.actual;
-	source = (u8*)bd->addr;
+	source = (u8 *)bd->addr;
 	count = bd->bytecount;
 
 	req->req.actual += buffer->bd_entry->bytecount;
 	ep->stat.bytes_transfered += buffer->bd_entry->bytecount;
 
-	if(req->ep->dir == EP_DIR_OUT){
+	if (req->ep->dir == EP_DIR_OUT) {
 		req->state = REQ_PACKET_PENDING;
-		if(bd->bytecount < req->ep->ep.maxpacket){
+		if (bd->bytecount < req->ep->ep.maxpacket)
 			req->state = REQ_READY;
-		}
 
-		if(req->req.actual == req->req.length)
+		if (req->req.actual == req->req.length)
 			req->state = REQ_READY;
 	}
 
 	buffer->in_use = 0;
 	buffer->req = NULL;
-	ep->stat.buffers_freed ++;
+	ep->stat.buffers_freed++;
 
-	if(buffer_alt->in_use)
+	if (buffer_alt->in_use)
 		ep->next_free_bd = buffer;
 	else
 		ep->next_free_bd = buffer_alt;
 
-	if(req->state == REQ_READY){
+	if (req->state == REQ_READY) {
 
-		if(req->ep->dir == EP_DIR_OUT && use_own_buffer){
+		if (req->ep->dir == EP_DIR_OUT && use_own_buffer) {
 			memcpy(target, source, count);
 			count = 0;
 		}
 
-		if(!(req->ep->dir == EP_DIR_IN && buffer_alt->req == req))
+		if (!(req->ep->dir == EP_DIR_IN && buffer_alt->req == req))
 			dr_done(ep, req, 0);
 	}
 
 	dr_check_dequeue(ep);
 
-	if(req->ep->dir == EP_DIR_OUT && count && use_own_buffer){
+	if (req->ep->dir == EP_DIR_OUT && count && use_own_buffer)
 		memcpy(target, source, count);
-	}
+
 	return;
 }
 
-static void dr_clear_int(u8 bit){
+static void dr_clear_int(u8 bit)
+{
 	regs->istat.regvalue = (1 << bit);
 }
 
@@ -1481,72 +1497,78 @@ static void dr_clear_int(u8 bit){
  * USB device controller interrupt handler
  * on entry: spinlock not held
  */
-volatile u8 t1;
 static irqreturn_t callback_udc_irq(int irq, void *_udc)
 {
 	union status_register_union stat;
 	union int_status istat;
 
 	spin_lock(&udc->lock);
-	t1++;
 
 	istat.regvalue = regs->istat.regvalue;
 	istat.regvalue &= regs->inten.regvalue;
 
 	/* stay in interrupt until no new interrupt is asserted */
-	while(istat.regvalue != 0){
-		if(istat.error){
-			ERR("USB Error: %u",regs->errstat.regvalue);
+	while (istat.regvalue != 0) {
+		if (istat.error) {
+			ERR("USB Error: %u", regs->errstat.regvalue);
 
-			if(regs->errstat.btoerr) ERR("Timeout error");
-			if(regs->errstat.btserr)ERR("bit stuff error");
-			if(regs->errstat.crc16)ERR("CRC16 error");
-			if(regs->errstat.crc5)ERR("CRC5 error");
-			if(regs->errstat.dfn8)ERR("not 8 bits");
-			if(regs->errstat.dmaerr)ERR("DMA error");
-			if(regs->errstat.piderr)ERR("PID error");
+			if (regs->errstat.btoerr)
+				ERR("Timeout error");
+			if (regs->errstat.btserr)
+				ERR("bit stuff error");
+			if (regs->errstat.crc16)
+				ERR("CRC16 error");
+			if (regs->errstat.crc5)
+				ERR("CRC5 error");
+			if (regs->errstat.dfn8)
+				ERR("not 8 bits");
+			if (regs->errstat.dmaerr)
+				ERR("DMA error");
+			if (regs->errstat.piderr)
+				ERR("PID error");
 
-			udc->error_count ++;
+			udc->error_count++;
 
 			clear_all_err_flags();
 			dr_clear_int(INT_ERROR);
 		}
 
-		if(istat.resume){
-			if(regs->inten.resume)
+		if (istat.resume) {
+			if (regs->inten.resume)
 				DBG("RESUME");
 			regs->inten.resume = 0;
 			dr_clear_int(INT_RESUME);
 		}
-		if(istat.sleep){
+		if (istat.sleep) {
 			DBG("SLEEP");
 			regs->inten.resume = 1;
 			dr_clear_int(INT_SLEEP);
 		}
 
-		if(istat.usbrst){
+		if (istat.usbrst) {
 			DBG("USB Reset Int");
 			dr_reset_handler();
 			goto out;
 		}
 
 		/* stall int only enabled then ep0 is stalled */
-		if(istat.stall){
+		if (istat.stall) {
 			VDBG("STALL send.");
 
 			/* short delay before clearing the stall on EP0
-			 * otherwise the host sometimes waits for an data phase */
+			 * otherwise the host sometimes waits for an
+			 * data phase */
 			udelay(100);
 
 			wmb();
-			dr_ep_change_stall(&udc->eps[0],0);
+			dr_ep_change_stall(&udc->eps[0], 0);
 
 			wmb();
 			dr_clear_int(INT_STALL);
 		}
 
 
-		if(istat.tokdne){
+		if (istat.tokdne) {
 			stat.regvalue = regs->stat.regvalue;
 			dr_clear_int(INT_TOKDNE);
 			dr_token_handler(stat.stat);
@@ -1558,7 +1580,6 @@ static irqreturn_t callback_udc_irq(int irq, void *_udc)
 
 out:
 	spin_unlock(&udc->lock);
-	t1--;
 	return IRQ_HANDLED;
 }
 
@@ -1596,43 +1617,49 @@ static int fsl_proc_read(char *page, char **start, off_t off, int count,
 				"Recovered Bytes: %u\n"
 				"Error count: %u\n\n",
 				driver_name, DRIVER_VERSION,
-				udc->driver ? udc->driver->driver.name : "(none)",
-						udc->mark_count,
+				udc->driver ?
+					udc->driver->driver.name : "(none)",
+					udc->mark_count,
 				udc->error_count);
 		size -= t;
 		next += t;
 
 
 	/* ------fsl_udc, fsl_ep, fsl_request structure information ----- */
-	for(i=0;i<USB_NUM_PIPES;i++){
+	for (i = 0; i < USB_NUM_PIPES; i++) {
 		ep = &udc->eps[i];
-		if(ep_maxpacket(ep) == 0xffff)
+		if (ep_maxpacket(ep) == 0xffff)
 			continue;
 
-		t = scnprintf(next, size, "For %s Maxpkt is 0x%x index is 0x%x\n",
+		t = scnprintf(next, size,
+				"For %s Maxpkt is 0x%x index is 0x%x\n",
 				ep->ep.name, ep_maxpacket(ep), ep_index(ep));
 		size -= t;
 		next += t;
 
-
 		if (list_empty(&ep->queue)) {
-			t = scnprintf(next, size, "its req queue is empty\n");
+			t = scnprintf(next, size,
+					"its req queue is empty\n");
 			size -= t;
 			next += t;
 		} else {
 			list_for_each_entry(req, &ep->queue, queue) {
 				t = scnprintf(next, size,
-					"req %p actual 0x%x length 0x%x buf %p\n",
+				"req %p actual 0x%x length 0x%x buf %p\n",
 					&req->req, req->req.actual,
 					req->req.length, req->req.buf);
 				size -= t;
 				next += t;
 			}
 		}
-		t = scnprintf(next, size, "Statistic: buffers: %u set %u freed  "
-				"requests: %u queued %u complete %u bytes transfered\n\n",
-				ep->stat.buffers_set, ep->stat.buffers_freed,
-				ep->stat.requests_set, ep->stat.requests_complete,
+		t = scnprintf(next, size,
+				"Statistic: buffers: %u set %u freed  "
+				"requests: %u queued %u "
+				"complete %u bytes transfered\n\n",
+				ep->stat.buffers_set,
+				ep->stat.buffers_freed,
+				ep->stat.requests_set,
+				ep->stat.requests_complete,
 				ep->stat.bytes_transfered);
 					size -= t;
 					next += t;
@@ -1674,12 +1701,14 @@ static int __init struct_ep_setup(u8 index, char *name, u8 link)
 
 	ep->endpt_reg = endpt_reg(endpt_reg_num);
 
-	ep->ep_bd[0] = kzalloc(sizeof(struct fsl_buffer_descriptor), GFP_KERNEL);
-	if(!ep->ep_bd[0])
+	ep->ep_bd[0] = kzalloc(sizeof(struct fsl_buffer_descriptor),
+			GFP_KERNEL);
+	if (!ep->ep_bd[0])
 		goto out;
 
-	ep->ep_bd[1] = kzalloc(sizeof(struct fsl_buffer_descriptor), GFP_KERNEL);
-	if(!ep->ep_bd[1])
+	ep->ep_bd[1] = kzalloc(sizeof(struct fsl_buffer_descriptor),
+			GFP_KERNEL);
+	if (!ep->ep_bd[1])
 		goto free_bd0;
 
 	ep->ep_bd[0]->bd_entry = get_bd_entry(endpt_reg_num, endpt_dir, 0);
@@ -1689,7 +1718,7 @@ static int __init struct_ep_setup(u8 index, char *name, u8 link)
 	ep->ep_bd[1]->alt_buffer = ep->ep_bd[0];
 
 	/* 128 Byte Buffer for each OUT EP */
-	if(ep->dir == EP_DIR_OUT){
+	if (ep->dir == EP_DIR_OUT) {
 		buffer_dma = udc->bd_table_dma + 512 + 64 * index;
 		ep->ep_bd[0]->bd_entry->addr = buffer_dma;
 		ep->ep_bd[1]->bd_entry->addr = buffer_dma + 64;
@@ -1710,9 +1739,9 @@ static int __init struct_ep_setup(u8 index, char *name, u8 link)
 
 	return 0;
 
-	free_bd0:
+free_bd0:
 	kfree(ep->ep_bd[0]);
-	out:
+out:
 	return -ENOMEM;
 }
 
@@ -1721,40 +1750,40 @@ static int __init ep0_requests_setup(void){
 
 	/* Initialize ep0 status request structure */
 	tmpreq = fsl_alloc_request(&udc->eps[0].ep, GFP_KERNEL);
-	if(tmpreq == NULL){
+	if (tmpreq == NULL) {
 		ERR("malloc ep0 status request failed\n");
 		return -ENOMEM;
 	}
 	udc->ep0_req_out = container_of(tmpreq, struct fsl_req, req);
 
 	tmpreq->buf = kmalloc(USB_MAX_CTRL_PAYLOAD, GFP_KERNEL);
-	if(!tmpreq->buf){
+	if (!tmpreq->buf) {
 		ERR("malloc status_req->req.buf failed\n");
 		goto err_free_ep0_req_out;
 	}
 
 	tmpreq = fsl_alloc_request(&udc->eps[1].ep, GFP_KERNEL);
-	if(tmpreq == NULL){
+	if (tmpreq == NULL) {
 		ERR("malloc ep0 status request failed\n");
 		goto err_free_ep0_out_buf;
 	}
 	udc->ep0_req_in = container_of(tmpreq, struct fsl_req, req);
 
 	tmpreq->buf = kmalloc(USB_MAX_CTRL_PAYLOAD, GFP_KERNEL);
-	if(!tmpreq->buf){
+	if (!tmpreq->buf) {
 		ERR("malloc status_req->req.buf failed\n");
 		goto err_free_ep0_req_in;
 	}
 
 	tmpreq = fsl_alloc_request(&udc->eps[0].ep, GFP_KERNEL);
-	if(tmpreq == NULL){
+	if (tmpreq == NULL) {
 		ERR("malloc ep0 status request failed\n");
 		goto err_free_ep0_in_buf;
 	}
 	udc->ep0_req_setup = container_of(tmpreq, struct fsl_req, req);
 
 	tmpreq->buf = kmalloc(USB_MAX_CTRL_PAYLOAD, GFP_KERNEL);
-	if(!tmpreq->buf){
+	if (!tmpreq->buf) {
 		ERR("malloc status_req->req.buf failed\n");
 		goto err_free_ep0_req_status;
 	}
@@ -1762,16 +1791,16 @@ static int __init ep0_requests_setup(void){
 	return 0;
 /*	err_free_ep0_status_buf:
 		kfree(udc->ep0_req_setup->req.buf); */
-	err_free_ep0_req_status:
-		fsl_free_request(&udc->eps[0].ep, &udc->ep0_req_setup->req);
-	err_free_ep0_in_buf:
-		kfree(udc->ep0_req_in->req.buf);
-	err_free_ep0_req_in:
-		fsl_free_request(&udc->eps[0].ep, &udc->ep0_req_in->req);
-	err_free_ep0_out_buf:
-		kfree(udc->ep0_req_out->req.buf);
-	err_free_ep0_req_out:
-		fsl_free_request(&udc->eps[1].ep, &udc->ep0_req_out->req);
+err_free_ep0_req_status:
+	fsl_free_request(&udc->eps[0].ep, &udc->ep0_req_setup->req);
+err_free_ep0_in_buf:
+	kfree(udc->ep0_req_in->req.buf);
+err_free_ep0_req_in:
+	fsl_free_request(&udc->eps[0].ep, &udc->ep0_req_in->req);
+err_free_ep0_out_buf:
+	kfree(udc->ep0_req_out->req.buf);
+err_free_ep0_req_out:
+	fsl_free_request(&udc->eps[1].ep, &udc->ep0_req_out->req);
 	return -ENOMEM;
 }
 
@@ -1823,7 +1852,7 @@ static int __devinit fsl_udc_probe(struct platform_device *pdev)
 		goto err_iounmap;
 	}
 
-	ret = request_irq(udc->irq, callback_udc_irq, 0,	driver_name, udc);
+	ret = request_irq(udc->irq, callback_udc_irq, 0, driver_name, udc);
 	if (ret != 0) {
 		ERR("cannot request irq %d err %d\n",
 				udc->irq, ret);
@@ -1844,13 +1873,14 @@ static int __devinit fsl_udc_probe(struct platform_device *pdev)
 
 	udc->bd_table = dma_alloc_coherent(NULL, PAGE_SIZE, &udc->bd_table_dma,
 			GFP_KERNEL);
-	if(!udc->bd_table){
+	if (!udc->bd_table) {
 		ERR("no memory");
 		ret = -ENOMEM;
 		goto err_free_clk;
 	}
 
-	VDBG("bd_table = %X dma = %X",(u32)udc->bd_table, (u32)udc->bd_table_dma);
+	VDBG("bd_table = %X dma = %X", (u32)udc->bd_table,
+			(u32)udc->bd_table_dma);
 
 	/* Setup gadget structure */
 	udc->gadget.ops = &fsl_gadget_ops;
@@ -1878,9 +1908,9 @@ static int __devinit fsl_udc_probe(struct platform_device *pdev)
 	udc->eps[1].desc = &fsl_ep0_desc;
 	udc->eps[1].ep.maxpacket = USB_MAX_CTRL_PAYLOAD;
 
-	if(ep0_requests_setup() != 0){
+	if (ep0_requests_setup() != 0)
 		goto err_free_eps;
-	}
+
 	/* setup the udc->eps[] for non-control endpoints and link
 	 * to gadget.ep_list */
 	for (i = 1; i < USB_NUM_ENDPOINTS; i++) {
@@ -1961,10 +1991,10 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 	clear_all_err_flags();
 
 	/* Deactivate USB transceiver  */
-	regs->usbctrl.susp=1;
+	regs->usbctrl.susp = 1;
 
 	/* Disable USB module */
-	regs->ctl.usben=0;
+	regs->ctl.usben = 0;
 
 	/* Free memory */
 	dma_free_coherent(NULL, PAGE_SIZE, udc->bd_table, udc->bd_table_dma);
