@@ -40,6 +40,7 @@ ENTRY(__const_udelay)				@ 0 <= r0 <= 0x7fffff06
  */
 
 @ Delay routine
+		.align	8
 ENTRY(__delay)
 #if defined(CONFIG_CPU_V7M)
 		subs	r0, r0, #1
