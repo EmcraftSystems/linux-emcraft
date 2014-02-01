@@ -37,6 +37,8 @@
 #include <mach/iomux.h>
 #include <mach/platform.h>
 #include <mach/timer.h>
+
+#include <mach/ehci.h>
 #include <mach/eth.h>
 #include <mach/fb.h>
 #include <mach/i2c.h>
@@ -202,6 +204,13 @@ static void __init lpc18xx_init(void)
 	 * Configure framebuffer
 	 */
 	lpc18xx_fb_init();
+#endif
+
+#if defined(CONFIG_USB_EHCI_LPC43XX)
+	/*
+	 * Configure USB0 host
+	 */
+	lpc43xx_ehci_init();
 #endif
 
 #if defined(CONFIG_I2C_LPC2K)

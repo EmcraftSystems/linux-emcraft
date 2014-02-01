@@ -1157,6 +1157,11 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_hcd_w90x900_driver
 #endif
 
+#ifdef CONFIG_USB_EHCI_LPC43XX
+#include "ehci-lpc43xx.c"
+#define PLATFORM_DRIVER		ehci_hcd_lpc43xx_driver
+#endif
+
 #ifdef CONFIG_ARCH_AT91
 #include "ehci-atmel.c"
 #define	PLATFORM_DRIVER		ehci_atmel_driver

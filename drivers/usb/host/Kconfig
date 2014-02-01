@@ -134,6 +134,13 @@ config USB_EHCI_MXC
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
+config USB_EHCI_LPC43XX
+	bool "Support for LPC43XX on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_LPC18XX
+	select USB_EHCI_ROOT_HUB_TT
+	---help---
+	  LPC43{5,3,2}x on-chip EHCI USB controller
+
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
 	depends on USB_EHCI_HCD && PPC_OF

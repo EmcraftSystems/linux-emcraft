@@ -809,6 +809,7 @@ config ARCH_LPC18XX
 	depends on !MMU
 	select ARM_CORTEXM3
 	select ARM_AMBA
+	select USB_ARCH_HAS_EHCI
 	help
 	  This enables support for the NXP LPC18xx/43xx MCUs
 

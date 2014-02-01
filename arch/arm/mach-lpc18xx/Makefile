@@ -4,6 +4,7 @@
 
 obj-$(CONFIG_MACH_LPC18XX)	+= lpc18xx_platform.o timer.o clock.o \
 				   iomux.o wdt.o
+obj-$(CONFIG_USB_EHCI_LPC43XX)	+= ehci.o
 obj-$(CONFIG_STM32_ETHER)	+= eth.o
 obj-$(CONFIG_FB_ARMCLCD)	+= fb.o
 obj-$(CONFIG_I2C_LPC2K)		+= i2c.o
