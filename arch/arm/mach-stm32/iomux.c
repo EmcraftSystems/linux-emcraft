@@ -127,7 +127,8 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_SDIO,		/* SDIO				      */
 	STM32F2_GPIO_ROLE_MCO,		/* MC external output clock	      */
 	STM32F2_GPIO_ROLE_OUT,		/* General purpose output	      */
-	STM32F2_GPIO_ROLE_IN		/* General purpose input	      */
+	STM32F2_GPIO_ROLE_IN,		/* General purpose input no pull      */
+	STM32F2_GPIO_ROLE_IN_PUP	/* General purpose input w/pullup     */
 };
 
 /*
@@ -224,6 +225,16 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 		ospeed = STM32F2_GPIO_SPEED_50M;
 		pupd   = STM32F2_GPIO_PUPD_NO;
 		break;
+	case STM32F2_GPIO_ROLE_IN:
+		otype  = STM32F2_GPIO_OTYPE_PP;
+		ospeed = STM32F2_GPIO_SPEED_50M;
+		pupd   = STM32F2_GPIO_PUPD_NO;
+		break;
+	case STM32F2_GPIO_ROLE_IN_PUP:
+		otype  = STM32F2_GPIO_OTYPE_PP;
+		ospeed = STM32F2_GPIO_SPEED_50M;
+		pupd   = STM32F2_GPIO_PUPD_UP;
+		break;
 	default:
 		rv = -EINVAL;
 		goto out;
@@ -241,7 +252,8 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 
 	if (role != STM32F2_GPIO_ROLE_MCO &&
 	    role != STM32F2_GPIO_ROLE_OUT &&
-	    role != STM32F2_GPIO_ROLE_IN) {
+	    role != STM32F2_GPIO_ROLE_IN &&
+	    role != STM32F2_GPIO_ROLE_IN_PUP) {
 
 		/*
 		 * Connect PXy to the specified controller (role)
@@ -268,6 +280,9 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 		mode = STM32F2_GPIO_MODE_OUT;
 	}
 	else if (role == STM32F2_GPIO_ROLE_IN) {
+		mode = STM32F2_GPIO_MODE_IN;
+	}
+	else if (role == STM32F2_GPIO_ROLE_IN_PUP) {
 		mode = STM32F2_GPIO_MODE_IN;
 	}
 	else {
@@ -488,10 +503,15 @@ uartdone:
 #if defined(CONFIG_GPIOLIB) && defined(CONFIG_GPIO_SYSFS)
 
 	/*
-	 * Pin configuration for the User LED of the SOM-BSB-EXT baseboard.
+	 * Pin configuration for the user pushbutton and
+	 * the user LED of the SOM-BSB-EXT baseboard.
 	 * !!! That GPIO may have other connections on other baseboards.
 	 */
-	if (platform == PLATFORM_STM32_STM_SOM) {
+	if (platform == PLATFORM_STM32_STM_STM32F439_SOM) {
+		/* PE2 = User Push Button */
+		gpio_dsc.port = 4;
+		gpio_dsc.pin  = 2;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_IN_PUP);
 		/* PB2 = LED DS4 */
 		gpio_dsc.port = 1;
 		gpio_dsc.pin  = 2;
