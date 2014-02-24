@@ -82,6 +82,15 @@ config M2S_MSS_GPIO
 	help
 	  Include support for the MSS GPIOs
 
+config M2S_MSS_GPIO_INT
+	depends on M2S_MSS_GPIO
+	select GPIOLIB
+	bool "Enable MSS GPIO interrupts"
+	default n
+	help
+	  Include support for the MSS GPIOs interrupt
+
+
 config M2S_FPGA_GPIO
 	depends on ARCH_M2S
 	select GPIOLIB
