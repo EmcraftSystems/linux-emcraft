@@ -29,7 +29,7 @@
 /*
  * Number of GPIO ports
  */
-#define STM32_GPIO_PORTS			8
+#define STM32_GPIO_PORTS			9
 
 /*
  * Number of pins per port
