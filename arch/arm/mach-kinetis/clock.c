@@ -417,12 +417,24 @@ static struct clk clk_usbfs = {
 static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_net, NULL, "fec_clk"),
 	INIT_CLKREG(&clk_lcdc, "imx-fb.0", NULL),
+#ifdef CONFIG_KINETIS_UART0
 	INIT_CLKREG(&clk_uart[0], "kinetis-uart.0", NULL),
+#endif
+#ifdef CONFIG_KINETIS_UART1
 	INIT_CLKREG(&clk_uart[1], "kinetis-uart.1", NULL),
+#endif
+#ifdef CONFIG_KINETIS_UART2
 	INIT_CLKREG(&clk_uart[2], "kinetis-uart.2", NULL),
+#endif
+#ifdef CONFIG_KINETIS_UART3
 	INIT_CLKREG(&clk_uart[3], "kinetis-uart.3", NULL),
+#endif
+#ifdef CONFIG_KINETIS_UART4
 	INIT_CLKREG(&clk_uart[4], "kinetis-uart.4", NULL),
+#endif
+#ifdef CONFIG_KINETIS_UART5
 	INIT_CLKREG(&clk_uart[5], "kinetis-uart.5", NULL),
+#endif
 #ifdef CONFIG_KINETIS_SPI0
 	INIT_CLKREG(&clk_spi0, "kinetis-dspi.0", NULL),
 #endif
@@ -575,6 +587,12 @@ void __init kinetis_clock_init(void)
 	/* USBs clock divider values */
 	int usb_div;
 	int usb_frac;
+
+	/*
+	 * Disable all peripherals except for a bare minimum
+	 * required for the OS to continue to bootup
+	 */
+	// kinetis_periph_set_minimum();
 
 	/*
 	 * Default values for the MCU-specific parameters
