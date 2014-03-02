@@ -334,6 +334,7 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 }
 EXPORT_SYMBOL(clk_round_rate);
 
+#ifdef CONFIG_KINETIS_MAC
 /*
  * Clock for the Ethernet module of the MCU. The clock rate is initialized
  * in `kinetis_clock_init()`.
@@ -341,6 +342,7 @@ EXPORT_SYMBOL(clk_round_rate);
 static struct clk clk_net = {
 	.gate = KINETIS_CG_ENET,
 };
+#endif
 
 /*
  * Clock for the LCD Controller module of the MCU. The clock rate is initialized
@@ -415,7 +417,9 @@ static struct clk clk_usbfs = {
 		.con_id		= _conname,		\
 	}
 static struct clk_lookup kinetis_clkregs[] = {
+#ifdef CONFIG_KINETIS_MAC
 	INIT_CLKREG(&clk_net, NULL, "fec_clk"),
+#endif
 	INIT_CLKREG(&clk_lcdc, "imx-fb.0", NULL),
 #ifdef CONFIG_KINETIS_UART0
 	INIT_CLKREG(&clk_uart[0], "kinetis-uart.0", NULL),
@@ -788,10 +792,13 @@ void __init kinetis_clock_init(void)
 		(usb_frac << KINETIS_SIM_CLKDIV2_USBFSFRAC_BIT) |
 		(usb_div << KINETIS_SIM_CLKDIV2_USBFSDIV_BIT);
 
+#ifdef CONFIG_KINETIS_MAC
 	/*
 	 * Initialize the `clk_*` structures
 	 */
 	clk_net.rate = clock_val[CLOCK_MACCLK];
+#endif
+
 	/*
 	 * UART0 and UART1 are clocked from the core clock, the remaining UARTs
 	 * are clocked from the bus clock.
