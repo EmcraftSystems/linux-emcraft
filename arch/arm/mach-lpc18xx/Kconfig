@@ -58,6 +58,10 @@ config LPC18XX_I2C1
 config LPC18XX_MMC
 	depends on ARCH_LPC18XX && MMC_DW
 	bool "Enable LPC18XX MMC (Synopsis DesignWire) port"
+
+config LPC18XX_I2S0
+	depends on ARCH_LPC18XX
+	bool "Enable LPC18XX I2S0 port"
 	default n
 
 endmenu

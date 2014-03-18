@@ -171,6 +171,83 @@ static struct clk clk_i2c0;
 static struct clk clk_i2c1;
 #endif
 
+#if defined (CONFIG_LPC18XX_I2S0)
+
+static int i2s_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	int div_rate, ret = 0, np_dec, frac;
+
+	if (rate & 0xFF) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	clk->rate = rate;
+	div_rate = rate / 256;
+
+	/* Values taken from Table 150 of UM10503 */
+	switch (div_rate) {
+	case 48000:
+		np_dec = 0x1003;
+		frac = 0x1a1cac;
+		break;
+	case 44100:
+		np_dec = 0x18;
+		frac = 0x070e56;
+		break;
+	case 32000:
+		np_dec = 0x1e;
+		frac = 0x072b02;
+		break;
+	case 24000:
+		np_dec = 0x1006;
+		frac = 0x133333;
+		break;
+	case 22050:
+		np_dec = 0x1006;
+		frac = 0x11a3d7;
+		break;
+	default:
+		ret = -EINVAL;
+		goto out;
+		break;
+	}
+
+	LPC18XX_CGU->cgu_out1_clk |= 1;
+	LPC18XX_CGU->pll0audio.ctrl = LPC18XX_CGU_POWERDOWN |
+		LPC18XX_CGU_CLKSEL_XTAL | LPC18XX_CGU_AUTOBLOCK_MSK;
+
+	/* Check for direct input on clock (no pre-divider since it is zero) */
+	if (!(np_dec >> 12))
+		LPC18XX_CGU->pll0audio.ctrl |= LPC18XX_CGU_DIRECTI;
+
+	LPC18XX_CGU->pll0audio.ctrl |= LPC18XX_CGU_PLL0AUDIO_PLLFRACT_REQ;
+
+	LPC18XX_CGU->pll0audio.np_div = np_dec;
+	LPC18XX_CGU->pll0audio_frac = frac;
+
+	LPC18XX_CGU->pll0audio.ctrl &= ~LPC18XX_CGU_POWERDOWN;
+	LPC18XX_CGU->pll0audio.ctrl |= LPC18XX_CGU_PLL0AUDIO_CLKEN;
+
+	while (!(LPC18XX_CGU->pll0audio.stat & 1));
+
+	LPC18XX_CGU->cgu_out1_clk = LPC18XX_CGU_CLKSEL_PLL0AUDIO;
+
+out:
+	return ret;
+}
+
+/*
+ * Clocks for I2S interface.
+ */
+static struct clk clk_i2s0 = {
+	.clk_set_rate	= i2s_clk_set_rate,
+};
+#endif
+
+/* DMA clock */
+static struct clk clk_dmac;
+
 #if defined (CONFIG_FB_ARMCLCD)
 /*
  * The `amba-clcd` driver expects this function to configure the LCD clock
@@ -255,6 +332,7 @@ static struct clk_lookup lpc18xx_clkregs[] = {
 	INIT_CLKREG(&clk_uart[2], NULL, "lpc18xx-uart.2"),
 	INIT_CLKREG(&clk_uart[3], NULL, "lpc18xx-uart.3"),
 	INIT_CLKREG(&clk_net, "eth0", NULL),
+	INIT_CLKREG(&clk_dmac, NULL, "clk_dmac"),
 #if defined (CONFIG_LPC18XX_SPI0)
 	INIT_CLKREG(&clk_ssp0, "dev:ssp0", NULL),
 #endif
@@ -269,6 +347,9 @@ static struct clk_lookup lpc18xx_clkregs[] = {
 #endif
 #if defined (CONFIG_LPC18XX_I2C1)
 	INIT_CLKREG(&clk_i2c1, "lpc2k-i2c.1", NULL),
+#endif
+#if defined (CONFIG_LPC18XX_I2S0)
+	INIT_CLKREG(&clk_i2s0, NULL, "i2s0_ck"),
 #endif
 #if defined (CONFIG_FB_ARMCLCD)
 	INIT_CLKREG(&clk_lcd, "dev:clcd", NULL),
@@ -411,6 +492,12 @@ void __init lpc18xx_clock_init(void)
 #if defined (CONFIG_LPC18XX_I2C1)
 	clk_i2c1.rate = clock_val[CLOCK_PCLK];
 #endif
+#if defined (CONFIG_LPC18XX_I2S0)
+	LPC18XX_CGU->apll_clk = LPC18XX_CGU_CLKSEL_PLL0AUDIO;
+	clk_i2s0.rate = 1;
+#endif
+
+	clk_dmac.rate = clock_val[CLOCK_PCLK];
 
 #if defined (CONFIG_LPC18XX_MMC)
 	LPC18XX_CGU->sdio_clk = LPC18XX_CGU_CLKSEL_PLL1 |

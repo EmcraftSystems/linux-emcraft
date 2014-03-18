@@ -26,9 +26,10 @@
 #include <mach/hardware.h>
 
 /*
- * I2S registers base address on LPC178x/7x
+ * I2S registers base address on LPC18xx/43xx
  */
-#define LPC32XX_I2S0_BASE	0x400A8000
+#define LPC32XX_I2S0_BASE	0x400A2000
+#define LPC32XX_I2S1_BASE	0x400A3000
 
 /**********************************************************************
 * I2S controller register offsets
@@ -163,5 +164,17 @@
 **********************************************************************/
 #define I2S_CH0	0
 #define I2S_CH1	1
+
+/**********************************************************************
+* i2s_tx_mode/i2s_rx_mode register definitions
+**********************************************************************/
+#define I2S_MODE_CLKSEL_RATEDIV			0x0
+#define I2S_MODE_CLKSEL_BASE_AUDIO_CLOCK	0x1
+#define I2S_MODE_CLKSEL_CROSS			0x2
+#define I2S_MODE_MCLK_OUT_ENABLE		_BIT(3)
+
+/*
+ */
+void __init lpc18xx_i2s_init(void);
 
 #endif /*  __ASM_ARCH_I2S_H */

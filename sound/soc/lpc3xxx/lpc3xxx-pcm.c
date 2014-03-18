@@ -197,16 +197,16 @@ static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 			prtd->dmacfg.err_inten = 1;
 			prtd->dmacfg.src_size = 4;
 			prtd->dmacfg.src_inc = 1;
-#ifdef CONFIG_ARM_LPC32XX
-			prtd->dmacfg.src_ahb1 = 1;
+#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
+			prtd->dmacfg.src_ahb1 = 0;
 #endif
 			prtd->dmacfg.src_bsize = DMAC_CHAN_SRC_BURST_4;
 			prtd->dmacfg.src_prph = 0;
 			prtd->dmacfg.dst_size = 4;
 			prtd->dmacfg.dst_inc = 0;
 			prtd->dmacfg.dst_bsize = DMAC_CHAN_DEST_BURST_4;
-#ifdef CONFIG_ARM_LPC32XX
-			prtd->dmacfg.dst_ahb1 = 0;
+#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
+			prtd->dmacfg.dst_ahb1 = 1;
 #endif
 
 #if defined(CONFIG_SND_LPC32XX_USEI2S1)
@@ -237,7 +237,7 @@ static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 			prtd->dmacfg.err_inten = 1;
 			prtd->dmacfg.src_size = 4;
 			prtd->dmacfg.src_inc = 0;
-#ifdef CONFIG_ARM_LPC32XX
+#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
 			prtd->dmacfg.src_ahb1 = 1;
 #endif
 			prtd->dmacfg.src_bsize = DMAC_CHAN_SRC_BURST_4;
@@ -248,7 +248,7 @@ static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 #endif
 			prtd->dmacfg.dst_size = 4;
 			prtd->dmacfg.dst_inc = 1;
-#ifdef CONFIG_ARM_LPC32XX
+#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
 			prtd->dmacfg.dst_ahb1 = 0;
 #endif
 			prtd->dmacfg.dst_bsize = DMAC_CHAN_DEST_BURST_4;

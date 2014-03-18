@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <mach/lpc18xx.h>
 #include <mach/platform.h>
+#include <mach/clock.h>
 
 /*
  * Bits and bit groups inside the SCU_SFS registers
@@ -351,6 +352,38 @@ static struct iomux_pin_config {
 			struct iomux_pin_config *p = &arm_clcd_iomux[i];
 			lpc18xx_pin_config(p->group, p->pin, p->mask);
 		}
+
+#if defined(CONFIG_LPC18XX_I2C0)
+		writel(LPC18XX_SFSI2C0_CONFIG, LPC18XX_SFSI2C0);
+#endif
+
+#if defined(CONFIG_LPC18XX_I2C1)
+		/*
+		 * Configure I2C1 pins I2C1_SDA and I2C1_SCL: setup EHS, EZI,
+		 * ZIF bits (refer to section 15.4.1 of UM)
+		 */
+		lpc18xx_pin_config(0x2, 3, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
+		lpc18xx_pin_config(0x2, 4, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
+
+#endif
+
+#if defined(CONFIG_LPC18XX_I2S0)
+# if defined(CONFIG_SND_LPC3XXX_SOC_I2S_NAU8822)
+		/* Configure PWR_AUD pin */
+		lpc18xx_pin_config(0xE, 2, LPC18XX_IOMUX_CONFIG(4, 0, 1, 1, 1, 0));
+		lpc18xx_gpio_dir(0x7, 2, 1);
+		lpc18xx_gpio_out(0x7, 2, 0);
+# endif
+		/* Configure I2S pins */
+		/* P3.0 -- I2S0_SCLK */
+		lpc18xx_pin_config(0x3, 0, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 0, 0));
+		/* P3.1 -- I2S0_LRCK_TX */
+		lpc18xx_pin_config(0x3, 1, LPC18XX_IOMUX_CONFIG(0, 0, 1, 1, 0, 0));
+		/* P3.2 -- I2S0_SDO0 */
+		lpc18xx_pin_config(0x3, 2, LPC18XX_IOMUX_CONFIG(0, 0, 1, 1, 0, 0));
+
+		/* CLK3 (P12) -- CGU_OUT1 */
+		lpc18xx_pin_config(0x18, 3, LPC18XX_IOMUX_CONFIG(5, 0, 1, 1, 0, 1));
 #endif
 	}
 }

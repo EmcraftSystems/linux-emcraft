@@ -131,10 +131,20 @@ struct lpc18xx_cgu_regs {
 #define LPC18XX_CGU_CLKSEL_ENET_TX	(0x03 << LPC18XX_CGU_CLKSEL_BITS)
 /* Crystal oscillator */
 #define LPC18XX_CGU_CLKSEL_XTAL		(0x06 << LPC18XX_CGU_CLKSEL_BITS)
+/* PLL0AUDIO */
+#define LPC18XX_CGU_CLKSEL_PLL0AUDIO	(0x08 << LPC18XX_CGU_CLKSEL_BITS)
 /* PLL1 */
 #define LPC18XX_CGU_CLKSEL_PLL1		(0x09 << LPC18XX_CGU_CLKSEL_BITS)
 /* Block clock automatically during frequency change */
 #define LPC18XX_CGU_AUTOBLOCK_MSK	(1 << 11)
+/* Powerdown clock */
+#define LPC18XX_CGU_POWERDOWN		(1 << 0)
+/* Clock direct input (no predivider) */
+#define LPC18XX_CGU_DIRECTI		(1 << 2)
+
+/* Request write to PLL0AUDIO fractional divider */
+#define LPC18XX_CGU_PLL0AUDIO_PLLFRACT_REQ	(1 << 12)
+#define LPC18XX_CGU_PLL0AUDIO_CLKEN		(1 << 4)
 /*
  * PLL1 control register
  */

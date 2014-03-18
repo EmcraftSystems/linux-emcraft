@@ -1,6 +1,6 @@
 config SND_LPC3XXX_SOC
 	tristate "SoC Audio for the NXP LPC32XX and LPC178X SoCs"
-        depends on (ARCH_LPC32XX || ARCH_LPC178X) && SND_SOC
+        depends on (ARCH_LPC32XX || ARCH_LPC178X || ARCH_LPC18XX) && SND_SOC
         help
           Say Y or M if you want to add support for codecs attached to
           the LPC3XXX/LPC178X I2S interface.  You will also need to select
@@ -71,3 +71,6 @@ config SND_LPC32XX_SLAVE_TX_CLK_TO_RX
 	  This enables the TX WS clock during RX transfers. Some CODECS use
 	  the TX clock for internal clock or for RX clocking.
 
+config SND_LPC3XXX_SOC_I2S_NAU8822
+	bool "Enable I2S and NAU8822"
+	depends on SND_LPC3XXX_SOC && ARCH_LPC18XX

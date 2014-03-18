@@ -23,10 +23,13 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
 #include <mach/i2c.h>
+#include <mach/iomux.h>
 #include <mach/platform.h>
 
 /*
@@ -88,11 +91,69 @@ static struct i2c_board_info hitex_lpc4350_i2c0_eeprom = {
 };
 #endif
 
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT)
+static irqreturn_t mxt_interrupt_switch(int irq, void *dev_id)
+{
+	static int state = 0;
+
+	lpc18xx_gpio_int_ack(irq);
+
+	state = !state;
+
+	return state ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+}
+
+static struct mxt_platform_data mxt_platform_data = {
+	.irqflags = IRQF_TRIGGER_HIGH,
+	.gpio_int_handler = mxt_interrupt_switch,
+};
+static struct i2c_board_info board_lpc4357_i2c1_atmel_mxt_ts = {
+	.type = "atmel_mxt_ts",
+	.addr = 0x4b,
+	.platform_data = &mxt_platform_data,
+};
+
+#endif
+
 void __init lpc18xx_i2c_init(void)
 {
 	int platform;
 
 	platform = lpc18xx_platform_get();
+
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT)
+	if (platform == PLATFORM_LPC18XX_BOARD_LPC4357) {
+		int irq;
+		lpc18xx_gpio_dir(6, 11, 0);
+		irq = lpc18xx_gpio_interrupt(6, 11, GPIO_INTERRUPT_LEVEL_LOW);
+		if (irq < 0) {
+			printk(KERN_ERR "atmel_mxt_ts: can't register irq: %d\n", irq);
+			goto fail;
+		}
+		else {
+			printk(KERN_INFO "atmel_mxt_ts: using IRQ: %d\n", irq);
+		}
+		board_lpc4357_i2c1_atmel_mxt_ts.irq = irq;
+
+		lpc18xx_gpio_dir(6, 11, 1);
+
+		lpc18xx_gpio_out(6, 11, 0);
+		mdelay(10);
+		lpc18xx_gpio_out(6, 11, 1);
+
+		i2c_register_board_info(1, &board_lpc4357_i2c1_atmel_mxt_ts, 1);
+fail:
+		;
+	}
+#endif
+
+#if defined(CONFIG_EEPROM_AT24)
+	switch (platform) {
+	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
+		i2c_register_board_info(0, &hitex_lpc4350_i2c0_eeprom, 1);
+		break;
+	}
+#endif
 
 	/*
 	 * Register platform devices
@@ -105,11 +166,4 @@ void __init lpc18xx_i2c_init(void)
 	platform_device_register(&lpc18xx_i2c1_device);
 #endif
 
-#if defined(CONFIG_EEPROM_AT24)
-	switch (platform) {
-	case PLATFORM_LPC18XX_HITEX_LPC4350_EVAL:
-		i2c_register_board_info(0, &hitex_lpc4350_i2c0_eeprom, 1);
-		break;
-	}
-#endif
 }

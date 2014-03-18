@@ -42,6 +42,7 @@
 #include <mach/eth.h>
 #include <mach/fb.h>
 #include <mach/i2c.h>
+#include <mach/i2s.h>
 #include <mach/mmc.h>
 #include <mach/nor-flash.h>
 #include <mach/spi.h>
@@ -211,6 +212,10 @@ static void __init lpc18xx_init(void)
 	 * Configure USB0 host
 	 */
 	lpc43xx_ehci_init();
+#endif
+
+#if defined(CONFIG_SND_LPC3XXX_SOC)
+	lpc18xx_i2s_init();
 #endif
 
 #if defined(CONFIG_I2C_LPC2K)

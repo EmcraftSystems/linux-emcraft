@@ -127,5 +127,7 @@ struct lpc18xx_creg_regs {
 	(4 << LPC18XX_CREG_CREG6_ETHMODE_BITS)
 /* EMC_CLK divided clock select */
 #define LPC18XX_CREG_CREG6_EMCCLKSEL_MSK	(1 << 16)
+/* Selects I2S TX MCLK to be sourced from BASE_AUDIO_CLOCK */
+#define LPC18XX_CREG_CREG6_I2S0_TX_SCK_BASE_AUDIO_CLOCK	(1 << 12)
 
 #endif /* _MACH_LPC18XX_H_ */

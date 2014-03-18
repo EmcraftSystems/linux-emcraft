@@ -36,6 +36,13 @@
 #define I2S_DMA_XMIT		0x1
 #define I2S_DMA_RECV		0x2
 
+/*
+ * clk_id field values.
+ * BASE_AUDIO_CLK means that 'i2sx_ck' rate will be set via clk_set_rate.
+ */
+#define LPC3XXX_I2S_CLK_PCLK		0x0
+#define LPC3XXX_I2S_CLK_BASE_AUDIO_CLK	0x1
+
 struct lpc3xxx_i2s_info {
 	char *name;
 	spinlock_t lock;
@@ -46,7 +53,7 @@ struct lpc3xxx_i2s_info {
 	struct clk *clk;
 	u32 clkrate;
 	u32 baseio;
-	int freq;
+	int clk_id, freq;
 	unsigned short daifmt;
 	int clkdiv;
 	u32 dao_save, dai_save, irq_save;

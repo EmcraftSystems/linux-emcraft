@@ -10,7 +10,6 @@ config SND_SOC_I2C_AND_SPI
 
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
-	select SND_SOC_L3
 	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
 	select SND_SOC_AD1836 if SPI_MASTER
 	select SND_SOC_AD1938 if SPI_MASTER
@@ -22,6 +21,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
 	select SND_SOC_CS4270 if I2C
+	select SND_SOC_L3
+	select SND_SOC_NAU8822 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_SPDIF
@@ -125,6 +126,9 @@ config SND_SOC_CX20442
 
 config SND_SOC_L3
        tristate
+
+config SND_SOC_NAU8822
+       tristate "NAU8822 codecs support"
 
 config SND_SOC_PCM3008
        tristate

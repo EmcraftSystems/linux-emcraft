@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-lpc178x/include/mach/dma.h
+ * arch/arm/mach-lpc18xx/include/mach/dma.h
  *
  * (was named asm-arm/arch-lpc32xx/dmac.h)
  *
@@ -11,6 +11,10 @@
  * (C) Copyright 2012
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ *
+ * Customized for LPC43XX:
+ * (C) Copyright 2014, Emcraft Systems, <www.emcraft.com>
+ * Pavel Boldin <paboldin@emcraft.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,20 +31,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _MACH_LPC178X_DMAC_H_
-#define _MACH_LPC178X_DMAC_H_
+#ifndef _MACH_LPC18XX_DMAC_H_
+#define _MACH_LPC18XX_DMAC_H_
 
-#include <mach/lpc178x.h>
+#include <mach/lpc18xx.h>
 #include <mach/hardware.h>
 
 /*
  * DMA registers base
  */
-#define LPC178X_DMA_BASE	(LPC178X_AHB_PERIPH_BASE + 0x00000000)
+#define LPC18XX_DMA_BASE	(0x40002000)
 /*
  * "Interrupt ID" in Table 43 in the LPC178x/7x User Manual (page 70)
  */
-#define LPC178X_DMA_IRQ		26
+#define LPC18XX_DMA_IRQ		2
 
 /**********************************************************************
 * DMA register offsets
@@ -288,4 +292,4 @@
 #define DMA_PERID_I2S0_DMA0		9
 #define DMA_PERID_I2S0_DMA1		10
 
-#endif /* _MACH_LPC178X_DMAC_H_ */
+#endif /* _MACH_LPC18XX_DMAC_H_ */

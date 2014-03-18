@@ -45,7 +45,11 @@
 
 #include <mach/clkdev.h>
 
-#define I2S_NAME "lpc3xxx-i2s"
+#ifdef CONFIG_ARCH_LPC18XX
+# define I2S_NAME "lpc18xx-i2s"
+#else
+# define I2S_NAME "lpc3xxx-i2s"
+#endif
 
 #define LPC3XXX_I2S_RATES \
     (SNDRV_PCM_RATE_8000  | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
@@ -245,6 +249,7 @@ static int lpc3xxx_i2s_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 {
 	struct lpc3xxx_i2s_info *i2s_info_p = &i2s_info[cpu_dai->id];
 
+	i2s_info_p->clk_id = clk_id;
 	/* Will use in HW params later */
 	i2s_info_p->freq = freq;
 
@@ -283,7 +288,7 @@ static int lpc3xxx_i2s_hw_params(struct snd_pcm_substream *substream,
 	int id = rtd->dai->cpu_dai->id;
 	struct lpc3xxx_i2s_info *i2s_info_p;
 	int xfersize;
-	u32 tmp, tmp2, clkx, clky;
+	u32 tmp, tmp2, clkx, clky, ret = 0;
 
 	(void) tmp2;
 	i2s_info_p = &i2s_info[id];
@@ -324,9 +329,12 @@ static int lpc3xxx_i2s_hw_params(struct snd_pcm_substream *substream,
 		tmp |= I2S_MONO;
 	}
 
-	/* Find the best clock dividers to generate the requested
-	   frequency */
-	__lpc3xxx_find_clkdiv(&clkx, &clky, i2s_info_p->freq, xfersize, i2s_info_p->clkrate);
+	if (i2s_info_p->clk_id == LPC3XXX_I2S_CLK_PCLK) {
+		/* Find the best clock dividers to generate the requested
+		   frequency */
+		__lpc3xxx_find_clkdiv(&clkx, &clky, i2s_info_p->freq,
+					xfersize, i2s_info_p->clkrate);
+	}
 
 	pr_debug("Desired clock rate    : %d\n", i2s_info_p->freq);
 	pr_debug("Base clock rate       : %d\n", i2s_info_p->clkrate);
@@ -340,9 +348,27 @@ static int lpc3xxx_i2s_hw_params(struct snd_pcm_substream *substream,
 		/* Enable DAO support, correct clock rate, and DMA */
 		__raw_writel(I2S_DMA1_TX_EN | I2S_DMA0_TX_DEPTH(4),
 			I2S_DMA1(i2s_info_p->iomem));
-		__raw_writel(((clkx << 8) | clky),
-			I2S_TX_RATE(i2s_info_p->iomem));
 		__raw_writel(tmp, I2S_DAO(i2s_info_p->iomem));
+
+		if (i2s_info_p->clk_id == LPC3XXX_I2S_CLK_PCLK)
+			__raw_writel(((clkx << 8) | clky),
+				I2S_TX_RATE(i2s_info_p->iomem));
+
+		if (i2s_info_p->clk_id == LPC3XXX_I2S_CLK_BASE_AUDIO_CLK) {
+			__raw_writel(I2S_MODE_CLKSEL_BASE_AUDIO_CLOCK |
+				I2S_MODE_MCLK_OUT_ENABLE,
+				I2S_TX_MODE(i2s_info_p->iomem));
+			ret = clk_set_rate(i2s_info_p->clk, i2s_info_p->freq);
+			if (ret) {
+				pr_err("Clock %s set rate returned %d\n",
+					i2s_info_p->clkname,
+					ret);
+				goto out;
+			}
+		}
+
+		__raw_writel(i2s_info_p->clkdiv,
+			I2S_TX_BITRATE(i2s_info_p->iomem));
 
 		pr_debug("TX DMA1               : 0x%x\n",
 			__raw_readl(I2S_DMA1(i2s_info_p->iomem)));
@@ -378,7 +404,8 @@ static int lpc3xxx_i2s_hw_params(struct snd_pcm_substream *substream,
 			__raw_readl(I2S_DAI(i2s_info_p->iomem)));
 	}
 
-	return 0;
+out:
+	return ret;
 }
 
 static int lpc3xxx_i2s_prepare(struct snd_pcm_substream *substream,
@@ -485,6 +512,7 @@ static struct snd_soc_dai_ops lpc3xxx_i2s_dai_ops = {
 
 struct snd_soc_dai lpc3xxx_i2s_dai[NUM_I2S_DEVICES] = {
 	{
+#ifndef CONFIG_ARCH_LPC18XX
 	 .name = "lpc3xxx-i2s0",
 	 .id = 0,
 	 .suspend = lpc3xxx_i2s_suspend,
@@ -504,7 +532,7 @@ struct snd_soc_dai lpc3xxx_i2s_dai[NUM_I2S_DEVICES] = {
 	 .ops = &lpc3xxx_i2s_dai_ops,
 	 .private_data = &i2s_info[0],
 	 },
-#ifdef CONFIG_ARCH_LPC32XX
+# ifdef CONFIG_ARCH_LPC32XX
 	{
 	 .name = "lpc3xxx-i2s1",
 	 .id = 1,
@@ -525,13 +553,73 @@ struct snd_soc_dai lpc3xxx_i2s_dai[NUM_I2S_DEVICES] = {
 	 .ops = &lpc3xxx_i2s_dai_ops,
 	 .private_data = &i2s_info[1],
 	 },
-#endif /* CONFIG_ARCH_LPC32XX */
+# endif /* CONFIG_ARCH_LPC32XX */
+#else /* CONFIG_ARCH_LPC18XX */
+# ifdef CONFIG_LPC18XX_I2S0
+	 .name = "lpc3xxx-i2s0",
+	 .id = 0,
+	 .suspend = lpc3xxx_i2s_suspend,
+	 .resume = lpc3xxx_i2s_resume,
+	 .playback = {
+		      .channels_min = 1,
+		      .channels_max = 2,
+		      .rates = LPC3XXX_I2S_RATES,
+		      .formats = LPC3XXX_I2S_FORMATS,
+		      },
+	 .capture = {
+		     .channels_min = 1,
+		     .channels_max = 2,
+		     .rates = LPC3XXX_I2S_RATES,
+		     .formats = LPC3XXX_I2S_FORMATS,
+		     },
+	 .ops = &lpc3xxx_i2s_dai_ops,
+	 .private_data = &i2s_info[0],
+	 },
+# endif /* CONFIG_LPC18XX_I2S0 */
+# ifdef CONFIG_LPC18XX_I2S1
+	{
+	 .name = "lpc3xxx-i2s1",
+	 .id = 1,
+	 .suspend = lpc3xxx_i2s_suspend,
+	 .resume = lpc3xxx_i2s_resume,
+	 .playback = {
+		      .channels_min = 1,
+		      .channels_max = 2,
+		      .rates = LPC3XXX_I2S_RATES,
+		      .formats = LPC3XXX_I2S_FORMATS,
+		      },
+	 .capture = {
+		     .channels_min = 1,
+		     .channels_max = 2,
+		     .rates = LPC3XXX_I2S_RATES,
+		     .formats = LPC3XXX_I2S_FORMATS,
+		     },
+	 .ops = &lpc3xxx_i2s_dai_ops,
+	 .private_data = &i2s_info[1],
+	 },
+# endif /* CONFIG_LPC18XX_I2S1 */
+#endif
 };
 EXPORT_SYMBOL_GPL(lpc3xxx_i2s_dai);
 
 static int __init lpc3xxx_i2s_dai_init(void)
 {
+#ifndef CONFIG_ARCH_LPC18XX
         return snd_soc_register_dais(&lpc3xxx_i2s_dai[0],2);
+#else
+	int rv;
+# ifdef CONFIG_LPC18XX_I2S0
+        rv = snd_soc_register_dais(&lpc3xxx_i2s_dai[0],1);
+	if (rv)
+		printk(KERN_ERR "error registering lpc18xx i2s0: %d\n", rv);
+# endif /* CONFIG_LPC18XX_I2S0 */
+# ifdef CONFIG_LPC18XX_I2S1
+        rv = snd_soc_register_dais(&lpc3xxx_i2s_dai[1],1);
+	if (rv)
+		printk(KERN_ERR "error registering lpc18xx i2s1: %d\n", rv);
+	return rv;
+# endif /* CONFIG_LPC18XX_I2S1 */
+#endif
 }
 module_init(lpc3xxx_i2s_dai_init);
 
