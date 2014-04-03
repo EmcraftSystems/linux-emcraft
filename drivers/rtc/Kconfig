@@ -882,4 +882,20 @@ config RTC_DRV_LPC178X
 	  If you say yes here you will get support for the
 	  LPC178x On-Chip Real Time Clock.
 
+config RTC_DRV_KINETIS
+	tristate "Kinetis On-Chip RTC"
+	depends on ARCH_KINETIS
+	default y
+	help
+	  If you say yes here you will get support for the
+	  Kinetis On-Chip Real Time Clock.
+
+config RTC_DRV_KINETIS_HCTOSYS
+	bool "Set system time from the Kinetis RTC on startup and resume"
+	depends on RTC_DRV_KINETIS
+	default y
+	help
+	  If you say yes here, the system time (wall clock) will be set using
+	  the value read from the Kinetis RTC device.
+
 endif # RTC_CLASS

@@ -43,6 +43,7 @@
 #include <mach/esdhc.h>
 #include <mach/khci.h>
 #include <mach/spi.h>
+#include <mach/rtc.h>
 
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
@@ -214,6 +215,13 @@ static void __init kinetis_init(void)
 	 * Configure the UART devices
 	 */
 	kinetis_uart_init();
+#endif
+
+#if defined(CONFIG_RTC_DRV_KINETIS)
+	/*
+	 * Configure the Kinetis on-chip RTC
+	 */
+	kinetis_rtc_init();
 #endif
 
 #if defined(CONFIG_KINETIS_MAC)

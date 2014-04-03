@@ -207,9 +207,9 @@ struct kinetis_mcg_regs {
 /*
  * MCG registers base
  */
-#define KINETIS_MCG_BASE		(KINETIS_AIPS0PERIPH_BASE + 0x00064000)
-#define KINETIS_MCG			((volatile struct kinetis_mcg_regs *) \
-					KINETIS_MCG_BASE)
+#define KINETIS_MCG_BASE	(KINETIS_AIPS0PERIPH_BASE + 0x00064000)
+#define KINETIS_MCG		((volatile struct kinetis_mcg_regs *) \
+				KINETIS_MCG_BASE)
 
 /*
  * The structure that holds the information about a clock
@@ -345,8 +345,8 @@ static struct clk clk_net = {
 #endif
 
 /*
- * Clock for the LCD Controller module of the MCU. The clock rate is initialized
- * in `kinetis_clock_init()`.
+ * Clock for the LCD Controller module of the MCU.
+ * The clock rate is initialized in `kinetis_clock_init()`.
  */
 static struct clk clk_lcdc = {
 	.gate = KINETIS_CG_LCDC,
@@ -379,6 +379,15 @@ static struct clk clk_spi2 = {
 };
 #endif
 
+#ifdef CONFIG_RTC_DRV_KINETIS
+/*
+ * Clock for the Kinetis on-chip RTC
+ */
+static struct clk clk_rtc = {
+	.gate = KINETIS_CG_RTC,
+};
+#endif
+
 /*
  * Enable the USB-HS/FS module clock
  */
@@ -389,7 +398,6 @@ static void usb_clk_enable(struct clk *clk)
 	/* Wait for the clock to stabilize before accessing the register map */
 	mdelay(10);
 }
-
 
 /*
  * USB-HS module clock
@@ -447,6 +455,9 @@ static struct clk_lookup kinetis_clkregs[] = {
 #endif
 #ifdef CONFIG_KINETIS_SPI2
 	INIT_CLKREG(&clk_spi2, "kinetis-dspi.2", NULL),
+#endif
+#ifdef CONFIG_RTC_DRV_KINETIS
+	INIT_CLKREG(&clk_rtc, "rtc-kinetis", NULL),
 #endif
 	INIT_CLKREG(&clk_usbhs, "mxc-ehci.0", "usb"),
 	INIT_CLKREG(&clk_usbfs, "khci-hcd.0", "khci"),
@@ -591,12 +602,6 @@ void __init kinetis_clock_init(void)
 	/* USBs clock divider values */
 	int usb_div;
 	int usb_frac;
-
-	/*
-	 * Disable all peripherals except for a bare minimum
-	 * required for the OS to continue to bootup
-	 */
-	// kinetis_periph_set_minimum();
 
 	/*
 	 * Default values for the MCU-specific parameters
