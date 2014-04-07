@@ -754,6 +754,18 @@ static void mii_do_cmd(struct net_device *dev, const phy_cmd_t *c)
 		mii_queue(dev, c->mii_data, c->funct);
 }
 
+static void mii_do_cmd_with_delay(
+	struct net_device *dev, const phy_cmd_t *c, int d)
+{
+	if(!c)
+		return;
+
+	for (; c->mii_data != mk_mii_end; c++) {
+		udelay(d);
+		mii_queue(dev, c->mii_data, c->funct);
+	}
+}
+
 static void mii_parse_sr(uint mii_reg, struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
@@ -1118,8 +1130,13 @@ static phy_cmd_t const phy_cmd_ks8721bl_ack_int[] = {
 		{ mk_mii_read(MII_KS8721BL_ICSR), NULL },
 		{ mk_mii_end, }
 	};
-static phy_cmd_t const phy_cmd_ks8721bl_shutdown[] = { /* disable interrupts */
+static phy_cmd_t const phy_cmd_ks8721bl_shutdown[] = {
+		/* disable interrupts */
 		{ mk_mii_write(MII_KS8721BL_ICSR, 0x0000), NULL },
+		/* enable slow oscillator mode */
+		{ mk_mii_write(0x11, 0x20), NULL },
+		/* enable power down mode */
+		{ mk_mii_write(0x0, 0x800), NULL },
 		{ mk_mii_end, }
 	};
 static phy_info_t const phy_info_ks8721bl = {
@@ -1982,9 +1999,15 @@ fec_stop(struct net_device *dev)
 	if (fep->link) {
 		writel(1, fep->hwp + FEC_X_CNTRL); /* Graceful transmit stop */
 		udelay(10);
-		if (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_GRA))
-			printk("fec_stop : Graceful transmit stop did not complete !\n");
+		if (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_GRA)) {
+			printk("fec_stop : "
+			"Graceful transmit stop did not complete !\n");
+		}
 	}
+
+	mii_do_cmd_with_delay(dev,
+			(fep && fep->phy) ? fep->phy->shutdown : NULL, 20);
+
 
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
