@@ -24,10 +24,52 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/io.h>
 #include <linux/module.h>
 
 #include <mach/kinetis.h>
 #include <mach/power.h>
+
+/*
+ * Cache for the clock gate registers
+ */
+static unsigned int kinetis_periph_scgc0;
+static unsigned int kinetis_periph_scgc1;
+static unsigned int kinetis_periph_scgc2;
+static unsigned int kinetis_periph_scgc3;
+static unsigned int kinetis_periph_scgc4;
+static unsigned int kinetis_periph_scgc5;
+static unsigned int kinetis_periph_scgc6;
+
+/*
+ * Store the current values of the clock gate registers
+ */
+void kinetis_periph_push(void)
+{
+	kinetis_periph_scgc0 = readl(&KINETIS_SIM->scgc[0]);
+	kinetis_periph_scgc1 = readl(&KINETIS_SIM->scgc[1]);
+	kinetis_periph_scgc2 = readl(&KINETIS_SIM->scgc[2]);
+	kinetis_periph_scgc3 = readl(&KINETIS_SIM->scgc[3]);
+	kinetis_periph_scgc4 = readl(&KINETIS_SIM->scgc[4]);
+	kinetis_periph_scgc5 = readl(&KINETIS_SIM->scgc[5]);
+	kinetis_periph_scgc6 = readl(&KINETIS_SIM->scgc[6]);
+}
+EXPORT_SYMBOL(kinetis_periph_push);
+
+/*
+ * Re-store previously saved clock gate registers
+ */
+void kinetis_periph_pop(void)
+{
+	writel(kinetis_periph_scgc0, &KINETIS_SIM->scgc[0]);
+	writel(kinetis_periph_scgc1, &KINETIS_SIM->scgc[1]);
+	writel(kinetis_periph_scgc2, &KINETIS_SIM->scgc[2]);
+	writel(kinetis_periph_scgc3, &KINETIS_SIM->scgc[3]);
+	writel(kinetis_periph_scgc4, &KINETIS_SIM->scgc[4]);
+	writel(kinetis_periph_scgc5, &KINETIS_SIM->scgc[5]);
+	writel(kinetis_periph_scgc6, &KINETIS_SIM->scgc[6]);
+}
+EXPORT_SYMBOL(kinetis_periph_pop);
 
 /*
  * Enable or disable the clock on a peripheral device (timers, UARTs, USB, etc)
@@ -65,78 +107,6 @@ out:
 	return rv;
 }
 EXPORT_SYMBOL(kinetis_periph_enable);
-
-/*
- * Disable all clocks, except for those that are absolutely required
- * to run the OS kernel. We have to do that because firmware may
- * have enabled some of the clocks for its own operation.
- */
-void kinetis_periph_set_minimum(void)
-{
-	kinetis_periph_enable(KINETIS_CG_OSC1, 0);
-	kinetis_periph_enable(KINETIS_CG_UART4, 0);
-	kinetis_periph_enable(KINETIS_CG_UART5, 0);
-	kinetis_periph_enable(KINETIS_CG_ENET, 0);
-	kinetis_periph_enable(KINETIS_CG_DAC0, 0);
-	kinetis_periph_enable(KINETIS_CG_DAC1, 0);
-	kinetis_periph_enable(KINETIS_CG_RNGA, 0);
-	kinetis_periph_enable(KINETIS_CG_FLEXCAN1, 0);
-	kinetis_periph_enable(KINETIS_CG_NFC, 0);
-	kinetis_periph_enable(KINETIS_CG_SPI2, 0);
-	// kinetis_periph_enable(KINETIS_CG_DDR, 0);
-	kinetis_periph_enable(KINETIS_CG_SAI1, 0);
-	kinetis_periph_enable(KINETIS_CG_ESDHC, 0);
-	kinetis_periph_enable(KINETIS_CG_LCDC, 0);
-	kinetis_periph_enable(KINETIS_CG_FTM2, 0);
-	kinetis_periph_enable(KINETIS_CG_FTM3, 0);
-	kinetis_periph_enable(KINETIS_CG_ADC1, 0);
-	kinetis_periph_enable(KINETIS_CG_ADC3, 0);
-	kinetis_periph_enable(KINETIS_CG_EWM, 0);
-	kinetis_periph_enable(KINETIS_CG_CMT, 0);
-	kinetis_periph_enable(KINETIS_CG_I2C0, 0);
-	kinetis_periph_enable(KINETIS_CG_I2C1, 0);
-	kinetis_periph_enable(KINETIS_CG_UART0, 0);
-	kinetis_periph_enable(KINETIS_CG_UART1, 0);
-	kinetis_periph_enable(KINETIS_CG_UART2, 0);
-	kinetis_periph_enable(KINETIS_CG_UART3, 0);
-	kinetis_periph_enable(KINETIS_CG_USBFS, 0);
-	kinetis_periph_enable(KINETIS_CG_CMP, 0);
-	kinetis_periph_enable(KINETIS_CG_VREF, 0);
-	kinetis_periph_enable(KINETIS_CG_LLWU, 0);
-	kinetis_periph_enable(KINETIS_CG_LPTIMER, 0);
-	// kinetis_periph_enable(KINETIS_CG_REGFILE, 0);
-	kinetis_periph_enable(KINETIS_CG_DRYICE, 0);
-	kinetis_periph_enable(KINETIS_CG_DRYICESECREG, 0);
-	kinetis_periph_enable(KINETIS_CG_TSI, 0);
-	kinetis_periph_enable(KINETIS_CG_PORTA, 0);
-	kinetis_periph_enable(KINETIS_CG_PORTB, 0);
-	kinetis_periph_enable(KINETIS_CG_PORTC, 0);
-	kinetis_periph_enable(KINETIS_CG_PORTD, 0);
-	kinetis_periph_enable(KINETIS_CG_PORTE, 0);
-	kinetis_periph_enable(KINETIS_CG_PORTF, 0);
-	kinetis_periph_enable(KINETIS_CG_DMAMUX0, 0);
-	kinetis_periph_enable(KINETIS_CG_DMAMUX1, 0);
-	kinetis_periph_enable(KINETIS_CG_FLEXCAN0, 0);
-	kinetis_periph_enable(KINETIS_CG_SPI0, 0);
-	kinetis_periph_enable(KINETIS_CG_SPI1, 0);
-	kinetis_periph_enable(KINETIS_CG_SAI0, 0);
-	kinetis_periph_enable(KINETIS_CG_CRC, 0);
-	kinetis_periph_enable(KINETIS_CG_USBHS, 0);
-	kinetis_periph_enable(KINETIS_CG_USBDCD, 0);
-	kinetis_periph_enable(KINETIS_CG_PDB, 0);
-	kinetis_periph_enable(KINETIS_CG_PIT, 0);
-	kinetis_periph_enable(KINETIS_CG_FTM0, 0);
-	kinetis_periph_enable(KINETIS_CG_FTM1, 0);
-	kinetis_periph_enable(KINETIS_CG_ADC0, 0);
-	kinetis_periph_enable(KINETIS_CG_ADC2, 0);
-	kinetis_periph_enable(KINETIS_CG_RTC, 0);
-	kinetis_periph_enable(KINETIS_CG_FLEXBUS, 0);
-	kinetis_periph_enable(KINETIS_CG_DMA, 0);
-	kinetis_periph_enable(KINETIS_CG_MPU, 0);
-
-	// printk("\nAFTER:\n"); kinetis_periph_print_all();
-}
-EXPORT_SYMBOL(kinetis_periph_set_minimum);
 
 /*
  * Print status of a peripheral clock gate

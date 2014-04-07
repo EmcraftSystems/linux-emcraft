@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2011, 2012
+ * (C) Copyright 2011-2014
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -42,8 +43,10 @@ typedef u32 kinetis_clock_gate_t;
  * The register number counts from 0,
  * i.e. the register number for SIM_SCGC7 is 6.
  */
-#define KINETIS_CG_REG(gate)	((unsigned int) ((gate) >> KINETIS_CG_IDX_BITS))
-#define KINETIS_CG_IDX(gate)	((unsigned int) ((gate) & KINETIS_CG_IDX_MASK))
+#define KINETIS_CG_REG(gate)	\
+	((unsigned int) ((gate) >> KINETIS_CG_IDX_BITS))
+#define KINETIS_CG_IDX(gate)	\
+	((unsigned int) ((gate) & KINETIS_CG_IDX_MASK))
 /*
  * Build a `kinetis_clock_gate_t` from a register number and a bit index
  */
@@ -118,16 +121,19 @@ typedef u32 kinetis_clock_gate_t;
 #ifndef __ASSEMBLY__
 
 /*
- * Enable or disable the clock on a peripheral device (timers, UARTs, USB, etc)
+ * Store the current values of the clock gate registers
  */
-int kinetis_periph_enable(kinetis_clock_gate_t gate, int enable);
+void kinetis_periph_push(void);
 
 /*
- * Disable all clocks, except for those that are absolutely required
- * to run the OS kernel. We have to do that because firmware may
- * have enabled some of the clocks for its own operation.
+ * Re-store previously saved clock gate registers
  */
-void kinetis_periph_set_minimum(void);
+void kinetis_periph_pop(void);
+
+/*
+ * Enable or disable the clock on a peripheral device (timers, UARTs, etc)
+ */
+int kinetis_periph_enable(kinetis_clock_gate_t gate, int enable);
 
 /*
  * Print status of a peripheral clock gate

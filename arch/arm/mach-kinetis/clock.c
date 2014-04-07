@@ -178,40 +178,6 @@
 #define KINETIS_SIM_MCR_LCDSTART_MSK	(1 << 16)
 
 /*
- * Multipurpose Clock Generator (MCG) register map
- *
- * See Chapter 24 of the K60 Reference Manual (page 559)
- */
-struct kinetis_mcg_regs {
-	u8 c1;		/* MCG Control 1 Register */
-	u8 c2;		/* MCG Control 2 Register */
-	u8 c3;		/* MCG Control 3 Register */
-	u8 c4;		/* MCG Control 4 Register */
-	u8 c5;		/* MCG Control 5 Register */
-	u8 c6;		/* MCG Control 6 Register */
-	u8 status;	/* MCG Status Register */
-	u8 rsv0;
-	u8 atc;		/* MCG Auto Trim Control Register */
-	u8 rsv1;
-	u8 atcvh;	/* MCG Auto Trim Compare Value High Register */
-	u8 atcvl;	/* MCG Auto Trim Compare Value Low Register */
-	u8 c7;		/* MCG Control 7 Register */
-	u8 c8;		/* MCG Control 8 Register */
-	u8 rsv2;
-	u8 c10;		/* MCG Control 10 Register */
-	u8 c11;		/* MCG Control 11 Register */
-	u8 c12;		/* MCG Control 12 Register */
-	u8 status2;	/* MCG Status 2 Register */
-};
-
-/*
- * MCG registers base
- */
-#define KINETIS_MCG_BASE	(KINETIS_AIPS0PERIPH_BASE + 0x00064000)
-#define KINETIS_MCG		((volatile struct kinetis_mcg_regs *) \
-				KINETIS_MCG_BASE)
-
-/*
  * The structure that holds the information about a clock
  */
 struct clk {
