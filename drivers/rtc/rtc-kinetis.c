@@ -39,7 +39,7 @@
  * to avoid the performance and size overhead of debug messages.
  */
 #define KINETIS_RTC_DEBUG
-#if 0
+#if 1
 #undef KINETIS_RTC_DEBUG
 #endif
 
@@ -116,6 +116,14 @@ struct kinetis_rtc_regs {
 #define KINETIS_RTC(c)		(KINETIS_RTC_REGS(c->regs))
 
 /*
+ * Various bits in the hardware registers
+ */
+#define KINETIS_RTC_SR_TIF	(1<<0)
+#define KINETIS_RTC_SR_TAF	(1<<2)
+#define KINETIS_RTC_SR_TCE	(1<<4)
+#define KINETIS_RTC_IER_TAIE	(1<<2)
+
+/*
  * Private data structure for the RTC device
  */
 struct kinetis_rtc {
@@ -157,7 +165,7 @@ static int kinetis_rtc_hw_init(struct kinetis_rtc *rtc)
 	/*
 	 * Check that Seconds Counter is not stuck
 	 */
-	if (readl(&KINETIS_RTC(rtc)->rtc_sr) & (1<<0)) {
+	if (readl(&KINETIS_RTC(rtc)->rtc_sr) & KINETIS_RTC_SR_TIF) {
 
 		/*
 		 * This condition means that time is invalid.
@@ -173,7 +181,7 @@ static int kinetis_rtc_hw_init(struct kinetis_rtc *rtc)
 	 * Time Counter is probably already running but if it is not
 	 * we need to get is started
 	 */
-	writel(1<<4, &KINETIS_RTC(rtc)->rtc_sr);
+	writel(KINETIS_RTC_SR_TCE, &KINETIS_RTC(rtc)->rtc_sr);
 
 	d_printk(1, "cr=%x,sr=%x,ier=%x,ret=%d\n",
 		readl(&KINETIS_RTC(rtc)->rtc_cr),
@@ -210,7 +218,7 @@ static irqreturn_t kinetis_rtc_irq(int irq, void *dev_id)
 	/*
 	 * Disable alarm interrupts
 	 */
-	writel(readl(&KINETIS_RTC(rtc)->rtc_ier) & ~(1<<2),
+	writel(readl(&KINETIS_RTC(rtc)->rtc_ier) & ~KINETIS_RTC_IER_TAIE,
 		&KINETIS_RTC(rtc)->rtc_ier);
 
 	/*
@@ -281,10 +289,10 @@ static int kinetis_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/*
 	 * Update the Time Seconds counter
 	 */
-	writel(readl(&KINETIS_RTC(rtc)->rtc_sr) & ~(1<<4),
+	writel(readl(&KINETIS_RTC(rtc)->rtc_sr) & ~KINETIS_RTC_SR_TCE,
 		&KINETIS_RTC(rtc)->rtc_sr);
 	writel(secs, &KINETIS_RTC(rtc)->rtc_tsr);
-	writel(readl(&KINETIS_RTC(rtc)->rtc_sr) | (1<<4),
+	writel(readl(&KINETIS_RTC(rtc)->rtc_sr) | KINETIS_RTC_SR_TCE,
 		&KINETIS_RTC(rtc)->rtc_sr);
 
 Done:
@@ -344,8 +352,10 @@ static int kinetis_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	secs = readl(&KINETIS_RTC(rtc)->rtc_tar); 
 	rtc_time_to_tm(secs, tm);
-	alrm->enabled = (readl(&KINETIS_RTC(rtc)->rtc_ier) & (1<<2)) ? 1 : 0;
-	alrm->pending = (readl(&KINETIS_RTC(rtc)->rtc_sr) & (1<<3)) ? 1 : 0;
+	alrm->enabled = (readl(&KINETIS_RTC(rtc)->rtc_ier) &
+				KINETIS_RTC_IER_TAIE) ? 1 : 0;
+	alrm->pending = (readl(&KINETIS_RTC(rtc)->rtc_sr) &
+				KINETIS_RTC_SR_TAF) ? 1 : 0;
 
 	spin_unlock_irq(&rtc->lock);
 
@@ -376,7 +386,7 @@ static int kinetis_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/*
 	 * Enable alarm interrupts
 	 */
-	writel(readl(&KINETIS_RTC(rtc)->rtc_ier) | (1<<2),
+	writel(readl(&KINETIS_RTC(rtc)->rtc_ier) | KINETIS_RTC_IER_TAIE,
 		&KINETIS_RTC(rtc)->rtc_ier);
 
 	spin_unlock_irq(&rtc->lock);
