@@ -60,6 +60,7 @@
 /* BDH (Baud Rate Registers: High) */
 #define KINETIS_UART_BDH_BITWIDTH	5
 #define KINETIS_UART_BDH_BITWIDTH_MSK	((1 << KINETIS_UART_BDH_BITWIDTH) - 1)
+#define KINETIS_UART_BDH_RXEDGIE	(1<<6)
 
 /*
  * UART registers
@@ -85,6 +86,12 @@
 #define KINETIS_UART_S1_RDRF_MSK	(1 << 5)
 /* Idle Line Flag */
 #define KINETIS_UART_S1_IDLE_MSK	(1 << 4)
+
+/*
+ * UART Status Register 2
+ */
+/* Transmit Data Register Empty Flag */
+#define KINETIS_UART_S2_RXEDGIF		(1 << 6)
 
 /*
  * UART Control Register 1
@@ -291,6 +298,16 @@ static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 	volatile struct kinetis_uart_regs *regs = up->regs;
 	u8 status;
 
+	/*
+	 * This is an RX active edge interrupt.
+	 * It can only occur when exiting a Stop mode.
+	 * Clear the interrupt and that's all we need to do.
+	 */
+	if (regs->s2 & KINETIS_UART_S2_RXEDGIF) {
+		regs->s2 |= KINETIS_UART_S2_RXEDGIF;
+		goto Done;
+	}
+
 	status = regs->s1;
 
 	/* Handle character transmission */
@@ -316,6 +333,7 @@ static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 	}
 #endif /* CONFIG_KINETIS_EDMA */
 
+Done:
 	return IRQ_HANDLED;
 }
 
@@ -1243,9 +1261,47 @@ out:
 	return rv;
 }
 
+static int kinetis_uart_suspend(
+	struct platform_device *pdev, pm_message_t state)
+{
+	struct device *dev = &pdev->dev;
+	struct uart_port *port = dev_get_drvdata(dev);
+	struct kinetis_uart_priv *up = kinetis_up(port);
+	volatile struct kinetis_uart_regs *regs = up->regs;
+
+	/*
+	 * Clear a pending RX active edge interrupt.
+	 * Enable RX active enge interrupts.
+	 * This is will be used to wake up from Stop mode.
+	 */
+	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
+	regs->bdh |= KINETIS_UART_BDH_RXEDGIE;
+
+	return 0;
+}
+
+static int kinetis_uart_resume(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct uart_port *port = dev_get_drvdata(dev);
+	struct kinetis_uart_priv *up = kinetis_up(port);
+	volatile struct kinetis_uart_regs *regs = up->regs;
+
+	/*
+	 * Clear a pending RX active edge interrupt.
+	 * Disable RX active edge interrupts.
+	 */
+	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
+	regs->bdh &= ~KINETIS_UART_BDH_RXEDGIE;
+
+	return 0;
+}
+
 static struct platform_driver kinetis_platform_driver = {
 	.probe		= kinetis_uart_probe,
 	.remove		= __devexit_p(kinetis_uart_remove),
+	.suspend	= kinetis_uart_suspend,
+	.resume		= kinetis_uart_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= KINETIS_DRIVER_NAME,

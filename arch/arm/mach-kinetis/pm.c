@@ -204,7 +204,7 @@ static void kinetis_pm_prepare_to_suspend(void)
 	kinetis_periph_enable(KINETIS_CG_I2C1, 0);
 	kinetis_periph_enable(KINETIS_CG_UART0, 0);
 	kinetis_periph_enable(KINETIS_CG_UART1, 0);
-	kinetis_periph_enable(KINETIS_CG_UART2, 0);
+	//kinetis_periph_enable(KINETIS_CG_UART2, 0);
 	kinetis_periph_enable(KINETIS_CG_UART3, 0);
 	kinetis_periph_enable(KINETIS_CG_USBFS, 0);
 	kinetis_periph_enable(KINETIS_CG_CMP, 0);
