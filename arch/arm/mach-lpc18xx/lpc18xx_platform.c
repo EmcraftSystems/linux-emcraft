@@ -46,6 +46,7 @@
 #include <mach/mmc.h>
 #include <mach/nor-flash.h>
 #include <mach/spi.h>
+#include <mach/rtc.h>
 #include <mach/uart.h>
 
 /*
@@ -216,6 +217,10 @@ static void __init lpc18xx_init(void)
 
 #if defined(CONFIG_SND_LPC3XXX_SOC)
 	lpc18xx_i2s_init();
+#endif
+
+#if defined(CONFIG_RTC_DRV_LPC178X)
+	lpc18xx_rtc_init();
 #endif
 
 #if defined(CONFIG_I2C_LPC2K)

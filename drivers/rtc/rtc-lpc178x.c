@@ -40,6 +40,8 @@ struct lpc178x_rtc {
 	struct rtc_device *rtc_dev;
 	struct rtc_time alarm_tm;
 	spinlock_t lock;
+	void *base;
+	int  irq;
 };
 
 /*
@@ -148,15 +150,15 @@ const struct lpc178x_date_time_regs DEFAULT_DATE_TIME =
 
 #define LPC178X_RTC_EPOCH			(1900)
 
-#define LPC178X_RTC_BASE			(0x40024000)
-#define LPC178X_RTC_CONS_TIME_BASE	(0x40024014)
-#define LPC178X_RTC_CONS_DATE_BASE	(0x40024018)
-#define LPC178X_RTC_CONS_DOY_BASE	(0x4002401C)
+#define LPC178X_RTC_BASE		(0x40024000)
+#define LPC178X_RTC_CONS_TIME_SHIFT	0x14
+#define LPC178X_RTC_CONS_DATE_SHIFT	0x18
+#define LPC178X_RTC_CONS_DOY_SHIFT	0x1C
 
-#define LPC178X_RTC					((volatile struct lpc178x_rtc_regs*)LPC178X_RTC_BASE)
-#define LPC178X_RTC_CONS_TIME		((volatile struct lpc178x_cons_time_regs*)LPC178X_RTC_CONS_TIME_BASE)
-#define LPC178X_RTC_CONS_DATE		((volatile struct lpc178x_cons_date_regs*)LPC178X_RTC_CONS_DATE_BASE)
-#define LPC178X_RTC_CONS_DOY		((volatile struct lpc178x_cons_doy_regs*)LPC178X_RTC_CONS_DOY_BASE)
+#define LPC178X_RTC					((volatile struct lpc178x_rtc_regs*)rtc->base)
+#define LPC178X_RTC_CONS_TIME		((volatile struct lpc178x_cons_time_regs*)(rtc->base + LPC178X_RTC_CONS_TIME_SHIFT))
+#define LPC178X_RTC_CONS_DATE		((volatile struct lpc178x_cons_date_regs*)(rtc->base + LPC178X_RTC_CONS_DATE_SHIFT))
+#define LPC178X_RTC_CONS_DOY		((volatile struct lpc178x_cons_doy_regs*)(rtc->base + LPC178X_RTC_CONS_DOY_SHIFT))
 
 
 /*****************************************************************************
@@ -356,8 +358,9 @@ static irqreturn_t lpc178x_rtc_irq(int irq, void *dev_id)
 	return events ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static void lpc178x_rtc_set_alarm_mask(struct rtc_time *tm)
+static void lpc178x_rtc_set_alarm_mask(struct lpc178x_rtc *rtc)
 {
+	struct rtc_time *tm = &rtc->alarm_tm;
 	/* Prepare the value for the RTC alarm mask register */
 	u32 tmp = 0;
 
@@ -456,7 +459,7 @@ static int lpc178x_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled
 
 	if(enabled) {
 		/* Enable the alarm interrupt */
-		lpc178x_rtc_set_alarm_mask(&rtc->alarm_tm);
+		lpc178x_rtc_set_alarm_mask(rtc);
 	} else {
 		/* Disable the alarm interrupt */
 		LPC178X_RTC->alarm_mask_r = 0xFF;
@@ -472,6 +475,10 @@ static int lpc178x_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled
 static int lpc178x_rtc_update_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct lpc178x_rtc *rtc = dev_get_drvdata(dev);
+
+	/* Nothing to do */
+	if (enabled == !!(LPC178X_RTC->counter_inc_int_r & LPC178X_RTC_AMR_SEC_MSK))
+		return 0;
 
 	spin_lock_irq(&rtc->lock);
 
@@ -673,7 +680,7 @@ static int lpc178x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	/* Enable Alarm interrupts if needed */
 	if (alrm->enabled){
-		lpc178x_rtc_set_alarm_mask(tm);
+		lpc178x_rtc_set_alarm_mask(rtc);
 	}
 
 	spin_unlock_irq(&rtc->lock);
@@ -691,8 +698,9 @@ static struct rtc_class_ops lpc178x_rtc_ops = {
 	.update_irq_enable	= lpc178x_rtc_update_irq_enable,
 };
 
-static void lpc178x_rtc_restore_alarm(struct rtc_time *tm)
+static void lpc178x_rtc_restore_alarm(struct lpc178x_rtc *rtc)
 {
+	struct rtc_time *tm = &rtc->alarm_tm;
 	u32 reg = LPC178X_RTC->alarm_mask_r;
 
 	if(reg & LPC178X_RTC_AMR_SEC_MSK) {
@@ -751,6 +759,8 @@ static int __devinit lpc178x_rtc_probe(struct platform_device *pdev)
 {
 	struct lpc178x_rtc *rtc;
 	struct device *dev = &pdev->dev;
+	struct resource *res;
+	void (*plat_init)(void);
 	int rv;
 
 	/* Allocate memory for our RTC struct */
@@ -761,12 +771,33 @@ static int __devinit lpc178x_rtc_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res) {
+		rv = request_mem_region(res->start, resource_size(res),
+			"rtc-lpc1788");
+		if (!rv)
+			goto err;
+		rtc->base = res->start;
+	}
+	else {
+		pr_debug("Could not find MEM resource");
+		rtc->base = LPC178X_RTC_BASE;
+	}
+
+	rtc->irq = LPC178X_IRQ_RTC;
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (res)
+		rtc->irq = res->start;
+
+	if ((plat_init = pdev->dev.platform_data))
+		plat_init();
+
 	platform_set_drvdata(pdev, rtc);
 	device_init_wakeup(dev, 1);
 
 	spin_lock_init(&rtc->lock);
 
-	lpc178x_rtc_restore_alarm(&rtc->alarm_tm);
+	lpc178x_rtc_restore_alarm(rtc);
 
 	/* Register our RTC with the RTC framework */
 	rtc->rtc_dev = rtc_device_register(pdev->name, dev, &lpc178x_rtc_ops, THIS_MODULE);
@@ -777,7 +808,7 @@ static int __devinit lpc178x_rtc_probe(struct platform_device *pdev)
 	}
 
 	/* Handle RTC interrupts */
-	rv = request_irq(LPC178X_IRQ_RTC, lpc178x_rtc_irq, 0, pdev->name, rtc);
+	rv = request_irq(rtc->irq, lpc178x_rtc_irq, 0, pdev->name, rtc);
 	if (unlikely(rv)){
 		printk(KERN_ERR "Can not get IRQ for RTC\n");
 		goto err_irq;
@@ -808,7 +839,7 @@ static int __devexit lpc178x_rtc_remove(struct platform_device *pdev)
 	struct lpc178x_rtc *rtc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
-	free_irq(LPC178X_IRQ_RTC, dev);
+	free_irq(rtc->irq, dev);
 
 	rtc_device_unregister(rtc->rtc_dev);
 	platform_set_drvdata(pdev, NULL);

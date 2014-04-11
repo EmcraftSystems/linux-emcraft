@@ -877,7 +877,7 @@ config RTC_DRV_STM32F2
 
 config RTC_DRV_LPC178X
 	tristate "LPC178X On-Chip RTC"
-	depends on ARCH_LPC178X
+	depends on ARCH_LPC178X || ARCH_LPC18XX
 	help
 	  If you say yes here you will get support for the
 	  LPC178x On-Chip Real Time Clock.

@@ -113,6 +113,13 @@ struct lpc18xx_creg_regs {
 #define LPC18XX_CREG_BASE		0x40043000
 #define LPC18XX_CREG			((volatile struct lpc18xx_creg_regs *) \
 					LPC18XX_CREG_BASE)
+/*
+ * CREG0 register
+ */
+/* 32kHz oscillator settings (RTC) */
+#define LPC18XX_CREG_CREG0_EN1KHZ		(1 << 0)
+#define LPC18XX_CREG_CREG0_RESET32KHZ		(1 << 2)
+#define LPC18XX_CREG_CREG0_PD32KHZ		(1 << 3)
 
 /*
  * CREG6 register
