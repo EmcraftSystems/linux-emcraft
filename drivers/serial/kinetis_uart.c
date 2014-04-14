@@ -1,7 +1,9 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2012-2014
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
+ *	Add support for wake up from STOP mode
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -301,11 +303,12 @@ static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 	/*
 	 * This is an RX active edge interrupt.
 	 * It can only occur when exiting a Stop mode.
-	 * Clear the interrupt and that's all we need to do.
+	 * Clear the pending interrupt.
+	 * Disable the RX active edge interrupts
 	 */
 	if (regs->s2 & KINETIS_UART_S2_RXEDGIF) {
 		regs->s2 |= KINETIS_UART_S2_RXEDGIF;
-		goto Done;
+		regs->bdh &= ~KINETIS_UART_BDH_RXEDGIE;
 	}
 
 	status = regs->s1;
@@ -333,7 +336,6 @@ static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 	}
 #endif /* CONFIG_KINETIS_EDMA */
 
-Done:
 	return IRQ_HANDLED;
 }
 
@@ -773,13 +775,15 @@ static void kinetis_set_termios(struct uart_port *port,
 	 * Get base clock for this particular UART
 	 */
 	base_clk = clk_get_rate(up->clk);
+
 	/*
 	 * If base clock is OK, determine the requested baud rate.
 	 * The maximum baud rate is 1/16 of the base clock frequency.
 	 */
 	baud = 0;
 	if (base_clk)
-		baud = uart_get_baud_rate(port, termios, old, 0, base_clk / 16);
+		baud = uart_get_baud_rate(port, termios,
+					old, 0, base_clk / 16);
 
 #if defined(CONFIG_KINETIS_EDMA)
 	/*
@@ -1291,7 +1295,6 @@ static int kinetis_uart_resume(struct platform_device *pdev)
 	 * Clear a pending RX active edge interrupt.
 	 * Disable RX active edge interrupts.
 	 */
-	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
 	regs->bdh &= ~KINETIS_UART_BDH_RXEDGIE;
 
 	return 0;
