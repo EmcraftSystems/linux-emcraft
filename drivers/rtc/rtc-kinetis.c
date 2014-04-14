@@ -39,7 +39,7 @@
  * to avoid the performance and size overhead of debug messages.
  */
 #define KINETIS_RTC_DEBUG
-#if 1
+#if 0
 #undef KINETIS_RTC_DEBUG
 #endif
 
@@ -359,7 +359,8 @@ static int kinetis_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	spin_unlock_irq(&rtc->lock);
 
-	d_printk(2, "secs=%ld,ret=%d\n", secs, ret);
+	d_printk(2, "secs=%ld,enabled=%d,ret=%d\n",
+		secs, alrm->enabled, ret);
 	return ret;
 }
 
@@ -377,17 +378,28 @@ static int kinetis_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	spin_lock_irq(&rtc->lock);
 
-	/*
-	 * Set the Time Alarm
-	 */
-	rtc_tm_to_time(&alrm->time, &secs);
-	writel(secs - 1, &KINETIS_RTC(rtc)->rtc_tar);
+	if (alrm->enabled) {
 
-	/*
-	 * Enable alarm interrupts
-	 */
-	writel(readl(&KINETIS_RTC(rtc)->rtc_ier) | KINETIS_RTC_IER_TAIE,
-		&KINETIS_RTC(rtc)->rtc_ier);
+		/*
+		 * Set the Time Alarm
+		 */
+		rtc_tm_to_time(&alrm->time, &secs);
+		writel(secs - 1, &KINETIS_RTC(rtc)->rtc_tar);
+
+		/*
+		 * Enable alarm interrupts
+		 */
+		writel(readl(&KINETIS_RTC(rtc)->rtc_ier) |
+			KINETIS_RTC_IER_TAIE, &KINETIS_RTC(rtc)->rtc_ier);
+	}
+	else {
+
+		/*
+		 * Disable alarm interrupts
+		 */
+		writel(readl(&KINETIS_RTC(rtc)->rtc_ier) &
+			~KINETIS_RTC_IER_TAIE, &KINETIS_RTC(rtc)->rtc_ier);
+	}
 
 	spin_unlock_irq(&rtc->lock);
 
