@@ -896,6 +896,28 @@ error:
 	return retval;
 }
 
+
+#ifdef CONFIG_PM
+
+static int fsl_nfc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	int ret = 0;
+
+	/*
+	 * Disable chip select.
+	 */
+	writel(0x3000000, (unsigned int *) 0x400ABF0C);
+
+	return ret;
+}
+
+static int fsl_nfc_resume(struct platform_device *pdev)
+{
+	return 0;
+}
+
+#endif
+
 static int __exit
 fsl_nfc_remove(struct platform_device *pdev)
 {
@@ -913,8 +935,10 @@ fsl_nfc_remove(struct platform_device *pdev)
 static struct platform_driver fsl_nfc_driver = {
 	.probe		= fsl_nfc_probe,
 	.remove		= __exit_p(fsl_nfc_remove),
-	.suspend	= NULL,
-	.resume		= NULL,
+#ifdef CONFIG_PM
+	.suspend	= fsl_nfc_suspend,
+	.resume		= fsl_nfc_resume,
+#endif
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
