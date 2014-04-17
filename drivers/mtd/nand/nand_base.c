@@ -2528,9 +2528,11 @@ static void nand_resume(struct mtd_info *mtd)
 
 	if (chip->state == FL_PM_SUSPENDED)
 		nand_release_device(mtd);
+#if 0
 	else
 		printk(KERN_ERR "%s called for a chip which is not "
 		       "in suspended state\n", __func__);
+#endif
 }
 
 /*

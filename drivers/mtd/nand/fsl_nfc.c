@@ -901,19 +901,26 @@ error:
 
 static int fsl_nfc_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	/*
-	 * Disable chip select.
-	 */
-	writel(0x3000000, (unsigned int *) 0x400ABF0C);
+	if (mtd) {
+		ret = mtd->suspend(mtd);
+	}
 
 	return ret;
 }
 
 static int fsl_nfc_resume(struct platform_device *pdev)
 {
-	return 0;
+	struct mtd_info *mtd = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	if (mtd) {
+		mtd->resume(mtd);
+	}
+
+	return ret;
 }
 
 #endif
