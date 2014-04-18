@@ -1,6 +1,6 @@
 /*
  * arch/arm/mach-kinetis/pm.c
- * Kinetis PM code	
+ * Kinetis PM code
  *
  * Copyright (C) 2012 Robert Brehm, <brehm@mci.sdu.dk>
  * Copyright (C) 2014 Emcraft Systems
@@ -53,8 +53,8 @@
 
 /*
  * Assembler-level entry point to suspend the system.
- * The second symbol is a dummy entry point to mark 
- * the end of the eSRAM-based suspend code. 
+ * The second symbol is a dummy entry point to mark
+ * the end of the eSRAM-based suspend code.
  */
 extern void kinetis_suspend_to_ram(void);
 extern void kinetis_suspend_to_ram_end(void);
@@ -123,16 +123,16 @@ static void kinetis_pm_prepare_to_suspend(void)
 	writel(KINETIS_SIM_FCFG1_FTFDIS, &KINETIS_SIM->fcfg1);
 
 	/*
-	 * WDOG_STCTLH[STOPEN] = 0. 
+	 * WDOG_STCTLH[STOPEN] = 0.
 	 * Disable Watchdog on STOP.
 	 */
 	writew(readw(&KINETIS_WDOG->stctrlh) & ~KINETIS_WDOG_STCTRLH_STOPE,
 		 &KINETIS_WDOG->stctrlh);
 
 	/*
- 	 * Put USB voltage regulator in stand-by on STOP
- 	 */
-	writel(readl(&KINETIS_SIM->sopt1cfg) | KINETIS_SIM_SOPT1CFG_USSWE, 
+	 * Put USB voltage regulator in stand-by on STOP
+	 */
+	writel(readl(&KINETIS_SIM->sopt1cfg) | KINETIS_SIM_SOPT1CFG_USSWE,
 		&KINETIS_SIM->sopt1cfg);
 	writel(readl(&KINETIS_SIM->sopt1) | KINETIS_SIM_SOPT1_USBSSTBY,
 		&KINETIS_SIM->sopt1);
@@ -148,7 +148,7 @@ static void kinetis_pm_prepare_to_suspend(void)
 	 */
 	writeb(readb(&KINETIS_MCG->c2) | KINETIS_MCG_C2_LP,
 		&KINETIS_MCG->c2);
-	
+
 	/*
 	 * Disable PLL0 on STOP.
 	 */
@@ -160,7 +160,7 @@ static void kinetis_pm_prepare_to_suspend(void)
 	 */
 	writeb(readb(&KINETIS_MCG->c11) & ~KINETIS_MCG_C11_PLLSTEN1,
 		&KINETIS_MCG->c11);
-	
+
 	/*
 	 * Disable OSC0 on STOP.
 	 */
@@ -283,7 +283,7 @@ static int kinetis_pm_enter(suspend_state_t state)
 	writeb(KINETIS_SMC_PMCTRL_STOPM_VLPS, &KINETIS_SMC->pmctrl);
 	writel(readl(&KINETIS_SCB->scr) | KINETIS_SCB_SCR_DEEPSLEEP,
 		&KINETIS_SCB->scr);
-	
+
 	/*
 	 * Jump to suspend code in SRAM
 	 */
@@ -307,7 +307,7 @@ static int kinetis_pm_enter(suspend_state_t state)
 }
 
 /*
- * Power Management operations 
+ * Power Management operations
  */
 static struct platform_suspend_ops kinetis_pm_ops = {
 	.valid = kinetis_pm_valid,
@@ -335,14 +335,14 @@ static int __init kinetis_pm_init(void)
 	 * Relocate low-level suspend code to SRAM.
 	 * It will run with no DDR available.
 	 */
-	memcpy((unsigned char *) KINETIS_SUSPEND_CODE_BASE, 
+	memcpy((unsigned char *) KINETIS_SUSPEND_CODE_BASE,
 		(unsigned char *) kinetis_suspend_to_ram,
 		(unsigned char *) kinetis_suspend_to_ram_end -
 		(unsigned char *) kinetis_suspend_to_ram);
 
 	/*
- 	 * Register the PM driver
- 	 */
+	 * Register the PM driver
+	 */
 	if (platform_driver_register(&kinetis_pm_driver) != 0) {
 		printk(KERN_ERR "kinetis_pm_driver register failed\n");
 		ret = -ENODEV;
@@ -350,8 +350,8 @@ static int __init kinetis_pm_init(void)
 	}
 
 	/*
- 	 * Register PM operations
- 	 */
+	 * Register PM operations
+	 */
 	suspend_set_ops(&kinetis_pm_ops);
 
 	/*

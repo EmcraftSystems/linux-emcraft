@@ -1,6 +1,6 @@
 /*
  * arch/arm/mach-kinetis/suspend.S
- * Kinetis low-level suspend-to-RAM code	
+ * Kinetis low-level suspend-to-RAM code
  *
  * Copyright (C) 2012 Robert Brehm, <brehm@mci.sdu.dk>
  * Copyright (C) 2014 Emcraft Systems
@@ -50,7 +50,7 @@ kinetis_suspend_to_ram:
 	add r1, r1,#0xF
 	str r1, [r0]
 
-	ldr r0, sim_mcr 
+	ldr r0, sim_mcr
 	ldr r1, [r0]
 	mov r2, #0x1
 	add r1,r2
@@ -60,7 +60,7 @@ kinetis_suspend_to_ram:
 	 * Disable all DDR I/O pins
 	 * Disable DDR_DQS
 	 */
-	ldr r0, sim_mcr 
+	ldr r0, sim_mcr
 	ldr r1, [r0]
 	movw r2, #0xFFF3
 	movt r2, #0xFFFF
@@ -97,7 +97,7 @@ kinetis_suspend_to_ram:
 	strb r1, [r0]
 
 	/*
-	 * Wait until CLKS has switched to PLL Engaged External 
+	 * Wait until CLKS has switched to PLL Engaged External
 	 */
 	mov r2, #0x0C
 1:
@@ -111,7 +111,7 @@ kinetis_suspend_to_ram:
 	 * Enable all DDR I/O pins
 	 * Enable DDR_DQS
 	 */
-	ldr r0, sim_mcr 
+	ldr r0, sim_mcr
 	ldr r1, [r0]
 	mov r2, #0xC
 	add r1,r2
@@ -128,7 +128,7 @@ kinetis_suspend_to_ram:
 	/*
 	 * Take DDR out of self-refresh
 	 */
-	ldr r0, sim_mcr 
+	ldr r0, sim_mcr
 	ldr r1, [r0]
 	movw r2, #0xFFFE
 	movt r2, #0xFFFF
