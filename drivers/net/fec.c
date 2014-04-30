@@ -2006,7 +2006,7 @@ fec_stop(struct net_device *dev)
 	}
 
 	mii_do_cmd_with_delay(dev,
-			(fep && fep->phy) ? fep->phy->shutdown : NULL, 20);
+			(fep && fep->phy) ? fep->phy->shutdown : NULL, 100);
 
 
 	/* Whack a reset.  We should wait for this. */
