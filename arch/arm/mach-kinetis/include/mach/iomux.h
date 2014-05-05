@@ -49,7 +49,6 @@
 #define KINETIS_GPIO_CONFIG_IRQC_EITHER	(0xb << 16)
 #define KINETIS_GPIO_CONFIG_IRQC_HIGH	(0xc << 16)
 
-
 /*
  * These macros should be used to compute the value for the second argument of
  * `kinetis_gpio_config()` (`regval`). This value will be copied into a PCR

@@ -235,7 +235,7 @@ static int kinetis_irq_set_type(unsigned irq, unsigned trigger)
 }
 
 /*
- * Structure to represent chip for each particular pint interrupt
+ * Structure to represent chip for each particular pin interrupt
  */
 static struct irq_chip kinetis_irq_chip = {
 		.name		= "GPIO",
@@ -266,7 +266,8 @@ void __init kinetis_gpio_init(void)
 
 	/* Assigning handler for all ports PORT_A - PORT_F */
 	for (i = 0; i < KINETIS_GPIO_PORTS; i++) {
-		set_irq_chained_handler(kinetis_port_irqs[i], kinetis_gpio_irq_handler);
+		set_irq_chained_handler(kinetis_port_irqs[i],
+					kinetis_gpio_irq_handler);
 		set_irq_chip_data(kinetis_port_irqs[i], chip);
 	}
 

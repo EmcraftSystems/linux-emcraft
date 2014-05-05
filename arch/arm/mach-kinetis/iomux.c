@@ -238,9 +238,13 @@ static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
 	{{KINETIS_GPIO_PORT_E, 4}, KINETIS_GPIO_CONFIG_MUX(4)},
 	/* E.5 = SDHC0_D2 */
 	{{KINETIS_GPIO_PORT_E, 5}, KINETIS_GPIO_CONFIG_MUX(4)},
+#if defined(CONFIG_KINETIS_GPIO_INT)
+	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_PULLUP(1)},
+#else
 	/* E.28 = GPIO (Card detect) */
 	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_PULLUP(1) |
 	 KINETIS_GPIO_CONFIG_IRQC_EITHER},
+#endif
 #endif
 };
 
@@ -375,8 +379,12 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 	/* E.5 = SDHC0_D2 */
 	{{KINETIS_GPIO_PORT_E, 5}, KINETIS_GPIO_CONFIG_MUX(4)},
 	/* E.28 = GPIO (Card detect) */
+#if defined(CONFIG_KINETIS_GPIO_INT)
+	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_PULLUP(1)},
+#else
 	{{KINETIS_GPIO_PORT_E, 28}, KINETIS_GPIO_CONFIG_PULLUP(1) |
 	 KINETIS_GPIO_CONFIG_IRQC_EITHER},
+#endif
 #endif
 
 #if defined(CONFIG_KINETIS_SPI1)
