@@ -34,7 +34,6 @@
 #define KINETIS_ESDHC_BASE	(KINETIS_AIPS1PERIPH_BASE + 0x00031000)
 #define KINETIS_ESDHC_IRQ	80
 
-
 /*
  * We use this per-UART structure to simplify memory allocation
  */

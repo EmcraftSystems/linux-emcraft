@@ -65,7 +65,6 @@ static int card_detect_extern_irq;
 //
 #endif
 
-
 #undef ESDHC_DMA_KMALLOC
 
 #define SYS_BUSCLOCK 120000000
@@ -245,7 +244,7 @@ static void esdhc_init(struct esdhc_host *host)
 	DBG(" ### PROCTL: init %x\n", fsl_readl(host->ioaddr + ESDHC_PROTOCOL_CONTROL));
 
 	fsl_writel(host->ioaddr + ESDHC_SYSTEM_CONTROL,
-			fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) | 0x08000000);
+		fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) | 0x08000000);
 	while (fsl_readl(host->ioaddr + ESDHC_SYSTEM_CONTROL) & 0x08000000);
 }
 
@@ -261,8 +260,8 @@ static void reset_regs(struct esdhc_host *host)
 		ESDHC_INT_END_BIT | ESDHC_INT_CRC | ESDHC_INT_TIMEOUT |
 		ESDHC_INT_DATA_AVAIL | ESDHC_INT_SPACE_AVAIL |
 		ESDHC_INT_DMA_END | ESDHC_INT_DATA_END | ESDHC_INT_RESPONSE;
-
-	fsl_writel(host->ioaddr + ESDHC_INT_ENABLE, intmask & ~ESDHC_INT_RESPONSE);
+	fsl_writel(host->ioaddr + ESDHC_INT_ENABLE,
+			intmask & ~ESDHC_INT_RESPONSE);
 	fsl_writel(host->ioaddr + ESDHC_SIGNAL_ENABLE, intmask);
 
 	if (host->bus_width == MMC_BUS_WIDTH_4) {
@@ -1266,6 +1265,19 @@ static void esdhc_tasklet_finish(unsigned long param)
 	host->mrq = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
+
+	if (mrq->cmd && mrq->cmd->error == MMC_ERR_TIMEOUT) {
+		mrq->cmd->error = -EBUSY;
+	}
+	else if (mrq->cmd && mrq->cmd->error != MMC_ERR_NONE) {
+		 mrq->cmd->error = -EIO;
+	}
+	if (mrq->data && mrq->data->error == MMC_ERR_TIMEOUT) {
+		mrq->data->error = -EBUSY;
+	}
+	else if (mrq->data && mrq->data->error != MMC_ERR_NONE) {
+		 mrq->data->error = -EIO;
+	}
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
