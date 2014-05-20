@@ -43,13 +43,14 @@
 #include <mach/ehci.h>
 #include <mach/eth.h>
 #include <mach/fb.h>
+#include <mach/gpio.h>
 #include <mach/i2c.h>
 #include <mach/i2s.h>
 #include <mach/mmc.h>
 #include <mach/nor-flash.h>
+#include <mach/rtc.h>
 #include <mach/spi.h>
 #include <mach/spifi.h>
-#include <mach/rtc.h>
 #include <mach/uart.h>
 
 /*
@@ -210,6 +211,14 @@ static void __init lpc18xx_init(void)
 	 */
 	lpc18xx_fb_init();
 #endif
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Register LPC18XX GPIO lines
+	 */
+	lpc18xx_gpio_init();
+#endif /* CONFIG_GPIOLIB */
+
 
 #if defined(CONFIG_USB_EHCI_LPC43XX)
 	/*

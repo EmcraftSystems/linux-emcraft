@@ -117,6 +117,7 @@ extern int __must_check gpiochip_remove(struct gpio_chip *chip);
  */
 extern int gpio_request(unsigned gpio, const char *label);
 extern void gpio_free(unsigned gpio);
+extern int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 
 extern int gpio_direction_input(unsigned gpio);
 extern int gpio_direction_output(unsigned gpio, int value);

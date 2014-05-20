@@ -29,18 +29,10 @@
 #include <linux/init.h>
 
 /*
- * Set up direction of a GPIO: 1-> out; 0-> in
- */
-void lpc18xx_gpio_dir(int port, int pin, int d);
-
-/*
- * Define the value of a general-purpose output
- */
-void lpc18xx_gpio_out(int port, int pin, int v);
-
-/*
  * Set up IOMUX configuration of various processor chips
  */
 void __init lpc18xx_iomux_init(void);
+
+int lpc18xx_pin_config(int group, int pin, u32 regval);
 
 #endif	/*_MACH_LPC18XX_IOMUX_H_ */

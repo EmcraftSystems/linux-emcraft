@@ -810,6 +810,7 @@ config ARCH_LPC18XX
 	select ARM_CORTEXM3
 	select ARM_AMBA
 	select USB_ARCH_HAS_EHCI
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  This enables support for the NXP LPC18xx/43xx MCUs
 
