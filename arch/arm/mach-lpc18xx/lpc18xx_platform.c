@@ -33,6 +33,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
+#include <linux/platform_device.h>
+
 #include <mach/clock.h>
 #include <mach/iomux.h>
 #include <mach/platform.h>
@@ -46,6 +48,7 @@
 #include <mach/mmc.h>
 #include <mach/nor-flash.h>
 #include <mach/spi.h>
+#include <mach/spifi.h>
 #include <mach/rtc.h>
 #include <mach/uart.h>
 
@@ -228,5 +231,12 @@ static void __init lpc18xx_init(void)
 	 * Configure the I2C bus
 	 */
 	lpc18xx_i2c_init();
+#endif
+
+#if defined(CONFIG_MTD_M25P80_SPIFI)
+	/*
+	 * Configure the M25P80 over SPIFI driver
+	 */
+	lpc18xx_spifi_init();
 #endif
 }

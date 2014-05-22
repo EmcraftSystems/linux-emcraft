@@ -364,26 +364,15 @@ static struct iomux_pin_config {
 		 */
 		lpc18xx_pin_config(0x2, 3, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
 		lpc18xx_pin_config(0x2, 4, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
-
 #endif
 
-#if defined(CONFIG_LPC18XX_I2S0)
-# if defined(CONFIG_SND_LPC3XXX_SOC_I2S_NAU8822)
-		/* Configure PWR_AUD pin */
-		lpc18xx_pin_config(0xE, 2, LPC18XX_IOMUX_CONFIG(4, 0, 1, 1, 1, 0));
-		lpc18xx_gpio_dir(0x7, 2, 1);
-		lpc18xx_gpio_out(0x7, 2, 0);
-# endif
-		/* Configure I2S pins */
-		/* P3.0 -- I2S0_SCLK */
-		lpc18xx_pin_config(0x3, 0, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 0, 0));
-		/* P3.1 -- I2S0_LRCK_TX */
-		lpc18xx_pin_config(0x3, 1, LPC18XX_IOMUX_CONFIG(0, 0, 1, 1, 0, 0));
-		/* P3.2 -- I2S0_SDO0 */
-		lpc18xx_pin_config(0x3, 2, LPC18XX_IOMUX_CONFIG(0, 0, 1, 1, 0, 0));
-
-		/* CLK3 (P12) -- CGU_OUT1 */
-		lpc18xx_pin_config(0x18, 3, LPC18XX_IOMUX_CONFIG(5, 0, 1, 1, 0, 1));
+#if defined(CONFIG_MTD_M25P80_SPIFI)
+		/* Setup SPIFI pins */
+		for (i = 3; i <= 7; ++i) {
+			lpc18xx_pin_config(0x3, i, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 1));
+		}
+		/* SSEL is output only */
+		lpc18xx_pin_config(0x3, 8, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 0, 0));
 #endif
 	}
 }
