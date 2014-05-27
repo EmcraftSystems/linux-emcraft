@@ -362,6 +362,22 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 	{{KINETIS_GPIO_PORT_B, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
 	{{KINETIS_GPIO_PORT_B, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
 #endif
+#if 0
+	/*
+	 * Pin configuration for the User LEDs and the "User Button" installed
+	 * on the TWR-SOM-BSB-2A baseboard. Other baseboards may need
+	 * different pin configurations.
+	 */
+
+	/*
+	 * The "User Button" is at PTC3, with external pullup */
+	{{KINETIS_GPIO_PORT_C, 3}, KINETIS_GPIO_CONFIG_MUX(1)},
+
+	/* LEDs DS3 and DS4, correspondingly */
+	{{KINETIS_GPIO_PORT_B, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+	{{KINETIS_GPIO_PORT_B, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
+#endif
+
 #endif /* CONFIG_GPIOLIB */
 
 
