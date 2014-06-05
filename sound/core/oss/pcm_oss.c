@@ -22,7 +22,7 @@
 #if 0
 #define PLUGIN_DEBUG
 #endif
-#if 1
+#if 0
 #define OSS_DEBUG
 #endif
 

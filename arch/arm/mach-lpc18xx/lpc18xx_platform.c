@@ -53,6 +53,9 @@
 #include <mach/spifi.h>
 #include <mach/uart.h>
 
+#include <mach/dmac.h>
+#include <mach/dma.h>
+
 /*
  * Prototypes
  */
@@ -169,6 +172,8 @@ static void __init lpc18xx_init(void)
 	 * Configure the IOMUXes of LPC18xx
 	 */
 	lpc18xx_iomux_init();
+
+	lpc18xx_dma_init();
 
 #if defined(CONFIG_SERIAL_8250)
 	/*

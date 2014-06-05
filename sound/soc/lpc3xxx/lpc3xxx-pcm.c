@@ -28,6 +28,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/amba/pl08x.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -41,8 +43,6 @@
 
 #define SND_NAME "lpc3xxx-audio"
 static u64 lpc3xxx_pcm_dmamask = 0xffffffff;
-
-#define NUMLINKS (3) /* 3 DMA buffers */
 
 static const struct snd_pcm_hardware lpc3xxx_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_MMAP |
@@ -59,17 +59,16 @@ static const struct snd_pcm_hardware lpc3xxx_pcm_hardware = {
 	.buffer_bytes_max = 128 * 1024
 };
 
-struct lpc3xxx_dma_data {
-	dma_addr_t dma_buffer;	/* physical address of DMA buffer */
-	dma_addr_t dma_buffer_end; /* first address beyond DMA buffer */
-	size_t period_size;
+struct lpc3xxx_pcm_priv {
+	void				*regs;
 
 	/* DMA configuration and support */
-	int dmach;
-	struct dma_config dmacfg;
-	volatile dma_addr_t period_ptr;	/* physical address of next period */
-	volatile dma_addr_t dma_cur;
-	u32 llptr;		/* Saved for debug only, not used */
+	struct dma_chan			*dma_channel;
+	struct sg_table			*sgt;
+	unsigned int			sgt_i, sgt_l, sgt_n;
+	size_t				period_size;
+
+	enum dma_data_direction		map_type;
 };
 
 static int lpc3xxx_pcm_allocate_dma_buffer(struct snd_pcm *pcm, int stream)
@@ -91,60 +90,36 @@ static int lpc3xxx_pcm_allocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	return 0;
 }
 
-/*
- * DMA ISR - occurs when a new DMA buffer is needed
- */
-static void lpc3xxx_pcm_dma_irq(int channel, int cause,
-				struct snd_pcm_substream *substream) {
-	struct snd_pcm_runtime *rtd = substream->runtime;
-	struct lpc3xxx_dma_data *prtd = rtd->private_data;
-	static int count = 0;
+static void setup_dma_scatter(void *buffer,
+			      unsigned int length,
+			      struct sg_table *sgtab)
+{
+	struct scatterlist *sg;
+	int bytesleft = length;
+	void *bufp = buffer;
+	int mapbytes;
+	int i;
 
-	count++;
+	if (buffer) {
+		for_each_sg(sgtab->sgl, sg, sgtab->nents, i) {
+			/*
+			 * If there are less bytes left than what fits
+			 * in the current page (plus page alignment offset)
+			 * we just feed in this, else we stuff in as much
+			 * as we can.
+			 */
+			if (bytesleft < (PAGE_SIZE - offset_in_page(bufp)))
+				mapbytes = bytesleft;
+			else
+				mapbytes = PAGE_SIZE - offset_in_page(bufp);
+			sg_set_page(sg, virt_to_page(bufp),
+				    mapbytes, offset_in_page(bufp));
+			bufp += mapbytes;
+			bytesleft -= mapbytes;
+		}
+	}
 
-	/* A DMA interrupt occurred - for most cases, this will be the end
-	   of a transmitted buffer in the DMA link list, but errors are also
-	   handled. */
-	if (cause & DMA_ERR_INT) {
-		/* DMA error - this should never happen, but you just never
-		   know. If it does happen, the driver will continue without
-		   any problems except for maybe an audio glitch or pop. */
-		pr_debug("%s: DMA error %s (count=%d)\n", SND_NAME,
-			   substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-			   "underrun" : "overrun", count);
-	}
-	/* Dequeue buffer from linked list */
-	lpc32xx_get_free_llist_entry(channel);
-	prtd->dma_cur += prtd->period_size;
-	if (prtd->dma_cur >= prtd->dma_buffer_end) {
-		prtd->dma_cur = prtd->dma_buffer;
-	}
-
-	/* Re-queue buffer another buffer */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		lpc32xx_dma_queue_llist_entry(prtd->dmach, (void *) prtd->period_ptr,
-#if defined(CONFIG_SND_LPC32XX_USEI2S1)
-			(void *) I2S_TX_FIFO(LPC32XX_I2S1_BASE),
-#else
-			(void *) I2S_TX_FIFO(LPC32XX_I2S0_BASE),
-#endif
-			prtd->period_size);
-	}
-	else {
-		lpc32xx_dma_queue_llist_entry(prtd->dmach,
-#if defined(CONFIG_SND_LPC32XX_USEI2S1)
-			(void *) I2S_RX_FIFO(LPC32XX_I2S1_BASE),
-#else
-			(void *) I2S_RX_FIFO(LPC32XX_I2S0_BASE),
-#endif
-			(void *) prtd->period_ptr, prtd->period_size);
-	}
-	prtd->period_ptr += prtd->period_size;
-	if (prtd->period_ptr >= prtd->dma_buffer_end)
-		prtd->period_ptr = prtd->dma_buffer;
-
-	/* This only needs to be called once, even if more than 1 period has passed */
-	snd_pcm_period_elapsed(substream);
+	BUG_ON(bytesleft);
 }
 
 /*
@@ -154,7 +129,9 @@ static int lpc3xxx_pcm_hw_params(struct snd_pcm_substream *substream,
 			         struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct lpc3xxx_dma_data *prtd = runtime->private_data;
+	struct lpc3xxx_pcm_priv *prtd = runtime->private_data;
+	unsigned int pages;
+	int ret = 0, i;
 
 	/* this may get called several times by oss emulation
 	 * with different params
@@ -162,114 +139,130 @@ static int lpc3xxx_pcm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	runtime->dma_bytes = params_buffer_bytes(params);
 
-	prtd->dma_buffer = runtime->dma_addr;
-	prtd->dma_buffer_end = runtime->dma_addr + runtime->dma_bytes;
 	prtd->period_size = params_period_bytes(params);
 
-	return 0;
+	pages = (prtd->period_size >> PAGE_SHIFT) + 1;
+
+	prtd->sgt_n = DIV_ROUND_UP(runtime->dma_bytes, prtd->period_size);
+	prtd->sgt = kcalloc(prtd->sgt_n, sizeof(*prtd->sgt), GFP_KERNEL);
+	if (!prtd->sgt) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < prtd->sgt_n; ++i) {
+		ret = sg_alloc_table(&prtd->sgt[i], pages, GFP_KERNEL);
+		if (ret)
+			goto out_free_table;
+		setup_dma_scatter(
+			(void *)runtime->dma_addr + i * prtd->period_size,
+			prtd->period_size, &prtd->sgt[i]);
+	}
+
+out:
+	return ret;
+
+out_free_table:
+	while(i--) {
+		sg_free_table(&prtd->sgt[i]);
+	}
+	kfree(prtd->sgt);
+	return ret;
 }
 
 static int lpc3xxx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
-	struct lpc3xxx_dma_data *prtd = substream->runtime->private_data;
+	struct lpc3xxx_pcm_priv *prtd = substream->runtime->private_data;
+	int i;
+
+	for (i = 0; i < prtd->sgt_n; ++i) {
+		struct sg_table *sgt = &prtd->sgt[i];
+		sg_free_table(sgt);
+	}
 
 	/* Return the DMA channel */
-	if (prtd->dmach != -1) {
-		lpc32xx_dma_ch_disable(prtd->dmach);
-		lpc32xx_dma_dealloc_llist(prtd->dmach);
-		lpc32xx_dma_ch_put(prtd->dmach);
-		prtd->dmach = -1;
+	if (prtd->dma_channel) {
+		dma_release_channel(prtd->dma_channel);
+		prtd->dma_channel = NULL;
 	}
+	return 0;
+}
+
+static int lpc3xxx_pcm_queue_dma(struct snd_pcm_substream *substream);
+
+static void lpc3xxx_pcm_dma_callback(void *data)
+{
+	struct snd_pcm_substream *substream = data;
+	struct lpc3xxx_pcm_priv *prtd = substream->runtime->private_data;
+
+	struct dma_chan *chan = prtd->dma_channel;
+	struct sg_table *sgt = &prtd->sgt[prtd->sgt_l];
+
+	dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, prtd->map_type);
+
+	lpc3xxx_pcm_queue_dma(substream);
+	snd_pcm_period_elapsed(substream);
+}
+
+static int lpc3xxx_pcm_queue_dma(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *rtd = substream->runtime;
+	struct lpc3xxx_pcm_priv *prtd = rtd->private_data;
+
+	struct dma_chan *chan = prtd->dma_channel;
+	struct sg_table *sgt = &prtd->sgt[prtd->sgt_i];
+	unsigned int sglen;
+	struct dma_async_tx_descriptor *desc;
+
+	prtd->sgt_l = prtd->sgt_i;
+	prtd->sgt_i = (prtd->sgt_i + 1) % prtd->sgt_n;
+
+	sglen = dma_map_sg(chan->device->dev,
+			sgt->sgl, sgt->nents, prtd->map_type);
+	if (!sglen)
+		return -ENOMEM;
+
+	desc = chan->device->device_prep_slave_sg(
+			chan,
+			sgt->sgl,
+			sglen,
+			prtd->map_type,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK,
+			NULL);
+
+	desc->callback = lpc3xxx_pcm_dma_callback;
+	desc->callback_param = substream;
+
+	dmaengine_submit(desc);
+	dma_async_issue_pending(chan);
 
 	return 0;
 }
 
+
 static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	struct lpc3xxx_dma_data *prtd = substream->runtime->private_data;
+	struct lpc3xxx_pcm_priv *prtd = substream->runtime->private_data;
+	struct dma_chan *chan = prtd->dma_channel;
+	struct dma_slave_config ch_config;
+
+	ch_config.dst_addr_width = 4;
+	ch_config.dst_maxburst = 4;
+	ch_config.src_addr_width = 4;
+	ch_config.src_maxburst = 4;
+	ch_config.device_fc = false;
 
 	/* Setup DMA channel */
-	if (prtd->dmach == -1) {
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			prtd->dmach = DMA_CH_I2S_TX;
-			prtd->dmacfg.ch = DMA_CH_I2S_TX;
-			prtd->dmacfg.tc_inten = 1;
-			prtd->dmacfg.err_inten = 1;
-			prtd->dmacfg.src_size = 4;
-			prtd->dmacfg.src_inc = 1;
-#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
-			prtd->dmacfg.src_ahb1 = 0;
-#endif
-			prtd->dmacfg.src_bsize = DMAC_CHAN_SRC_BURST_4;
-			prtd->dmacfg.src_prph = 0;
-			prtd->dmacfg.dst_size = 4;
-			prtd->dmacfg.dst_inc = 0;
-			prtd->dmacfg.dst_bsize = DMAC_CHAN_DEST_BURST_4;
-#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
-			prtd->dmacfg.dst_ahb1 = 1;
-#endif
-
-#if defined(CONFIG_SND_LPC32XX_USEI2S1)
-			prtd->dmacfg.dst_prph = DMAC_DEST_PERIP(DMA_PERID_I2S1_DMA1);
-#else
-			prtd->dmacfg.dst_prph = DMAC_DEST_PERIP(DMA_PERID_I2S0_DMA1);
-#endif
-			prtd->dmacfg.flowctrl = DMAC_CHAN_FLOW_D_M2P;
-			if (lpc32xx_dma_ch_get(&prtd->dmacfg, "dma_i2s_tx",
-				&lpc3xxx_pcm_dma_irq, substream) < 0) {
-				pr_debug(KERN_ERR "Error setting up I2S TX DMA channel\n");
-				return -ENODEV;
-			}
-
-			/* Allocate a linked list for audio buffers */
-			prtd->llptr = lpc32xx_dma_alloc_llist(prtd->dmach, NUMLINKS);
-			if (prtd->llptr == 0) {
-				lpc32xx_dma_ch_put(prtd->dmach);
-				prtd->dmach = -1;
-				pr_debug(KERN_ERR "Error allocating list buffer (I2S TX)\n");
-				return -ENOMEM;
-			}
-		}
-		else {
-			prtd->dmach = DMA_CH_I2S_RX;
-			prtd->dmacfg.ch = DMA_CH_I2S_RX;
-			prtd->dmacfg.tc_inten = 1;
-			prtd->dmacfg.err_inten = 1;
-			prtd->dmacfg.src_size = 4;
-			prtd->dmacfg.src_inc = 0;
-#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
-			prtd->dmacfg.src_ahb1 = 1;
-#endif
-			prtd->dmacfg.src_bsize = DMAC_CHAN_SRC_BURST_4;
-#if defined(CONFIG_SND_LPC32XX_USEI2S1)
-			prtd->dmacfg.src_prph = DMAC_SRC_PERIP(DMA_PERID_I2S1_DMA0);
-#else
-			prtd->dmacfg.src_prph = DMAC_SRC_PERIP(DMA_PERID_I2S0_DMA0);
-#endif
-			prtd->dmacfg.dst_size = 4;
-			prtd->dmacfg.dst_inc = 1;
-#if defined(CONFIG_ARCH_LPC32XX) || defined(CONFIG_ARCH_LPC18XX)
-			prtd->dmacfg.dst_ahb1 = 0;
-#endif
-			prtd->dmacfg.dst_bsize = DMAC_CHAN_DEST_BURST_4;
-			prtd->dmacfg.dst_prph = 0;
-			prtd->dmacfg.flowctrl = DMAC_CHAN_FLOW_D_P2M;
-			if (lpc32xx_dma_ch_get(&prtd->dmacfg, "dma_i2s_rx",
-				&lpc3xxx_pcm_dma_irq, substream) < 0) {
-				pr_debug(KERN_ERR "Error setting up I2S RX DMA channel\n");
-				return -ENODEV;
-			}
-
-			/* Allocate a linked list for audio buffers */
-			prtd->llptr = lpc32xx_dma_alloc_llist(prtd->dmach, NUMLINKS);
-			if (prtd->llptr == 0) {
-				lpc32xx_dma_ch_put(prtd->dmach);
-				prtd->dmach = -1;
-				pr_debug(KERN_ERR "Error allocating list buffer (I2S RX)\n");
-				return -ENOMEM;
-			}
-		}
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		ch_config.dst_addr = (dma_addr_t)I2S_TX_FIFO(prtd->regs);
+		prtd->map_type = ch_config.direction = DMA_TO_DEVICE;
 	}
+	else {
+		ch_config.src_addr = (dma_addr_t)I2S_RX_FIFO(prtd->regs);
+		prtd->map_type = ch_config.direction = DMA_FROM_DEVICE;
+	}
+
+	dmaengine_slave_config(chan, &ch_config);
 
 	return 0;
 }
@@ -277,43 +270,22 @@ static int lpc3xxx_pcm_prepare(struct snd_pcm_substream *substream)
 static int lpc3xxx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *rtd = substream->runtime;
-	struct lpc3xxx_dma_data *prtd = rtd->private_data;
-	int i, ret = 0;
+	struct lpc3xxx_pcm_priv *prtd = rtd->private_data;
+	int ret = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		prtd->period_ptr = prtd->dma_cur = prtd->dma_buffer;
-		lpc32xx_dma_flush_llist(prtd->dmach);
-
-		/* Queue a few buffers to start DMA */
-		for (i = 0; i < NUMLINKS; i++) {
-			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-				lpc32xx_dma_queue_llist_entry(prtd->dmach, (void *) prtd->period_ptr,
-#if defined(CONFIG_SND_LPC32XX_USEI2S1)
-					(void *) I2S_TX_FIFO(LPC32XX_I2S1_BASE),
-#else
-					(void *) I2S_TX_FIFO(LPC32XX_I2S0_BASE),
-#endif
-					prtd->period_size);
-			}
-			else {
-				lpc32xx_dma_queue_llist_entry(prtd->dmach,
-#if defined(CONFIG_SND_LPC32XX_USEI2S1)
-				(void *) I2S_RX_FIFO(LPC32XX_I2S1_BASE),
-#else
-				(void *) I2S_RX_FIFO(LPC32XX_I2S0_BASE),
-#endif
-				(void *) prtd->period_ptr, prtd->period_size);
-
-			}
-
-			prtd->period_ptr += prtd->period_size;
-		}
+		lpc3xxx_pcm_queue_dma(substream);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
-		lpc32xx_dma_flush_llist(prtd->dmach);
-		lpc32xx_dma_ch_disable(prtd->dmach);
+		dmaengine_terminate_all(prtd->dma_channel);
+
+		dma_unmap_sg(prtd->dma_channel->device->dev,
+				prtd->sgt[prtd->sgt_l].sgl,
+				prtd->sgt[prtd->sgt_l].nents,
+				prtd->map_type);
+		prtd->sgt_l = 0;
 		break;
 
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -323,11 +295,11 @@ static int lpc3xxx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		lpc32xx_dma_ch_pause_unpause(prtd->dmach, 1);
+		dmaengine_pause(prtd->dma_channel);
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		lpc32xx_dma_ch_pause_unpause(prtd->dmach, 0);
+		dmaengine_resume(prtd->dma_channel);
 		break;
 
 	default:
@@ -340,22 +312,22 @@ static int lpc3xxx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 static snd_pcm_uframes_t lpc3xxx_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct lpc3xxx_dma_data *prtd = runtime->private_data;
-	snd_pcm_uframes_t x;
+	struct lpc3xxx_pcm_priv *prtd = runtime->private_data;
 
-	/* Return an offset into the DMA buffer for the next data */
-	x = bytes_to_frames(runtime, (prtd->dma_cur - runtime->dma_addr));
-	if (x >= runtime->buffer_size)
-		x = 0;
-
-	return x;
+	return bytes_to_frames(runtime, prtd->sgt_l * prtd->period_size);
 }
 
 static int lpc3xxx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct lpc3xxx_dma_data *prtd;
+	struct lpc3xxx_pcm_priv *prtd;
 	int ret = 0;
+
+	dma_cap_mask_t dma_cap;
+
+	/* Try to acquire a generic DMA engine slave channel */
+	dma_cap_zero(dma_cap);
+	dma_cap_set(DMA_SLAVE, dma_cap);
 
 	snd_soc_set_runtime_hwparams(substream, &lpc3xxx_pcm_hardware);
 
@@ -371,15 +343,32 @@ static int lpc3xxx_pcm_open(struct snd_pcm_substream *substream)
 		goto out;
 	}
 	runtime->private_data = prtd;
-	prtd->dmach = -1;
 
+	prtd->regs = LPC32XX_I2S0_BASE;
+
+	prtd->dma_channel = dma_request_channel(dma_cap,
+			pl08x_filter_id, "i2s0_tx");
+	if (prtd->dma_channel == NULL) {
+		ret = -ENODEV;
+		goto out_free;
+	}
+
+	return 0;
+
+out_free:
+	kfree(prtd);
 out:
 	return ret;
 }
 
 static int lpc3xxx_pcm_close(struct snd_pcm_substream *substream)
 {
-	struct lpc3xxx_dma_data *prtd = substream->runtime->private_data;
+	struct lpc3xxx_pcm_priv *prtd = substream->runtime->private_data;
+
+	if (prtd->dma_channel) {
+		dma_release_channel(prtd->dma_channel);
+		prtd->dma_channel = NULL;
+	}
 
 	kfree(prtd);
 	return 0;
@@ -466,7 +455,7 @@ static void lpc3xxx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 static int lpc3xxx_pcm_suspend(struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
-	struct lpc3xxx_dma_data *prtd;
+	struct lpc3xxx_pcm_priv *prtd;
 
 	if (runtime == NULL)
 		return 0;
@@ -482,7 +471,7 @@ static int lpc3xxx_pcm_suspend(struct snd_soc_dai *dai)
 static int lpc3xxx_pcm_resume(struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = dai->runtime;
-	struct lpc3xxx_dma_data *prtd;
+	struct lpc3xxx_pcm_priv *prtd;
 
 	if (runtime == NULL)
 		return 0;

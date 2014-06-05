@@ -35,9 +35,12 @@
 #include <mach/platform.h>
 #include <mach/dma.h>
 
+int lpc3xxx_pcm_pdata;
+
 static struct i2c_board_info board_lpc4357_i2c0_nau8822 = {
-	.type = "nau8822",
-	.addr = 0x1a,
+	.type		= "nau8822",
+	.addr		= 0x1a,
+	.platform_data	= &lpc3xxx_pcm_pdata,
 };
 
 
