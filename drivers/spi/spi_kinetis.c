@@ -693,7 +693,8 @@ static int setup(struct spi_device *spi)
 	if ((spi->bits_per_word >= 4) && (spi->bits_per_word <= 16)) {
 		chip->ctar.fmsz = spi->bits_per_word - 1;
 	} else {
-		printk(KERN_ERR "Invalid wordsize\n");
+		printk(KERN_ERR "DSPI: Invalid wordsize %d\n",
+			spi->bits_per_word);
 		kfree(chip);
 		return -ENODEV;
 	}
@@ -963,7 +964,8 @@ static int spi_mvf_probe(struct platform_device *pdev)
 		goto out_error_queue_alloc;
 	}
 
-	printk(KERN_INFO "DSPI: Coldfire master initialized\n");
+	printk(KERN_INFO "DSPI: controller %d at hz=%ld,irq=%d\n",
+		master->bus_num, clk_get_rate(spi_mvf->clk), spi_mvf->irq);
 	return ret;
 
 out_error_queue_alloc:

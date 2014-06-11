@@ -24,6 +24,11 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 
 #include <mach/platform.h>
 #include <mach/kinetis.h>
@@ -75,26 +80,109 @@ SPI_PLAT_DEVICE(2);
 
 void __init kinetis_spi_init(void)
 {
-	int	platform;
+	int p = kinetis_platform_get();
 
-	platform = kinetis_platform_get();
-	switch (platform) {
-	case PLATFORM_KINETIS_K70_SOM:
-	case PLATFORM_KINETIS_K61_SOM:
 #ifdef CONFIG_KINETIS_SPI0
-		platform_device_add_data(&kinetis_spi0_device, &kinetis_spi0_pdata, sizeof(kinetis_spi0_pdata));
-		platform_device_register(&kinetis_spi0_device);
+	platform_device_add_data(&kinetis_spi0_device,
+		&kinetis_spi0_pdata, sizeof(kinetis_spi0_pdata));
+	platform_device_register(&kinetis_spi0_device);
 #endif
 #ifdef CONFIG_KINETIS_SPI1
-		platform_device_add_data(&kinetis_spi1_device, &kinetis_spi1_pdata, sizeof(kinetis_spi1_pdata));
-		platform_device_register(&kinetis_spi1_device);
+	platform_device_add_data(&kinetis_spi1_device,
+		&kinetis_spi1_pdata, sizeof(kinetis_spi1_pdata));
+	platform_device_register(&kinetis_spi1_device);
 #endif
 #ifdef CONFIG_KINETIS_SPI2
-		platform_device_add_data(&kinetis_spi2_device, &kinetis_spi2_pdata, sizeof(kinetis_spi2_pdata));
-		platform_device_register(&kinetis_spi2_device);
+	platform_device_add_data(&kinetis_spi2_device,
+		&kinetis_spi2_pdata, sizeof(kinetis_spi2_pdata));
+	platform_device_register(&kinetis_spi2_device);
 #endif
-		break;
-	default:
-		break;
+
+	if (p == PLATFORM_KINETIS_K70_SOM ||
+	    p == PLATFORM_KINETIS_K61_SOM) {
+
+		/* This assumes that there is an SPI Flash device
+		 * handwired to SPI1 on the breadboard area of TWR-SOM-BSB.
+		 * SPI Flash can be accessed either via SPIDEV interface
+		 * and this takes precedence if SPIDEV is enabled in the kernel.
+		 * If SPIDEV is disabled, then SPI Flash can be
+		 * accessed via the Flash MTD interface
+		 */
+#if defined(CONFIG_KINETIS_SPI1) && \
+	(defined(CONFIG_MTD_M25P80) || defined(CONFIG_SPI_SPIDEV))
+
+		/*
+		 * Flash MTD partitioning.
+		 * This is used only if CONFIG_SPIDEV is undefined
+		 */
+#if !defined(CONFIG_SPI_SPIDEV)
+
+		/*
+		 * SPI Flash partitioning:
+		 */
+#		define FLASH_JFFS2_OFFSET__DONGLE	(1024 * 1024 * 2)
+#		define FLASH_SIZE__DONGLE		(1024 * 1024 * 4)
+		static struct mtd_partition
+			spi_kinetis_flash_partitions__dongle[] = {
+			{
+				.name = "spi_flash_part0",
+				.size = FLASH_JFFS2_OFFSET__DONGLE,
+				.offset = 0,
+			},
+			{
+				.name = "spi_flash_part1",
+				.size = FLASH_SIZE__DONGLE -
+					FLASH_JFFS2_OFFSET__DONGLE,
+				.offset = FLASH_JFFS2_OFFSET__DONGLE,
+			},
+		};
+
+		/*
+		 * SPI Flash
+		 */
+		static struct flash_platform_data
+			spi_kinetis_flash_data__dongle = {
+			.name = "m25p32",
+			.parts =  spi_kinetis_flash_partitions__dongle,
+			.nr_parts =
+			ARRAY_SIZE(spi_kinetis_flash_partitions__dongle),
+			.type = "m25p32",
+		};
+#endif
+
+		/*
+		 * SPI slave
+		 */
+		static struct spi_mvf_chip
+			spi_kinetis_flash_slv__dongle = {
+			.mode = SPI_MODE_3,
+			.bits_per_word = 8,
+		};
+		static struct spi_board_info
+			spi_kinetis_flash_info__dongle = {
+
+			/*
+			 * SPIDEV has precedence over Flash MTD
+			 */
+#if defined(CONFIG_SPI_SPIDEV)
+			.modalias = "spidev",
+#else
+			.modalias = "m25p32",
+			.platform_data = &spi_kinetis_flash_data__dongle,
+#endif
+			.max_speed_hz = 25000000,
+			.chip_select = 0,
+			.bus_num = 1,
+			.controller_data = &spi_kinetis_flash_slv__dongle,
+			.mode = SPI_MODE_3,
+		};
+
+		/*
+		 * Register SPI slaves
+		 */
+		spi_register_board_info(&spi_kinetis_flash_info__dongle,
+			sizeof(spi_kinetis_flash_info__dongle) /
+			sizeof(struct spi_board_info));
+#endif
 	}
 }

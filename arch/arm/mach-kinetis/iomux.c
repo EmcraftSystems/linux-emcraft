@@ -380,7 +380,6 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 
 #endif /* CONFIG_GPIOLIB */
 
-
 #if defined(CONFIG_MMC_ESDHC)
 	/* E.0 = SDHC0_D1 */
 	{{KINETIS_GPIO_PORT_E, 0}, KINETIS_GPIO_CONFIG_MUX(4)},
