@@ -137,14 +137,11 @@ static int lpc18xx_gpio_get_value(struct gpio_chip* chip, unsigned gpio)
 #define LPC18XX_GPIO_PINT_COUNT		8
 
 static DEFINE_SPINLOCK(gpio_interrupt_lock);
+static unsigned long lpc18xx_gpio_irq_mask = 0;
 
-/*
- * Set required GPIO interrupt type at given GPIO port and pin
- */
-int lpc18xx_gpio_interrupt(int port, int pin, enum GPIO_INTERRUPT_TYPE type)
+static unsigned int _lpc18xx_irq_alloc(int port, int pin)
 {
-	static unsigned long bit_mask = 0;
-	int rv = 0, int_num, int_mask, val;
+	int rv = 0, int_num, val;
 
 	if (port < 0 || port > 7 || pin < 0 || pin > 31) {
 		/* Arguments invalid */
@@ -152,63 +149,19 @@ int lpc18xx_gpio_interrupt(int port, int pin, enum GPIO_INTERRUPT_TYPE type)
 		goto out;
 	}
 
-	if ((type & GPIO_INTERRUPT_LEVEL_MASK) &&
-		(type & GPIO_INTERRUPT_EDGE_MASK)) {
-		/* Requested both level and edge interrupt */
-		rv = -EINVAL;
-		goto out;
-	}
-
 	spin_lock(&gpio_interrupt_lock);
 
-	/* Free interrupt number pin */
-	if (type == GPIO_INTERRUPT_FREE) {
-		int_num = pin - LPC18XX_GPIO_PIN_BASE_INT;
-		clear_bit(int_num, &bit_mask);
-		goto out_unlock;
-	}
-
 	/* Look for interrupt */
-	int_num = find_first_zero_bit(&bit_mask, LPC18XX_GPIO_PINT_COUNT);
+	int_num = find_first_zero_bit(&lpc18xx_gpio_irq_mask, LPC18XX_GPIO_PINT_COUNT);
 	if (int_num == LPC18XX_GPIO_PINT_COUNT) {
 		rv = -ENOSPC;
 		goto out_unlock;
 	}
-	set_bit(int_num, &bit_mask);
+	set_bit(int_num, &lpc18xx_gpio_irq_mask);
 
 	val = pin | (port << 5);
 
 	LPC18XX_GPIO_PINT->pintsel[int_num / 4] |=  val << (8 * (int_num % 4));
-
-	int_mask = 1 << int_num;
-
-	if (type & GPIO_INTERRUPT_EDGE_MASK) {
-		LPC18XX_GPIO_INT->pmode &= ~int_mask;
-
-		/* ENRL is for rising edge interrupt */
-		if (type & GPIO_INTERRUPT_EDGE_RISING)
-			LPC18XX_GPIO_INT->setenrl = int_mask;
-		else
-			LPC18XX_GPIO_INT->cenrl = int_mask;
-
-		/* ENAF is for falling edge interrupt */
-		if (type & GPIO_INTERRUPT_EDGE_FALLING)
-			LPC18XX_GPIO_INT->setenaf = int_mask;
-		else
-			LPC18XX_GPIO_INT->cenaf = int_mask;
-	}
-	else {
-		LPC18XX_GPIO_INT->pmode |= int_mask;
-
-		/* Set required level interrupt */
-		if (type & GPIO_INTERRUPT_LEVEL_HIGH)
-			LPC18XX_GPIO_INT->setenaf = int_mask;
-		else
-			LPC18XX_GPIO_INT->cenaf = int_mask;
-
-		/* Enable level interrupt */
-		LPC18XX_GPIO_INT->setenrl = int_mask;
-	}
 
 	rv = int_num + LPC18XX_GPIO_PIN_BASE_INT;
 
@@ -217,13 +170,100 @@ out_unlock:
 out:
 	return rv;
 }
-EXPORT_SYMBOL(lpc18xx_gpio_interrupt);
 
-void lpc18xx_gpio_int_ack(int irq)
+void lpc18xx_irq_free(int irq)
+{
+	spin_lock(&gpio_interrupt_lock);
+	clear_bit(irq - LPC18XX_GPIO_PIN_BASE_INT, &lpc18xx_gpio_irq_mask);
+	spin_unlock(&gpio_interrupt_lock);
+}
+EXPORT_SYMBOL(lpc18xx_gpio_irq_free);
+
+static void _lpc18xx_gpio_int_ack(unsigned int irq)
 {
 	LPC18XX_GPIO_INT->pstat |= 1 << (irq - LPC18XX_GPIO_PIN_BASE_INT);
 }
-EXPORT_SYMBOL(lpc18xx_gpio_int_ack);
+
+static struct irq_chip *nvic_irq_chip = NULL;
+static struct irq_chip gpio_irq_chip;
+
+void lpc18xx_gpio_ack(unsigned int irq)
+{
+	_lpc18xx_gpio_int_ack(irq);
+
+	nvic_irq_chip->ack(irq);
+}
+
+int lpc18xx_gpio_set_type(unsigned int irq, unsigned int flow_type)
+{
+	unsigned int int_mask = 1 << (irq - LPC18XX_GPIO_PIN_BASE_INT);
+
+	if (irq >= LPC18XX_GPIO_PIN_BASE_INT + LPC18XX_GPIO_PINT_COUNT ||
+		irq < LPC18XX_GPIO_PINT_COUNT)
+		return -EINVAL;
+
+	if (flow_type & IRQ_TYPE_EDGE_BOTH == IRQ_TYPE_EDGE_BOTH)
+		return -EINVAL;
+
+	if (flow_type & IRQ_TYPE_EDGE_BOTH) {
+		LPC18XX_GPIO_INT->pmode &= ~int_mask;
+
+		/* ENRL is for rising edge interrupt */
+		if (flow_type & IRQ_TYPE_EDGE_RISING)
+			LPC18XX_GPIO_INT->setenrl = int_mask;
+		else
+			LPC18XX_GPIO_INT->cenrl = int_mask;
+
+		/* ENAF is for falling edge interrupt */
+		if (flow_type & IRQ_TYPE_EDGE_FALLING)
+			LPC18XX_GPIO_INT->setenaf = int_mask;
+		else
+			LPC18XX_GPIO_INT->cenaf = int_mask;
+	}
+	else {
+		LPC18XX_GPIO_INT->pmode |= int_mask;
+
+		/* Set required level interrupt */
+		if (flow_type & IRQ_TYPE_LEVEL_HIGH)
+			LPC18XX_GPIO_INT->setenaf = int_mask;
+		else
+			LPC18XX_GPIO_INT->cenaf = int_mask;
+
+		/* Enable level interrupt */
+		LPC18XX_GPIO_INT->setenrl = int_mask;
+	}
+
+	return 0;
+}
+
+/*
+ * Request GPIO interrupt at given GPIO port and pin
+ */
+unsigned int lpc18xx_gpio_irq_request(int port, int pin)
+{
+	int irq;
+	struct irq_desc *desc;
+
+	irq = _lpc18xx_irq_alloc(port, pin);
+	if (irq < 0)
+		return irq;
+
+	desc = irq_to_desc(irq);
+
+	if (nvic_irq_chip == NULL) {
+		nvic_irq_chip = desc->chip;
+		gpio_irq_chip = *nvic_irq_chip;
+		gpio_irq_chip.ack = lpc18xx_gpio_ack;
+		gpio_irq_chip.set_type = lpc18xx_gpio_set_type;
+	}
+	else
+		BUG_ON(nvic_irq_chip != desc->chip && &gpio_irq_chip != desc->chip);
+
+	set_irq_chip(irq, &gpio_irq_chip);
+
+	return irq;
+}
+EXPORT_SYMBOL(lpc18xx_gpio_irq_request);
 
 static struct gpio_chip lpc18xx_chip = {
 	.label			= "lpc18xx",

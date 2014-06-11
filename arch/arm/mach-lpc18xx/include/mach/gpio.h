@@ -30,7 +30,7 @@
 /* Number of GPIO ports */
 #define LPC18XX_GPIO_PORTS		8
 /* Maximum number of pins in each group */
-#define LPC18XX_GPIO_PORT_PINS		16
+#define LPC18XX_GPIO_PORT_PINS		32
 
 /*
  * Convert a {port, pin} pair to an single integer
@@ -88,14 +88,11 @@ enum GPIO_INTERRUPT_TYPE {
 };
 
 /*
- * Set required GPIO interrupt type at given GPIO port and pin
+ * Request GPIO for specific port/pin
  */
-int lpc18xx_gpio_interrupt(int port, int pin, enum GPIO_INTERRUPT_TYPE type);
+unsigned int lpc18xx_gpio_irq_request(int port, int pin);
 
-/*
- * Ack requied GPIO interruption
- */
-void lpc18xx_gpio_int_ack(int irq);
-
+/* Free GPIO */
+void lpc18xx_gpio_irq_free(unsigned int irq);
 
 #endif /* _MACH_LPC18XX_GPIO_H_ */
