@@ -936,7 +936,7 @@ static int nau8822_set_bias_level(struct snd_soc_codec *codec,
 #define NAU8822_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static const struct snd_soc_dai_ops nau8822_dai_ops = {
+static struct snd_soc_dai_ops nau8822_dai_ops = {
 	.hw_params	= nau8822_hw_params,
 	.digital_mute	= nau8822_mute,
 	.set_fmt	= nau8822_set_dai_fmt,
@@ -967,9 +967,9 @@ EXPORT_SYMBOL_GPL(nau8822_dai);
 
 static struct snd_soc_codec *nau8822_codec = NULL;
 
+#if 0
 static int nau8822_suspend(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = nau8822_codec;
 	struct nau8822_priv *nau8822 = snd_soc_codec_get_drvdata(codec);
 
@@ -984,7 +984,6 @@ static int nau8822_suspend(struct platform_device *pdev)
 
 static int nau8822_resume(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = nau8822_codec;
 	struct nau8822_priv *nau8822 = snd_soc_codec_get_drvdata(codec);
 
@@ -998,6 +997,7 @@ static int nau8822_resume(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 static int nau8822_probe(struct platform_device *pdev)
 {

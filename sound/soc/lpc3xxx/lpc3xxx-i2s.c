@@ -607,7 +607,7 @@ static int __init lpc3xxx_i2s_dai_init(void)
 #ifndef CONFIG_ARCH_LPC18XX
         return snd_soc_register_dais(&lpc3xxx_i2s_dai[0],2);
 #else
-	int rv;
+	int rv = 0;
 # ifdef CONFIG_LPC18XX_I2S0
         rv = snd_soc_register_dais(&lpc3xxx_i2s_dai[0],1);
 	if (rv)
@@ -617,8 +617,8 @@ static int __init lpc3xxx_i2s_dai_init(void)
         rv = snd_soc_register_dais(&lpc3xxx_i2s_dai[1],1);
 	if (rv)
 		printk(KERN_ERR "error registering lpc18xx i2s1: %d\n", rv);
-	return rv;
 # endif /* CONFIG_LPC18XX_I2S1 */
+	return rv;
 #endif
 }
 module_init(lpc3xxx_i2s_dai_init);
