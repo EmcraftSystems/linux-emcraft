@@ -191,6 +191,7 @@ not_angel:
 		add	r5, r5, r0
 		add	r6, r6, r0
 		add	ip, ip, r0
+		mov	r9, r6
 
 #ifndef CONFIG_ZBOOT_ROM
 		/*
@@ -437,7 +438,9 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  */
 		mov	r1, #0x1e
 		orr	r1, r1, #3 << 10
-		mov	r2, pc, lsr #20
+ ARM(		mov	r2, pc, lsr #20		)
+ THUMB(		mov	r2, pc			)
+ THUMB(		lsr	r2, r2, #20		)
 		orr	r1, r1, r2, lsl #20
 		add	r0, r3, r2, lsl #2
 		str	r1, [r0], #4

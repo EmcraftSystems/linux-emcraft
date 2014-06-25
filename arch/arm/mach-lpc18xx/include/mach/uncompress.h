@@ -26,11 +26,14 @@
 #include <linux/serial_reg.h>
 #include <mach/hardware.h>
 
+#define UART0_LSR	(*(volatile int*) 0x40081014)
+#define UART0_LSR_TEMT	(1<<6)
+#define UART0_THR	(*(volatile int*) 0x40081000)
+
 static inline void putc(char c)
 {
-	/*
-	 * TBD
-	 */
+	while (!(UART0_LSR & UART0_LSR_TEMT));
+	UART0_THR = c;
 }
 
 static inline void flush(void)
