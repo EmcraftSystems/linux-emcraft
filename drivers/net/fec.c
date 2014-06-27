@@ -1591,7 +1591,7 @@ fec_stop(struct net_device *dev)
 
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
-	udelay(10);
+	udelay(1000);
 
 	if (cpu_is_mx6() || cpu_is_mvf())
 		/* FIXME: we have to enable enet to keep mii interrupt works. */
