@@ -656,13 +656,13 @@ void __init mem_init(void)
 			MLK(UL(CONFIG_VECTORS_BASE), UL(CONFIG_VECTORS_BASE) +
 				(PAGE_SIZE)),
 			MLK(FIXADDR_START, FIXADDR_TOP),
-			MLM(VMALLOC_START, (unsigned long)VMALLOC_END),
+			MLM((unsigned long)VMALLOC_START, (unsigned long)VMALLOC_END),
 			MLM(PAGE_OFFSET, (unsigned long)high_memory),
 #ifdef CONFIG_HIGHMEM
 			MLM(PKMAP_BASE, (PKMAP_BASE) + (LAST_PKMAP) *
 				(PAGE_SIZE)),
 #endif
-			MLM(MODULES_VADDR, MODULES_END),
+			MLM((unsigned long)MODULES_VADDR, (unsigned long)MODULES_END),
 
 			MLK_ROUNDUP(__init_begin, __init_end),
 			MLK_ROUNDUP(_text, _etext),

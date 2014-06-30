@@ -171,7 +171,7 @@ out:
 	return rv;
 }
 
-void lpc18xx_irq_free(int irq)
+void lpc18xx_gpio_irq_free(unsigned int irq)
 {
 	spin_lock(&gpio_interrupt_lock);
 	clear_bit(irq - LPC18XX_GPIO_PIN_BASE_INT, &lpc18xx_gpio_irq_mask);
@@ -202,7 +202,7 @@ int lpc18xx_gpio_set_type(unsigned int irq, unsigned int flow_type)
 		irq < LPC18XX_GPIO_PINT_COUNT)
 		return -EINVAL;
 
-	if (flow_type & IRQ_TYPE_EDGE_BOTH == IRQ_TYPE_EDGE_BOTH)
+	if ((flow_type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
 		return -EINVAL;
 
 	if (flow_type & IRQ_TYPE_EDGE_BOTH) {

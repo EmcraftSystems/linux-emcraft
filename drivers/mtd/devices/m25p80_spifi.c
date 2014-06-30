@@ -129,9 +129,6 @@ static int spifi_wait_cmd(struct m25p_spifi *flash)
 /* This is generally bus-specific commands */
 static int spifi_opcode_read(struct m25p_spifi *flash, u8 opcode, u8 *res, size_t len)
 {
-	int i;
-	u32 p;
-
 	spin_lock(&flash->spin);
 
 	writel(SPIFI_CMD_OPCODE(opcode) |
@@ -542,7 +539,7 @@ static int m25p80_spifi_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t *retlen, const u_char *buf)
 {
 	struct m25p_spifi *flash = mtd_to_m25p(mtd);
-	u32 page_offset, page_size, i;
+	u32 page_offset, page_size;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
 			dev_name(&flash->pdev->dev), __func__, "to",
@@ -855,7 +852,7 @@ static int __devinit m25p_spifi_probe(struct platform_device *pdev)
 {
 	struct flash_platform_data	*data;
 	struct m25p_spifi		*flash;
-	struct flash_info		*info;
+	struct flash_info		*info = NULL;
 	unsigned			i;
 	const struct platform_device_id	*id = NULL;
 	struct resource			*res;

@@ -155,13 +155,13 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 /*
  * String version of IO memory access ops:
  */
-extern void _memcpy_fromio(void *, const volatile void __iomem *, size_t);
-extern void _memcpy_fromiow(void *, const volatile void __iomem *, size_t);
-extern void _memcpy_fromiol(void *, const volatile void __iomem *, size_t);
-extern void _memcpy_toio(volatile void __iomem *, const void *, size_t);
-extern void _memcpy_toiow(volatile void __iomem *, const void *, size_t);
-extern void _memcpy_toiol(volatile void __iomem *, const void *, size_t);
-extern void _memset_io(volatile void __iomem *, int, size_t);
+extern void _memcpy_fromio(void *, const void __iomem *, size_t);
+extern void _memcpy_fromiow(void *, const void __iomem *, size_t);
+extern void _memcpy_fromiol(void *, const void __iomem *, size_t);
+extern void _memcpy_toio(void __iomem *, const void *, size_t);
+extern void _memcpy_toiow(void __iomem *, const void *, size_t);
+extern void _memcpy_toiol(void __iomem *, const void *, size_t);
+extern void _memset_io(void __iomem *, int, size_t);
 
 #define mmiowb()
 

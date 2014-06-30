@@ -105,7 +105,7 @@
 
 
 #if defined(CONFIG_FB_ARMCLCD)
-static struct iomux_pin_config {
+struct iomux_pin_config {
 	int group, pin;
 	u32 mask;
 };

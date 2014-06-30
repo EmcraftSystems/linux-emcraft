@@ -250,7 +250,7 @@ void __show_regs(struct pt_regs *regs)
 		int *ptr = (int *)regs->ARM_pc;
 		printk("Code dump at pc [%08lx]:\n", regs->ARM_pc);
 		for (i = 0; i < 4; i ++, ptr++) {
-			printk("%08lx ", *ptr);
+			printk("%08x ", *ptr);
 		}
 		printk("\n");
 	}

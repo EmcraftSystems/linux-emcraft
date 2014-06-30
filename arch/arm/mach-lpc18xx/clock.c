@@ -173,7 +173,7 @@ static struct clk clk_i2c1;
 
 #if defined (CONFIG_LPC18XX_I2S0)
 
-static int i2s_clk_set_rate(struct clk *clk, unsigned long rate)
+static unsigned long i2s_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int div_rate, ret = 0, np_dec, frac;
 
@@ -257,7 +257,7 @@ static struct clk clk_dmac;
  * `linux-2.6.34-lpc32xx/arch/arm/mach-lpc32xx/clock.c` from
  * `http://lpclinux.com/`.
  */
-static int lcd_clk_set_rate(struct clk *clk, unsigned long rate)
+static unsigned long lcd_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 tmp, prate, div;
 

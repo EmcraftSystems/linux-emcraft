@@ -344,7 +344,7 @@ static int lpc3xxx_pcm_open(struct snd_pcm_substream *substream)
 	}
 	runtime->private_data = prtd;
 
-	prtd->regs = LPC32XX_I2S0_BASE;
+	prtd->regs = (void __iomem *)LPC32XX_I2S0_BASE;
 
 	prtd->dma_channel = dma_request_channel(dma_cap,
 			pl08x_filter_id, "i2s0_tx");

@@ -761,7 +761,7 @@ static int __devinit lpc178x_rtc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void (*plat_init)(void);
-	int rv;
+	int rv = 0;
 
 	/* Allocate memory for our RTC struct */
 	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
@@ -773,15 +773,17 @@ static int __devinit lpc178x_rtc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res) {
-		rv = request_mem_region(res->start, resource_size(res),
+		res = request_mem_region(res->start, resource_size(res),
 			"rtc-lpc1788");
-		if (!rv)
+		if (!res) {
+			rv = -ENODEV;
 			goto err;
-		rtc->base = res->start;
+		}
+		rtc->base = (void __iomem *)res->start;
 	}
 	else {
 		pr_debug("Could not find MEM resource");
-		rtc->base = LPC178X_RTC_BASE;
+		rtc->base = (void __iomem *)LPC178X_RTC_BASE;
 	}
 
 	rtc->irq = LPC178X_IRQ_RTC;

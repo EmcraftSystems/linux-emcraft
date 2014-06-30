@@ -7,7 +7,7 @@
  * Copy data from IO memory space to "real" memory space.
  * This needs to be optimized.
  */
-void _memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
+void _memcpy_fromio(void *to, const void __iomem *from, size_t count)
 {
 	unsigned char *t = to;
 	while (count) {
@@ -18,10 +18,10 @@ void _memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 	}
 }
 
-void _memcpy_fromiow(void *to, const volatile void __iomem *from, size_t count)
+void _memcpy_fromiow(void *to, const void __iomem *from, size_t count)
 {
 	unsigned short *t = to;
-	unsigned short *f = from;
+	const unsigned short __iomem *f = from;
 
 	BUG_ON(count % 2);
 	while (count) {
@@ -32,10 +32,10 @@ void _memcpy_fromiow(void *to, const volatile void __iomem *from, size_t count)
 	}
 }
 
-void _memcpy_fromiol(void *to, const volatile void __iomem *from, size_t count)
+void _memcpy_fromiol(void *to, const void __iomem *from, size_t count)
 {
 	unsigned long *t = to;
-	unsigned long *f = from;
+	const unsigned long __iomem *f = from;
 
 	BUG_ON(count % 4);
 	while (count) {
@@ -50,7 +50,7 @@ void _memcpy_fromiol(void *to, const volatile void __iomem *from, size_t count)
  * Copy data from "real" memory space to IO memory space.
  * This needs to be optimized.
  */
-void _memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
+void _memcpy_toio(void __iomem *to, const void *from, size_t count)
 {
 	const unsigned char *f = from;
 	while (count) {
@@ -61,7 +61,7 @@ void _memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 	}
 }
 
-void _memcpy_toiow(volatile void __iomem *to, const void *from, size_t count)
+void _memcpy_toiow(void __iomem *to, const void *from, size_t count)
 {
 	const unsigned short *f = from;
 
@@ -74,7 +74,7 @@ void _memcpy_toiow(volatile void __iomem *to, const void *from, size_t count)
 	}
 }
 
-void _memcpy_toiol(volatile void __iomem *to, const void *from, size_t count)
+void _memcpy_toiol(void __iomem *to, const void *from, size_t count)
 {
 	const unsigned long *f = from;
 
@@ -91,7 +91,7 @@ void _memcpy_toiol(volatile void __iomem *to, const void *from, size_t count)
  * "memset" on IO memory space.
  * This needs to be optimized.
  */
-void _memset_io(volatile void __iomem *dst, int c, size_t count)
+void _memset_io(void __iomem *dst, int c, size_t count)
 {
 	while (count) {
 		count--;
