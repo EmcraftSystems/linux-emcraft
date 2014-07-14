@@ -158,13 +158,11 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	__be32 *blocks;
 
 	struct mmc_request mrq;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	struct mmc_data data;
 	unsigned int timeout_us;
 
 	struct scatterlist sg;
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_APP_CMD;
 	cmd.arg = card->rca << 16;
@@ -226,10 +224,9 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 
 static u32 get_card_status(struct mmc_card *card, struct request *req)
 {
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	int err;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
 	cmd.opcode = MMC_SEND_STATUS;
 	if (!mmc_host_is_spi(card->host))
 		cmd.arg = card->rca << 16;

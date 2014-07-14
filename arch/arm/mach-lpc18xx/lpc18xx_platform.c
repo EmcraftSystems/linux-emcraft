@@ -37,12 +37,13 @@
 #include <mach/iomux.h>
 #include <mach/platform.h>
 #include <mach/timer.h>
-#include <mach/uart.h>
 #include <mach/eth.h>
-#include <mach/spi.h>
-#include <mach/nor-flash.h>
-#include <mach/i2c.h>
 #include <mach/fb.h>
+#include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/nor-flash.h>
+#include <mach/spi.h>
+#include <mach/uart.h>
 
 /*
  * Prototypes
@@ -180,6 +181,13 @@ static void __init lpc18xx_init(void)
 	 * Configure the SSP/SPI
 	 */
 	lpc18xx_spi_init();
+#endif
+
+#if defined(CONFIG_MMC_DW)
+	/*
+	 * Configure the DW MMC
+	 */
+	lpc18xx_mmc_init();
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP)

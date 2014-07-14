@@ -283,6 +283,13 @@ static struct clk clk_ssp1;
 #endif
 
 /*
+ * Clock for the SD/MMC block
+ */
+#if defined (CONFIG_LPC18XX_MMC)
+static struct clk clk_sdio;
+#endif
+
+/*
  * Clocks for each of the two I2C interfaces supported by the LPC18xx MCU.
  */
 #if defined (CONFIG_LPC18XX_I2C0)
@@ -381,6 +388,9 @@ static struct clk_lookup lpc18xx_clkregs[] = {
 #endif
 #if defined (CONFIG_LPC18XX_SPI1)
 	INIT_CLKREG(&clk_ssp1, "dev:ssp1", NULL),
+#endif
+#if defined (CONFIG_LPC18XX_MMC)
+	INIT_CLKREG(&clk_sdio, NULL, "sdio"),
 #endif
 #if defined (CONFIG_LPC18XX_I2C0)
 	INIT_CLKREG(&clk_i2c0, "lpc2k-i2c.0", NULL),
@@ -528,6 +538,12 @@ void __init lpc18xx_clock_init(void)
 #endif
 #if defined (CONFIG_LPC18XX_I2C1)
 	clk_i2c1.rate = clock_val[CLOCK_PCLK];
+#endif
+
+#if defined (CONFIG_LPC18XX_MMC)
+	LPC18XX_CGU->sdio_clk = LPC18XX_CGU_CLKSEL_PLL1 |
+			LPC18XX_CGU_PLL1CTRL_AUTOBLOCK_MSK;
+	clk_sdio.rate = pll1_out;
 #endif
 
 	/*

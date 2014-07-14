@@ -23,7 +23,7 @@
 static int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!host);
 	BUG_ON(card && (card->host != host));
@@ -120,12 +120,10 @@ EXPORT_SYMBOL(mmc_wait_for_app_cmd);
 int mmc_app_set_bus_width(struct mmc_card *card, int width)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!card);
 	BUG_ON(!card->host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = SD_APP_SET_BUS_WIDTH;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -150,12 +148,10 @@ int mmc_app_set_bus_width(struct mmc_card *card, int width)
 
 int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 {
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	int i, err = 0;
 
 	BUG_ON(!host);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = SD_APP_OP_COND;
 	if (mmc_host_is_spi(host))
@@ -195,7 +191,7 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 {
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	int err;
 	static const u8 test_pattern = 0xAA;
 	u8 result_pattern;
@@ -227,12 +223,10 @@ int mmc_send_if_cond(struct mmc_host *host, u32 ocr)
 int mmc_send_relative_addr(struct mmc_host *host, unsigned int *rca)
 {
 	int err;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 
 	BUG_ON(!host);
 	BUG_ON(!rca);
-
-	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = SD_SEND_RELATIVE_ADDR;
 	cmd.arg = 0;
@@ -251,7 +245,7 @@ int mmc_app_send_scr(struct mmc_card *card, u32 *scr)
 {
 	int err;
 	struct mmc_request mrq;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	struct mmc_data data;
 	struct scatterlist sg;
 
@@ -303,7 +297,7 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	u8 value, u8 *resp)
 {
 	struct mmc_request mrq;
-	struct mmc_command cmd;
+	struct mmc_command cmd = {0};
 	struct mmc_data data;
 	struct scatterlist sg;
 
@@ -316,7 +310,6 @@ int mmc_sd_switch(struct mmc_card *card, int mode, int group,
 	value &= 0xF;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
-	memset(&cmd, 0, sizeof(struct mmc_command));
 	memset(&data, 0, sizeof(struct mmc_data));
 
 	mrq.cmd = &cmd;
