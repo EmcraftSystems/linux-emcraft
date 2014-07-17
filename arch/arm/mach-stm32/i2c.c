@@ -200,7 +200,7 @@ void __init stm32_i2c_init(void)
 		 */
 #if defined(CONFIG_EEPROM_AT24)
 		static struct i2c_board_info i2c_eeprom__dongle = {
-			I2C_BOARD_INFO("24c512", 0x57)
+			I2C_BOARD_INFO("24c512", 0x56)
 		};
 #endif
 

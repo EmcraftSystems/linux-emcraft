@@ -464,12 +464,24 @@ uartdone:
 #endif
 
 #if defined(CONFIG_STM32_I2C1)
-		gpio_dsc.port = 1;	/* SCL */
-		gpio_dsc.pin  = 9;
+		if (platform == PLATFORM_STM32_STM_STM32F439_SOM) {
+			gpio_dsc.port = 1;	/* SCL */
+			gpio_dsc.pin  = 8;
+		}
+		else {
+			gpio_dsc.port = 1;	/* SCL */
+			gpio_dsc.pin  = 9;
+		}
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C1);
 
-		gpio_dsc.port = 1;	/* SDA */
-		gpio_dsc.pin  = 8;
+		if (platform == PLATFORM_STM32_STM_STM32F439_SOM) {
+			gpio_dsc.port = 1;	/* SDA */
+			gpio_dsc.pin  = 7;
+		}
+		else {
+			gpio_dsc.port = 1;	/* SDA */
+			gpio_dsc.pin  = 8;
+		}
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C1);
 #endif
 #if defined(CONFIG_STM32_I2C2)
