@@ -100,6 +100,8 @@
  */
 /* 9-bit or 8-bit Mode Select */
 #define KINETIS_UART_C1_M_MSK		(1 << 4)
+/* Idle line counted after start or stop bit */
+#define KINETIS_UART_C1_ILT_MSK		(1 << 2)
 /* Parity Enable */
 #define KINETIS_UART_C1_PE_MSK		(1 << 1)
 /* Parity Type: 0=even parity, 1=odd parity */
@@ -142,7 +144,6 @@
 #define KINETIS_UART_MODEM_RXRTSE_MSK	(1 << 3)
 /* Transmitter clear-to-send enable */
 #define KINETIS_UART_MODEM_TXCTSE_MSK	(1 << 0)
-
 
 static struct console kinetis_console;
 static void kinetis_console_write(
@@ -199,9 +200,7 @@ struct kinetis_uart_priv {
 	int stat_irq;
 	int err_irq;
 	struct clk *clk;
-
 	int have_ctsrts;
-
 #if defined(CONFIG_KINETIS_EDMA)
 	/* UART Rx DMA channel number */
 	int dma_ch_rx;
@@ -212,7 +211,14 @@ struct kinetis_uart_priv {
 	unsigned int rx_buf_len;
 	/* Offset in buffer of the received character to be handled next */
 	int rx_cons_idx;
+#if defined(CONFIG_PM)
+	unsigned int baud;
+	struct clk *suspend_clk;
+	u32 *wakeup_cnt;
+	u8 *wakeup_buf;
+#endif /* CONFIG_PM */
 };
+
 #define kinetis_up(p)	(container_of((p), struct kinetis_uart_priv, port))
 #define kinetis_regs(p)	(kinetis_up(p)->regs)
 
@@ -226,6 +232,125 @@ static struct kinetis_uart_priv kinetis_uart_priv[KINETIS_NR_UARTS];
  */
 static void kinetis_uart_tx_chars(struct kinetis_uart_priv *up);
 static void kinetis_stop_tx(struct uart_port *port);
+
+#if defined(CONFIG_PM)
+
+/*
+ * Prepare to wake up from Rx Active Edge on a specified UART port.
+ * This is called from low-level suspend code, with interrupts disabled.
+ */
+void kinetis_uart_prepare_to_suspend(
+	int port, unsigned int *cnt, unsigned char *buf, unsigned char *bdr)
+{
+	struct kinetis_uart_priv *up = &kinetis_uart_priv[port];
+	volatile struct kinetis_uart_regs *regs = up->regs;
+	unsigned int clock, baud;
+	u32 br_div;
+
+	/*
+	 * Sanity check: if the port is not enabled, we can't wake up on it.
+	 * Bail out with no action in that scenario.
+	 */
+	if (!(regs->c2 & (KINETIS_UART_C2_RE_MSK | KINETIS_UART_C2_TE_MSK))) {
+		goto Done;
+	}
+
+	/*
+	 * Clear a pending RX active edge interrupt.
+	 * Enable RX active enge interrupts.
+	 * This will be used to wake up from Stop mode.
+	 */
+	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
+	regs->bdh |= KINETIS_UART_BDH_RXEDGIE;
+
+	/*
+	 * Store pointers to the wakeup count and buffer for this UART
+	 */
+	up->wakeup_cnt = cnt;
+	up->wakeup_buf = buf;
+	*cnt = 0;
+
+	/*
+	 * Store the current baudrate registers
+	 */
+	baud = up->baud;
+	bdr[0] = regs->bdh;
+	bdr[1] = regs->bdl;
+	bdr[2] = regs->c4;
+
+	/*
+	 * Get the suspend clock for this particular UART
+	 */
+	clock = clk_get_rate(up->suspend_clk);
+
+	/*
+	 * Calculate new baudrates for the suspend clock.
+	 * 32*SBR + BRFD = 2 * base_clk / baudrate
+	 */
+	br_div = 2 * clock / baud;
+
+	/*
+	 * Changes to BDH and BDL.
+	 */
+	bdr[3] =
+		(regs->bdh & ~KINETIS_UART_BDH_SBR_MSK) |
+		(((br_div >>
+		(KINETIS_UART_BRFA_BITWIDTH + KINETIS_UART_BDL_BITWIDTH)) &
+		KINETIS_UART_BDH_BITWIDTH_MSK) << KINETIS_UART_BDH_SBR_BITS);
+	bdr[4] =
+		((br_div >> KINETIS_UART_BRFA_BITWIDTH) &
+		KINETIS_UART_BDL_BITWIDTH_MSK) << KINETIS_UART_BDL_SBR_BITS;
+
+	/*
+	 * Baudrate fine adjust
+	 */
+	bdr[5] =
+		(regs->c4 & ~KINETIS_UART_C4_BRFA_MSK) |
+		((br_div & KINETIS_UART_BRFA_BITWIDTH_MSK) <<
+		KINETIS_UART_C4_BRFA_BITS);
+
+Done:
+	;
+
+}
+EXPORT_SYMBOL(kinetis_uart_prepare_to_suspend);
+
+/*
+ * IRQ handler for the Rx Active Edge condition
+ */
+static void kinetis_uart_rx_edge_irq(struct kinetis_uart_priv *up)
+{
+	struct tty_struct *tty = up->port.state->port.tty;
+	volatile struct kinetis_uart_regs *regs = up->regs;
+	unsigned int *p = up->wakeup_cnt;
+	unsigned char *q = up->wakeup_buf;
+	unsigned char ch;
+	int i;
+
+	/*
+	 * Acknowldge and disable Rx Edge interrupts
+	 */
+	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
+	regs->bdh &= ~KINETIS_UART_BDH_RXEDGIE;
+
+	/*
+	 * Process characters in the Rx buffer.
+	 * Those have been put to the buffer by low-level wakeup code.
+	 */
+	for (i = 0; i < *p; i++, q++) {
+		ch = *q;
+		up->port.icount.rx++;
+
+		if (uart_handle_sysrq_char(&up->port, ch))
+			;
+		else
+			tty_insert_flip_char(tty, ch, TTY_NORMAL);
+	}
+
+	tty_flip_buffer_push(tty);
+}
+
+#endif
 
 static void kinetis_uart_rx_irq(struct kinetis_uart_priv *up)
 {
@@ -300,16 +425,16 @@ static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 	volatile struct kinetis_uart_regs *regs = up->regs;
 	u8 status;
 
+#if defined(CONFIG_PM)
 	/*
 	 * This is an RX active edge interrupt.
 	 * It can only occur when exiting a Stop mode.
-	 * Clear the pending interrupt.
-	 * Disable the RX active edge interrupts
 	 */
-	if (regs->s2 & KINETIS_UART_S2_RXEDGIF) {
-		regs->s2 |= KINETIS_UART_S2_RXEDGIF;
-		regs->bdh &= ~KINETIS_UART_BDH_RXEDGIE;
+	if ((regs->bdh & KINETIS_UART_BDH_RXEDGIE) &&
+		(regs->s2 & KINETIS_UART_S2_RXEDGIF)) {
+		kinetis_uart_rx_edge_irq(up);
 	}
+#endif
 
 	status = regs->s1;
 
@@ -327,7 +452,8 @@ static irqreturn_t kinetis_uart_status_irq(int irq, void *dev_id)
 
 #if defined(CONFIG_KINETIS_EDMA)
 	/* Handle received characters (Rx DMA enabled) */
-	if (up->dma_ch_rx >= 0 && (status & KINETIS_UART_S1_IDLE_MSK)) {
+	if (up->dma_ch_rx >= 0 &&
+		(status & KINETIS_UART_S1_IDLE_MSK)) {
 		/* Clear S[IDLE] flag by reading from UARTx_D after UART_S */
 		u8 tmp;
 		tmp = regs->d;
@@ -474,6 +600,8 @@ static int __kinetis_start_rx_dma(struct kinetis_uart_priv *up,
 	regs->c2 |= KINETIS_UART_C2_RIE_MSK;
 	/* Enable "Idle Line" interrupt */
 	regs->c2 |= KINETIS_UART_C2_ILIE_MSK;
+	/* IDLE is counted after a Stop bit */
+	regs->c1 |= KINETIS_UART_C1_ILT_MSK;
 
 	rv = 0;
 	goto out;
@@ -545,6 +673,14 @@ static int kinetis_startup(struct uart_port *port)
 	struct kinetis_uart_priv *up = kinetis_up(port);
 	volatile struct kinetis_uart_regs *regs = up->regs;
 	int rv;
+
+#if defined(CONFIG_PM)
+	/*
+	 * Disable RX active edge interrupts.
+	 */
+	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
+	regs->bdh &= ~KINETIS_UART_BDH_RXEDGIE;
+#endif
 
 	/*
 	 * Set up the status interrupt handler
@@ -892,6 +1028,10 @@ static void kinetis_set_termios(struct uart_port *port,
 	if (up->dma_ch_rx >= 0)
 		kinetis_start_rx_dma(up, termios->c_cflag, baud ? baud : 115200);
 #endif /* CONFIG_KINETIS_EDMA */
+
+#if defined(CONFIG_PM)
+	up->baud =  baud ? baud : 115200;
+#endif
 }
 
 static const char *kinetis_type(struct uart_port *port)
@@ -1076,6 +1216,9 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 #endif /* CONFIG_KINETIS_EDMA */
 	struct device *dev = &pdev->dev;
 	struct kinetis_uart_data *pdata = dev->platform_data;
+#if defined(CONFIG_PM)
+	char suspend_clk_name[32];
+#endif
 	int rv;
 	int id = pdev->id;
 
@@ -1163,6 +1306,16 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 		goto err_cleanup_priv;
 	}
 	clk_enable(up->clk);
+#if defined(CONFIG_PM)
+	sprintf(suspend_clk_name, "kinetis-suspend-uart.%d", id);
+	up->suspend_clk = clk_get(NULL, suspend_clk_name);
+	if (IS_ERR(up->suspend_clk)) {
+		rv = PTR_ERR(up->suspend_clk);
+		goto err_cleanup_clk;
+	}
+	clk_enable(up->suspend_clk);
+	up->baud = 115200;
+#endif
 
 #if defined(CONFIG_KINETIS_EDMA)
 	/*
@@ -1221,6 +1374,11 @@ err_dma_rx_put:
 	}
 #endif /* CONFIG_KINETIS_EDMA */
 
+#if defined(CONFIG_PM)
+	clk_disable(up->suspend_clk);
+	clk_put(up->suspend_clk);
+err_cleanup_clk:
+#endif
 	clk_disable(up->clk);
 	clk_put(up->clk);
 err_cleanup_priv:
@@ -1256,6 +1414,10 @@ static int __devexit kinetis_uart_remove(struct platform_device *pdev)
 	/* Release clock */
 	clk_disable(up->clk);
 	clk_put(up->clk);
+#if defined(CONFIG_PM)
+	clk_disable(up->suspend_clk);
+	clk_put(up->suspend_clk);
+#endif
 
 	/* Reset pointers */
 	dev_set_drvdata(dev, NULL);
@@ -1265,22 +1427,11 @@ out:
 	return rv;
 }
 
+#if defined(CONFIG_PM)
+
 static int kinetis_uart_suspend(
 	struct platform_device *pdev, pm_message_t state)
 {
-	struct device *dev = &pdev->dev;
-	struct uart_port *port = dev_get_drvdata(dev);
-	struct kinetis_uart_priv *up = kinetis_up(port);
-	volatile struct kinetis_uart_regs *regs = up->regs;
-
-	/*
-	 * Clear a pending RX active edge interrupt.
-	 * Enable RX active enge interrupts.
-	 * This is will be used to wake up from Stop mode.
-	 */
-	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
-	regs->bdh |= KINETIS_UART_BDH_RXEDGIE;
-
 	return 0;
 }
 
@@ -1292,19 +1443,23 @@ static int kinetis_uart_resume(struct platform_device *pdev)
 	volatile struct kinetis_uart_regs *regs = up->regs;
 
 	/*
-	 * Clear a pending RX active edge interrupt.
-	 * Disable RX active edge interrupts.
+	 * Acknowldge and disable Rx Edge interrupts
 	 */
+	regs->s2 |= KINETIS_UART_S2_RXEDGIF;
 	regs->bdh &= ~KINETIS_UART_BDH_RXEDGIE;
 
 	return 0;
 }
 
+#endif
+
 static struct platform_driver kinetis_platform_driver = {
 	.probe		= kinetis_uart_probe,
 	.remove		= __devexit_p(kinetis_uart_remove),
+#if defined(CONFIG_PM)
 	.suspend	= kinetis_uart_suspend,
 	.resume		= kinetis_uart_resume,
+#endif
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= KINETIS_DRIVER_NAME,
@@ -1341,6 +1496,7 @@ static void __exit kinetis_uart_driver_exit(void)
 	platform_driver_unregister(&kinetis_platform_driver);
 	uart_unregister_driver(&kinetis_uart_driver);
 }
+
 
 module_init(kinetis_uart_driver_init);
 module_exit(kinetis_uart_driver_exit);

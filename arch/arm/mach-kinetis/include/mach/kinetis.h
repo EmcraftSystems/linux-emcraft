@@ -127,7 +127,7 @@ struct kinetis_mcg_regs {
 	u8 c6;		/* MCG Control 6 Register */
 	u8 status;	/* MCG Status Register */
 	u8 rsv0;
-	u8 atc;		/* MCG Auto Trim Control Register */
+	u8 atc;		/* MCG Status and Control Register */
 	u8 rsv1;
 	u8 atcvh;	/* MCG Auto Trim Compare Value High Register */
 	u8 atcvl;	/* MCG Auto Trim Compare Value Low Register */

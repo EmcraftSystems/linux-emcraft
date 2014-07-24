@@ -35,6 +35,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/kinetis_uart.h>
 
 #include <asm/irq.h>
 #include <asm/atomic.h>
@@ -59,10 +60,39 @@
 extern void kinetis_suspend_to_ram(void);
 extern void kinetis_suspend_to_ram_end(void);
 
+#if defined(CONFIG_KINETIS_UART0_WAKEUP)
+extern unsigned int uart0_cnt;
+extern unsigned char uart0_buf[], uart0_bdr[];
+#endif
+#if defined(CONFIG_KINETIS_UART1_WAKEUP)
+extern unsigned int uart1_cnt;
+extern unsigned char uart1_buf[], uart1_bdr[];
+#endif
+#if defined(CONFIG_KINETIS_UART2_WAKEUP)
+extern unsigned int uart2_cnt;
+extern unsigned char uart2_buf[], uart2_bdr[];
+#endif
+#if defined(CONFIG_KINETIS_UART3_WAKEUP)
+extern unsigned int uart3_cnt;
+extern unsigned char uart3_buf[], uart3_bdr[];
+#endif
+#if defined(CONFIG_KINETIS_UART4_WAKEUP)
+extern unsigned int uart4_cnt;
+extern unsigned char uart4_buf[], uart4_bdr[];
+#endif
+#if defined(CONFIG_KINETIS_UART5_WAKEUP)
+extern unsigned int uart5_cnt;
+extern unsigned char uart5_buf[], uart5_bdr[];
+#endif
+
 /*
  * Location in eSRAM where the low-level suspend code will run from
  */
 #define KINETIS_SUSPEND_CODE_BASE	0x20002000
+
+#define KINETIS_SUSPEND_ADDR(a)						\
+	((void *) (KINETIS_SUSPEND_CODE_BASE +				\
+	((unsigned char *) (a) - (unsigned char *) kinetis_suspend_to_ram)))
 
 /*
  * Various bit fields in various hardware registers
@@ -76,7 +106,9 @@ extern void kinetis_suspend_to_ram_end(void);
 #define KINETIS_SMC_PMCTRL_STOPM_VLPS	0x2
 #define KINETIS_MCG_C1_IREFSTEN		(1<<0)
 #define KINETIS_MCG_C2_LP		(1<<1)
+#define KINETIS_MCG_C2_IRCS		(1<<0)
 #define KINETIS_MCG_C5_PLLSTEN0		(1<<5)
+#define KINETIS_MCG_ATC_FCRDIV_MSK	(7<<1)
 #define KINETIS_MCG_C11_PLLSTEN1	(1<<5)
 #define KINETIS_OSC0_CR_EREFSTEN	(1<<5)
 #define KINETIS_OSC1_CR_EREFSTEN	(1<<5)
@@ -176,13 +208,26 @@ static void kinetis_pm_prepare_to_suspend(void)
 	kinetis_periph_enable(KINETIS_CG_OSC1, 0);
 
 	/*
+	 * Set Fast Clock Reference Divider to Divide Factor 1.
+	 * Select Fast Clock as the internal clock reference.
+	 */
+	writeb(readb(&KINETIS_MCG->atc) & ~KINETIS_MCG_ATC_FCRDIV_MSK,
+		&KINETIS_MCG->atc);
+	writeb(readb(&KINETIS_MCG->c2) | KINETIS_MCG_C2_IRCS,
+		&KINETIS_MCG->c2);
+
+	/*
 	 * Disable peripheral clocks, having stored
 	 * the current state of the clock registers
 	 */
 	kinetis_periph_push();
 	kinetis_periph_enable(KINETIS_CG_OSC1, 0);
+#if !defined(CONFIG_KINETIS_UART4_WAKEUP)
 	kinetis_periph_enable(KINETIS_CG_UART4, 0);
+#endif
+#if !defined(CONFIG_KINETIS_UART5_WAKEUP)
 	kinetis_periph_enable(KINETIS_CG_UART5, 0);
+#endif
 	kinetis_periph_enable(KINETIS_CG_ENET, 0);
 	kinetis_periph_enable(KINETIS_CG_DAC0, 0);
 	kinetis_periph_enable(KINETIS_CG_DAC1, 0);
@@ -190,7 +235,7 @@ static void kinetis_pm_prepare_to_suspend(void)
 	kinetis_periph_enable(KINETIS_CG_FLEXCAN1, 0);
 	kinetis_periph_enable(KINETIS_CG_NFC, 0);
 	kinetis_periph_enable(KINETIS_CG_SPI2, 0);
-	// kinetis_periph_enable(KINETIS_CG_DDR, 0);
+	/* kinetis_periph_enable(KINETIS_CG_DDR, 0); */
 	kinetis_periph_enable(KINETIS_CG_SAI1, 0);
 	kinetis_periph_enable(KINETIS_CG_ESDHC, 0);
 	kinetis_periph_enable(KINETIS_CG_LCDC, 0);
@@ -202,16 +247,24 @@ static void kinetis_pm_prepare_to_suspend(void)
 	kinetis_periph_enable(KINETIS_CG_CMT, 0);
 	kinetis_periph_enable(KINETIS_CG_I2C0, 0);
 	kinetis_periph_enable(KINETIS_CG_I2C1, 0);
+#if !defined(CONFIG_KINETIS_UART0_WAKEUP)
 	kinetis_periph_enable(KINETIS_CG_UART0, 0);
+#endif
+#if !defined(CONFIG_KINETIS_UART1_WAKEUP)
 	kinetis_periph_enable(KINETIS_CG_UART1, 0);
-	//kinetis_periph_enable(KINETIS_CG_UART2, 0);
+#endif
+#if !defined(CONFIG_KINETIS_UART2_WAKEUP)
+	kinetis_periph_enable(KINETIS_CG_UART2, 0);
+#endif
+#if !defined(CONFIG_KINETIS_UART3_WAKEUP)
 	kinetis_periph_enable(KINETIS_CG_UART3, 0);
+#endif
 	kinetis_periph_enable(KINETIS_CG_USBFS, 0);
 	kinetis_periph_enable(KINETIS_CG_CMP, 0);
 	kinetis_periph_enable(KINETIS_CG_VREF, 0);
 	kinetis_periph_enable(KINETIS_CG_LLWU, 0);
 	kinetis_periph_enable(KINETIS_CG_LPTIMER, 0);
-	// kinetis_periph_enable(KINETIS_CG_REGFILE, 0);
+	/* kinetis_periph_enable(KINETIS_CG_REGFILE, 0); */
 	kinetis_periph_enable(KINETIS_CG_DRYICE, 0);
 	kinetis_periph_enable(KINETIS_CG_DRYICESECREG, 0);
 	kinetis_periph_enable(KINETIS_CG_TSI, 0);
@@ -236,7 +289,7 @@ static void kinetis_pm_prepare_to_suspend(void)
 	kinetis_periph_enable(KINETIS_CG_FTM1, 0);
 	kinetis_periph_enable(KINETIS_CG_ADC0, 0);
 	kinetis_periph_enable(KINETIS_CG_ADC2, 0);
-	// kinetis_periph_enable(KINETIS_CG_RTC, 0);
+	/* kinetis_periph_enable(KINETIS_CG_RTC, 0); */
 	kinetis_periph_enable(KINETIS_CG_FLEXBUS, 0);
 	kinetis_periph_enable(KINETIS_CG_DMA, 0);
 	kinetis_periph_enable(KINETIS_CG_MPU, 0);
@@ -247,7 +300,6 @@ static void kinetis_pm_prepare_to_suspend(void)
  */
 static void kinetis_pm_prepare_to_resume(void)
 {
-
 	/*
 	 * Restore peripheral clocks
 	 */
@@ -285,6 +337,40 @@ static int kinetis_pm_enter(suspend_state_t state)
 		&KINETIS_SCB->scr);
 
 	/*
+	 * Optionally, configure UARTs for wakeup on Rx Active Edge
+	 */
+#if defined(CONFIG_KINETIS_UART0_WAKEUP)
+	kinetis_uart_prepare_to_suspend(0, KINETIS_SUSPEND_ADDR(&uart0_cnt),
+		KINETIS_SUSPEND_ADDR(&uart0_buf[0]),
+		KINETIS_SUSPEND_ADDR(&uart0_bdr[0]));
+#endif
+#if defined(CONFIG_KINETIS_UART1_WAKEUP)
+	kinetis_uart_prepare_to_suspend(1, KINETIS_SUSPEND_ADDR(&uart1_cnt),
+		KINETIS_SUSPEND_ADDR(&uart1_buf[0]),
+		KINETIS_SUSPEND_ADDR(&uart1_bdr[0]));
+#endif
+#if defined(CONFIG_KINETIS_UART2_WAKEUP)
+	kinetis_uart_prepare_to_suspend(2, KINETIS_SUSPEND_ADDR(&uart2_cnt),
+		KINETIS_SUSPEND_ADDR(&uart2_buf[0]),
+		KINETIS_SUSPEND_ADDR(&uart2_bdr[0]));
+#endif
+#if defined(CONFIG_KINETIS_UART3_WAKEUP)
+	kinetis_uart_prepare_to_suspend(3, KINETIS_SUSPEND_ADDR(&uart3_cnt),
+		KINETIS_SUSPEND_ADDR(&uart3_buf[0]),
+		KINETIS_SUSPEND_ADDR(&uart3_bdr[0]));
+#endif
+#if defined(CONFIG_KINETIS_UART4_WAKEUP)
+	kinetis_uart_prepare_to_suspend(4, KINETIS_SUSPEND_ADDR(&uart4_cnt),
+		KINETIS_SUSPEND_ADDR(&uart4_buf[0]),
+		KINETIS_SUSPEND_ADDR(&uart4_bdr[0]));
+#endif
+#if defined(CONFIG_KINETIS_UART5_WAKEUP)
+	kinetis_uart_prepare_to_suspend(5, KINETIS_SUSPEND_ADDR(&uart5_cnt),
+		KINETIS_SUSPEND_ADDR(&uart5_buf[0]),
+		KINETIS_SUSPEND_ADDR(&uart5_bdr[0]));
+#endif
+
+	/*
 	 * Jump to suspend code in SRAM
 	 */
 	ptr = (void *)(KINETIS_SUSPEND_CODE_BASE + 1);
@@ -293,13 +379,14 @@ static int kinetis_pm_enter(suspend_state_t state)
 	/*
 	 * Switch to Normal Stop mode on WFI.
 	 * Disable DEEP SLEEP on WFI.
+	 * These are the setting the generic Linux idle() relies upon.
 	 */
 	writeb(KINETIS_SMC_PMCTRL_STOPM_RUN, &KINETIS_SMC->pmctrl);
 	writel(readl(&KINETIS_SCB->scr) & ~KINETIS_SCB_SCR_DEEPSLEEP,
 		&KINETIS_SCB->scr);
 
 	/*
-	 * Prepare the system hardware to suspend
+	 * Prepare the system hardware to resume
 	 */
 	kinetis_pm_prepare_to_resume();
 
@@ -379,4 +466,5 @@ module_exit(kinetis_pm_cleanup);
 MODULE_AUTHOR("Robert Brehm");
 MODULE_DESCRIPTION("Kinetis PM driver");
 MODULE_LICENSE("GPL");
+
 

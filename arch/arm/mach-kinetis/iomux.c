@@ -254,9 +254,9 @@ static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
 static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 #if defined(CONFIG_KINETIS_UART0)
 	/* D.7 = UART0_TX */
-	{{KINETIS_GPIO_PORT_D, 7}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_D, 7}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 	/* D.6 = UART0_RX */
-	{{KINETIS_GPIO_PORT_D, 6}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_D, 6}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 #if defined(CONFIG_KINETIS_UART0_CTSRTS)
 	/* B.3 = UART0_CTS */
 	{{KINETIS_GPIO_PORT_B, 3}, KINETIS_GPIO_CONFIG_MUX(3)},
@@ -267,9 +267,9 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 
 #if defined(CONFIG_KINETIS_UART1)
 	/* C.4 = UART1_TX */
-	{{KINETIS_GPIO_PORT_C, 4}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_C, 4}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 	/* C.3 = UART1_RX */
-	{{KINETIS_GPIO_PORT_C, 3}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_C, 3}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 #if defined(CONFIG_KINETIS_UART1_CTSRTS)
 	/* TBD: UART1_CTS/RTS signals are MUXed with SD card, avoid collision */
 	/* E.2 = UART1_CTS */
@@ -281,9 +281,9 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 
 #if defined(CONFIG_KINETIS_UART2)
 	/* E.16 = UART2_TX (USB-serial on Emcraft SOM-BSB baseboard) */
-	{{KINETIS_GPIO_PORT_E, 16}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_E, 16}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 	/* E.17 = UART2_RX (USB-serial on Emcraft SOM-BSB baseboard) */
-	{{KINETIS_GPIO_PORT_E, 17}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_E, 17}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 #if defined(CONFIG_KINETIS_UART2_CTSRTS)
 	/* CTS/RTS are not supported by USB-serial on Emcraft K70-SOM */
 #endif /* CONFIG_KINETIS_UART2_CTSRTS */
@@ -291,9 +291,9 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 
 #if defined(CONFIG_KINETIS_UART3)
 	/* B.11 = UART3_TX */
-	{{KINETIS_GPIO_PORT_B, 11}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_B, 11}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 	/* B.10 = UART3_RX */
-	{{KINETIS_GPIO_PORT_B, 10}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_B, 10}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 #if defined(CONFIG_KINETIS_UART3_CTSRTS)
 	/* B.9 = UART3_CTS */
 	{{KINETIS_GPIO_PORT_B, 9}, KINETIS_GPIO_CONFIG_MUX(3)},
@@ -304,9 +304,9 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 
 #if defined(CONFIG_KINETIS_UART4)
 	/* C.15 = UART4_TX */
-	{{KINETIS_GPIO_PORT_C, 15}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_C, 15}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 	/* C.14 = UART4_RX */
-	{{KINETIS_GPIO_PORT_C, 14}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_C, 14}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 #if defined(CONFIG_KINETIS_UART4_CTSRTS)
 	/* C.13 = UART4_CTS */
 	{{KINETIS_GPIO_PORT_C, 13}, KINETIS_GPIO_CONFIG_MUX(3)},
@@ -317,9 +317,9 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 
 #if defined(CONFIG_KINETIS_UART5)
 	/* E.8 = UART5_TX */
-	{{KINETIS_GPIO_PORT_E, 8}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_E, 8}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 	/* E.9 = UART5_RX */
-	{{KINETIS_GPIO_PORT_E, 9}, KINETIS_GPIO_CONFIG_MUX(3)},
+	{{KINETIS_GPIO_PORT_E, 9}, KINETIS_GPIO_CONFIG_PULLUP(3)},
 #if defined(CONFIG_KINETIS_UART5_CTSRTS)
 	/* E.10 = UART5_CTS */
 	{{KINETIS_GPIO_PORT_E, 10}, KINETIS_GPIO_CONFIG_MUX(3)},

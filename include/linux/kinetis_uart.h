@@ -35,4 +35,12 @@ struct kinetis_uart_data {
 /* Enable hardware flow control (CTS/RTS handshaking) */
 #define KINETIS_UART_FLAG_CTSRTS	(1 << 0)
 
+/*
+ * Prepare to wake up from Rx Active Edge on a specified UART port
+ */
+#if defined(CONFIG_PM)
+extern void kinetis_uart_prepare_to_suspend(
+	int port, unsigned int *cnt, unsigned char *buf, unsigned char *bdr);
+#endif
+
 #endif /* _KINETIS_UART_H_ */

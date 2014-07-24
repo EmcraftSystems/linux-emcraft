@@ -325,6 +325,9 @@ static struct clk clk_lcdc = {
  * The clock rates are initialized in `kinetis_clock_init()`.
  */
 static struct clk clk_uart[6];
+#if defined(CONFIG_PM)
+static struct clk clk_suspend_uart[6];
+#endif
 
 /*
  * Clocks for each of the 3 SPI controllers supported by the Kinetis K70 MCUs.
@@ -397,21 +400,39 @@ static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_lcdc, "imx-fb.0", NULL),
 #ifdef CONFIG_KINETIS_UART0
 	INIT_CLKREG(&clk_uart[0], "kinetis-uart.0", NULL),
+#ifdef CONFIG_KINETIS_UART0_WAKEUP
+	INIT_CLKREG(&clk_suspend_uart[0], NULL, "kinetis-suspend-uart.0"),
+#endif
 #endif
 #ifdef CONFIG_KINETIS_UART1
 	INIT_CLKREG(&clk_uart[1], "kinetis-uart.1", NULL),
+#ifdef CONFIG_KINETIS_UART1_WAKEUP
+	INIT_CLKREG(&clk_suspend_uart[1], NULL, "kinetis-suspend-uart.1"),
+#endif
 #endif
 #ifdef CONFIG_KINETIS_UART2
 	INIT_CLKREG(&clk_uart[2], "kinetis-uart.2", NULL),
+#ifdef CONFIG_KINETIS_UART2_WAKEUP
+	INIT_CLKREG(&clk_suspend_uart[2], NULL, "kinetis-suspend-uart.2"),
+#endif
 #endif
 #ifdef CONFIG_KINETIS_UART3
 	INIT_CLKREG(&clk_uart[3], "kinetis-uart.3", NULL),
+#ifdef CONFIG_KINETIS_UART3_WAKEUP
+	INIT_CLKREG(&clk_suspend_uart[3], NULL, "kinetis-suspend-uart.3"),
+#endif
 #endif
 #ifdef CONFIG_KINETIS_UART4
 	INIT_CLKREG(&clk_uart[4], "kinetis-uart.4", NULL),
+#ifdef CONFIG_KINETIS_UART4_WAKEUP
+	INIT_CLKREG(&clk_suspend_uart[4], NULL, "kinetis-suspend-uart.4"),
+#endif
 #endif
 #ifdef CONFIG_KINETIS_UART5
 	INIT_CLKREG(&clk_uart[5], "kinetis-uart.5", NULL),
+#ifdef CONFIG_KINETIS_UART5_WAKEUP
+	INIT_CLKREG(&clk_suspend_uart[5], NULL, "kinetis-suspend-uart.5"),
+#endif
 #endif
 #ifdef CONFIG_KINETIS_SPI0
 	INIT_CLKREG(&clk_spi0, "kinetis-dspi.0", NULL),
@@ -565,6 +586,7 @@ void __init kinetis_clock_init(void)
 	int osc_sel;
 	/* Frequency at the MCGOUTCLK output of the MCG */
 	int mcgout;
+	int msgout_suspended, pclk_suspended;
 	/* USBs clock divider values */
 	int usb_div;
 	int usb_frac;
@@ -680,6 +702,15 @@ void __init kinetis_clock_init(void)
 		KINETIS_SIM_CLKDIV1_OUTDIV2_BITS) + 1);
 
 	/*
+	 * MSGOUT is defined by Fast Internal Clock (4MHz) in suspend mode.
+	 * Peripheral clock in suspend is a function of the above clock.
+	 */
+	msgout_suspended = 4000000;
+	pclk_suspended = msgout_suspended /
+		(((KINETIS_SIM->clkdiv1 & KINETIS_SIM_CLKDIV1_OUTDIV2_MSK) >>
+		KINETIS_SIM_CLKDIV1_OUTDIV2_BITS) + 1);
+
+	/*
 	 * Ethernet clock
 	 */
 	clock_val[CLOCK_MACCLK] = CONFIG_KINETIS_OSC0_RATE;
@@ -771,11 +802,14 @@ void __init kinetis_clock_init(void)
 #endif
 
 	/*
-	 * UART0 and UART1 are clocked from the core clock, the remaining UARTs
-	 * are clocked from the bus clock.
+	 * UART0 and UART1 are clocked from the core clock,
+	 * the remaining UARTs are clocked from the bus clock.
 	 */
-	for (i = 0; i < ARRAY_SIZE(clk_uart); i++)
+	for (i = 0; i < ARRAY_SIZE(clk_uart); i++) {
 		clk_uart[i].rate = clock_val[i <= 1 ? CLOCK_CCLK : CLOCK_PCLK];
+		clk_suspend_uart[i].rate = i <= 1 ?
+			msgout_suspended : pclk_suspended;
+	}
 
 #ifdef CONFIG_KINETIS_SPI0
 	clk_spi0.rate = clock_val[CLOCK_PCLK];
