@@ -586,7 +586,9 @@ void __init kinetis_clock_init(void)
 	int osc_sel;
 	/* Frequency at the MCGOUTCLK output of the MCG */
 	int mcgout;
+#if defined(CONFIG_PM)
 	int msgout_suspended, pclk_suspended;
+#endif
 	/* USBs clock divider values */
 	int usb_div;
 	int usb_frac;
@@ -701,6 +703,7 @@ void __init kinetis_clock_init(void)
 		(((KINETIS_SIM->clkdiv1 & KINETIS_SIM_CLKDIV1_OUTDIV2_MSK) >>
 		KINETIS_SIM_CLKDIV1_OUTDIV2_BITS) + 1);
 
+#if defined(CONFIG_PM)
 	/*
 	 * MSGOUT is defined by Fast Internal Clock (4MHz) in suspend mode.
 	 * Peripheral clock in suspend is a function of the above clock.
@@ -709,6 +712,7 @@ void __init kinetis_clock_init(void)
 	pclk_suspended = msgout_suspended /
 		(((KINETIS_SIM->clkdiv1 & KINETIS_SIM_CLKDIV1_OUTDIV2_MSK) >>
 		KINETIS_SIM_CLKDIV1_OUTDIV2_BITS) + 1);
+#endif
 
 	/*
 	 * Ethernet clock
@@ -807,8 +811,10 @@ void __init kinetis_clock_init(void)
 	 */
 	for (i = 0; i < ARRAY_SIZE(clk_uart); i++) {
 		clk_uart[i].rate = clock_val[i <= 1 ? CLOCK_CCLK : CLOCK_PCLK];
+#if defined(CONFIG_PM)
 		clk_suspend_uart[i].rate = i <= 1 ?
 			msgout_suspended : pclk_suspended;
+#endif
 	}
 
 #ifdef CONFIG_KINETIS_SPI0
