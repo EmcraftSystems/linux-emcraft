@@ -166,8 +166,8 @@ static const u32 af_val[] = {
  * Configure the specified GPIO for the specified role
  */
 #ifndef CONFIG_ARCH_STM32F1
-static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
-			       enum stm32f2_gpio_role role)
+static int stm32f2_gpio_config(
+	struct stm32f2_gpio_dsc *dsc, enum stm32f2_gpio_role role)
 {
 	volatile struct stm32f2_gpio_regs	*gpio_regs;
 
@@ -186,6 +186,7 @@ static int stm32f2_gpio_config(struct stm32f2_gpio_dsc *dsc,
 	 * Depending on the role, select the appropriate io params
 	 */
 	switch (role) {
+
 	case STM32F2_GPIO_ROLE_USART1:
 	case STM32F2_GPIO_ROLE_USART2:
 	case STM32F2_GPIO_ROLE_USART3:
@@ -339,6 +340,15 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.port = 0;
 		gpio_dsc.pin  = 10;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART1);
+#endif
+#if defined(CONFIG_STM32_USART3)
+		gpio_dsc.port = 2;
+		gpio_dsc.pin  = 10;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
+
+		gpio_dsc.port = 2;
+		gpio_dsc.pin  = 11;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
 #endif
 
 		goto uartdone;
