@@ -41,6 +41,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/phy.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/delay.h>
 #include <asm/io.h>
