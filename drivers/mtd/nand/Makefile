@@ -43,5 +43,6 @@ obj-$(CONFIG_MTD_NAND_TXX9NDFMC)	+= txx9ndfmc.o
 obj-$(CONFIG_MTD_NAND_W90P910)		+= w90p910_nand.o
 obj-$(CONFIG_MTD_NAND_NOMADIK)		+= nomadik_nand.o
 obj-$(CONFIG_MTD_NAND_BCM_UMI)		+= bcm_umi_nand.o nand_bcm_umi.o
+obj-$(CONFIG_MTD_NAND_EA1788)		+= ea1788_nand.o
 
 nand-objs := nand_base.o nand_bbt.o
