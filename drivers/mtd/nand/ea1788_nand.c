@@ -1,7 +1,31 @@
+/*
+ * Copyright (C) 2014
+ * Anton Protopopov, Emcraft Systems, antonp@emcraft.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+/*
+ * Based on the code designed by Yuri Azanov <azanow@ya.ru>
+ */
+
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/setup.h>
 #include <asm/io.h>
@@ -10,39 +34,8 @@
 #include <mach/iomux.h>
 #include <asm/mach/arch.h>
 
-#define NAND_BASE	0x90000000
-#define NAND_SIZE	0x04000000
-
 static struct mtd_info *ea1788_mtd;
 static void __iomem *ea1788_nand_base;
-
-#ifdef CONFIG_MTD_PARTITIONS
-
-#define NAND_IMAGE_OFFSET	0x20000
-#define NAND_JFFS2_OFFSET	(3*1024*1024)
-
-static struct mtd_partition ea1788_nand_partition_info[] = {
-	{
-		.name	= "nand_env",
-		.offset	= 0,
-		.size	= NAND_IMAGE_OFFSET,
-	},
-	{
-		.name	= "nand_kernel",
-		.offset	= NAND_IMAGE_OFFSET,
-		.size	= NAND_JFFS2_OFFSET - NAND_IMAGE_OFFSET,
-	},
-	{
-		.name   = "nand_filesystem",
-		.offset = NAND_JFFS2_OFFSET,
-		.size   = MTDPART_SIZ_FULL,
-	},
-};
-
-#define NUM_PARTITIONS (ARRAY_SIZE(ea1788_nand_partition_info))
-
-#endif
-
 
 /*
  * hardware specific access to control-lines
@@ -70,29 +63,39 @@ static void ea1788_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 		writeb(cmd, (void __iomem *) addr);
 }
 
-static int __init ea1788_init(void)
+#ifdef CONFIG_MTD_CMDLINE_PARTS
+static const char *part_probes[] = { "cmdlinepart", NULL };
+#endif
+
+static int ea1788_nand_probe(struct platform_device *dev)
 {
+	struct physmap_flash_data *nand_data;
 	struct nand_chip *this;
 	const char *part_type;
+	unsigned long size;
 #ifdef CONFIG_MTD_PARTITIONS
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	static const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
 	struct mtd_partition *mtd_parts;
 	int nbparts = 0;
 #endif
 	int ret = 0;
 
+	nand_data = dev->dev.platform_data;
+	if (nand_data == NULL)
+		return -ENODEV;
+
+	if (dev->num_resources != 1)
+		return -ENODEV;
+
 	/* Allocate memory for MTD device structure and private data */
 	ea1788_mtd = kzalloc(sizeof(*ea1788_mtd) + sizeof(*this), GFP_KERNEL);
 	if (!ea1788_mtd) {
-		printk("Unable to allocate NAND MTD device structure.\n");
-		ret = -ENOMEM;
-		goto out;
+		pr_warning("Unable to allocate NAND MTD device structure.\n");
+		return -ENOMEM;
 	}
 
 	/* Map physical adress */
-	ea1788_nand_base = ioremap(NAND_BASE, NAND_SIZE);
+	size = dev->resource[0].end - dev->resource[0].start + 1;
+	ea1788_nand_base = ioremap(dev->resource[0].start, size);
 	if (!ea1788_nand_base) {
 		printk("Ioremap NAND MTD chip fails.\n");
 		ret = -EINVAL;
@@ -131,8 +134,8 @@ static int __init ea1788_init(void)
 #endif
 
 	if (!nbparts) {
-		mtd_parts = ea1788_nand_partition_info;
-		nbparts = NUM_PARTITIONS;
+		mtd_parts = nand_data->parts;
+		nbparts = nand_data->nr_parts;
 		part_type = "static";
 	}
 
@@ -149,22 +152,42 @@ err_scan:
 	iounmap(ea1788_nand_base);
 err_ioremap:
 	kfree(ea1788_mtd);
-out:
+
 	return ret;
 }
 
-static void __exit ea1788_cleanup(void)
+static int ea1788_nand_remove(struct platform_device *dev)
 {
 	if (ea1788_mtd) {
 		nand_release(ea1788_mtd);
 		iounmap(ea1788_nand_base);
 		kfree(ea1788_mtd);
 	}
+	return 0;
+}
+
+static struct platform_driver ea1788_nand_driver = {
+	.probe		= ea1788_nand_probe,
+	.remove		= ea1788_nand_remove,
+	.driver		= {
+		.name	= "lpc178x_nand",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init ea1788_init(void)
+{
+	return platform_driver_register(&ea1788_nand_driver);
+}
+
+static void __exit ea1788_exit(void)
+{
+	platform_driver_unregister(&ea1788_nand_driver);
 }
 
 module_init(ea1788_init);
-module_exit(ea1788_cleanup);
+module_exit(ea1788_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Yuri Azanov <azanow@ya.ru>");
-MODULE_DESCRIPTION("NAND flash driver for Embedded Artists LPC2478 OEM Board");
+MODULE_AUTHOR("Anton Protopopov <antonp@emcraft.com>");
+MODULE_DESCRIPTION("NAND flash driver for LPC178x-based boards");

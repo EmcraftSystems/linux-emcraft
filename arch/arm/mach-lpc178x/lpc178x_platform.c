@@ -41,6 +41,7 @@
 #include <mach/eth.h>
 #include <mach/spi.h>
 #include <mach/flash.h>
+#include <mach/nand.h>
 #include <mach/dma.h>
 #include <mach/sdcard.h>
 #include <mach/i2c.h>
@@ -220,6 +221,13 @@ static void __init lpc178x_init(void)
 	 * Configure external Flash
 	 */
 	lpc178x_flash_init();
+#endif
+
+#if defined(CONFIG_MTD_NAND)
+	/*
+	 * Configure external NAND Flash
+	 */
+	lpc178x_nand_init();
 #endif
 
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
