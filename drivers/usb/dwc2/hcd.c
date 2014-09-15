@@ -976,15 +976,6 @@ static int dwc2_queue_transaction(struct dwc2_hsotg *hsotg,
 				  u16 fifo_dwords_avail)
 {
 	int retval = 0;
-	u32 hcint;
-
-#if 0
-	hcint = readl(hsotg->regs + HCINT(chan->hc_num));
-	if (chan->ep_is_in && hcint & HCINTMSK_NAK && chan->nak_count++ >= 255) {
-		chan->halt_pending = 1;
-		chan->halt_status = DWC2_HC_XFER_URB_DEQUEUE;
-	}
-#endif
 
 	if (hsotg->core_params->dma_enable > 0) {
 		if (hsotg->core_params->dma_desc_enable > 0) {

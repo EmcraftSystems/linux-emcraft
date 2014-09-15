@@ -1657,7 +1657,7 @@ int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
 				 hcchar);
 		writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
 		chan->requests++;
-		return 1;
+		return chan->requests < 128;
 	}
 
 	/* OUT transfers */

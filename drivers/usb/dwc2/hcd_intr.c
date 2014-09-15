@@ -194,7 +194,6 @@ static void dwc2_rx_fifo_level_intr(struct dwc2_hsotg *hsotg)
 			/* Update the HC fields for the next packet received */
 			chan->xfer_count += bcnt;
 			chan->xfer_buf += bcnt;
-			chan->nak_count = 0;
 		}
 		break;
 	case GRXSTS_PKTSTS_HCHIN_XFER_COMP:

@@ -152,7 +152,6 @@ struct dwc2_host_chan {
 #define DWC2_HCSPLT_XACTPOS_ALL	HCSPLT_XACTPOS_ALL
 
 	u8 requests;
-	u8 nak_count;
 	u8 schinfo;
 	u16 ntd;
 	enum dwc2_halt_status halt_status;
