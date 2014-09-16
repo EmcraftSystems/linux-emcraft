@@ -115,13 +115,13 @@ extern char __sram_loc, _esram_loc;
 
 static inline int enter_critical_code(void)
 {
-	int flags;
+	unsigned long flags;
 	local_fiq_disable();
 	local_irq_save(flags);
 	return flags;
 }
 
-static inline void leave_critical_code(int flags)
+static inline void leave_critical_code(unsigned long flags)
 {
 	local_irq_restore(flags);
 	local_fiq_enable();
@@ -233,7 +233,7 @@ void stm32f4_flash_copy_from(struct map_info *map, void *to, unsigned long from,
 	int flags;
 
 	for(; len; ) {
-		read_len = min(len, sram_buffer_size);
+		read_len = min((unsigned long)len, sram_buffer_size);
 
 		sr_flash = map->phys + from;
 		sr_len = ALIGN(read_len, 2);
@@ -250,14 +250,14 @@ void stm32f4_flash_copy_from(struct map_info *map, void *to, unsigned long from,
 	}
 }
 
-void stm32f4_flash_copy_to(struct map_info *map, unsigned long to, void *from, ssize_t len)
+void stm32f4_flash_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
 {
 	int read_len;
 	unsigned long lfrom = (unsigned long)from;
 	int flags;
 
 	for(; len; ) {
-		read_len = min(len, sram_buffer_size);
+		read_len = min((unsigned long)len, sram_buffer_size);
 
 		sr_flash = map->phys + to;
 		sr_len = ALIGN(read_len, 2);
@@ -473,7 +473,7 @@ static int __init stm32f4_init(void)
 
 	sram_buffer_start = p;
 	sram_buffer_size = CONFIG_MTD_STM32F4_SRAM_BUFFER_SIZE;
-	printk(KERN_INFO "Using SRAM as buffer with start %p and size %x\n",
+	printk(KERN_INFO "Using SRAM as buffer with start %lx and size %x\n",
 		sram_buffer_start, sram_buffer_size);
 
 	err = platform_driver_register(&stm32f4_flash_driver);

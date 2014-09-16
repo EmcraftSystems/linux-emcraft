@@ -967,7 +967,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 	retval = usb_get_device_descriptor(usb_dev, USB_DT_DEVICE_SIZE);
 	if (retval != sizeof usb_dev->descriptor) {
 		mutex_unlock(&usb_bus_list_lock);
-		dev_dbg (parent_dev, "can't read %s device descriptor %d\n",
+		dev_err (parent_dev, "can't read %s device descriptor %d\n",
 				dev_name(&usb_dev->dev), retval);
 		return (retval < 0) ? retval : -EMSGSIZE;
 	}

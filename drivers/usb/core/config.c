@@ -5,8 +5,9 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <asm/byteorder.h>
-#include "usb.h"
+
 #include "hcd.h"
+#include "usb.h"
 
 #define USB_MAXALTSETTING		128	/* Hard limit */
 #define USB_MAXENDPOINTS		30	/* Hard limit */

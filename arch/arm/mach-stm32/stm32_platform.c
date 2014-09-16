@@ -42,6 +42,7 @@
 #include <mach/sdcard.h>
 #include <mach/dmainit.h>
 #include <mach/rtc.h>
+#include <mach/usb.h>
 #include <mach/gpio.h>
 
 /*
@@ -250,6 +251,13 @@ static void __init stm32_init(void)
 	 * Initialize the on-chip real-time clock
 	 */
 	stm32_rtc_init();
+#endif
+
+#if defined(CONFIG_STM32_USB_OTG_FS)
+       /*
+        * Initialize the USB OTG FS controller
+        */
+       stm32_usb_otg_fs_init();
 #endif
 
 #if defined(CONFIG_GPIOLIB)
