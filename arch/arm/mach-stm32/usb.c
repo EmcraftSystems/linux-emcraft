@@ -43,6 +43,7 @@
 
 #define STM32_RCC_ENR_OTGFSEN		(1 << 7)
 
+#ifdef CONFIG_STM32_USB_OTG_FS
 /*
  * USB platform device resources
  */
@@ -77,3 +78,42 @@ void __init stm32_usb_otg_fs_init(void)
 
 	platform_device_register(&usb_otg_fs_device);
 }
+#endif /* CONFIG_STM32_USB_OTG_FS */
+
+
+#ifdef CONFIG_STM32_USB_OTG_HS
+/*
+ * USB platform device resources
+ */
+static struct resource		usb_otg_hs_resources[] = {
+	{
+		.start	= STM32_USB_OTG_HS_BASE,
+		.end	= STM32_USB_OTG_HS_BASE + 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= STM32_USB_OTG_HS_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+/*
+ * Ethernet platform device instance
+ */
+static struct platform_device	usb_otg_hs_device = {
+	.name		= "dwc2",
+	.resource	= usb_otg_hs_resources,
+	.num_resources	= ARRAY_SIZE(usb_otg_hs_resources),
+	.id		= 0,
+};
+
+void __init stm32_usb_otg_hs_init(void)
+{
+	/*
+	 * Enable clocks
+	 */
+	STM32_RCC->ahb1enr |= STM32_RCC_ENR_OTGHSEN | STM32_RCC_ENR_OTGHSULPIEN;
+
+	platform_device_register(&usb_otg_hs_device);
+}
+#endif /* CONFIG_STM32_USB_OTG_HS */

@@ -15,3 +15,4 @@ obj-$(CONFIG_MTD_STM32F4_MAP)	+= flash.o
 obj-$(CONFIG_MMC_ARMMMCI)	+= sdcard.o
 obj-$(CONFIG_RTC_DRV_STM32F2)	+= rtc.o
 obj-$(CONFIG_STM32_USB_OTG_FS)	+= usb.o
+obj-$(CONFIG_STM32_USB_OTG_HS)	+= usb.o

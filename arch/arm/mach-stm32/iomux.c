@@ -545,6 +545,32 @@ uartdone:
 		} while (0);
 #endif /* defined(CONFIG_STM32_USB_OTG_FS) */
 
+#if defined(CONFIG_STM32_USB_OTG_HS)
+		do {
+			static struct stm32f2_gpio_dsc otg_gpio[] = {
+				{0, 5 }, /* CLK PA5 */
+				{2, 0 }, /* STP PC0 */
+				{7, 4 }, /* NXT PH4 */
+				{8, 11}, /* DIR PI11 */
+
+				{0, 3 }, /* DATA0 PA3  */
+				{1, 0 }, /* DATA1 PB0  */
+				{1, 1 }, /* DATA2 PB1  */
+				{1, 10}, /* DATA3 PB10 */
+				{1, 11}, /* DATA4 PB11 */
+				{1, 12}, /* DATA5 PB12 */
+				{1, 13}, /* DATA6 PB13 */
+				{1, 5 }, /* DATA7 PB5  */
+			};
+			int	i;
+
+			for (i = 0; i < ARRAY_SIZE(otg_gpio); i++) {
+				stm32f2_gpio_config(&otg_gpio[i],
+						    STM32F2_GPIO_ROLE_USB_OTG);
+			}
+		} while (0);
+#endif /* defined(CONFIG_STM32_USB_OTG_HS) */
+
 #if defined(CONFIG_GPIOLIB) && defined(CONFIG_GPIO_SYSFS)
 
 	/*

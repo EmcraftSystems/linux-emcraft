@@ -2854,7 +2854,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	writel(ggpiocfg, hsotg->regs + GGPIO);
 	usleep_range(100000, 150000);
 
-
 	/* Initialize the DWC_otg core, and select the Phy type */
 	retval = dwc2_core_init(hsotg, true, irq);
 	if (retval)
