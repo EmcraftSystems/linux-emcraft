@@ -499,4 +499,9 @@ config MTD_NAND_EA1788
 	tristate "Support for NAND Flash on EA-LPC1788 board"
 	depends on MTD_NAND && MACH_LPC178X
 
+config MTD_NAND_EA1788_CHIP_DELAY
+	int "Delay for transfering data from array to read regs"
+	depends on MTD_NAND && MACH_LPC178X && MTD_NAND_EA1788
+	default 100
+
 endif # MTD_NAND

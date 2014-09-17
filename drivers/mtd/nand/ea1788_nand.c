@@ -113,7 +113,7 @@ static int ea1788_nand_probe(struct platform_device *dev)
 	this->IO_ADDR_R = ea1788_nand_base;
 	this->IO_ADDR_W = ea1788_nand_base;
 	this->cmd_ctrl = ea1788_nand_hwcontrol;
-	this->chip_delay = 25;
+	this->chip_delay = CONFIG_MTD_NAND_EA1788_CHIP_DELAY;
 	this->ecc.mode = NAND_ECC_SOFT;
 	this->options = NAND_USE_FLASH_BBT;
 
