@@ -654,16 +654,23 @@ config KERNEL_IN_ENVM
 config KERNEL_IN_ENVM_OFFSET
 	depends on KERNEL_IN_ENVM
 	int "Offset of the kernel area in built-in eNVM (in KBytes)"
-	default 128
+	default 512
 	help
 	  Define offset of the kernel area in built-in eNVM
 
 config KERNEL_IN_ENVM_SIZE
 	depends on KERNEL_IN_ENVM
 	int "Size of the kernel area in built-in eNVM (in KBytes)"
-	default 384
+	default 1536
 	help
 	  Define size of the kernel area in built-in eNVM
+
+config IMAGE_IN_ENVM_OFFSET
+	depends on KERNEL_IN_ENVM
+	int "Offset of the bootable image in built-in eNVM (in KBytes)"
+	default 256
+	help
+	  Define offset of the kernel area in built-in eNVM
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
