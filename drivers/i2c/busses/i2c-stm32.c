@@ -152,6 +152,8 @@ struct i2c_stm32_regs {
 #define	I2C_STM32_SR2_TRA		(1<<2)
 #define	I2C_STM32_SR1_SB		(1<<0)
 #define	I2C_STM32_CCR_CCR(v)		((v)<<0)
+#define	I2C_STM32_CCR_FS		(1<<15)
+#define	I2C_STM32_CCR_DUTY		(1<<14)
 #define	I2C_STM32_TRISE_TRISE(v)	((v)<<0)
 
 /*
@@ -169,7 +171,7 @@ static int i2c_stm32_hw_init(struct i2c_stm32 *c)
 	 * First, figure out if we are able to configure the clocks
 	 * If not, we want to bail out without enabling enything.
 	 */
-	if (c->i2c_clk != 100000) {
+	if (c->i2c_clk == 0 || c->i2c_clk > 400000) {
 		dev_err(&c->dev->dev, "bus clock %d not supported\n",
 			c->i2c_clk);
 		ret = -ENXIO;
@@ -210,14 +212,24 @@ static int i2c_stm32_hw_init(struct i2c_stm32 *c)
 
 	/*
 	 * Set the clocks. 
-	 * The following is valid only for Standard Mode (100Khz).
  	 */
-	v = c->ref_clk / MHZ(1);
-	writel(I2C_STM32_CR2_FREQ(v), &I2C_STM32(c)->cr2);
-	writel(I2C_STM32_TRISE_TRISE(v + 1), &I2C_STM32(c)->trise);
-	v = c->ref_clk / (c->i2c_clk << 1);
-	v = v < 0x04 ? 0x04 : v;
-	writel(I2C_STM32_CCR_CCR(v), &I2C_STM32(c)->ccr);
+	if (c->i2c_clk <= 100000) {
+		v = c->ref_clk / MHZ(1);
+		writel(I2C_STM32_CR2_FREQ(v), &I2C_STM32(c)->cr2);
+		writel(I2C_STM32_TRISE_TRISE(v + 1), &I2C_STM32(c)->trise);
+		v = c->ref_clk / (c->i2c_clk << 1);
+		v = v < 0x04 ? 0x04 : v;
+		writel(I2C_STM32_CCR_CCR(v), &I2C_STM32(c)->ccr);
+	}
+	else {
+		v = c->ref_clk / MHZ(1);
+		v = ((v * 300) / 1000) + 1;
+		writel(I2C_STM32_TRISE_TRISE(v), &I2C_STM32(c)->trise);
+		v = c->ref_clk / (c->i2c_clk * 25);
+		v |= ((v & 0x0FFF) == 0) ? 0x0001 : 0;
+		v |= I2C_STM32_CCR_FS | I2C_STM32_CCR_DUTY;
+		writel(I2C_STM32_CCR_CCR(v), &I2C_STM32(c)->ccr);
+	}
 
 	/*
 	 * Enable hardware interrupts, including for error conditions
@@ -472,6 +484,9 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 		/* 
 		 * Some error condition -> let's stop and report a failure
 		 */	
+		writel(0x0, &I2C_STM32(c)->sr1);
+		dev_err(&c->dev->dev,
+			"error condition in irq handler: sr1=%x\n", sr1);
 		c->msg_status = -EIO;
 		disable_intr = 1;
 	}
