@@ -449,11 +449,13 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 	D1(printk(KERN_DEBUG "jffs2_scan_eraseblock(): Scanning block at 0x%x\n", ofs));
 
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
-	if (jffs2_cleanmarker_oob(c)) {
-		int ret;
-
+	if (jffs2_badmarker_oob(c)) {
 		if (c->mtd->block_isbad(c->mtd, jeb->offset))
 			return BLK_STATE_BADBLOCK;
+	}
+
+	if (jffs2_cleanmarker_oob(c)) {
+		int ret;
 
 		ret = jffs2_check_nand_cleanmarker(c, jeb);
 		D2(printk(KERN_NOTICE "jffs_check_nand_cleanmarker returned %d\n",ret));

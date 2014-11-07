@@ -197,6 +197,8 @@ typedef enum {
 #define NAND_OWN_BUFFERS	0x00040000
 /* Chip may not exist, so silence any errors in scan */
 #define NAND_SCAN_SILENT_NODEV	0x00080000
+/* Chip does not allow write to OOB (doesn't affect BB marking) */
+#define NAND_NO_OOB_WRITE	0x00100000
 
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */

@@ -46,9 +46,12 @@
 #define NFC_TIMEOUT		(HZ)
 
 
-#define ECC_SRAM_ADDR	(0x840 >> 3)
-#define ECC_STATUS_MASK	0x80
-#define ECC_ERR_COUNT	0x3F
+#define ECC_SRAM_ADDR       (0x840 >> 3)
+#define ECC_SRAM_ARRD_OFFSET 4
+#define ECC_CORFAIL_MASK     0x80
+#define ECC_CORFAIL_SHIFT    7
+#define ECC_ERR_COUNT_MASK   0x3F
+#define ECC_ERR_COUNT_SHIFT  0
 
 #define MIN(x, y)		((x < y) ? x : y)
 
@@ -104,7 +107,7 @@ static const char *fsl_nfc_pprobes[] = { "cmdlinepart", NULL };
 
 static struct nand_ecclayout fsl_nfc_ecc45 = {
 	.eccbytes = 45,
-	.eccpos = {19, 20, 21, 22, 23,
+	.eccpos = {16, 17, 20, 21, 22, 23,
 		   24, 25, 26, 27, 28, 29, 30, 31,
 		   32, 33, 34, 35, 36, 37, 38, 39,
 		   40, 41, 42, 43, 44, 45, 46, 47,
@@ -112,18 +115,8 @@ static struct nand_ecclayout fsl_nfc_ecc45 = {
 		   56, 57, 58, 59, 60, 61, 62, 63},
 	.oobfree = {
 		{
-			.offset = 8,
-			/*
-			 * 11 bytes are actually available for a client to
-			 * place data into the out of band area (OOB.)
-			 *
-			 * We write "2" here though to make the JFFS2 code
-			 * happy. See how the function `jffs2_check_oob_empty()`
-			 * checks if a block is empty.
-			 *
-			 * TBD: Properly fix this JFFS2 problem.
-			 */
-			.length = 2,
+			.offset = 4,
+			.length = 8,
 		},
 	},
 };
@@ -370,19 +363,8 @@ fsl_nfc_command(struct mtd_info *mtd, unsigned command,
 		CONFIG_ECC_MODE_MASK,
 		CONFIG_ECC_MODE_SHIFT, ECC_45_BYTE);
 
-	if (!(page%0x40)) {
-			nfc_set_field(mtd, NFC_FLASH_CONFIG,
-				CONFIG_ECC_MODE_MASK,
-				CONFIG_ECC_MODE_SHIFT, ECC_BYPASS);
-	}
-
 	switch (command) {
 	case NAND_CMD_PAGEPROG:
-		if (!(prv->page%0x40))
-			nfc_set_field(mtd, NFC_FLASH_CONFIG,
-				CONFIG_ECC_MODE_MASK,
-				CONFIG_ECC_MODE_SHIFT, ECC_BYPASS);
-
 		fsl_nfc_send_cmd(mtd,
 				PROGRAM_PAGE_CMD_BYTE1,
 				PROGRAM_PAGE_CMD_BYTE2,
@@ -672,6 +654,54 @@ static int fsl_nfc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
+/* Count the number of 0's in buff upto max_bits */
+static int count_written_bits(uint8_t *buff, int size, int max_bits)
+{
+	int k, written_bits = 0;
+
+	for (k = 0; k < size; k++) {
+		written_bits += hweight8(~buff[k]);
+		if (written_bits > max_bits)
+			break;
+	}
+
+	return written_bits;
+}
+
+static void fsl_nfc_check_ecc_status(unsigned char *buf, struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+	struct fsl_nfc_prv *prv = chip->priv;
+
+	u8 ecc_status = __raw_readb((u8*)prv->regs + (ECC_SRAM_ADDR << 3) + ECC_SRAM_ARRD_OFFSET);
+	u8 corfail = (ecc_status & ECC_CORFAIL_MASK) >> ECC_CORFAIL_SHIFT;
+	u8 ecc_count = (ecc_status & ECC_ERR_COUNT_MASK) >> ECC_ERR_COUNT_SHIFT;
+
+	if (1 == corfail)
+	{
+		/* Erased page always gives uncorrectable error */
+
+		/* If 'ecc_count' zero or less then buffer is all 0xff or erased. */
+		int flip = count_written_bits(buf, chip->ecc.size, ecc_count);
+
+		if (flip > ecc_count)
+		{
+			mtd->ecc_stats.failed++;
+			printk(KERN_ERR DRV_NAME ": ECC uncorrectable errors on page %d!\n", prv->page);
+		}
+		else
+		{
+			/* Erased page. */
+			memset(buf, 0xFF, chip->ecc.size);
+		}
+	}
+	else if (ecc_count)
+	{
+		mtd->ecc_stats.corrected += ecc_count;
+		printk(KERN_DEBUG DRV_NAME ": ECC corrected %d errors on page %d\n", ecc_count, prv->page);
+	}
+}
+
 static int fsl_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 					uint8_t *buf, int page)
 {
@@ -680,6 +710,10 @@ static int fsl_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	memcpy_fromio((void *)buf, prv->regs + NFC_MAIN_AREA(0),
 			mtd->writesize);
 	copy_from_to_spare(mtd, chip->oob_poi, mtd->oobsize, 0);
+	if (hardware_ecc)
+	{
+		fsl_nfc_check_ecc_status(buf, mtd);
+	}
 	return 0;
 }
 
@@ -772,7 +806,7 @@ fsl_nfc_probe(struct platform_device *pdev)
 	chip->read_buf = fsl_nfc_read_buf;
 	chip->write_buf = fsl_nfc_write_buf;
 	chip->verify_buf = fsl_nfc_verify_buf;
-	chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT | NAND_CACHEPRG;
+	chip->options = NAND_NO_AUTOINCR | NAND_USE_FLASH_BBT | NAND_CACHEPRG | NAND_NO_OOB_WRITE;
 	if (!pdata || !(pdata->flags & FSL_NFC_NAND_FLAGS_BUSWIDTH_8))
 		chip->options |= NAND_BUSWIDTH_16;
 
