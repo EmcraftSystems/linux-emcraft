@@ -345,19 +345,24 @@ speed:
 	/*
 	 * Speed changed
 	 */
+
 	M2S_SYSREG->mac_cr &= ~(M2S_SYS_MAC_CR_LS_MSK << M2S_SYS_MAC_CR_LS_BIT);
+	M2S_MAC_CFG(d)->cfg2 &= ~(M2S_MAC_CFG2_MODE_MSK << M2S_MAC_CFG2_MODE_BIT);
 	switch (phy_dev->speed) {
 	case 10:
 		M2S_MAC_CFG(d)->if_ctrl &= ~M2S_MAC_INTF_SPEED_100;
 		msk = M2S_SYS_MAC_CR_LS_10 << M2S_SYS_MAC_CR_LS_BIT;
+		M2S_MAC_CFG(d)->cfg2 |= (M2S_MAC_CFG2_MODE_MII << M2S_MAC_CFG2_MODE_BIT);
 		break;
 	case 100:
 		M2S_MAC_CFG(d)->if_ctrl |= M2S_MAC_INTF_SPEED_100;
 		msk = M2S_SYS_MAC_CR_LS_100 << M2S_SYS_MAC_CR_LS_BIT;
+		M2S_MAC_CFG(d)->cfg2 |= (M2S_MAC_CFG2_MODE_MII << M2S_MAC_CFG2_MODE_BIT);
 		break;
 	case 1000:
 		M2S_MAC_CFG(d)->if_ctrl &= ~M2S_MAC_INTF_SPEED_100;
 		msk = M2S_SYS_MAC_CR_LS_1000 << M2S_SYS_MAC_CR_LS_BIT;
+		M2S_MAC_CFG(d)->cfg2 |= (M2S_MAC_CFG2_MODE_BYTE << M2S_MAC_CFG2_MODE_BIT);
 		break;
 	default:
 		printk(KERN_WARNING "%s: Bad speed(%d)\n", dev->name, d->speed);
