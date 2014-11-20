@@ -73,8 +73,8 @@ SECTIONS
 		INIT_CALLS
 		CON_INITCALL
 		SECURITY_INITCALL
-		INIT_RAM_FS
 #endif
+		INIT_RAM_FS
 
 #ifndef CONFIG_XIP_KERNEL
 		__init_begin = _stext;
