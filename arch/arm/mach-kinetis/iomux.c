@@ -419,6 +419,9 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
  */
 static const struct kinetis_gpio_pin_config twr_lcd_rgb_iomux[] = {
 #if defined(CONFIG_KINETIS_FB)
+	/* C.18 = Backlight on/off */
+	{{KINETIS_GPIO_PORT_C, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
+
 	/* F.0 = GLCD_PCLK */
 	{{KINETIS_GPIO_PORT_F,  0}, KINETIS_GPIO_CONFIG_DSE(7)},
 	/* F.1 = GLCD_DE */

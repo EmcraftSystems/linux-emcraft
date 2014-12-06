@@ -52,6 +52,11 @@
 #define KINETIS_LCDC_LDCR_TM_BITS	0
 
 /*
+ * TWR-LCD-RGB backlight control signal
+ */
+#define TWR_LCD_RGB_BL_GPIO	KINETIS_GPIO_MKPIN(KINETIS_GPIO_PORT_C, 18)
+
+/*
  * Framebuffer platform device resources
  */
 static struct resource kinetis_fb_resources[] = {
@@ -436,6 +441,13 @@ void __init kinetis_fb_init(void)
 	lcdtype = kinetis_lcdtype_get();
 	if (lcdtype == LCD_TWR_LCD_RGB) {
 		kinetis_fb_device.dev.platform_data = &twr_lcd_rgb_fb_data;
+
+		ret = gpio_request(TWR_LCD_RGB_BL_GPIO, "LCD backlight");
+		if (ret < 0)
+			goto out;
+		gpio_direction_output(TWR_LCD_RGB_BL_GPIO, 1);
+		gpio_set_value(TWR_LCD_RGB_BL_GPIO, 1);
+		gpio_export(TWR_LCD_RGB_BL_GPIO, 0);
 
 #if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT) || \
     defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT_MODULE)
