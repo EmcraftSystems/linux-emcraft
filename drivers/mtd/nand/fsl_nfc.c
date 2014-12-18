@@ -359,9 +359,11 @@ fsl_nfc_command(struct mtd_info *mtd, unsigned command,
 
 	if (page != -1) prv->page = page;
 
-	nfc_set_field(mtd, NFC_FLASH_CONFIG,
-		CONFIG_ECC_MODE_MASK,
-		CONFIG_ECC_MODE_SHIFT, ECC_45_BYTE);
+	if (hardware_ecc) {
+		nfc_set_field(mtd, NFC_FLASH_CONFIG,
+			CONFIG_ECC_MODE_MASK,
+			CONFIG_ECC_MODE_SHIFT, ECC_45_BYTE);
+	}
 
 	switch (command) {
 	case NAND_CMD_PAGEPROG:
@@ -698,7 +700,7 @@ static void fsl_nfc_check_ecc_status(unsigned char *buf, struct mtd_info *mtd)
 	else if (ecc_count)
 	{
 		mtd->ecc_stats.corrected += ecc_count;
-		printk(KERN_DEBUG DRV_NAME ": ECC corrected %d errors on page %d\n", ecc_count, prv->page);
+		/* printk(KERN_DEBUG DRV_NAME ": ECC corrected %d errors on page %d\n", ecc_count, prv->page); */
 	}
 }
 
@@ -710,8 +712,7 @@ static int fsl_nfc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	memcpy_fromio((void *)buf, prv->regs + NFC_MAIN_AREA(0),
 			mtd->writesize);
 	copy_from_to_spare(mtd, chip->oob_poi, mtd->oobsize, 0);
-	if (hardware_ecc)
-	{
+	if (hardware_ecc) {
 		fsl_nfc_check_ecc_status(buf, mtd);
 	}
 	return 0;
