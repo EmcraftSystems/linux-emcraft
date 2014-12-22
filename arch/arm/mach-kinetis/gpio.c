@@ -100,10 +100,10 @@ static void kinetis_gpio_set_value(
 static int kinetis_gpio_direction_output(
 	struct gpio_chip *chip, unsigned gpio, int level)
 {
+	gpio_set_value(gpio, level);
+
 	KINETIS_GPIO(KINETIS_GPIO_GETPORT(gpio))->pddr |=
 		(1 << KINETIS_GPIO_GETPIN(gpio));
-
-	gpio_set_value(gpio, level);
 
 	return 0;
 }
