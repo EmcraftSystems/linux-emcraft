@@ -19,3 +19,4 @@ obj-$(CONFIG_MMC_ESDHC)		+= esdhc.o
 obj-$(CONFIG_SPI_KINETIS)	+= spi.o
 obj-$(CONFIG_RTC_DRV_KINETIS)	+= rtc.o
 obj-$(CONFIG_SUSPEND)		+= pm.o suspend.o
+obj-$(CONFIG_KINETIS_PWM)	+= pwm.o

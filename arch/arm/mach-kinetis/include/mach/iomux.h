@@ -40,6 +40,8 @@
 #define KINETIS_GPIO_CONFIG_PS_MSK	(1 << KINETIS_GPIO_CONFIG_PS_BIT)
 /* Drive Strength Enable (high drive strength) */
 #define KINETIS_GPIO_CONFIG_DSE_MSK	(1 << 6)
+/* Slew Rate Enable */
+#define KINETIS_GPIO_CONFIG_SRE_MSK	(1 << 2)
 
 /* Interrupt */
 #define KINETIS_GPIO_CONFIG_IRQC_MSK	(0xf << 16)
@@ -67,6 +69,9 @@
 /* Also enable high drive strength */
 #define KINETIS_GPIO_CONFIG_DSE(mux) \
 	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_DSE_MSK)
+/* Also enable slew rate */
+#define KINETIS_GPIO_CONFIG_SRE(mux) \
+	(KINETIS_GPIO_CONFIG_MUX(mux) | KINETIS_GPIO_CONFIG_SRE_MSK)
 /*
  * TBD: similar macros with more options
  */

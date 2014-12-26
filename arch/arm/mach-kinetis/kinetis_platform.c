@@ -52,6 +52,10 @@
 #include <mach/gpio.h>
 #endif /* CONFIG_GPIOLIB */
 
+#ifdef CONFIG_KINETIS_PWM
+#include <mach/pwm.h>
+#endif
+
 /*
  * Prototypes
  */
@@ -264,6 +268,13 @@ static void __init kinetis_init(void)
 	 * Configure the Freescale Kinetis LCD Controller
 	 */
 	kinetis_fb_init();
+#endif
+
+#if defined(CONFIG_KINETIS_PWM)
+	/*
+	 * Configure the Freescale Kinetis PWM Controller
+	 */
+	kinetis_pwm_init();
 #endif
 
 #if defined(CONFIG_USB_EHCI_MXC)

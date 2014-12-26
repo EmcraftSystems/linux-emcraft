@@ -2305,6 +2305,8 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;
 
+#ifndef CONFIG_KINETIS_DONT_BLANK_FB
+
 	if (mode_switch) {
 		struct fb_var_screeninfo var = info->var;
 
@@ -2338,6 +2340,8 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 		fbcon_del_cursor_timer(info);
 	else
 		fbcon_add_cursor_timer(info);
+
+#endif /* CONFIG_KINETIS_DONT_BLANK_FB */
 
 	return 0;
 }

@@ -357,6 +357,12 @@ static struct clk clk_rtc = {
 };
 #endif
 
+#ifdef CONFIG_KINETIS_PWM
+static struct clk clk_ftm3 = {
+	.gate = KINETIS_CG_FTM3,
+};
+#endif
+
 /*
  * Enable the USB-HS/FS module clock
  */
@@ -454,6 +460,9 @@ static struct clk_lookup kinetis_clkregs[] = {
 #endif
 #ifdef CONFIG_RTC_DRV_KINETIS
 	INIT_CLKREG(&clk_rtc, "rtc-kinetis", NULL),
+#endif
+#ifdef CONFIG_KINETIS_PWM
+	INIT_CLKREG(&clk_ftm3, NULL, "kinetis-ftm.3"),
 #endif
 	INIT_CLKREG(&clk_usbhs, "mxc-ehci.0", "usb"),
 	INIT_CLKREG(&clk_usbfs, "khci-hcd.0", "khci"),
@@ -841,6 +850,10 @@ void __init kinetis_clock_init(void)
 
 #ifdef CONFIG_I2C_IMX
 	clk_i2c0.rate = clock_val[CLOCK_PCLK];
+#endif
+#ifdef CONFIG_KINETIS_PWM
+	kinetis_periph_enable(KINETIS_CG_PORTD, 1);
+	clk_ftm3.rate = clock_val[CLOCK_SYSTICK];
 #endif
 
 	/*

@@ -145,6 +145,16 @@ config KINETIS_SPI2
 	bool "Enable Kinetis SPI2"
 	default n
 
+config KINETIS_PWM
+	tristate "Enable PWM driver"
+	select HAVE_PWM
+	help
+	  Enable support for the PWM controller(s).
+
+config KINETIS_DONT_BLANK_FB
+	depends on ARCH_KINETIS && KINETIS_FB
+	bool "Don't blank frame buffer"
+	default n
 
 endmenu
 

@@ -418,6 +418,12 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
 	/* B.17 = SPI1_SIN */
 	{{KINETIS_GPIO_PORT_B, 17}, KINETIS_GPIO_CONFIG_MUX(2)},
 #endif /* CONFIG_KINETIS_SPI1 */
+
+#if defined(CONFIG_KINETIS_PWM)
+        /* PWM */
+       {{KINETIS_GPIO_PORT_D,  2}, KINETIS_GPIO_CONFIG_SRE(4)},
+#endif
+
 };
 
 /*
