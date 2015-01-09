@@ -94,7 +94,6 @@
 */
 #define STM32F2_GPIO_AF_USB_OTG	0x0A
 
-
 /*
  * MAC AF
  */

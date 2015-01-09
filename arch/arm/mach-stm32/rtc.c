@@ -102,7 +102,9 @@ void __init stm32_rtc_init(void)
 	STM32_RCC->bdcr |= STM32F2_RCC_BDCR_RTCEN_MSK;
 
 	/* Enable RTC event lines in the event controller (EXTI) */
+	stm32_exti_set_rising(STM32F2_EXTI_LINE_RTC_ALARM);
 	stm32_exti_enable_int(STM32F2_EXTI_LINE_RTC_ALARM, 1);
+	stm32_exti_set_rising(STM32F2_EXTI_LINE_RTC_WAKEUP);
 	stm32_exti_enable_int(STM32F2_EXTI_LINE_RTC_WAKEUP, 1);
 
 	/*

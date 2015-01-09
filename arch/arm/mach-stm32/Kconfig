@@ -127,6 +127,20 @@ config STM32_USB_OTG_HS
 	bool "Enable STM32 USB OTG HS"
 	default n
 
+config STM32_GPIO
+	depends on ARCH_STM32 && GPIOLIB
+	bool "Enable STM32 GPIO"
+	default y
+	help
+	  Include support for the STM32 GPIO
+
+config STM32_GPIO_INT
+	depends on STM32_GPIO
+	bool "Enable STM32 GPIO interrupts"
+	default y
+	help
+	  Include support for the STM32 GPIO interrupts
+
 endmenu
 
 endif

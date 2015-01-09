@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2012-2015
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -22,10 +23,17 @@
  * MA 02111-1307 USA
  */
 #include <linux/module.h>
-
+#include <linux/io.h>
 #include <mach/exti.h>
 
-struct kinetis_exti_regs {
+#if 0
+#define DEBUG
+#endif
+
+/*
+ * EXTI control and status registers
+ */
+struct stm32_exti_regs {
 	u32 imr;	/* Interrupt mask register */
 	u32 emr;	/* Event mask register */
 	u32 rtsr;	/* Rising trigger selection register */
@@ -37,49 +45,137 @@ struct kinetis_exti_regs {
 /*
  * EXTI register map base
  */
-#define KINETIS_EXTI_BASE	0x40013c00
-#define KINETIS_EXTI		((volatile struct kinetis_exti_regs *) \
-				KINETIS_EXTI_BASE)
+#define STM32_EXTI_BASE		0x40013c00
+#define STM32_EXTI		((volatile struct stm32_exti_regs *) \
+				STM32_EXTI_BASE)
 
 /*
- * Enable or disable interrupt on the rising edge of a event line
+ * EXTI-related SYSCFG control and status registers
+ */
+struct stm32_exti_syscfg_regs {
+	u32 rsvd[2];	/* Reserved */
+	u32 exticr[4];	/* External interrupt config registers */
+};
+
+/*
+ * EXTI register map base
+ */
+#define STM32_EXTI_SYSCFG_BASE	0x40013800
+#define STM32_EXTI_SYSCFG	((volatile struct stm32_exti_syscfg_regs *) \
+				STM32_EXTI_SYSCFG_BASE)
+
+/*
+ * connect an exti line to a specified STM32 pin
+ * @line	EXTI line
+ * @pin		pin within the range for this line (0..15)
+ */
+void stm32_exti_connect(unsigned int line, int pin)
+{
+	uint v;
+	int offset = line / 4;
+	int shft = (line % 4) * 4;
+
+	v = readl(&STM32_EXTI_SYSCFG->exticr[offset]);
+	v &= ~(0xF << shft);
+	v |= pin << shft;
+	writel(v, &STM32_EXTI_SYSCFG->exticr[offset]);
+
+#if defined(DEBUG)
+	printk("%s:%d,%d=%d,%d,%x\n", __func__, line, pin, offset, shft,
+		readl(&STM32_EXTI_SYSCFG->exticr[offset]));
+#endif
+}
+EXPORT_SYMBOL(stm32_exti_connect);
+
+/*
+ * enable or disable interrupt
+ * @line	EXTI line
+ * @enable	enable(1) / disable(0)
  */
 void stm32_exti_enable_int(unsigned int line, int enable)
 {
-	if (line >= STM32F2_EXTI_NUM_LINES)
-		goto out;
-
 	if (enable) {
 		stm32_exti_clear_pending(line);
 
-		/* Enable trigger on rising edge */
-		KINETIS_EXTI->rtsr |= (1 << line);
-		/* Disable trigger on falling edge */
-		KINETIS_EXTI->ftsr &= ~(1 << line);
 		/* Enable interrupt for the event */
-		KINETIS_EXTI->imr |= (1 << line);
+		writel(readl(&STM32_EXTI->imr) | (1 << line),
+			&STM32_EXTI->imr);
 	} else {
 		/* Disable interrupt for the event */
-		KINETIS_EXTI->imr &= ~(1 << line);
+		writel(readl(&STM32_EXTI->imr) & ~(1 << line),
+			&STM32_EXTI->imr);
 		/* Disable trigger on rising edge */
-		KINETIS_EXTI->rtsr &= ~(1 << line);
+		writel(readl(&STM32_EXTI->rtsr) & ~(1 << line),
+			&STM32_EXTI->rtsr);
 		/* Disable trigger on falling edge */
-		KINETIS_EXTI->ftsr &= ~(1 << line);
-
+		writel(readl(&STM32_EXTI->ftsr) & ~(1 << line),
+			&STM32_EXTI->ftsr);
+		/* Clear pending events if any */
 		stm32_exti_clear_pending(line);
 	}
 
-out:
-	;
+#if defined(DEBUG)
+	printk("%s:%d,%d=%x\n",
+		__func__, line, enable, readl(&STM32_EXTI->imr));
+#endif
 }
 EXPORT_SYMBOL(stm32_exti_enable_int);
 
 /*
- * Clear the pending state of a given event
+ * set rising trigger
+ * @line	EXTI line
+ */
+void stm32_exti_set_rising(unsigned int line)
+{
+	/* Enable trigger on rising edge */
+	writel(readl(&STM32_EXTI->rtsr) | (1 << line), &STM32_EXTI->rtsr);
+
+#if defined(DEBUG)
+	printk("%s:%d=%x\n", __func__, line, readl(&STM32_EXTI->rtsr));
+#endif
+}
+EXPORT_SYMBOL(stm32_exti_set_rising);
+
+/*
+ * set falling trigger
+ * @line	EXTI line
+ */
+void stm32_exti_set_falling(unsigned int line)
+{
+	/* Enable trigger on falling edge */
+	writel(readl(&STM32_EXTI->ftsr) | (1 << line), &STM32_EXTI->ftsr);
+
+#if defined(DEBUG)
+	printk("%s:%d=%x\n", __func__, line, readl(&STM32_EXTI->ftsr));
+#endif
+}
+EXPORT_SYMBOL(stm32_exti_set_falling);
+
+/*
+ * get the bit mask of pending EXTI interrupts
+ * @ret		current value of the PR register
+ */
+unsigned long stm32_exti_get_pending(void)
+{
+	unsigned long ret = readl(&STM32_EXTI->pr);
+
+#if defined(DEBUG)
+	printk("%s:%lx\n", __func__, ret);
+#endif
+	return ret;
+}
+EXPORT_SYMBOL(stm32_exti_get_pending);
+
+/*
+ * clear the pending state of an EXTI event
+ * @line	EXTI line
  */
 void stm32_exti_clear_pending(unsigned int line)
 {
-	if (line < STM32F2_EXTI_NUM_LINES)
-		KINETIS_EXTI->pr = (1 << line);
+	writel(1 << line, &STM32_EXTI->pr);
+
+#if defined(DEBUG)
+	printk("%s:%d=%x\n", __func__, line, readl(&STM32_EXTI->pr));
+#endif
 }
 EXPORT_SYMBOL(stm32_exti_clear_pending);

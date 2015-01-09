@@ -1,7 +1,8 @@
 /*
- * (C) Copyright 2012
+ * (C) Copyright 2012-2015
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * See file CREDITS for list of people who contributed to this
  * project.
@@ -39,7 +40,11 @@
  *
  * See arch/arm/mach-stm32/exti.c for details on each of these functions.
  */
+void stm32_exti_connect(unsigned int line, int pin);
 void stm32_exti_enable_int(unsigned int line, int enable);
+void stm32_exti_set_rising(unsigned int line);
+void stm32_exti_set_falling(unsigned int line);
+unsigned long stm32_exti_get_pending(void);
 void stm32_exti_clear_pending(unsigned int line);
 
 #endif /* _MACH_STM32_EXTI_H_ */

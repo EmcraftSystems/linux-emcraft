@@ -25,9 +25,16 @@
 #define __ASM_ARCH_IRQS_H
 
 #ifdef CONFIG_ARCH_STM32F1
-#define NR_IRQS		68	/* STM32F1 */
+#define NVIC_IRQS	68
+#define STM32_GPIO_NUM	140
 #else
-#define NR_IRQS		90	/* STM32F2 */
+#define NVIC_IRQS	90
+#define STM32_GPIO_NUM	168
 #endif
 
+#if defined (CONFIG_STM32_GPIO_INT)
+#define NR_IRQS		(NVIC_IRQS + STM32_GPIO_NUM)
+#else
+#define NR_IRQS		NVIC_IRQS
+#endif
 #endif
