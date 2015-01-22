@@ -78,6 +78,9 @@
 #ifdef CONFIG_ARCH_STM32F1
 /* STM32F1 hardware reference is the SwissEmbedded Comm board */
 #define STM32_DBG_USART_BASE	STM32_USART1_BASE
+#elif defined (CONFIG_ARCH_STM32F7)
+/* STM32F7 hardware reference is the STM32F7-SOM board */
+#define STM32_DBG_USART_BASE	STM32_USART1_BASE
 #else
 /* STM32F2 hardware reference is the STM3220G-EVAL board */
 #define STM32_DBG_USART_BASE	STM32_USART3_BASE
@@ -87,15 +90,25 @@
  * SR bit masks (these are only those, which used in debug/uncompress code
  * also; see stm32_usart.c for the others)
  */
+#if defined(CONFIG_ARCH_STM32F7)
+#define STM32_USART_ISR_CTS	(1 << 10)	/* Clear to send	     */
+#define STM32_USART_ISR_TXE	(1 << 7)	/* Transmit data reg empty   */
+#else
 #define STM32_USART_SR_CTS	(1 << 9)	/* Clear to send	     */
 #define STM32_USART_SR_TXE	(1 << 7)	/* Transmit data reg empty   */
+#endif
 
 
 /*
  * Register offsets for use in debug-asm, and uncompress prints
  */
+#if defined(CONFIG_ARCH_STM32F7)
+#define STM32_UART_ISR		28
+#define STM32_UART_TDR		40
+#else
 #define STM32_UART_SR		0
 #define STM32_UART_DR		4
+#endif
 
 #ifndef __ASSEMBLY__
 

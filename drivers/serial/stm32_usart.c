@@ -92,6 +92,31 @@
 /*
  * USART CR bits
  */
+#if defined (CONFIG_ARCH_STM32F7)
+#define STM32_USART_CR1_M1	(1 << 28)	/* USART 7/8/9 bits word length */
+#define STM32_USART_CR1_M0	(1 << 12)	/* USART 7/8/9 bits word length */
+#define STM32_USART_CR1_PCE	(1 << 10)	/* USART parity enable        */
+#define STM32_USART_CR1_PS	(1 << 9)	/* USART parity	selection     */
+#define STM32_USART_CR1_TXEIE	(1 << 7)	/* TXE interrupt enable	      */
+#define STM32_USART_CR1_IDLIE	(1 << 4)	/* IDLE interrupt enable      */
+#define STM32_USART_CR1_TE	(1 << 3)	/* Transmitter enable	      */
+#define STM32_USART_CR1_RE	(1 << 2)	/* Receiver enable	      */
+#define STM32_USART_CR1_UE	(1 << 0)	/* USART enable		      */
+
+#define STM32_USART_CR2_STOP_MASK	(3 << 12)
+#define STM32_USART_CR2_1STOP		(0 << 12)
+#define STM32_USART_CR2_2STOP		(2 << 12)
+#define STM32_USART_CR2_1HSTOP		(3 << 12)
+
+#define STM32_USART_CR3_CTSE	(1 << 9)
+#define STM32_USART_CR3_RTSE	(1 << 8)
+#define STM32_USART_CR3_DMAR	(1 << 6)	/* DMA enable receiver	      */
+
+#define STM32_USART_ISR_IDLE	(1 << 4)
+
+#define STM32_USART_ICR_IDLECF	(1 << 4)
+
+#else
 #define STM32_USART_CR1_UE	(1 << 13)	/* USART enable		      */
 #define STM32_USART_CR1_M	(1 << 12)	/* USART 8/9 bits word length */
 #define STM32_USART_CR1_PCE	(1 << 10)	/* USART parity enable        */
@@ -123,6 +148,8 @@
 #define STM32_USART_SR_RX_FLAGS	(STM32_USART_SR_ORE | STM32_USART_SR_PE |      \
 				 STM32_USART_SR_FE)
 
+#endif
+
 /*
  * BRR reg fields
  */
@@ -135,6 +162,21 @@
 /*
  * USART register map
  */
+#if defined (CONFIG_ARCH_STM32F7)
+struct stm32_usart_regs	{
+	u32 cr1;    /* Control 1 */
+	u32 cr2;    /* Control 2 */
+	u32 cr3;    /* Control 3 */
+	u32 brr;    /* Baud rate */
+	u32 gtpr;   /* Guard time and prescaler */
+	u32 rtor;   /* Receiver Time Out */
+	u32 rqr;    /* Request */
+	u32 isr;    /* Interrupt and status */
+	u32 icr;    /* Interrupt flag Clear */
+	u32 rdr;    /* Receive Data */
+	u32 tdr;    /* Transmit Data */
+};
+#else
 struct stm32_usart_regs {
 	u16	sr;		/* Status				      */
 	u16	rsv0;
@@ -150,6 +192,7 @@ struct stm32_usart_regs {
 	u16	rsv5;
 	u16	gtpr;		/* Guard time and prescaler		      */
 };
+#endif
 
 #ifndef CONFIG_ARCH_STM32F1
 /*
@@ -322,7 +365,11 @@ static u32 stm_port_tx_empty(struct uart_port *port)
 	u32					rv;
 
 	spin_lock_irqsave(&port->lock, flags);
+#if defined (CONFIG_ARCH_STM32F7)
+	rv = (uart->isr & STM32_USART_ISR_TXE) ? TIOCSER_TEMT : 0;
+#else
 	rv = (uart->sr & STM32_USART_SR_TXE) ? TIOCSER_TEMT : 0;
+#endif
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return rv;
@@ -465,7 +512,11 @@ static int stm_port_startup(struct uart_port *port)
 
 	dma->s[priv->ini.stream].cr   = tmp;
 	dma->s[priv->ini.stream].ndtr = STM32_DMA_RX_BUF_LEN;
+#if defined (CONFIG_ARCH_STM32F7)
+	dma->s[priv->ini.stream].par  = &uart->rdr;
+#else
 	dma->s[priv->ini.stream].par  = &uart->dr;
+#endif
 	dma->s[priv->ini.stream].m0ar = &priv->rx_buf[0][0];
 #if (STM32_DMA_RX_BUF_NUM == 2)
 	dma->s[priv->ini.stream].m1ar = &priv->rx_buf[1][0];
@@ -475,7 +526,9 @@ static int stm_port_startup(struct uart_port *port)
 	/*
 	 * Configure USART
 	 */
+#if !defined (CONFIG_ARCH_STM32F7) /* ISR is RO in STM32F7 */
 	uart->sr = 0;
+#endif
 
 	/*
 	 * Enable Tx and Rx
@@ -488,11 +541,13 @@ static int stm_port_startup(struct uart_port *port)
 	 */
 	uart->cr2 = 0;
 
+#if !defined (CONFIG_ARCH_STM32F7)
 	/*
 	 * Read SR & DR to clear IDLE
 	 */
 	rv = uart->sr;
 	rv = uart->dr;
+#endif
 
 	/*
 	 * Enable DMA access to USART
@@ -538,7 +593,9 @@ static void stm_port_shutdown(struct uart_port *port)
 	uart->cr1 &= ~(STM32_USART_CR1_TE | STM32_USART_CR1_RE |
 		       STM32_USART_CR1_UE);
 	uart->cr1 &= ~(STM32_USART_CR1_IDLIE | STM32_USART_CR1_TXEIE);
+#if !defined (CONFIG_ARCH_STM32F7)
 	uart->sr   = 0;
+#endif
 
 	free_irq(priv->dma_irq, port);
 	free_irq(priv->usart_irq, port);
@@ -568,14 +625,23 @@ static void stm_port_set_termios(struct uart_port *port,
 	newcr3 = uart->cr3;
 
 	/* Calculate new word length and parity */
+#if defined (CONFIG_ARCH_STM32F7)
+	newcr1 &= ~(STM32_USART_CR1_M0 | STM32_USART_CR1_M1 | STM32_USART_CR1_PCE | STM32_USART_CR1_PS);
+#else
 	newcr1 &= ~(STM32_USART_CR1_M | STM32_USART_CR1_PCE | STM32_USART_CR1_PS);
+#endif
 	if (termios->c_cflag & PARENB) {
 		newcr1 |= STM32_USART_CR1_PCE;
 		if (termios->c_cflag & PARODD)
 			newcr1 |= STM32_USART_CR1_PS;
 
-		if ((termios->c_cflag & CSIZE) == CS8)
+		if ((termios->c_cflag & CSIZE) == CS8) {
+#if defined (CONFIG_ARCH_STM32F7)
+			newcr1 |= STM32_USART_CR1_M0;
+#else
 			newcr1 |= STM32_USART_CR1_M;
+#endif
+		}
 	}
 
 	/* Calculate stop bits */
@@ -850,9 +916,15 @@ static struct uart_driver	stm32_uart_driver = {
 static void stm32_xmit_char(volatile struct stm32_usart_regs *uart,
 			    unsigned char c)
 {
+#if defined (CONFIG_ARCH_STM32F7)
+	while (!(uart->isr & STM32_USART_ISR_TXE));
+
+	uart->tdr = c;
+#else
 	while (!(uart->sr & STM32_USART_SR_TXE));
 
 	uart->dr = c;
+#endif
 }
 
 /*
@@ -1010,6 +1082,17 @@ static irqreturn_t stm32_usart_isr(int irq, void *dev_id)
 	struct uart_port			*port = dev_id;
 	volatile struct stm32_usart_regs	*uart = stm32_usart(port);
 
+#if defined (CONFIG_ARCH_STM32F7)
+	if (uart->isr & STM32_USART_ISR_IDLE) {
+		u8	tmp;
+
+		tmp = uart->rdr;
+		stm32_receive(dev_id);
+
+		/* clear interrupt */
+		uart->icr |= STM32_USART_ICR_IDLECF;
+	}
+#else
 	/*
 	 * TBD: without reading DR IDLE interrupt continue pending; check
 	 * if this read don't lead to missing the read char, and it's DMAed
@@ -1021,6 +1104,7 @@ static irqreturn_t stm32_usart_isr(int irq, void *dev_id)
 		tmp = uart->dr;
 		stm32_receive(dev_id);
 	}
+#endif
 
 	stm32_transmit(dev_id);
 

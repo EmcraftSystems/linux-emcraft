@@ -338,6 +338,7 @@ void __init stm32_iomux_init(void)
 #ifndef CONFIG_ARCH_STM32F1
 	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM_STM32F439_SOM:
+	case PLATFORM_STM32_STM_STM32F7_SOM:
 
 #if defined(CONFIG_STM32_USART1)
 		gpio_dsc.port = 1;
@@ -405,7 +406,8 @@ uartdone:
 
 			if (platform == PLATFORM_STM32_STM_SOM ||
 			    platform == PLATFORM_STM32_STM_DISCO ||
-			    platform == PLATFORM_STM32_STM_STM32F439_SOM) {
+			    platform == PLATFORM_STM32_STM_STM32F439_SOM ||
+			    platform == PLATFORM_STM32_STM_STM32F7_SOM) {
 				for (i = 0; i < ARRAY_SIZE(rmii_gpio); i++) {
 					stm32f2_gpio_config(&rmii_gpio[i],
 						STM32F2_GPIO_ROLE_ETHERNET);

@@ -14,6 +14,13 @@ config ARCH_STM32F1
 	help
 	  Build kernel for the STMicro STM32F1 MCU instead of STM32F2
 
+config ARCH_STM32F7
+	bool "Support STM32F7"
+	default n
+	depends on ARCH_STM32 && !ARCH_STM32F1
+	help
+	  Build kernel for the STMicro STM32F7 MCU
+
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
 

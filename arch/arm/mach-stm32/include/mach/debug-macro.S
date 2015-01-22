@@ -38,19 +38,33 @@
 	.endm
 
 	.macro	senduart, rd, rx
+#if defined(CONFIG_ARCH_STM32F7)
+	strb	\rd, [\rx, #STM32_UART_TDR]
+#else
 	strb	\rd, [\rx, #STM32_UART_DR]
+#endif
 	.endm
 
 	.macro	busyuart, rd, rx
+#if defined(CONFIG_ARCH_STM32F7)
+1002:	ldr	\rd, [\rx, #STM32_UART_ISR]
+	tst	\rd, #STM32_USART_ISR_TXE
+#else
 1002:	ldr	\rd, [\rx, #STM32_UART_SR]
 	tst	\rd, #STM32_USART_SR_TXE
+#endif
 	beq	1002b
 	.endm
 
 	.macro	waituart, rd, rx
 #ifdef FLOW_CONTROL
+#if defined(CONFIG_ARCH_STM32F7)
+1001:	ldr	\rd, [\rx, #STM32_USART_ISR]
+	tst	\rd, #STM32_USART_ISR_CTS
+#else
 1001:	ldr	\rd, [\rx, #STM32_USART_SR]
 	tst	\rd, #STM32_USART_SR_CTS
+#endif
 	beq	1001b
 #endif
 	.endm

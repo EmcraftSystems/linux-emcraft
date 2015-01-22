@@ -108,6 +108,7 @@ void __init stm32_eth_init(void)
 	case PLATFORM_STM32_STM_SOM:
 	case PLATFORM_STM32_STM_DISCO:
 	case PLATFORM_STM32_STM_STM32F439_SOM:
+	case PLATFORM_STM32_STM_STM32F7_SOM:
 		eth_device.dev.platform_data = &stm3220g_eval_eth_data;
 		break;
 	default:

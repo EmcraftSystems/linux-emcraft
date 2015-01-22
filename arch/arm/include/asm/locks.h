@@ -12,7 +12,7 @@
 #ifndef __ASM_PROC_LOCKS_H
 #define __ASM_PROC_LOCKS_H
 
-#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_ARCH_A2F)
+#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_ARCH_A2F) && !defined(CONFIG_ARCH_STM32F7)
 
 #define __down_op(ptr,fail)			\
 	({					\
