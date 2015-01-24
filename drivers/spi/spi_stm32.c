@@ -86,7 +86,7 @@ __setup("spi_stm32_debug=", spi_stm32_debug_setup);
 /*
  * Polled or interrupt driven PIO mode.
  */
-#if 1
+#if 0
 #define	CONFIG_SPI_STM32_POLLED
 #endif
 
