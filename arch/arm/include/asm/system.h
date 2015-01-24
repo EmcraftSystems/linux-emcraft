@@ -253,7 +253,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 {
 	extern void __bad_xchg(volatile void *, int);
 	unsigned long ret;
-#if defined(swp_is_buggy) || defined(CONFIG_ARCH_A2F)
+#if defined(swp_is_buggy) || defined(CONFIG_ARCH_A2F) || defined(CONFIG_ARCH_STM32F7)
 	unsigned long flags;
 #elif __LINUX_ARM_ARCH__ >= 6
 	unsigned int tmp;
@@ -262,7 +262,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	smp_mb();
 
 	switch (size) {
-#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_ARCH_A2F)
+#if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_ARCH_A2F) && !defined(CONFIG_ARCH_STM32F7)
 	case 1:
 		asm volatile("@	__xchg1\n"
 		"1:	ldrexb	%0, [%3]\n"
@@ -283,7 +283,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 			: "r" (x), "r" (ptr)
 			: "memory", "cc");
 		break;
-#elif defined(swp_is_buggy) || defined(CONFIG_ARCH_A2F)
+#elif defined(swp_is_buggy) || defined(CONFIG_ARCH_A2F) || defined(CONFIG_ARCH_STM32F7)
 #ifdef CONFIG_SMP
 #error SMP is not supported on this platform
 #endif

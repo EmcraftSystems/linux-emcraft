@@ -8,7 +8,7 @@
 #ifndef _ASM_MUTEX_H
 #define _ASM_MUTEX_H
 
-#if (__LINUX_ARM_ARCH__ < 6) || defined(CONFIG_ARCH_A2F)
+#if (__LINUX_ARM_ARCH__ < 6) || defined(CONFIG_ARCH_A2F) || defined(CONFIG_ARCH_STM32F7)
 /* On pre-ARMv6 hardware the swp based implementation is the most efficient. */
 # include <asm-generic/mutex-xchg.h>
 #else

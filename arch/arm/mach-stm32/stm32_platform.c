@@ -139,12 +139,15 @@ static int __init stm32_platform_parse(char *s)
 		stm32_platform = PLATFORM_STM32_STM_SOM;
 	else if (!strcmp(s, "stm32f4x9-som"))
 		stm32_platform = PLATFORM_STM32_STM_STM32F439_SOM;
+	else if (!strcmp(s, "stm32f7-som"))
+		stm32_platform = PLATFORM_STM32_STM_STM32F7_SOM;
 	else if (!strcmp(s, "stm-disco"))
 		stm32_platform = PLATFORM_STM32_STM_DISCO;
 #endif
 
 	return 1;
 }
+
 __setup("stm32_platform=", stm32_platform_parse);
 
 /*

@@ -5,7 +5,7 @@
 #error SMP not supported on pre-ARMv6 CPUs
 #endif
 
-#if defined(CONFIG_ARCH_A2F)
+#if defined(CONFIG_ARCH_A2F) || defined(CONFIG_ARCH_STM32F7)
 #error ldrex/strex is not supported on A2F
 #endif
 
