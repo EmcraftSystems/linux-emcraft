@@ -317,7 +317,9 @@ static void stm32_gpio_irq_disable(unsigned irq)
 	struct irq_desc *desc = irq_to_desc(irq);
 	int gpio = irq - stm32_chip->irq_base;
 	int line = STM32_GPIO_GETPIN(gpio);
+#if defined(DEBUG)
 	int pin = STM32_GPIO_GETPORT(gpio);
+#endif
 	unsigned long flags;
 
 	spin_lock_irqsave(&stm32_chip->irq_lock, flags);
@@ -344,7 +346,9 @@ static int stm32_gpio_irq_set_type(unsigned irq, unsigned trigger)
 	struct stm32_gpio_chip *stm32_chip = get_irq_chip_data(irq);
 	int gpio = irq - stm32_chip->irq_base;
 	int line = STM32_GPIO_GETPIN(gpio);
+#if defined(DEBUG)
 	int pin = STM32_GPIO_GETPORT(gpio);
+#endif
 	int ret = -EINVAL;
 
 	if ((gpio >= STM32_GPIO_LEN) ||
