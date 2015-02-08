@@ -5,7 +5,7 @@
 	and	r3, r0, #7		@ Get bit offset
 	add	r1, r1, r0, lsr #3	@ Get byte offset
 	mov	r3, r2, lsl r3
-#if !defined(CONFIG_ARCH_A2F) && !defined(CONFIG_ARCH_STM32F7)
+#if !defined(CONFIG_ARCH_A2F)
 1:	ldrexb	r2, [r1]
 	\instr	r2, r2, r3
 	strexb	r0, r2, [r1]
@@ -26,7 +26,7 @@
 	mov	r2, #1
 	add	r1, r1, r0, lsr #3	@ Get byte offset
 	mov	r3, r2, lsl r3		@ create mask
-#if !defined(CONFIG_ARCH_A2F) && !defined(CONFIG_ARCH_STM32F7)
+#if !defined(CONFIG_ARCH_A2F)
 	smp_dmb
 1:	ldrexb	r2, [r1]
 	ands	r0, r2, r3		@ save old value of bit
