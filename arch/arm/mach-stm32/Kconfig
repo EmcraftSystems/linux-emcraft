@@ -18,6 +18,7 @@ config ARCH_STM32F7
 	bool "Support STM32F7"
 	default n
 	depends on ARCH_STM32 && !ARCH_STM32F1
+	select DMAMEM
 	help
 	  Build kernel for the STMicro STM32F7 MCU
 

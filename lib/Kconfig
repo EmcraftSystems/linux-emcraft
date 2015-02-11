@@ -175,6 +175,11 @@ config HAS_DMA
 	depends on !NO_DMA
 	default y
 
+config DMAMEM
+	boolean
+	depends on HAS_DMA && !MMU
+	default n
+
 config CHECK_SIGNATURE
 	bool
 

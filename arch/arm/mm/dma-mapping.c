@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmamem.h>
 
 #include <asm/memory.h>
 #include <asm/highmem.h>
@@ -112,6 +113,7 @@ static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gf
 	return page;
 }
 
+#if !defined(CONFIG_DMAMEM)
 /*
  * Free a DMA buffer.  'size' must be page aligned.
  */
@@ -124,6 +126,7 @@ static void __dma_free_buffer(struct page *page, size_t size)
 		page++;
 	}
 }
+#endif
 
 #ifdef CONFIG_MMU
 /*
@@ -331,11 +334,19 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gf
 {
 	void *memory;
 
+#if !defined(CONFIG_DMAMEM)
 	if (dma_alloc_from_coherent(dev, size, handle, &memory))
 		return memory;
 
-	return __dma_alloc(dev, size, handle, gfp,
-			   pgprot_dmacoherent(pgprot_kernel));
+	memory = __dma_alloc(dev, size, handle, gfp,
+			     pgprot_dmacoherent(pgprot_kernel));
+#else
+	memory = dmamem_alloc(size, 0, gfp);
+	if (memory && handle)
+		*handle = (dma_addr_t)memory;
+#endif
+
+	return memory;
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
 
@@ -402,6 +413,7 @@ EXPORT_SYMBOL(dma_mmap_writecombine);
  */
 void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
 {
+#if !defined(CONFIG_DMAMEM)
 #if defined(PHYS_DMA_OFFSET)
 	cpu_addr = dma_to_virt(dev, handle);
 #endif
@@ -417,6 +429,9 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 		__dma_free_remap(cpu_addr, size);
 
 	__dma_free_buffer(dma_to_page(dev, handle), size);
+#else /* CONFIG_DMAMEM */
+	dmamem_free(cpu_addr);
+#endif
 }
 EXPORT_SYMBOL(dma_free_coherent);
 
