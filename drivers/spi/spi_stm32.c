@@ -1,7 +1,7 @@
 /*
- * Device driver for the SPI controller of the STM32F2/F4
+ * Device driver for the SPI controller of the STM32F2/F4/F7
  * Author: Vladimir Khusainov, vlad@emcraft.com
- * Copyright 2013 Emcraft Systems
+ * Copyright 2013-2015 Emcraft Systems
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -165,6 +165,8 @@ struct reg_spi {
 #define SPI_CR1_MSTR			(1<<2)
 #define SPI_CR1_CPOL			(1<<1)
 #define SPI_CR1_CPHA			(1<<0)
+#define SPI_CR2_FRXTH			(1<<12)
+#define SPI_CR2_DS(x)			((x)<<8)
 #define SPI_CR2_TXEIE			(1<<7)
 #define SPI_CR2_RXNEIE			(1<<6)
 #define SPI_CR2_ERRIE			(1<<5)
@@ -256,7 +258,7 @@ static int spi_stm32_hw_init(struct spi_stm32 *c)
  	 * If PIO interrupt-driven, enable interrupts
  	 */
 #if !defined(CONFIG_SPI_STM32_POLLED)
-	writel(SPI_CR2_RXNEIE | SPI_CR2_ERRIE | readl(&SPI(c)->spi_cr2), 
+	writel(SPI_CR2_RXNEIE | SPI_CR2_ERRIE | readl(&SPI(c)->spi_cr2),
 		&SPI(c)->spi_cr2);
 #endif
 
@@ -358,9 +360,6 @@ Done:
  */
 static inline int spi_stm32_hw_bt_check(struct spi_stm32 *c, int bt)
 {
-	/*
-	 * Only 8 or 16 bit supported
-	 */
 	int ret = 8 == bt || bt == 16 ? 0 : 1;
 
 	d_printk(2, "bus=%d,bt=%d,ret=%d\n", c->bus, bt, ret);
@@ -376,6 +375,18 @@ static inline int spi_stm32_hw_bt_check(struct spi_stm32 *c, int bt)
  */
 static inline int spi_stm32_hw_bt_set(struct spi_stm32 *c, int bt)
 {
+#if defined(CONFIG_ARCH_STM32F7)
+	unsigned int v = readl(&SPI(c)->spi_cr2);
+	int ret = 0;
+
+	v &= ~SPI_CR2_DS(0xF);
+	v |= SPI_CR2_DS(bt - 1) | (bt == 8 ? SPI_CR2_FRXTH : 0);
+	writel(v, &SPI(c)->spi_cr2);
+
+	d_printk(2, "bus=%d,bt=%d,spi_cr2=%x,ret=%d\n",
+		 c->bus, bt, readl(&SPI(c)->spi_cr2), ret);
+	return ret;
+#else
 	unsigned int v = readl(&SPI(c)->spi_cr1);
 	int ret = 0;
 
@@ -390,6 +401,7 @@ static inline int spi_stm32_hw_bt_set(struct spi_stm32 *c, int bt)
 	d_printk(2, "bus=%d,bt=%d,spi_cr1=%x,ret=%d\n", 
 		 c->bus, bt, readl(&SPI(c)->spi_cr1), ret);
 	return ret;
+#endif
 }
 
 /*
@@ -500,7 +512,7 @@ static inline int spi_stm32_hw_rxfifo_empty(struct spi_stm32 *c)
 static inline int spi_stm32_hw_rxfifo_error(struct spi_stm32 *c)
 {
 	return readl(&SPI(c)->spi_sr) & 
-		(SPI_SR_FRE | SPI_SR_OVR | SPI_SR_UDR);
+		(SPI_SR_FRE | SPI_SR_UDR);
 }
 
 /*
@@ -514,7 +526,7 @@ static inline void spi_stm32_hw_rxfifo_get(
 	struct spi_stm32 *c, unsigned int wb, void *rx, int i)
 {
 	int j;
-	unsigned int d = readl(&SPI(c)->spi_dr);
+	unsigned long d = readl(&SPI(c)->spi_dr);
 	unsigned char *p = (unsigned char *)rx;
 
 	if (p) {
@@ -526,13 +538,18 @@ static inline void spi_stm32_hw_rxfifo_get(
 }
 
 /*
- * Receive FIFO overflown; clean-up
+ * Clean-up receive FIFO
  * @param c		controller data structure
  * @param rx		receive buf (can be NULL)
  * @param i		index of frame in buf
  */
 static inline void spi_stm32_hw_rxfifo_purge(struct spi_stm32 *c) 
 {
+	unsigned long d;
+
+	while (readl(&SPI(c)->spi_sr) & SPI_SR_RXNE) {
+		d = readl(&SPI(c)->spi_dr);
+	}
 }
 
 /*
@@ -670,7 +687,8 @@ static void spi_stm32_release_slave(struct spi_stm32 *c, struct spi_device *s)
 	}
 
 Done:
-	d_printk(3, "slv=%s\n", dev_name(&c->slave->dev));
+	d_printk(3, "slv=%s\n",
+		c->slave ? dev_name(&c->slave->dev) : "");
 }
 
 /*
@@ -822,10 +840,9 @@ static int spi_stm32_pio_polled(
 		if (spi_stm32_hw_rxfifo_error(c)) {
 
 			/*
-			 * If the receive fifo overflown, this transfer
+			 * If there is an error, this transfer
 			 * needs to be finished with an error.
 			 */
-			spi_stm32_hw_rxfifo_purge(c);
 			ret = -EIO;
 			goto Done;
 		}
@@ -842,6 +859,7 @@ static int spi_stm32_pio_polled(
  	 */
 	*rlen = c->ri;
 Done:
+	spi_stm32_hw_rxfifo_purge(c);
 	d_printk(3, "msg=%p,len=%d,rlen=%d,ret=%d\n", 
 		c->msg, c->len, *rlen, ret);
 	return ret;
@@ -855,7 +873,9 @@ Done:
 static irqreturn_t spi_stm32_irq(int irq, void *dev_id)
 {
 	struct spi_stm32 *c = dev_id;
+#if defined(SPI_STM32_DEBUG)
 	int sr = readl(&SPI(c)->spi_sr);
+#endif
 
 	if (! spi_stm32_hw_rxfifo_empty(c)) {
 
@@ -868,6 +888,7 @@ static irqreturn_t spi_stm32_irq(int irq, void *dev_id)
 		 * If the entire transfer has been received, that's it.
 		 */
 		if (c->ri == c->len) {
+			spi_stm32_hw_rxfifo_purge(c);
 			c->xfer_status = 0;
 			wake_up(&c->wait);
 		}

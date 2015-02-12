@@ -224,7 +224,7 @@ static struct platform_device spi_stm32_dev6 = {
  */
 void __init stm32_spi_init(void)
 {
-	int bus, port, pin;
+	int bus = 0, port = 0, pin = 0;
 	int p = stm32_platform_get();
 
 #if defined(CONFIG_STM32_SPI1)
@@ -262,6 +262,8 @@ void __init stm32_spi_init(void)
 #define SPI_FLASH_CS_PIN__STM32F4_SOM		5
 #define SPI_FLASH_CS_PORT__STM32F439_SOM	1
 #define SPI_FLASH_CS_PIN__STM32F439_SOM		9
+#define SPI_FLASH_CS_PORT__STM32F7_SOM		1
+#define SPI_FLASH_CS_PIN__STM32F7_SOM		9
 #define SPI_FLASH_CS_PORT__STM32F4_DISCO	4
 #define SPI_FLASH_CS_PIN__STM32F4_DISCO		4
 
@@ -275,6 +277,11 @@ void __init stm32_spi_init(void)
 		port = SPI_FLASH_CS_PORT__STM32F439_SOM;
 		pin = SPI_FLASH_CS_PIN__STM32F439_SOM;
 	}
+	else if (p == PLATFORM_STM32_STM_STM32F7_SOM) {
+		bus = 1;
+		port = SPI_FLASH_CS_PORT__STM32F7_SOM;
+		pin = SPI_FLASH_CS_PIN__STM32F7_SOM;
+	}
 	else if (p == PLATFORM_STM32_STM_DISCO) {
 		bus = 3;
 		port = SPI_FLASH_CS_PORT__STM32F4_DISCO;
@@ -284,6 +291,7 @@ void __init stm32_spi_init(void)
 
 	if (p == PLATFORM_STM32_STM_SOM ||
 	    p == PLATFORM_STM32_STM_STM32F439_SOM ||
+	    p == PLATFORM_STM32_STM_STM32F7_SOM ||
 	    p == PLATFORM_STM32_STM_DISCO) {
 
 		/* This assumes that there is an SPI Flash device
