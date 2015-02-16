@@ -431,7 +431,6 @@ config CPU_V7M
 	select CPU_32v6K
 	select CPU_ABRT_NOMMU
 	select CPU_PABRT_LEGACY
-	select CPU_CACHE_V7M
 	select CPU_CACHE_VIPT
 
 # Figure out what processor architecture version we should be using.

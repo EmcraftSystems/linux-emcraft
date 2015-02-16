@@ -41,6 +41,7 @@ obj-$(CONFIG_CPU_CACHE_V4WT)	+= cache-v4wt.o
 obj-$(CONFIG_CPU_CACHE_V4WB)	+= cache-v4wb.o
 obj-$(CONFIG_CPU_CACHE_V6)	+= cache-v6.o
 obj-$(CONFIG_CPU_CACHE_V7)	+= cache-v7.o
+obj-$(CONFIG_CPU_CACHE_V7M)	+= cache-v7m.o
 obj-$(CONFIG_CPU_CACHE_FA)	+= cache-fa.o
 
 AFLAGS_cache-v6.o	:=-Wa,-march=armv6

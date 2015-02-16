@@ -277,7 +277,7 @@ extern struct cpu_cache_fns cpu_cache;
 
 #else
 
-#ifdef CONFIG_CPU_V7M
+#if defined(CONFIG_CPU_V7M) && !defined(CONFIG_CPU_CACHE_V7M)
 
 static inline void v7m_flush_kern_all(void) { }
 static inline void v7m_flush_kern_cache_all(void) { }

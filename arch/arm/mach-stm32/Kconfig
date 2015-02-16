@@ -19,6 +19,7 @@ config ARCH_STM32F7
 	default n
 	depends on ARCH_STM32 && !ARCH_STM32F1
 	select DMAMEM
+	select CPU_CACHE_V7M
 	help
 	  Build kernel for the STMicro STM32F7 MCU
 
