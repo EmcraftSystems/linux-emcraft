@@ -32,6 +32,7 @@
 
 #include <linux/console.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
@@ -259,10 +260,8 @@ struct stm32_usart_priv {
 	volatile u32				*dma_isr;
 	volatile u32				*dma_ifcr;
 
-	/*
-	 * TBD: actually, should allocate this in some coherent area
-	 */
-	u8					rx_buf[2][STM32_DMA_RX_BUF_LEN];
+	u8					*rxb[STM32_DMA_RX_BUF_NUM];
+	dma_addr_t				rxb_dma[STM32_DMA_RX_BUF_NUM];
 	u32					wbuf;
 	u32					wpos;
 	u32					rbuf;
@@ -458,7 +457,7 @@ static int stm_port_startup(struct uart_port *port)
 	volatile struct stm32_dma_regs		*dma = stm32_dma(port);
 	struct stm32_usart_priv			*priv = stm32_drv_priv(port);
 	u32					tmp;
-	int					rv;
+	int					i, rv;
 
 	/*
 	 * Reinitialize offsets in DMA buffers, otherwise wrong data will be
@@ -469,11 +468,27 @@ static int stm_port_startup(struct uart_port *port)
 	priv->rbuf = 0;
 	priv->rpos = 0;
 
+	for (i = 0; i < STM32_DMA_RX_BUF_NUM; i++) {
+		priv->rxb[i] = dma_alloc_coherent(NULL, STM32_DMA_RX_BUF_LEN,
+				&priv->rxb_dma[i], GFP_KERNEL | GFP_DMA);
+		if (priv->rxb[i])
+			continue;
+		printk(KERN_ERR "%s: alloc_coherent[%d](%d) failed\n",
+			__func__, i, STM32_DMA_RX_BUF_LEN);
+		while (--i >= 0) {
+			dma_free_coherent(NULL, STM32_DMA_RX_BUF_LEN,
+				priv->rxb[i], priv->rxb_dma[i]);
+			priv->rxb[i] = NULL;
+		}
+		rv = -ENOMEM;
+		goto out;
+	}
+
 	rv = request_irq(priv->usart_irq, stm32_usart_isr,
 			 IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 			 STM32_USART_PORT, port);
 	if (rv) {
-		printk(KERN_ERR "%s: request_irq (%d)failed (%d)\n",
+		printk(KERN_ERR "%s: request_irq(%d) failed (%d)\n",
 			__func__, priv->usart_irq, rv);
 		goto out;
 	}
@@ -481,7 +496,7 @@ static int stm_port_startup(struct uart_port *port)
 			 IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 			 STM32_USART_PORT, port);
 	if (rv) {
-		printk(KERN_ERR "%s: request_irq (%d)failed (%d)\n",
+		printk(KERN_ERR "%s: request_irq(%d) failed (%d)\n",
 			__func__, priv->dma_irq, rv);
 		free_irq(priv->usart_irq, port);
 		goto out;
@@ -517,9 +532,9 @@ static int stm_port_startup(struct uart_port *port)
 #else
 	dma->s[priv->ini.stream].par  = &uart->dr;
 #endif
-	dma->s[priv->ini.stream].m0ar = &priv->rx_buf[0][0];
+	dma->s[priv->ini.stream].m0ar = (void *)priv->rxb_dma[0];
 #if (STM32_DMA_RX_BUF_NUM == 2)
-	dma->s[priv->ini.stream].m1ar = &priv->rx_buf[1][0];
+	dma->s[priv->ini.stream].m1ar = (void *)priv->rxb_dma[1];
 #endif
 	dma->s[priv->ini.stream].cr  |= STM32_DMA_CR_EN;
 
@@ -697,9 +712,16 @@ static int stm_port_verify_port(struct uart_port *port, struct serial_struct *se
  */
 static void stm_port_release_port(struct uart_port *port)
 {
-	/*
-	 * N/A
-	 */
+	struct stm32_usart_priv	*priv = stm32_drv_priv(port);
+	int			i;
+
+	for (i = 0; i < STM32_DMA_RX_BUF_NUM; i++) {
+		if (!priv->rxb[i])
+			continue;
+		dma_free_coherent(NULL, STM32_DMA_RX_BUF_LEN,
+			priv->rxb[i], priv->rxb_dma[0]);
+		priv->rxb[i] = NULL;
+	}
 }
 
 /*
@@ -1052,7 +1074,7 @@ static void stm32_receive(struct uart_port *port)
 	 * Do read until catch the writer
 	 */
 	while (priv->rpos < priv->wpos) {
-		tty_insert_flip_char(tty, priv->rx_buf[priv->rbuf][priv->rpos],
+		tty_insert_flip_char(tty, priv->rxb[priv->rbuf][priv->rpos],
 				     TTY_NORMAL);
 		priv->rpos++;
 	}
