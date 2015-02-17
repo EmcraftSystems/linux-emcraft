@@ -15,7 +15,9 @@
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 
-/* Instruction cache invalidate by address to Point of Unification (PoU) */
+/* Instruction cache invalidate all to Point of Unification (PoU) */
+#define ICIALLU(v)	*(volatile u32 *)0xE000EF50 = v
+/* Instruction cache invalidate by address to PoU */
 #define ICIMVAU(v)	*(volatile u32 *)0xE000EF58 = v
 /* Data cache invalidate by address to Point of Coherency (PoC) */
 #define DCIMVAC(v)	*(volatile u32 *)0xE000EF5C = v
@@ -23,12 +25,23 @@
 #define DCCMVAC(v)	*(volatile u32 *)0xE000EF68 = v
 /* Data cache clean and invalidate by address to PoC */
 #define DCCIMVAC(v)	*(volatile u32 *)0xE000EF70 = v
+/* Data cache clean and invalidate by set/way */
+#define DCCISW(v)	*(volatile u32 *)0xE000EF74 = v
+/* Branch predictor invalidate all */
+#define BPIALL(v)	*(volatile u32 *)0xE000EF78 = v
 
 /* Configuration and MPU Registers */
 #define CCR()		(*(volatile u32 *)0xE000ED14)
+#define CCSIDR()	(*(volatile u32 *)0xE000ED80)
+#define CSSELR(v)	*(volatile u32 *)0xE000ED84 = v
+
 #define MPU_TYPE()	(*(volatile u32 *)0xE000ED90)
 #define MPU_RNR(v)	*(volatile u32 *)0xE000ED98 = v
 #define MPU_RASR()	(*(volatile u32 *)0xE000EDA0)
+
+#define CCSIDR_NSETS(x)	(((x) >> 13) & 0x7fff)	/* Number of sets (0-based) */
+#define CCSIDR_ASC(x)	(((x) >> 3) & 0x3ff)	/* Associativity */
+#define CCSIDR_LSZ(x)	(((x) >> 0) & 0x7)	/* Line Size */
 
 /*
  * The caching policy is set per MPU region. This func walks through all Valid
@@ -99,6 +112,66 @@ char *v7m_dcache_mode(void)
 char *v7m_icache_mode(void)
 {
 	return !(CCR() & (1 << 17)) ? "OFF" : v7m_best_cache();
+}
+
+/*
+ * Flush the entire cache
+ */
+void v7m_flush_kern_cache_all(void)
+{
+	u32	ccsidr;
+	u32	nsets, asc, linesz;
+	u32	set, way;
+	int	wshift, sshift;
+
+	/* Get cache configuration */
+	CSSELR(0);
+	asm("dsb");
+	ccsidr = CCSIDR();
+
+	nsets = CCSIDR_NSETS(ccsidr);
+	asc = CCSIDR_ASC(ccsidr);
+	linesz = CCSIDR_LSZ(ccsidr);
+
+	sshift = linesz + 4;
+	asm("clz %0, %1" : "=r" (wshift) : "r" (asc));
+
+	/* Flush (clean & invalidate) all Data Cache set/ways */
+	for (set = 0; set <= nsets; set++) {
+		for (way = 0; way <= asc; way++) {
+			u32 sw = (way << wshift) | (set << sshift) | (0 << 1);
+			DCCISW(sw);
+		}
+	}
+
+	/* Invalidate all Instruction Cache */
+	ICIALLU(0);
+
+	/* Invalidate BPU */
+	BPIALL(0);
+
+	asm("dsb");
+	asm("isb");
+}
+
+/*
+ * Flush all TLB entries
+ */
+void v7m_flush_user_cache_all(void)
+{
+	/* Do nothing */
+}
+
+/*
+ * Flush a range of TLB entries in the specified address space.
+ * - start - start address (may not be aligned)
+ * - end   - end address (exclusive, may not be aligned)
+ * - flags - vm_area_struct flags describing address space
+ */
+void v7m_flush_user_cache_range(unsigned long start, unsigned long end,
+				unsigned int flags)
+{
+	/* Do nothing */
 }
 
 /*
