@@ -24,6 +24,83 @@
 /* Data cache clean and invalidate by address to PoC */
 #define DCCIMVAC(v)	*(volatile u32 *)0xE000EF70 = v
 
+/* Configuration and MPU Registers */
+#define CCR()		(*(volatile u32 *)0xE000ED14)
+#define MPU_TYPE()	(*(volatile u32 *)0xE000ED90)
+#define MPU_RNR(v)	*(volatile u32 *)0xE000ED98 = v
+#define MPU_RASR()	(*(volatile u32 *)0xE000EDA0)
+
+/*
+ * The caching policy is set per MPU region. This func walks through all Valid
+ * MPU regions, and detect the best caching policy we have
+ */
+static char *v7m_best_cache(void)
+{
+	static struct {
+		char		*nm;
+		struct {
+			u32	msk;
+			u32	val;
+		} r[2];
+	} m[] = {
+		{ "OFF", { /* Non-cacheable */
+		  { 4 << 19 | 1 << 17 | 1 << 16, 4 << 19 | 0 << 17 | 0 << 16 },
+		  { 7 << 19 | 1 << 17 | 1 << 16, 1 << 19 | 0 << 17 | 0 << 16 },
+		} },
+		{ "WT", { /* Write-through */
+		  { 4 << 19 | 1 << 17 | 1 << 16, 4 << 19 | 1 << 17 | 0 << 16 },
+		  { 7 << 19 | 1 << 17 | 1 << 16, 0 << 19 | 1 << 17 | 0 << 16 },
+		} },
+		{ "WB", { /* Write-back */
+		  { 4 << 19 | 1 << 17 | 1 << 16, 4 << 19 | 1 << 17 | 1 << 16 },
+		  { 7 << 19 | 1 << 17 | 1 << 16, 0 << 19 | 1 << 17 | 1 << 16 },
+		} },
+		{ "WBA", { /* Write-back, read-write allocate */
+		  { 4 << 19 | 1 << 17 | 1 << 16, 4 << 19 | 0 << 17 | 1 << 16 },
+		  { 7 << 19 | 1 << 17 | 1 << 16, 1 << 19 | 1 << 17 | 1 << 16 },
+		} },
+	};
+
+	u32	rasr;
+	int	i, k;
+	int	regions, best = -1;
+
+	regions = (MPU_TYPE() >> 8) & 0xFF;
+
+	for (i = 0; i < regions; i++) {
+		/* Check if this region is enabled */
+		MPU_RNR(i);
+		rasr = MPU_RASR();
+		if (!(rasr & 1))
+			continue;
+		for (k = 0; k < sizeof(m) / sizeof(m[0]); k++) {
+			if ((rasr & m[k].r[0].msk) != m[k].r[0].val &&
+			    (rasr & m[k].r[1].msk) != m[k].r[1].val)
+				continue;
+			if (k > best)
+				best = k;
+		}
+	}
+
+	return best < 0 ? "OFF" : m[best].nm;
+}
+
+/*
+ * Get DCache current mode description
+ */
+char *v7m_dcache_mode(void)
+{
+	return !(CCR() & (1 << 16)) ? "OFF" : v7m_best_cache();
+}
+
+/*
+ * Get ICache current mode description
+ */
+char *v7m_icache_mode(void)
+{
+	return !(CCR() & (1 << 17)) ? "OFF" : v7m_best_cache();
+}
+
 /*
  * Ensure that the I and D caches are coherent within specified
  * region. This is typically used when code has been written to

@@ -274,6 +274,8 @@ static void __init cacheid_init(void)
 #if defined(CONFIG_ARCH_KINETIS)
 		* (volatile u32 *) 0xE0082800 & 0x1 ? "WRITE-BACK" : "NO",
 		* (volatile u32 *) 0xE0082000 & 0x1 ? "WRITE-THROUGH" : "NO");
+#elif defined(CONFIG_CPU_CACHE_V7M)
+		v7m_dcache_mode(), v7m_icache_mode());
 #else
 #if defined(CONFIG_ARCH_M2S)
 #if defined(CONFIG_M2S_CACHE)

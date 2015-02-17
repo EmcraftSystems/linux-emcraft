@@ -43,6 +43,11 @@ extern unsigned int cacheid;
 #define __CACHEID_NEVER		(0)
 #endif
 
+#if defined(CONFIG_CPU_CACHE_V7M)
+char *v7m_dcache_mode(void);
+char *v7m_icache_mode(void);
+#endif
+
 static inline unsigned int __attribute__((pure)) cacheid_is(unsigned int mask)
 {
 	return (__CACHEID_ALWAYS & mask) |
