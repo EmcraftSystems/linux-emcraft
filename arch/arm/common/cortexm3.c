@@ -79,6 +79,13 @@ void cortex_m3_reboot(void)
 			 (CM3_SCB->aircr &
 			  (CM3_AIRCR_PRIGROUP_MSK << CM3_AIRCR_PRIGROUP_SHIFT))
 			 | CM3_AIRCR_SYSRESET;
+
+	/*
+	 * For SYSRESETREQ, the architecture does not guarantee that the reset
+	 * takes place immediately.
+	 */
+	dsb();
+	while (1);
 }
 
 #if defined(CONFIG_ARCH_KINETIS) || defined(CONFIG_ARCH_STM32) || \
