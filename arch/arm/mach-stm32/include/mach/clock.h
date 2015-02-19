@@ -3,6 +3,10 @@
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  *
+ * (C) Copyright 2015
+ * Emcraft Systems, <www.emcraft.com>
+ * Alexander Potashev <aspotashev@emcraft.com>
+ *
  * See file CREDITS for list of people who contributed to this
  * project.
  *
@@ -35,6 +39,7 @@ enum stm32_clock {
 	CLOCK_PCLK2,		/* PCLK2 clock frequency expressed in Hz      */
 	CLOCK_PTMR1,		/* TIM 2-7,12-14 APB1(low-speed) clock in Hz  */
 	CLOCK_PTMR2,		/* TIM 1,8,9-11 APB2(high-speed) clock in Hz  */
+	CLOCK_DIVM,		/* Input clock for PLL, PLLI2S, PLLSAI in Hz */
 
 	CLOCK_END		/* for internal usage			      */
 };
