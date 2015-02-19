@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011-2013
+ * (C) Copyright 2011-2015
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
@@ -110,6 +110,11 @@
 #define STM32F2_GPIO_AF_SDIO	0x0C
 
 /*
+ * LTDC AF
+ */
+#define STM32F2_GPIO_AF_LTDC	0x0E
+
+/*
  * GPIO roles (alternative functions); role determines by whom GPIO is used
  */
 enum stm32f2_gpio_role {
@@ -131,6 +136,7 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_I2C3,		/* I2C3				      */
 	STM32F2_GPIO_ROLE_SDIO,		/* SDIO				      */
 	STM32F2_GPIO_ROLE_USB_OTG,	/* USB OTG			      */
+	STM32F2_GPIO_ROLE_LTDC,		/* LCD controller		      */
 	STM32F2_GPIO_ROLE_MCO,		/* MC external output clock	      */
 	STM32F2_GPIO_ROLE_OUT,		/* General purpose output	      */
 	STM32F2_GPIO_ROLE_IN,		/* General purpose input no pull      */
@@ -165,6 +171,7 @@ static const u32 af_val[] = {
 	STM32F2_GPIO_AF_SPI4, STM32F2_GPIO_AF_SPI5, STM32F2_GPIO_AF_SPI6,
 	STM32F2_GPIO_AF_I2C1, STM32F2_GPIO_AF_I2C2, STM32F2_GPIO_AF_I2C3,
 	STM32F2_GPIO_AF_SDIO, STM32F2_GPIO_AF_USB_OTG,
+	STM32F2_GPIO_AF_LTDC,
 	0
 };
 
@@ -224,6 +231,7 @@ static int stm32f2_gpio_config(
 		pupd   = STM32F2_GPIO_PUPD_NO;
 		break;
 	case STM32F2_GPIO_ROLE_SDIO:
+	case STM32F2_GPIO_ROLE_LTDC:
 		otype  = STM32F2_GPIO_OTYPE_PP;
 		ospeed = STM32F2_GPIO_SPEED_50M;
 		pupd   = STM32F2_GPIO_PUPD_NO;
@@ -624,6 +632,43 @@ uartdone:
 	}
 
 #endif /* CONFIG_GPIOLIB */
+
+#if defined(CONFIG_STM32_FB)
+		do {
+			static struct stm32f2_gpio_dsc lcd_gpio[] = {
+				{6, 7 }, /* PG7  = LCD_CLK */
+				{5, 10}, /* PF10 = LCD_DE */
+				{8, 10}, /* PI10 = LCD_HSYNC */
+				{8, 9 }, /* PI9  = LCD_VSYNC */
+				{6, 12}, /* PG12 = LCD_B1 */
+				{6, 10}, /* PG10 = LCD_B2 */
+				{8, 4 }, /* PI4  = LCD_B4 */
+				{8, 5 }, /* PI5  = LCD_B5 */
+				{8, 6 }, /* PI6  = LCD_B6 */
+				{8, 7 }, /* PI7  = LCD_B7 */
+				{7, 13}, /* PH13 = LCD_G2 */
+				{7, 14}, /* PH14 = LCD_G3 */
+				{7, 15}, /* PH15 = LCD_G4 */
+				{8, 0 }, /* PI0  = LCD_G5 */
+				{2, 7 }, /* PC7  = LCD_G6 */
+				{8, 2 }, /* PI2  = LCD_G7 */
+				{7, 2 }, /* PH2  = LCD_R0 */
+				{7, 3 }, /* PH3  = LCD_R1 */
+				{7, 8 }, /* PH8  = LCD_R2 */
+				{7, 9 }, /* PH9  = LCD_R3 */
+				{7, 10}, /* PH10 = LCD_R4 */
+				{7, 11}, /* PH11 = LCD_R5 */
+				{7, 12}, /* PH12 = LCD_R6 */
+				{6, 6 }, /* PG6  = LCD_R7 */
+			};
+			int i;
+
+			for (i = 0; i < ARRAY_SIZE(lcd_gpio); i++) {
+				stm32f2_gpio_config(&lcd_gpio[i],
+						    STM32F2_GPIO_ROLE_LTDC);
+			}
+		} while (0);
+#endif /* CONFIG_STM32_FB */
 
 		break;
 #else

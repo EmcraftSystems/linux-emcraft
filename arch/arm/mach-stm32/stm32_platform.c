@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011-2013
+ * (C) Copyright 2011-2015
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
@@ -44,6 +44,7 @@
 #include <mach/rtc.h>
 #include <mach/usb.h>
 #include <mach/gpio.h>
+#include <mach/fb.h>
 
 /*
  * Prototypes
@@ -275,5 +276,12 @@ static void __init stm32_init(void)
 	 * Register the MCU GPIO chip
 	 */
 	stm32_gpio_init();
+#endif
+
+#if defined(CONFIG_STM32_FB)
+	/*
+	 * Register LCD controller with the framebuffer driver
+	 */
+	stm32f4x9_fb_init();
 #endif
 }

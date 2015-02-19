@@ -150,6 +150,11 @@ config STM32_GPIO_INT
 	help
 	  Include support for the STM32 GPIO interrupts
 
+config STM32_FB
+	depends on ARCH_STM32 && FB_STM32F4
+	bool "Enable STM32F4x9 LTDC framebuffer"
+	default n
+
 endmenu
 
 endif
