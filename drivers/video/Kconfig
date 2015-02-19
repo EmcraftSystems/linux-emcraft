@@ -407,6 +407,13 @@ config FB_IMX
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 
+config FB_STM32F4
+	tristate "STM32F4x9 LTDC controller support"
+	depends on FB && ARCH_STM32
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+
 config FB_CYBER2000
 	tristate "CyberPro 2000/2010/5000 support"
 	depends on FB && PCI && (BROKEN || !SPARC64)
