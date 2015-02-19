@@ -6,6 +6,10 @@
  * (C) Copyright 2012
  * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
  *
+ * Added new RCC registers added in STM32F4{2,3}xxx and STM32F7
+ * (C) Copyright 2015
+ * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation; either version 2 of
@@ -98,6 +102,10 @@ struct stm32_rcc_regs {
 	u32	sscgr;		/* RCC spread spectrum clock generation	      */
 	u32	plli2scfgr;	/* RCC PLLI2S configuration		      */
 #endif
+
+	/* Only for STM32F4{2,3}xxx and STM32F7 */
+	u32	pllsaicfgr;	/* RCC PLLSAI configuration */
+	u32	dckcfgr;	/* RCC Dedicated Clocks configuration */
 };
 
 /*
