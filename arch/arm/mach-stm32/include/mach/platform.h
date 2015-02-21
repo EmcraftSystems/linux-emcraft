@@ -29,11 +29,12 @@
  * STM32 Device (microcontroller) identifiers
  */
 #ifndef CONFIG_ARCH_STM32F1
-/* STM32F2-based and STM32F4-based */
+/* STM32F2-, STM32F4- and STM32F7-based */
 #define DEVICE_STM32F207IG		0
 #define DEVICE_STM32F407IG		1
 #define DEVICE_STM32F437II		2
 #define DEVICE_STM32F439II		3
+#define DEVICE_STM32F746NG		4
 #else
 /* STM32F1-based */
 #define DEVICE_STM32F103ZE		1000

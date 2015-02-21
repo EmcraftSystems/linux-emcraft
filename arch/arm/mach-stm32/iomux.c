@@ -157,7 +157,10 @@ struct stm32f2_gpio_dsc {
 static const unsigned long stm32_gpio_base[] = {
 	STM32F2_GPIOA_BASE, STM32F2_GPIOB_BASE, STM32F2_GPIOC_BASE,
 	STM32F2_GPIOD_BASE, STM32F2_GPIOE_BASE, STM32F2_GPIOF_BASE,
-	STM32F2_GPIOG_BASE, STM32F2_GPIOH_BASE, STM32F2_GPIOI_BASE
+	STM32F2_GPIOG_BASE, STM32F2_GPIOH_BASE, STM32F2_GPIOI_BASE,
+#if defined(CONFIG_ARCH_STM32F7)
+	STM32F4_GPIOJ_BASE, STM32F4_GPIOK_BASE,
+#endif
 };
 
 /*
@@ -190,7 +193,9 @@ static int stm32f2_gpio_config(
 	/*
 	 * Check params
 	 */
-	if (!dsc || dsc->port > 8 || dsc->pin > 15) {
+	if (!dsc || dsc->port >= ARRAY_SIZE(stm32_gpio_base) || dsc->pin > 15) {
+		printk(KERN_WARNING "%s: bad I/O {%d,%d}\n", __func__,
+			dsc ? dsc->port : -1, dsc ? dsc->pin : -1);
 		rv = -EINVAL;
 		goto out;
 	}
@@ -636,6 +641,36 @@ uartdone:
 #if defined(CONFIG_STM32_FB)
 		do {
 			static struct stm32f2_gpio_dsc lcd_gpio[] = {
+# if defined(CONFIG_ARCH_STM32F7)
+				{8, 14}, /* PI14 = LCD_CLK */
+				{10,7 }, /* PK7  = LCD_DE */
+				{8, 12}, /* PI12 = LCD_HSYNC */
+				{8, 13}, /* PI13 = LCD_VSYNC */
+				{9, 12}, /* PJ12 = LCD_B0 */
+				{9, 13}, /* PJ13 = LCD_B1 */
+				{9, 14}, /* PJ14 = LCD_B2 */
+				{9, 15}, /* PJ15 = LCD_B3 */
+				{10,3 }, /* PK3  = LCD_B4 */
+				{10,4 }, /* PK4  = LCD_B5 */
+				{10,5 }, /* PK5  = LCD_B6 */
+				{10,6 }, /* PK6  = LCD_B7 */
+				{9, 7 }, /* PJ7  = LCD_G0 */
+				{9, 8 }, /* PJ8  = LCD_G1 */
+				{9, 9 }, /* PJ9  = LCD_G2 */
+				{9, 10}, /* PJ10 = LCD_G3 */
+				{9, 11}, /* PJ11 = LCD_G4 */
+				{10,0 }, /* PK0  = LCD_G5 */
+				{10,1 }, /* PK1  = LCD_G6 */
+				{10,2 }, /* PK2  = LCD_G7 */
+				{8, 15}, /* PI15 = LCD_R0 */
+				{9, 0 }, /* PJ0  = CD_R1 */
+				{9, 1 }, /* PJ1  = LCD_R2 */
+				{9, 2 }, /* PJ2  = LCD_R3 */
+				{9, 3 }, /* PJ3  = LCD_R4 */
+				{9, 4 }, /* PJ4  = LCD_R5 */
+				{9, 5 }, /* PJ5  = LCD_R6 */
+				{9, 6 }, /* PJ6  = LCD_R7 */
+# else
 				{6, 7 }, /* PG7  = LCD_CLK */
 				{5, 10}, /* PF10 = LCD_DE */
 				{8, 10}, /* PI10 = LCD_HSYNC */
@@ -660,6 +695,7 @@ uartdone:
 				{7, 11}, /* PH11 = LCD_R5 */
 				{7, 12}, /* PH12 = LCD_R6 */
 				{6, 6 }, /* PG6  = LCD_R7 */
+# endif
 			};
 			int i;
 

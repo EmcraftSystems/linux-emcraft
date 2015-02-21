@@ -81,7 +81,7 @@ void __init stm32f4x9_fb_init(void)
 	ret = 0;
 
 	device = stm32_device_get();
-	if (device == DEVICE_STM32F439II) {
+	if (device == DEVICE_STM32F439II || device == DEVICE_STM32F746NG) {
 		stm32f4x9_fb_data.init = emcraft_iot_lcd_init;
 		ret = platform_device_register(&stm32f4_fb_device);
 	}

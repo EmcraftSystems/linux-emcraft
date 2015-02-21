@@ -95,7 +95,7 @@ int stm32_device_get(void)
 		r = DEVICE_STM32F103ZE;
 		break;
 #else
-	/* STM32F2-based platforms */
+	/* STM32F2-, STM32F4- and STM32F7-based platforms */
 	case PLATFORM_STM32_STM3220G_EVAL:
 		r = DEVICE_STM32F207IG;
 		break;
@@ -108,6 +108,9 @@ int stm32_device_get(void)
 	case PLATFORM_STM32_STM_STM32F439_SOM:
 	case PLATFORM_STM32_STM_DISCO:
 		r = DEVICE_STM32F439II;
+		break;
+	case PLATFORM_STM32_STM_STM32F7_SOM:
+		r = DEVICE_STM32F746NG;
 		break;
 #endif
 	default:
