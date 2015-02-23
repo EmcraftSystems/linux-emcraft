@@ -135,7 +135,7 @@ static struct platform_device flash_dev = {
 };
 
 char stm32f4x9_flash_dev_name[] = "stm32f4-flash";
-char stm32f7_flash_dev_name[] = "stm32f4-flash";
+char stm32f7_flash_dev_name[] = "stm32f7-flash";
 
 /*
  * Register the Flash platform device with the kernel.
