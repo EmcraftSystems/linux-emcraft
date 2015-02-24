@@ -379,7 +379,7 @@ static int map_video_memory(struct fb_info *info)
 	u32 smem_len = info->fix.line_length * info->var.yres_virtual;
 	dma_addr_t dmem;
 
-	info->screen_base = dma_alloc_coherent(info->dev, smem_len,
+	info->screen_base = dma_alloc_coherent(NULL, smem_len,
 					&dmem, GFP_KERNEL);
 	if (info->screen_base == NULL) {
 		printk(KERN_ERR "Unable to allocate fb memory\n");
@@ -400,7 +400,7 @@ static void unmap_video_memory(struct fb_info *info)
 	mutex_lock(&info->mm_lock);
 
 	if (info->screen_base) {
-		dma_free_coherent(info->dev, info->fix.smem_len,
+		dma_free_coherent(NULL, info->fix.smem_len,
 				info->screen_base, info->fix.smem_start);
 	}
 
