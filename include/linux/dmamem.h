@@ -3,6 +3,11 @@
 #define _DMA_MEM_H_
 
 /*
+ * Init dmamem driver
+ */
+int dmamem_init(int memnode);
+
+/*
  * Allocate pages from dmamem region
  */
 caddr_t dmamem_alloc(size_t size, size_t align, int gfp);
@@ -13,9 +18,9 @@ caddr_t dmamem_alloc(size_t size, size_t align, int gfp);
 void dmamem_free(caddr_t adr);
 
 /*
- * Get 'start' and 'end' of dmamem region
+ * Get 'fb' area reserved in dmamem
  */
-void dmamem_area(dma_addr_t *start, dma_addr_t *end);
+int dmamem_fb_get(dma_addr_t *base, unsigned long *size);
 
 #endif /* _DMA_MEM_H_ */
 

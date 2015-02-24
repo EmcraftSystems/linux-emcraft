@@ -113,7 +113,7 @@ static struct page *__dma_alloc_buffer(struct device *dev, size_t size, gfp_t gf
 	return page;
 }
 
-#if !defined(CONFIG_DMAMEM)
+#if !defined(CONFIG_DMAMEM) || !defined(CONFIG_ARCH_STM32F7)
 /*
  * Free a DMA buffer.  'size' must be page aligned.
  */
@@ -334,7 +334,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gf
 {
 	void *memory;
 
-#if !defined(CONFIG_DMAMEM)
+#if !defined(CONFIG_DMAMEM) || !defined(CONFIG_ARCH_STM32F7)
 	if (dma_alloc_from_coherent(dev, size, handle, &memory))
 		return memory;
 
@@ -413,7 +413,7 @@ EXPORT_SYMBOL(dma_mmap_writecombine);
  */
 void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
 {
-#if !defined(CONFIG_DMAMEM)
+#if !defined(CONFIG_DMAMEM) || !defined(CONFIG_ARCH_STM32F7)
 #if defined(PHYS_DMA_OFFSET)
 	cpu_addr = dma_to_virt(dev, handle);
 #endif
@@ -429,7 +429,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 		__dma_free_remap(cpu_addr, size);
 
 	__dma_free_buffer(dma_to_page(dev, handle), size);
-#else /* CONFIG_DMAMEM */
+#else /* CONFIG_DMAMEM && CONFIG_ARCH_STM32F7 */
 	dmamem_free(cpu_addr);
 #endif
 }

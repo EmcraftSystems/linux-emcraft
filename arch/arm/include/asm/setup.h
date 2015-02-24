@@ -126,6 +126,15 @@ struct tag_cmdline {
 	char	cmdline[1];	/* this is the minimum size */
 };
 
+/* dmamem parameters, all must be PAGE_SIZE aligned */
+#define ATAG_DMAMEM	0x5441000A
+
+struct tag_dmamem {
+	unsigned long	base;	/* base address of dmamem */
+	unsigned long	sz_all;	/* size of dmamem */
+	unsigned long	sz_fb;	/* size of fb at start of dmamem */
+};
+
 /* acorn RiscPC specific information */
 #define ATAG_ACORN	0x41000101
 
@@ -155,6 +164,7 @@ struct tag {
 		struct tag_revision	revision;
 		struct tag_videolfb	videolfb;
 		struct tag_cmdline	cmdline;
+		struct tag_dmamem	dmamem;
 
 		/*
 		 * Acorn specific

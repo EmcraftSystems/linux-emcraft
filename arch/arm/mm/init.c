@@ -439,6 +439,14 @@ void __init bootmem_init(void)
 		if (node == initrd_node)
 			bootmem_reserve_initrd(node);
 
+#ifdef CONFIG_DMAMEM
+		/*
+		 * Reserve memory at fixed address for DMA
+		 */
+		if (node == 0)
+			dmamem_init(node);
+#endif
+
 		/*
 		 * Sparsemem tries to allocate bootmem in memory_present(),
 		 * so must be done after the fixed reservations
@@ -561,9 +569,6 @@ void __init mem_init(void)
 {
 	unsigned long reserved_pages, free_pages;
 	int i, node;
-#ifdef CONFIG_DMAMEM
-	dma_addr_t dm_start, dm_end;
-#endif
 
 #ifndef CONFIG_DISCONTIGMEM
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
@@ -671,15 +676,6 @@ void __init mem_init(void)
 			MLK_ROUNDUP(__init_begin, __init_end),
 			MLK_ROUNDUP(_text, _etext),
 			MLK_ROUNDUP(_data, _edata));
-
-#ifdef CONFIG_DMAMEM
-	dmamem_area(&dm_start, &dm_end);
-	if (dm_end) {
-		printk(KERN_NOTICE
-			"      .dmem : 0x%08lx" " - 0x%08lx" "   (%4ld MB)\n",
-			MLM((unsigned long)dm_start, (unsigned long)dm_end));
-	}
-#endif
 
 #undef MLK
 #undef MLM

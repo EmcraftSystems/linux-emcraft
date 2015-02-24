@@ -43,9 +43,9 @@
 #include <linux/uaccess.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/dmamem.h>
 #include <video/stm32f4_fb.h>
 #include <asm/mach-types.h>
-#include <asm/dma-mapping.h>
 #include <mach/stm32.h>
 #include <mach/fb.h>
 
@@ -379,13 +379,29 @@ static int map_video_memory(struct fb_info *info)
 	u32 smem_len = info->fix.line_length * info->var.yres_virtual;
 	dma_addr_t dmem;
 
-	info->screen_base = dma_alloc_coherent(NULL, smem_len,
-					&dmem, GFP_KERNEL);
+#if defined(CONFIG_DMAMEM)
+	unsigned long dmem_len;
+
+	if (dmamem_fb_get(&dmem, &dmem_len)) {
+		printk(KERN_ERR "Unable to allocate fb memory\n");
+		return -ENOMEM;
+	}
+	if (dmem_len < smem_len) {
+		printk(KERN_ERR "No enough fb memory (%ld<%d)\n",
+			dmem_len, smem_len);
+		return -ENOMEM;
+	}
+	info->screen_base = (void *)dmem;
+	/* Use DMAMEM when want to reuse bootloader FB, don't clear it */
+#else
+	info->screen_base = kzalloc(smem_len, GFP_KERNEL);
 	if (info->screen_base == NULL) {
 		printk(KERN_ERR "Unable to allocate fb memory\n");
 		return -ENOMEM;
 	}
-	memset(info->screen_base, 0, smem_len);
+	dmem = virt_to_phys(info->screen_base);
+#endif
+
 	mutex_lock(&info->mm_lock);
 	info->fix.smem_start = dmem;
 	info->fix.smem_len = smem_len;
@@ -399,10 +415,10 @@ static void unmap_video_memory(struct fb_info *info)
 {
 	mutex_lock(&info->mm_lock);
 
-	if (info->screen_base) {
-		dma_free_coherent(NULL, info->fix.smem_len,
-				info->screen_base, info->fix.smem_start);
-	}
+#if !defined(CONFIG_DMAMEM)
+	if (info->screen_base)
+		kfree(info->screen_base);
+#endif
 
 	info->screen_base = NULL;
 	info->fix.smem_start = 0;

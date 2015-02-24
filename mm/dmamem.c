@@ -20,6 +20,8 @@
 #include <linux/mm.h>
 #include <linux/dmamem.h>
 
+#include <asm/setup.h>
+
 #define DM_NAME		"dmamem"
 
 /*
@@ -34,8 +36,9 @@ struct dm_dsc {
 static int dm_proc(char *page, char **start, off_t off,
 		   int count, int *eof, void *data);
 
-static int		dm_size;
-static caddr_t		dm_base;
+static unsigned long	dm_base;
+static unsigned long	dm_sz_all;
+static unsigned long	dm_sz_fb;
 
 static struct dm_dsc	*dm_lst_free;
 static struct dm_dsc	*dm_lst_used;
@@ -45,17 +48,43 @@ static struct resource	dm_res = {
 	.flags	= IORESOURCE_MEM | IORESOURCE_BUSY,
 };
 
+static int __init parse_tag_dmamem(const struct tag *tag)
+{
+	/* Check if fb size isn't more than whole size */
+	if (tag->u.dmamem.sz_all < tag->u.dmamem.sz_fb)
+		return 0;
+
+	/* Check if base & sizes are page aligned */
+	if (tag->u.dmamem.base & (PAGE_SIZE - 1) ||
+	    tag->u.dmamem.sz_fb & (PAGE_SIZE - 1) ||
+	    tag->u.dmamem.sz_all & (PAGE_SIZE - 1)) {
+		return 0;
+	}
+
+	dm_base = tag->u.dmamem.base;
+	dm_sz_fb = tag->u.dmamem.sz_fb;
+	dm_sz_all = tag->u.dmamem.sz_all;
+
+	return 0;
+}
+__tagtable(ATAG_DMAMEM, parse_tag_dmamem);
+
 static int __init dm_init(void)
 {
 	struct proc_dir_entry	*res;
 	int			rv;
 
-	if (dm_size == 0 || dm_base == 0) {
-		printk(KERN_CRIT "%s: warn, no '%s=' set in command line\n",
-			DM_NAME, DM_NAME);
+	if (!dm_sz_all) {
+		printk(KERN_CRIT "%s: no correct ATAG found, "
+			"no coherent mem will be available.\n", DM_NAME);
 		rv = 0;
 		goto out;
 	}
+
+	/* Register the resource for mem allocation */
+	dm_res.start = dm_base;
+	dm_res.end = dm_base + dm_sz_all;
+	request_resource(&iomem_resource, &dm_res);
 
 	/* Create free list */
 	dm_lst_free = kmalloc(sizeof(struct dm_dsc), GFP_KERNEL);
@@ -64,8 +93,8 @@ static int __init dm_init(void)
 		goto out;
 	}
 	dm_lst_free->next = NULL;
-	dm_lst_free->base = dm_base;
-	dm_lst_free->size = dm_size;
+	dm_lst_free->base = (void *)(dm_base + dm_sz_fb);
+	dm_lst_free->size = dm_sz_all - dm_sz_fb;
 
 	/*
 	 * Create /proc entry for it
@@ -87,54 +116,23 @@ out:
 __initcall(dm_init);
 
 /*
- * Called when 'dmamem=' is given on the command line.
+ * Reserve memory for dmamem
  */
-static int __init dm_setup(char *str)
+int dmamem_init(int memnode)
 {
-	dma_addr_t	adr;
-	int		par, rv;
+	pg_data_t *pgdat;
+	int rv;
 
-	if (!get_option(&str, &par) || !par || !high_memory) {
-		rv = 0;
-		goto out;
-	}
-
-	/*
-	 * Alloc the memory
-	 */
-	dm_size = par * 1024 * 1024;
-	adr = (dma_addr_t)high_memory - dm_size;
-	dm_base = __alloc_bootmem(dm_size, 1024 * 1024, adr);
-	if (!dm_base) {
-		printk(KERN_CRIT "%s: not enough memory for %dMB\n",
-			DM_NAME, par);
-		rv = -ENOMEM;
-		goto out;
-	}
-
-	if (dm_base != (void *)adr) {
-		printk(KERN_CRIT "%s: can't alloc %dMB at %p, drop at %p\n",
-			DM_NAME, par, (void *)adr, dm_base);
-		free_bootmem((unsigned long)adr, dm_size);
-		rv = -EFAULT;
-		goto out;
-	}
-
-	/* Register the resource for it */
-	dm_res.start = (unsigned long)dm_base;
-	dm_res.end = dm_res.start + dm_size;
-	request_resource(&iomem_resource, &dm_res);
-
-	rv = 0;
-out:
+	pgdat = NODE_DATA(memnode);
+	rv = reserve_bootmem_node(pgdat, dm_base, dm_sz_all,
+				BOOTMEM_EXCLUSIVE);
 	if (rv) {
-		dm_size = 0;
-		dm_base = NULL;
+		 printk(KERN_ERR "%s: 0x%08lx+%08lx overlaps in-use "
+			"memory region\n", DM_NAME, dm_base, dm_sz_all);
 	}
 
 	return rv;
 }
-__setup("dmamem=", dm_setup);	/* in MB */
 
 /*
  * Allocate mem from dmamem region
@@ -291,14 +289,20 @@ void dmamem_free(caddr_t base)
 }
 
 /*
- * Get 'start' and 'end' of dmamem region
+ * Get 'fb' area reserved in dmamem
  */
-void dmamem_area(dma_addr_t *start, dma_addr_t *end)
+int dmamem_fb_get(dma_addr_t *base, unsigned long *size)
 {
-	if (start)
-		*start = dm_res.start;
-	if (end)
-		*end = dm_res.end;
+	if (!dm_sz_all)
+		return -ENODEV;
+
+	if (base)
+		*base = dm_base;
+
+	if (size)
+		*size = dm_sz_fb;
+
+	return 0;
 }
 
 /*
@@ -332,18 +336,18 @@ static int dm_proc(char *page, char **start, off_t off,
 			used_max = dm->size;
 	}
 
-	if (!dm_size) {
+	if (!dm_sz_all) {
 		len = sprintf(page, "No %s area allocated!\n", DM_NAME);
 		goto out;
 	}
 
 	len = sprintf(page,
-		"%s area, size %d kB\n"
+		"%s area, fb mem size %ld kB, gen dma mem size %ld kB\n"
 		"                       free list:             used list:\n"
 		"number of blocks:      %8d               %8d\n"
 		"size of largest block: %8d kB            %8d kB\n"
 		"total:                 %8d kB            %8d kB\n",
-		DM_NAME, dm_size / 1024,
+		DM_NAME, dm_sz_fb / 1024, (dm_sz_all - dm_sz_fb) / 1024,
 		free_count, used_count,
 		free_max / 1024, used_max / 1024,
 		free_total / 1024, used_total /1024);
