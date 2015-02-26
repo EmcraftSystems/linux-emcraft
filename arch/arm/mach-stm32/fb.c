@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 
 #include <mach/stm32.h>
 #include <mach/fb.h>
