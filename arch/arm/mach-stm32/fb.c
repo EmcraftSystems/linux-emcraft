@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/i2c.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 
@@ -40,7 +41,7 @@
 /*
  * Framebuffer platform device resources
  */
-static struct resource kinetis_fb_resources[] = {
+static struct resource stm32f4_fb_resources[] = {
 	{
 		.start	= STM32F4_LTDC_BASE,
 		.end	= STM32F4_LTDC_BASE + STM32F4_LTDC_LENGTH - 1,
@@ -60,16 +61,34 @@ struct stm32f4_fb_platform_data stm32f4x9_fb_data = {
 static struct platform_device stm32f4_fb_device = {
 	.name = "stm32f4-ltdc",
 	.id = 0,
-	.num_resources = ARRAY_SIZE(kinetis_fb_resources),
-	.resource = kinetis_fb_resources,
+	.num_resources = ARRAY_SIZE(stm32f4_fb_resources),
+	.resource = stm32f4_fb_resources,
 	.dev = {
 		.coherent_dma_mask = 0xFFFFFFFF,
 		.platform_data = &stm32f4x9_fb_data,
 	},
 };
 
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT)
+/*
+ * I2C-connected Freescale CRTouch touchscreen device.
+ * We register it with the driver `crtouch_mt`.
+ */
+static struct i2c_board_info __initdata emcraft_iot_lcd_crtouch = {
+	I2C_BOARD_INFO("crtouchId", 0x49),
+};
+#endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
+
 static int emcraft_iot_lcd_init(int init)
 {
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT)
+	/*
+	 * Set wake-up active
+	 */
+	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM)
+		gpio_direction_output(STM32_GPIO_PORTPIN2NUM(7, 3), 0);
+#endif
+
 	return 0;
 }
 
@@ -82,6 +101,12 @@ void __init stm32f4x9_fb_init(void)
 
 	device = stm32_device_get();
 	if (device == DEVICE_STM32F439II || device == DEVICE_STM32F746NG) {
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT)
+		/*
+		 * Register the I2C-connected CRTouch touchscreen
+		 */
+		i2c_register_board_info(0, &emcraft_iot_lcd_crtouch, 1);
+#endif
 		stm32f4x9_fb_data.init = emcraft_iot_lcd_init;
 		ret = platform_device_register(&stm32f4_fb_device);
 	}
