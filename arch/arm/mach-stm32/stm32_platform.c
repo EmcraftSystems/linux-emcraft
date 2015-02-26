@@ -45,6 +45,7 @@
 #include <mach/usb.h>
 #include <mach/gpio.h>
 #include <mach/fb.h>
+#include <mach/i2c-gpio.h>
 
 /*
  * Prototypes
@@ -279,6 +280,13 @@ static void __init stm32_init(void)
 	 * Register the MCU GPIO chip
 	 */
 	stm32_gpio_init();
+#endif
+
+#if defined(CONFIG_I2C_GPIO)
+	/*
+	 * Bit-bang GPIO I2C implementation
+	 */
+	stm32_i2c_gpio_init();
 #endif
 
 #if defined(CONFIG_STM32_FB)

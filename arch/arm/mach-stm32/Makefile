@@ -10,6 +10,7 @@ obj-$(CONFIG_SERIAL_STM32)	+= uart.o
 obj-$(CONFIG_STM32_ETHER)	+= eth.o
 obj-$(CONFIG_SPI_STM32)		+= spi.o
 obj-$(CONFIG_I2C_STM32)		+= i2c.o
+obj-$(CONFIG_I2C_GPIO)		+= i2c-gpio.o
 obj-$(CONFIG_MTD_PHYSMAP)	+= flash.o
 obj-$(CONFIG_MTD_STM32F4_MAP)	+= flash.o
 obj-$(CONFIG_MMC_ARMMMCI)	+= sdcard.o
