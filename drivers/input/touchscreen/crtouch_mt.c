@@ -26,16 +26,16 @@
 
 #include "crtouch_mt.h"
 
-#ifdef CONFIG_ARCH_KINETIS
+#if defined(CONFIG_ARCH_KINETIS) || defined(CONFIG_ARCH_STM32)
 #undef MULTITOUCH
-#undef PRESSURE_EVENT
+#define PRESSURE_EVENT
 #undef READ_RESOLUTION
 #undef GESTURES
 #undef CAPACITIVE
 #undef WAKE_SIGNAL
 #undef IRQ_EVENT_HANDLING
 #define IRQ_POLL_PERIOD		(msecs_to_jiffies(20))
-#else /* CONFIG_ARCH_KINETIS */
+#else /* CONFIG_ARCH_xxx */
 #define MULTITOUCH
 #define PRESSURE_EVENT
 #define READ_RESOLUTION
@@ -43,7 +43,7 @@
 #define CAPACITIVE
 #define WAKE_SIGNAL
 #define IRQ_EVENT_HANDLING
-#endif /* CONFIG_ARCH_KINETIS */
+#endif /* CONFIG_ARCH_xxx */
 
 void report_single_touch(void)
 {
