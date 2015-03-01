@@ -360,8 +360,9 @@ static void update_lcdc(struct fb_info *info)
 	acc_v_cycles += var->lower_margin;
 	writel((acc_h_cycles << 16) | acc_v_cycles, fb->base + LTDC_TWCR);
 
-	/* Disable uncommon features of LTDC */
-	writel(readl(fb->base + LTDC_GCR) & GCR_MASK, fb->base + LTDC_GCR);
+	/* Disable uncommon features of LTDC, and invert input pixclock */
+	writel((readl(fb->base + LTDC_GCR) & GCR_MASK) | (1 << 28),
+		fb->base + LTDC_GCR);
 
 	/* Set background color to black */
 	writel(0, fb->base + LTDC_BCCR);
