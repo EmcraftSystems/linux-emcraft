@@ -73,9 +73,6 @@
 /* LTDC GCR Mask */
 #define GCR_MASK	((u32)0x0FFE888F)
 
-/* LTDC_LxPFCR[PF] values */
-#define LTDC_PFCR_RGB888	1
-
 static struct fb_videomode __devinitdata default_mode_db[] = {
 	{
 		.name		= "480x272",
@@ -184,12 +181,12 @@ static int fb_enable_panel(struct fb_info *info)
 			((acc_v_bporch + layer_desc->height) << 16),
 			fb->base + LTDC_LAYER_WVPCR(i));
 
-		/* Set pixel format to RGB888 */
-		writel(LTDC_PFCR_RGB888, fb->base + LTDC_LAYER_PFCR(i));
+		/* Set pixel format to ARGB8888 */
+		writel(0, fb->base + LTDC_LAYER_PFCR(i));
 
 		writel(layer_desc->addr, fb->base + LTDC_LAYER_CFBAR(i));
 
-		writel(((var->xres * 3) << 16) | (var->xres * 3 + 7),
+		writel(((var->xres * 4) << 16) | (var->xres * 4 + 7),
 			fb->base + LTDC_LAYER_CFBLR(i));
 		writel(layer_desc->height, fb->base + LTDC_LAYER_CFBLNR(i));
 
@@ -272,12 +269,12 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 	if (var->yoffset + info->var.yres > info->var.yres_virtual)
 		var->yoffset = info->var.yres_virtual - info->var.yres;
 
-	/* This driver currently supports only RGB888 */
-	if (var->bits_per_pixel != 24)
-		var->bits_per_pixel = 24;
+	/* This driver currently supports only ARGB8888 */
+	if (var->bits_per_pixel != 32)
+		var->bits_per_pixel = 32;
 
 	switch (var->bits_per_pixel) {
-	case 24:
+	case 32:
 		var->red.length = 8;
 		var->red.offset = 16;
 		var->red.msb_right = 0;
@@ -289,6 +286,10 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 8;
 		var->blue.offset = 0;
 		var->blue.msb_right = 0;
+
+		var->transp.length = 8;
+		var->transp.offset = 24;
+		var->transp.msb_right = 0;
 
 		break;
 	}
@@ -463,7 +464,7 @@ static int fb_set_par(struct fb_info *info)
 	layer_desc->posx = mfbi->x_layer_d;
 	layer_desc->posy = mfbi->y_layer_d;
 
-	if (var->bits_per_pixel != 24) {
+	if (var->bits_per_pixel != 32) {
 		printk(KERN_ERR "Unable to support other bpp now\n");
 	}
 
@@ -641,7 +642,7 @@ static int __devinit fb_probe(struct platform_device *pdev)
 		memcpy(mfbi, &mfb_template[i], sizeof(struct mfb_info));
 		mfbi->parent = fb;
 		mfbi->mode_str = plat_data->mode_str;
-		mfbi->default_bpp = 24;
+		mfbi->default_bpp = 32;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
