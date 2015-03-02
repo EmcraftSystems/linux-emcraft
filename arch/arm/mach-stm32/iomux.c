@@ -32,6 +32,7 @@
 #include <mach/iomux.h>
 #include <mach/platform.h>
 #include <mach/stm32.h>
+#include <mach/fb.h>
 
 /*
  * GPIO configuration mode
@@ -637,7 +638,7 @@ uartdone:
 #endif /* CONFIG_GPIOLIB */
 
 #if defined(CONFIG_STM32_FB)
-		do {
+		if (!stm32f4_fb_is_running()) {
 			static struct stm32f2_gpio_dsc lcd_gpio[] = {
 # if defined(CONFIG_ARCH_STM32F7)
 				{8, 14}, /* PI14 = LCD_CLK */
@@ -701,7 +702,7 @@ uartdone:
 				stm32f2_gpio_config(&lcd_gpio[i],
 						    STM32F2_GPIO_ROLE_LTDC);
 			}
-		} while (0);
+		}
 #endif /* CONFIG_STM32_FB */
 
 		break;

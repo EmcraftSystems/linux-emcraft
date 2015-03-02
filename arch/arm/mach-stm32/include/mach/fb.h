@@ -27,6 +27,12 @@
 
 #include <linux/init.h>
 
+/*
+ * LTDC regs
+ */
+#define STM32F4_LTDC_BASE	0x40016800
+#define STM32F4_LTDC_LENGTH	0x400
+
 void __init stm32f4x9_fb_init(void);
 
 struct stm32f4_fb_platform_data {
@@ -36,5 +42,11 @@ struct stm32f4_fb_platform_data {
 	struct fb_videomode *modes;
 	unsigned int modes_size;
 };
+
+static inline int stm32f4_fb_is_running(void)
+{
+	/* Check LTDC_GCR[LTDCEN] */
+	return *(volatile u32 *)(STM32F4_LTDC_BASE + 0x18) & 1;
+}
 
 #endif /* _MACH_STM32_FB_H_ */

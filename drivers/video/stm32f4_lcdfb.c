@@ -663,6 +663,11 @@ static int __devinit fb_probe(struct platform_device *pdev)
 		goto failed_ioremap;
 	}
 
+	/*
+	 * Actually we should do this if !stm32f4_fb_is_running(), but
+	 * 'init()' func may configure some LTDC-unrelated stuff (e.g.
+	 * LCD touchscreen)
+	 */
 	plat_data->init(0);
 
 	if (plat_data->modes) {
@@ -682,7 +687,8 @@ static int __devinit fb_probe(struct platform_device *pdev)
 		goto failed_getclock;
 	}
 
-	clk_enable(fb->clk);
+	if (!stm32f4_fb_is_running())
+		clk_enable(fb->clk);
 	fb->fb_enabled = 0;
 
 	for (i = 0; i < ARRAY_SIZE(fb->layer_info); i++) {

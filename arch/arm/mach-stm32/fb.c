@@ -33,9 +33,6 @@
 #include <mach/fb.h>
 #include <mach/platform.h>
 
-#define STM32F4_LTDC_BASE	0x40016800
-#define STM32F4_LTDC_LENGTH	0x400
-
 #define STM32F4_LTDC_IRQ	88
 #define STM32F4_LTDC_ERR_IRQ	89
 
