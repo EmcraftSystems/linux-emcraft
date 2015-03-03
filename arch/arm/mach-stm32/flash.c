@@ -115,12 +115,6 @@ static struct stm32f4_flash_data stm32f4_flash_data = {
 	.parts		= flash_partitions,
 };
 
-static struct stm32f4_flash_data stm32f7_flash_data = {
-	.width		= 2,
-	.nr_parts	= ARRAY_SIZE(flash_partitions),
-	.parts		= flash_partitions,
-};
-
 /*
  * Platform device for the external Flash
  */
@@ -135,7 +129,6 @@ static struct platform_device flash_dev = {
 };
 
 char stm32f4x9_flash_dev_name[] = "stm32f4-flash";
-char stm32f7_flash_dev_name[] = "stm32f7-flash";
 
 /*
  * Register the Flash platform device with the kernel.
@@ -161,8 +154,6 @@ void __init stm32_flash_init(void)
 		size = 16*1024*1024;
 		break;
 	case PLATFORM_STM32_STM_STM32F7_SOM:
-		flash_dev.name = stm32f7_flash_dev_name;
-		flash_dev.dev.platform_data = &stm32f7_flash_data;
 		flash_dev.resource[0].start = CONFIG_FLASH_MEM_BASE;
 		size = CONFIG_FLASH_SIZE;
 		break;
