@@ -29,6 +29,7 @@
 #include <mach/dmaregs.h>
 
 
+#include <asm/setup.h>
 /*
  * IRQ flag masks for registers DMA_LISR, DMA_HISR, DMA_LIFCR, DMA_HIFCR
  * in the DMA controller register map. These flags can be passed in the function
@@ -671,3 +672,12 @@ void __init stm32_dmac_init(void)
 		spin_lock_init(&dma_ch[ch].irq_lock);
 	}
 }
+#ifndef CONFIG_DMAMEM
+/* Provide fake parser to avoid "Ignoring unrecognised tag" message
+ */
+static int __init parse_tag_dmamem(const struct tag *tag)
+{
+	return 0;
+}
+__tagtable(ATAG_DMAMEM, parse_tag_dmamem);
+#endif
