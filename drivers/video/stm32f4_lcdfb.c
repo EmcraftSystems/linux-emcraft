@@ -571,8 +571,8 @@ static int __devinit install_fb(struct fb_info *info)
 	}
 
 	mfbi->registered = 1;
-	printk(KERN_INFO "fb%d: %s fb device registered successfully.\n",
-		info->node, info->fix.id);
+	printk(KERN_INFO "fb%d: fb device registered successfully\n",
+		info->node);
 
 	return 0;
 }
