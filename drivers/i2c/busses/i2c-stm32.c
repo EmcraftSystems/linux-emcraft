@@ -27,7 +27,7 @@
 
 /*
  * Debug output control. While debugging, have I2C_STM32_DEBUG defined.
- * In deployment, make sure that I2C_STM32_DEBUG is undefined 
+ * In deployment, make sure that I2C_STM32_DEBUG is undefined
  * to avoid performance and size overhead of debug messages.
  */
 #define I2C_STM32_DEBUG
@@ -92,14 +92,14 @@ struct i2c_stm32 {
 	unsigned int			ref_clk;	/* Ref clock */
 	unsigned int			i2c_clk;	/* Bus clock */
 	struct i2c_msg*			msg;		/* Current message */
-	int				msg_n;		/* Segments in msg */	
-	int				msg_i;		/* Idx in a segment */	
-	volatile int			msg_status;	/* Message status */	
+	int				msg_n;		/* Segments in msg */
+	int				msg_i;		/* Idx in a segment */
+	volatile int			msg_status;	/* Message status */
 	struct i2c_adapter		adap;		/* I2C adapter data */
 	wait_queue_head_t		wait;		/* Wait queue */
 };
 
-/* 
+/*
  * Description of the the STM32 I2C hardware interfaces.
  */
 struct i2c_stm32_regs {
@@ -121,13 +121,13 @@ struct i2c_stm32_regs {
 #define I2C_STM32_REGS(r)		((volatile struct i2c_stm32_regs *)(r))
 #define I2C_STM32(c)			(I2C_STM32_REGS(c->regs))
 
-/* 
+/*
  * Convert to MHz
  */
 #define MHZ(v)				((v) * 1000000)
 
 /*
- * Some bits in various CSRs 
+ * Some bits in various CSRs
  */
 #define RCC_APB1RSTR_I2C1		(1<<21)
 #define RCC_APB1RSTR_I2C2		(1<<22)
@@ -211,7 +211,7 @@ static int i2c_stm32_hw_init(struct i2c_stm32 *c)
 	writel(v & ~I2C_STM32_CR1_SWRST, &I2C_STM32(c)->cr1);
 
 	/*
-	 * Set the clocks. 
+	 * Set the clocks.
  	 */
 	if (c->i2c_clk <= 100000) {
 		v = c->ref_clk / MHZ(1);
@@ -235,7 +235,7 @@ static int i2c_stm32_hw_init(struct i2c_stm32 *c)
 	 * Enable hardware interrupts, including for error conditions
 	 */
 	v = readl(&I2C_STM32(c)->cr2);
-	writel(v | 
+	writel(v |
 		I2C_STM32_CR2_ITBUFEN |
 		I2C_STM32_CR2_ITEVTEN |
 		I2C_STM32_CR2_ITERREN, &I2C_STM32(c)->cr2);
@@ -249,7 +249,7 @@ static int i2c_stm32_hw_init(struct i2c_stm32 *c)
 Done:
 	d_printk(2, "bus=%d,"
 		"cr1=0x%x,cr2=0x%x,sr1=0x%x,ccr=0x%x,trise=0x%x,ret=%d\n",
-		c->bus, 
+		c->bus,
 		!ret ? readl(&I2C_STM32(c)->cr1) : 0,
 		!ret ? readl(&I2C_STM32(c)->cr2) : 0,
 		!ret ? readl(&I2C_STM32(c)->sr1) : 0,
@@ -269,7 +269,7 @@ static void i2c_stm32_hw_release(struct i2c_stm32 *c)
 	/*
  	 * Disable the controller
  	 */
-	writel(readl(&I2C_STM32(c)->cr1) & ~I2C_STM32_CR1_PE, 
+	writel(readl(&I2C_STM32(c)->cr1) & ~I2C_STM32_CR1_PE,
 		&I2C_STM32(c)->cr1);
 
 	/*
@@ -305,7 +305,7 @@ static void i2c_stm32_hw_release(struct i2c_stm32 *c)
  */
 static inline void i2c_stm32_hw_clear(struct i2c_stm32 *c)
 {
-	d_printk(3, "ok\n"); 
+	d_printk(3, "ok\n");
 }
 
 /*
@@ -324,14 +324,14 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 	irqreturn_t ret = IRQ_HANDLED;
 
 	/*
- 	 * Check if there is an interrupt event 
+ 	 * Check if there is an interrupt event
  	 * pending at the controller. Bail out if there is none.
  	 * It does happen sometimes for some reason.
  	 */
 	if (!sr1) {
 		ret = IRQ_NONE;
 		goto Done;
-	}	
+	}
 
 	/*
 	 * Implement the state machine defined by the I2C controller
@@ -353,17 +353,17 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 
 	else if (sr1 & I2C_STM32_SR1_AF) {
 
-		/* 
+		/*
 		 * No ack -> let's stop and report a failure
-		 */	
+		 */
 		writel(sr1 & ~I2C_STM32_SR1_AF, &I2C_STM32(c)->sr1);
 		c->msg_status = -ENODEV;
 		disable_intr = 1;
 	}
 
-	else if ((sr1 & I2C_STM32_SR1_ADDR) || 
-		 (sr1 & I2C_STM32_SR1_TXE) || 
-		 (sr1 & I2C_STM32_SR1_BTF) || 
+	else if ((sr1 & I2C_STM32_SR1_ADDR) ||
+		 (sr1 & I2C_STM32_SR1_TXE) ||
+		 (sr1 & I2C_STM32_SR1_BTF) ||
 		 (sr1 & I2C_STM32_SR1_RXNE)) {
 
 		/*
@@ -374,7 +374,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 		 */
 		while (sr1 == I2C_STM32_SR1_TXE) {
 			sr1 = readl(&I2C_STM32(c)->sr1);
-		} 
+		}
 
 		/*
 		 * Slave has acknowledged the address
@@ -387,7 +387,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 	 	 * Return NACK to tell the slave to stop sending.
 	 	 */
 		if (c->msg_i + 1 == c->msg->len) {
-			writel(cr1 & ~I2C_STM32_CR1_ACK, 
+			writel(cr1 & ~I2C_STM32_CR1_ACK,
 				&I2C_STM32(c)->cr1);
 		}
 
@@ -396,7 +396,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 	 	 * Return ACK to tell the slave to send more.
 	 	 */
 		else {
-			writel(cr1 | I2C_STM32_CR1_ACK, 
+			writel(cr1 | I2C_STM32_CR1_ACK,
 				&I2C_STM32(c)->cr1);
 		}
 
@@ -406,7 +406,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 		sr2 = readl(&I2C_STM32(c)->sr2);
 
 		/*
-		 * Depending on the direction, enter 
+		 * Depending on the direction, enter
 		 * transmitter or receiver mode.
 		 */
 		if (sr2 & I2C_STM32_SR2_TRA) {
@@ -450,7 +450,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 			c->msg->buf[c->msg_i++] = readl(&I2C_STM32(c)->dr);
 
 			/*
-			 * More data to get. Get out of IRQ and wait 
+			 * More data to get. Get out of IRQ and wait
 			 * for a next interrupt.
 			 */
 			if (c->msg_i < c->msg->len) {
@@ -477,13 +477,13 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 					&I2C_STM32(c)->cr1);
 			}
 		}
-	}	
+	}
 
 	else {
 
-		/* 
+		/*
 		 * Some error condition -> let's stop and report a failure
-		 */	
+		 */
 		writel(0x0, &I2C_STM32(c)->sr1);
 		dev_err(&c->dev->dev,
 			"error condition in irq handler: sr1=%x\n", sr1);
@@ -498,7 +498,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 		disable_irq_nosync(c->irq);
 	}
 
-	/* 
+	/*
 	 * Exit on failure or all bytes have been transferred
 	 */
 	if (c->msg_status != -EBUSY) {
@@ -549,7 +549,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 	 * Actual transfer is handled by the state machine implemented
 	 * in the IRQ routine.
 	 */
-	writel(readl(&I2C_STM32(c)->cr1) | I2C_STM32_CR1_STA, 
+	writel(readl(&I2C_STM32(c)->cr1) | I2C_STM32_CR1_STA,
 		&I2C_STM32(c)->cr1);
 
 	/*
@@ -573,7 +573,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 	/*
 	 * Stop activity on the bus
 	 */
-	writel(readl(&I2C_STM32(c)->cr1) | I2C_STM32_CR1_STO, 
+	writel(readl(&I2C_STM32(c)->cr1) | I2C_STM32_CR1_STO,
 		&I2C_STM32(c)->cr1);
 
 #if defined(I2C_STM32_DEBUG)
@@ -624,7 +624,7 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	int ret = 0;
 
 	/*
- 	 * Get the bus # from the platform device: 
+ 	 * Get the bus # from the platform device:
  	 */
 	bus = dev->id;
 	if (! (0 <= bus && bus <= 2)) {
@@ -653,7 +653,7 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 		goto Error_release_nothing;
 	}
 
-	/* 
+	/*
 	 * Allocate the controller-private data structure
 	 */
 	c = kzalloc(sizeof(struct i2c_stm32), GFP_KERNEL);
@@ -729,7 +729,7 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	c->adap.algo_data = c;
 	c->adap.dev.parent = &dev->dev;
 
-	/* 
+	/*
 	 * Initialize the controller hardware
  	 */
 	ret = i2c_stm32_hw_init(c);
@@ -737,12 +737,12 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 		goto Error_release_irq2;
 	}
 
-	/* 
+	/*
  	 * Set up the wait queue
  	 */
 	init_waitqueue_head(&c->wait);
 
-	/* 
+	/*
 	 * Register the I2C adapter
  	 */
 	if (i2c_add_numbered_adapter(&c->adap)) {
@@ -763,23 +763,23 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	 */
 Error_release_hw:
 	i2c_stm32_hw_release(c);
-Error_release_irq2: 
+Error_release_irq2:
 	free_irq(c->irq + 1, c);
-Error_release_irq1: 
+Error_release_irq1:
 	free_irq(c->irq, c);
-Error_release_regs: 
+Error_release_regs:
 	iounmap(c->regs);
-Error_release_mem_region: 
+Error_release_mem_region:
 	release_mem_region(regs->start, resource_size(regs));
-Error_release_memory: 
+Error_release_memory:
 	kfree(c);
 	platform_set_drvdata(dev, NULL);
-Error_release_nothing: 
-	
+Error_release_nothing:
+
 Done:
-	d_printk(1, "dev=%s,regs=%p,irq=%d,ref_clk=%d,i2c_clk=%d,ret=%d\n", 
-		 dev_name(&dev->dev), 
-		 c ? c->regs : NULL, c ? c->irq : 0, 
+	d_printk(1, "dev=%s,regs=%p,irq=%d,ref_clk=%d,i2c_clk=%d,ret=%d\n",
+		 dev_name(&dev->dev),
+		 c ? c->regs : NULL, c ? c->irq : 0,
 		 c ? c->ref_clk : 0, c ? c->i2c_clk : 0, ret);
 	return ret;
 }
@@ -832,7 +832,7 @@ static struct platform_driver i2c_stm32_drv = {
 static int __init i2c_stm32_module_init(void)
 {
 	int ret;
-	
+
 	ret = platform_driver_register(&i2c_stm32_drv);
 
 	d_printk(1, "drv=%s,ret=%d\n", i2c_stm32_drv.driver.name, ret);
