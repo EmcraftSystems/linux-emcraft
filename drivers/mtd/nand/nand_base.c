@@ -3015,13 +3015,14 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->panic_write = panic_nand_write;
 	mtd->read_oob = nand_read_oob;
 	if (chip->options & NAND_NO_OOB_WRITE)
-	{
 		mtd->write_oob = nand_fake_write_oob;
-	}
 	else
-	{
 		mtd->write_oob = nand_write_oob;
-	}
+	if (chip->bbt_td && chip->bbt_td->options & NAND_BBT_WRITE)
+		mtd->write_oob_bbt = nand_write_oob;
+	else
+		mtd->write_oob_bbt = nand_fake_write_oob;
+
 	mtd->sync = nand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = NULL;

@@ -194,7 +194,8 @@ struct mtd_info {
 			 struct mtd_oob_ops *ops);
 	int (*write_oob) (struct mtd_info *mtd, loff_t to,
 			 struct mtd_oob_ops *ops);
-
+	int (*write_oob_bbt) (struct mtd_info *mtd, loff_t to,
+			 struct mtd_oob_ops *ops);
 	/*
 	 * Methods to access the protection register area, present in some
 	 * flash devices. The user data is one time programmable but the
