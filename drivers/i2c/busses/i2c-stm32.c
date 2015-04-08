@@ -140,6 +140,9 @@ struct i2c_stm32_regs {
 #define	I2C_STM32_CR1_STO		(1<<9)
 #define	I2C_STM32_CR1_STA		(1<<8)
 #define	I2C_STM32_CR1_PE		(1<<0)
+#define	I2C_STM32_CR1_MASK		(I2C_STM32_CR1_ACK | \
+					 I2C_STM32_CR1_STO | I2C_STM32_CR1_STA | \
+					 I2C_STM32_CR1_PE  | I2C_STM32_CR1_SWRST)
 #define	I2C_STM32_CR2_ITBUFEN		(1<<10)
 #define	I2C_STM32_CR2_ITEVTEN		(1<<9)
 #define	I2C_STM32_CR2_ITERREN		(1<<8)
@@ -155,6 +158,71 @@ struct i2c_stm32_regs {
 #define	I2C_STM32_CCR_FS		(1<<15)
 #define	I2C_STM32_CCR_DUTY		(1<<14)
 #define	I2C_STM32_TRISE_TRISE(v)	((v)<<0)
+
+static inline void i2c_stm32_disable_irqs(struct i2c_stm32 *c)
+{
+	disable_irq_nosync(c->irq);
+	disable_irq_nosync(c->irq + 1);
+}
+
+static inline void i2c_stm32_enable_irqs(struct i2c_stm32 *c)
+{
+	enable_irq(c->irq);
+	enable_irq(c->irq + 1);
+}
+
+/*
+ * Reset the I2C controller to known state
+ * @param c		controller data structure
+ * @returns		0->success, <0->error code
+ */
+static void i2c_stm32_hw_clear(struct i2c_stm32 *c)
+{
+	int v;
+
+	/*
+	 * Reset the controller to clear possible errors or locks
+	 */
+	v = readl(&I2C_STM32(c)->cr1) & ~I2C_STM32_CR1_MASK;
+	writel(v | I2C_STM32_CR1_SWRST, &I2C_STM32(c)->cr1);
+	udelay(20);
+	writel(v & ~I2C_STM32_CR1_SWRST, &I2C_STM32(c)->cr1);
+	/*
+	 * Set the clocks.
+	 */
+	if (c->i2c_clk <= 100000) {
+		v = c->ref_clk / MHZ(1);
+		writel(I2C_STM32_CR2_FREQ(v), &I2C_STM32(c)->cr2);
+		writel(I2C_STM32_TRISE_TRISE(v + 1), &I2C_STM32(c)->trise);
+		v = c->ref_clk / (c->i2c_clk << 1);
+		v = v < 0x04 ? 0x04 : v;
+		writel(I2C_STM32_CCR_CCR(v), &I2C_STM32(c)->ccr);
+	}
+	else {
+		v = c->ref_clk / MHZ(1);
+		v = ((v * 300) / 1000) + 1;
+		writel(I2C_STM32_TRISE_TRISE(v), &I2C_STM32(c)->trise);
+		v = c->ref_clk / (c->i2c_clk * 25);
+		v |= ((v & 0x0FFF) == 0) ? 0x0001 : 0;
+		v |= I2C_STM32_CCR_FS | I2C_STM32_CCR_DUTY;
+		writel(I2C_STM32_CCR_CCR(v), &I2C_STM32(c)->ccr);
+	}
+
+	/*
+	 * Enable hardware interrupts, including for error conditions
+	 */
+	v = readl(&I2C_STM32(c)->cr2);
+	writel(v |
+		I2C_STM32_CR2_ITBUFEN |
+		I2C_STM32_CR2_ITEVTEN |
+		I2C_STM32_CR2_ITERREN, &I2C_STM32(c)->cr2);
+
+	/*
+	 * Enable the I2C controller
+	 */
+	v = readl(&I2C_STM32(c)->cr1);
+	writel(v | I2C_STM32_CR1_PE, &I2C_STM32(c)->cr1);
+}
 
 /*
  * Hardware initialization of the I2C controller
@@ -204,48 +272,7 @@ static int i2c_stm32_hw_init(struct i2c_stm32 *c)
 		writel(v | RCC_APB1ENR_I2C3, &STM32_RCC->apb1enr);
 	}
 
-	/*
-	 * Reset the controller to clear possible errors or locks
-	 */
-	writel(v | I2C_STM32_CR1_SWRST, &I2C_STM32(c)->cr1);
-	writel(v & ~I2C_STM32_CR1_SWRST, &I2C_STM32(c)->cr1);
-
-	/*
-	 * Set the clocks.
-	 */
-	if (c->i2c_clk <= 100000) {
-		v = c->ref_clk / MHZ(1);
-		writel(I2C_STM32_CR2_FREQ(v), &I2C_STM32(c)->cr2);
-		writel(I2C_STM32_TRISE_TRISE(v + 1), &I2C_STM32(c)->trise);
-		v = c->ref_clk / (c->i2c_clk << 1);
-		v = v < 0x04 ? 0x04 : v;
-		writel(I2C_STM32_CCR_CCR(v), &I2C_STM32(c)->ccr);
-	}
-	else {
-		v = c->ref_clk / MHZ(1);
-		v = ((v * 300) / 1000) + 1;
-		writel(I2C_STM32_TRISE_TRISE(v), &I2C_STM32(c)->trise);
-		v = c->ref_clk / (c->i2c_clk * 25);
-		v |= ((v & 0x0FFF) == 0) ? 0x0001 : 0;
-		v |= I2C_STM32_CCR_FS | I2C_STM32_CCR_DUTY;
-		writel(I2C_STM32_CCR_CCR(v), &I2C_STM32(c)->ccr);
-	}
-
-	/*
-	 * Enable hardware interrupts, including for error conditions
-	 */
-	v = readl(&I2C_STM32(c)->cr2);
-	writel(v |
-		I2C_STM32_CR2_ITBUFEN |
-		I2C_STM32_CR2_ITEVTEN |
-		I2C_STM32_CR2_ITERREN, &I2C_STM32(c)->cr2);
-
-	/*
-	 * Enable the I2C controller
-	 */
-	v = 0;
-	writel(v | I2C_STM32_CR1_PE, &I2C_STM32(c)->cr1);
-
+	i2c_stm32_hw_clear(c);
 Done:
 	d_printk(2, "bus=%d,"
 		"cr1=0x%x,cr2=0x%x,sr1=0x%x,ccr=0x%x,trise=0x%x,ret=%d\n",
@@ -296,16 +323,6 @@ static void i2c_stm32_hw_release(struct i2c_stm32 *c)
 	}
 
 	d_printk(2, "bus=%d\n", c->bus);
-}
-
-/*
- * Reset the I2C controller to known state
- * @param c		controller data structure
- * @returns		0->success, <0->error code
- */
-static inline void i2c_stm32_hw_clear(struct i2c_stm32 *c)
-{
-	d_printk(3, "ok\n");
 }
 
 /*
@@ -495,7 +512,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 	 * If the current transfer is done, disable interrupts
 	 */
 	if (disable_intr) {
-		disable_irq_nosync(c->irq);
+		i2c_stm32_disable_irqs(c);
 	}
 
 	/*
@@ -506,7 +523,6 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 		/*
 		 * Clear the interrupt condition
 		 */
-		i2c_stm32_hw_clear(c);
 		wake_up(&c->wait);
 	}
 
@@ -540,11 +556,6 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 	c->msg_status = -EBUSY;
 
 	/*
-	 * Reset the bus to a known state
-	 */
-	i2c_stm32_hw_clear(c);
-
-	/*
 	 * A transfer is kicked off by initiating a start condition.
 	 * Actual transfer is handled by the state machine implemented
 	 * in the IRQ routine.
@@ -555,13 +566,13 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 	/*
 	 * Let interrupts happen
 	 */
-	enable_irq(c->irq);
+	i2c_stm32_enable_irqs(c);
 
 	/*
 	 * Wait for the transfer to complete, one way or another
 	 */
 	if (wait_event_timeout(c->wait, c->msg_status != -EBUSY, 5*HZ) == 0) {
-		disable_irq_nosync(c->irq);
+		i2c_stm32_disable_irqs(c);
 		ret = -ETIMEDOUT;
 	} else {
 		ret = c->msg_status;
@@ -575,6 +586,14 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 	 */
 	writel(readl(&I2C_STM32(c)->cr1) | I2C_STM32_CR1_STO,
 		&I2C_STM32(c)->cr1);
+
+
+	/*
+	 * Reset the bus to a known state in case of error.
+	 */
+	if (ret < 0 && ret != -ENODEV) {
+		i2c_stm32_hw_clear(c);
+	}
 
 #if defined(I2C_STM32_DEBUG)
 	for (i = 0; i < n; i++) {
@@ -706,6 +725,7 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "request for IRQ %d failed\n", irq + 1);
 		goto Error_release_irq1;
 	}
+	disable_irq_nosync(irq + 1);
 
 	/*
 	 * Retrieve the private parameters
