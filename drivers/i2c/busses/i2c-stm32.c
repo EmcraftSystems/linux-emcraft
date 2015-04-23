@@ -502,7 +502,7 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 		 * Some error condition -> let's stop and report a failure
 		 */
 		writel(0x0, &I2C_STM32(c)->sr1);
-		dev_err(&c->dev->dev,
+		dev_dbg(&c->dev->dev,
 			"error condition in irq handler: sr1=%x\n", sr1);
 		c->msg_status = -EIO;
 		disable_intr = 1;
