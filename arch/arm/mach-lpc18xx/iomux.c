@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2012-2013
+ * (C) Copyright 2012-2015
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  * Vladimir Khusainov <vlad@emcraft.com>
@@ -243,51 +243,52 @@ void __init lpc18xx_iomux_init(void)
 	}
 
 	if (p == PLATFORM_LPC18XX_EA_LPC4357_EVAL) {
-#if defined (CONFIG_FB_ARMCLCD)
+
+#if defined (CONFIG_FB_ARMCLCD) || defined(CONFIG_MTD_M25P80_SPIFI)
 		int i;
 #endif
 
-#if defined(CONFIG_LPC18XX_I2C0)
-		writel(LPC18XX_SFSI2C0_CONFIG, LPC18XX_SFSI2C0);
-#endif
-
 #if defined (CONFIG_FB_ARMCLCD)
-static struct iomux_pin_config arm_clcd_iomux[] = {
-	/* RED0->4 */
-	{0x4, 2, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0x8, 7, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-	{0x8, 6, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-	{0x8, 5, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-	{0x8, 4, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
 
-	/* GREEN0->5 */
-	{0x4, 10, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0x4, 9, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0x8, 3, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-	{0xB, 6, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0xB, 5, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0xB, 4, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		static struct iomux_pin_config arm_clcd_iomux[] = {
 
-	/* BLUE0->4 */
-	{0x7, 1, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-	{0xB, 3, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0xB, 2, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0xB, 1, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	{0xB, 0, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		/* RED0->4 */
+		{0x4, 2, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0x8, 7, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+		{0x8, 6, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+		{0x8, 5, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+		{0x8, 4, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
 
-	/* LCD_FP */
-	{0x4, 5, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	/* LCD_ENAB */
-	{0x4, 6, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
-	/* LCD_DCLK */
-	{0x4, 7, LPC18XX_IOMUX_CONFIG(0, 0, 1, 1, 1, 0)},
-	/* LCD_LE */
-	{0x7, 0, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-	/* LCD_LP */
-	{0x7, 6, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-	/* LCD_PWR */
-	{0x7, 7, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
-};
+		/* GREEN0->5 */
+		{0x4, 10, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0x4, 9, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0x8, 3, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+		{0xB, 6, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0xB, 5, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0xB, 4, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+
+		/* BLUE0->4 */
+		{0x7, 1, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+		{0xB, 3, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0xB, 2, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0xB, 1, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		{0xB, 0, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+
+		/* LCD_FP */
+		{0x4, 5, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		/* LCD_ENAB */
+		{0x4, 6, LPC18XX_IOMUX_CONFIG(2, 0, 1, 1, 1, 0)},
+		/* LCD_DCLK */
+		{0x4, 7, LPC18XX_IOMUX_CONFIG(0, 0, 1, 1, 1, 0)},
+		/* LCD_LE */
+		{0x7, 0, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+		/* LCD_LP */
+		{0x7, 6, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+		/* LCD_PWR */
+		{0x7, 7, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 0)},
+
+		};
+
 		for (i = 0; i < ARRAY_SIZE(arm_clcd_iomux); i++) {
 			struct iomux_pin_config *p = &arm_clcd_iomux[i];
 			lpc18xx_pin_config(p->group, p->pin, p->mask);
@@ -303,17 +304,21 @@ static struct iomux_pin_config arm_clcd_iomux[] = {
 		 * Configure I2C1 pins I2C1_SDA and I2C1_SCL: setup EHS, EZI,
 		 * ZIF bits (refer to section 15.4.1 of UM)
 		 */
-		lpc18xx_pin_config(0x2, 3, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
-		lpc18xx_pin_config(0x2, 4, LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
+		lpc18xx_pin_config(0x2, 3,
+				LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
+		lpc18xx_pin_config(0x2, 4,
+				LPC18XX_IOMUX_CONFIG(1, 0, 0, 1, 1, 1));
 #endif
 
 #if defined(CONFIG_MTD_M25P80_SPIFI)
 		/* Setup SPIFI pins */
 		for (i = 3; i <= 7; ++i) {
-			lpc18xx_pin_config(0x3, i, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 1));
+			lpc18xx_pin_config(0x3, i,
+				LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 1, 1));
 		}
 		/* SSEL is output only */
-		lpc18xx_pin_config(0x3, 8, LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 0, 0));
+		lpc18xx_pin_config(0x3, 8,
+				LPC18XX_IOMUX_CONFIG(3, 0, 1, 1, 0, 0));
 #endif
 	}
 }
