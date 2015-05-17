@@ -85,7 +85,7 @@ int lpc18xx_platform_get(void)
 }
 
 /*
- * Interface to get the SmartFusion device
+ * Find a specific LPC18XX/LPC43XX device we are running on
  */
 EXPORT_SYMBOL(lpc18xx_device_get);
 int lpc18xx_device_get(void)
