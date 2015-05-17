@@ -1,7 +1,7 @@
 /*
  * NOR flash registration for LPC18xx/LPC43xx-based boards
  *
- * Copyright (C) 2011, 2012
+ * Copyright (C) 2011-2015
  * Vladimir Khusainov, Emcraft Systems, vlad@emcraft.com
  * Sergei Poselenov, Emcraft Systems, sposelenov@emcraft.com
  * Alexander Potashev, Emcraft Systems, aspotashev@emcraft.com
@@ -121,6 +121,8 @@ void __init lpc18xx_nor_flash_init(void)
 	case PLATFORM_LPC18XX_HITEX_LPC1850_EVAL:
 		size = 4*1024*1024;
 		break;
+	case PLATFORM_LPC18XX_EA_LPC4357_EVAL:
+		goto out;
 	default:
 		printk(KERN_ERR "%s: Unknown platform %#x, exit\n", __func__,
 			lpc18xx_platform_get());
