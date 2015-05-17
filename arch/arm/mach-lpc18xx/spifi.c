@@ -1,9 +1,10 @@
 /*
  * linux/arch/arm/mach-lpc18xx/spifi.c
  *
- * Copyright (C) 2014 Emcraft Systems
+ * Copyright (C) 2014-2015 Emcraft Systems
  *
  * Pavel Boldin <paboldin@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,12 +23,18 @@
 
 #include <linux/init.h>
 #include <linux/list.h>
-
 #include <linux/mtd/partitions.h>
 #include <linux/spi/flash.h>
 #include <linux/platform_device.h>
 
+#include <mach/lpc18xx.h>
+#include <mach/platform.h>
+
+/*
+ * LPC18XX SPIFI I/O resources
+ */
 #define LPC18XX_SPIFI_BASE	0x40003000
+
 static struct resource flash_resources[] = {
 	{
 		.start	= LPC18XX_SPIFI_BASE,
@@ -41,30 +48,46 @@ static struct resource flash_resources[] = {
 	},
 };
 
-#define FLASH_IMAGE_OFFSET	0x10000
-#define FLASH_JFFS2_OFFSET	(16*1024*1024)
+/*
+ * SPIFI Flash partitioning information
+ */
+#define FLASH_IMAGE_OFFSET	0x1000
+#define FLASH_JFFS2_OFFSET	(4*1024*1024)
+
 static struct mtd_partition flash_partitions[] = {
 	{
-		.name	= "flash_uboot",
+		.name	= "flash_uboot_env",
 		.offset = 0,
 		.size	= FLASH_IMAGE_OFFSET,
 	},
 	{
 		.name	= "flash_linux_image",
 		.offset = FLASH_IMAGE_OFFSET,
+#if 1
+	/*
+	 * On the EA LPC4357 Dev Kit, SPIFI is only 2MB
+	 * JFFS2 partition doesn't fit
+	 */
+	},
+#else
 		.size	= (FLASH_JFFS2_OFFSET - FLASH_IMAGE_OFFSET),
 	},
 	{
 		.name	= "flash_jffs2",
 		.offset = FLASH_JFFS2_OFFSET,
 	},
+#endif
 };
 
 static struct flash_platform_data flash_data = {
 	.nr_parts	= ARRAY_SIZE(flash_partitions),
 	.parts		= flash_partitions,
+	.type		= "s25fl016k",
 };
 
+/*
+ * SPIFI platform info
+ */
 static struct platform_device flash_dev = {
 	.name           = "m25p80_spifi",
 	.id             = -1,
@@ -77,5 +100,10 @@ static struct platform_device flash_dev = {
 
 void __init lpc18xx_spifi_init(void)
 {
-	platform_device_register(&flash_dev);
+	int p = lpc18xx_platform_get();
+
+	if (p == PLATFORM_LPC18XX_EA_LPC4357_EVAL) {
+
+		platform_device_register(&flash_dev);
+	}
 }
