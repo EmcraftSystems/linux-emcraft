@@ -173,7 +173,17 @@ static void __init lpc18xx_init(void)
 	 */
 	lpc18xx_iomux_init();
 
+	/*
+	 * Configure DMA
+	 */
 	lpc18xx_dma_init();
+
+#if defined(CONFIG_GPIOLIB)
+	/*
+	 * Register LPC18XX GPIO lines
+	 */
+	lpc18xx_gpio_init();
+#endif /* CONFIG_GPIOLIB */
 
 #if defined(CONFIG_SERIAL_8250)
 	/*
@@ -196,6 +206,13 @@ static void __init lpc18xx_init(void)
 	lpc18xx_spi_init();
 #endif
 
+#if defined(CONFIG_I2C_LPC2K)
+	/*
+	 * Configure the I2C bus
+	 */
+	lpc18xx_i2c_init();
+#endif
+
 #if defined(CONFIG_MMC_DW)
 	/*
 	 * Configure the DW MMC
@@ -210,20 +227,19 @@ static void __init lpc18xx_init(void)
 	lpc18xx_nor_flash_init();
 #endif
 
+#if defined(CONFIG_MTD_M25P80_SPIFI)
+	/*
+	 * Configure the M25P80 over SPIFI driver
+	 */
+	lpc18xx_spifi_init();
+#endif
+
 #if defined(CONFIG_FB_ARMCLCD)
 	/*
 	 * Configure framebuffer
 	 */
 	lpc18xx_fb_init();
 #endif
-
-#if defined(CONFIG_GPIOLIB)
-	/*
-	 * Register LPC18XX GPIO lines
-	 */
-	lpc18xx_gpio_init();
-#endif /* CONFIG_GPIOLIB */
-
 
 #if defined(CONFIG_USB_EHCI_LPC43XX)
 	/*
@@ -233,24 +249,17 @@ static void __init lpc18xx_init(void)
 #endif
 
 #if defined(CONFIG_SND_LPC3XXX_SOC)
+	/*
+	 * Configure I2S (audio)
+	 */
 	lpc18xx_i2s_init();
 #endif
 
 #if defined(CONFIG_RTC_DRV_LPC178X)
+	/*
+	 * Configure on-chip RTC
+	 */
 	lpc18xx_rtc_init();
 #endif
 
-#if defined(CONFIG_I2C_LPC2K)
-	/*
-	 * Configure the I2C bus
-	 */
-	lpc18xx_i2c_init();
-#endif
-
-#if defined(CONFIG_MTD_M25P80_SPIFI)
-	/*
-	 * Configure the M25P80 over SPIFI driver
-	 */
-	lpc18xx_spifi_init();
-#endif
 }
