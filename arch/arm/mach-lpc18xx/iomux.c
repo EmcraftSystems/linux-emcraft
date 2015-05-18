@@ -260,22 +260,17 @@ void __init lpc18xx_iomux_init(void)
 		int i;
 #endif
 
-#if defined(CONFIG_GPIOLIB)
+#if defined(CONFIG_GPIOLIB) && defined(CONFIG_GPIO_SYSFS)
+
 		/* 5-key joystick (SW7) */
 		/* GPIO4[8] */
 		lpc18xx_pin_config(0xA, 1, LPC18XX_IOMUX_CONFIG_IN(0));
-		/* GPIO4[9] */
-		lpc18xx_pin_config(0xA, 2, LPC18XX_IOMUX_CONFIG_IN(0));
-		/* GPIO4[10] */
-		lpc18xx_pin_config(0xA, 3, LPC18XX_IOMUX_CONFIG_IN(0));
-		/* GPIO4[12] */
-		lpc18xx_pin_config(0x9, 0, LPC18XX_IOMUX_CONFIG_IN(0));
-		/* GPIO4[13] */
-		lpc18xx_pin_config(0x9, 1, LPC18XX_IOMUX_CONFIG_IN(0));
+#if 0
+		/* User Input */
+		/* GPIOTBD[TBD] */
+		lpc18xx_pin_config(0xTBD, TBD, LPC18XX_IOMUX_CONFIG_OUT(0));
+#endif
 
-		/* User LED */
-		/* GPIO0[14] */
-		lpc18xx_pin_config(0x2, 10, LPC18XX_IOMUX_CONFIG_OUT(0));
 #endif
 
 #if defined (CONFIG_FB_ARMCLCD)
