@@ -43,7 +43,7 @@ static struct resource flash_resources[] = {
 	},
 	{
 		.start	= 0x14000000,
-		.end	= 0x14000000 + 32 * 1024 * 1024,
+		.end	= 0x14000000 + 2 * 1024 * 1024,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -60,21 +60,19 @@ static struct mtd_partition flash_partitions[] = {
 		.offset = 0,
 		.size	= FLASH_IMAGE_OFFSET,
 	},
-	{
-		.name	= "flash_linux_image",
-		.offset = FLASH_IMAGE_OFFSET,
 #if 1
 	/*
 	 * On the EA LPC4357 Dev Kit, SPIFI is only 2MB
-	 * JFFS2 partition doesn't fit
+	 * A JFFS2 partition doesn't fit in
 	 */
+	{
+		.name	= "flash_linux_image",
+		.offset = FLASH_IMAGE_OFFSET,
 	},
 #else
-		.size	= (FLASH_JFFS2_OFFSET - FLASH_IMAGE_OFFSET),
-	},
 	{
 		.name	= "flash_jffs2",
-		.offset = FLASH_JFFS2_OFFSET,
+		.offset = FLASH_IMAGE_OFFSET,
 	},
 #endif
 };
