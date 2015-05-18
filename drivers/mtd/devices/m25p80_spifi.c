@@ -2,12 +2,14 @@
  * MTD SPIFI driver for ST M25Pxx (and similar) driven over SPIFI LPC43XX block
  *
  * Author: Mike Lavender, mike@steroidmicros.com
- *
  * Copyright (c) 2005, Intec Automation Inc.
- *
  * Some parts are based on lart.c by Abraham Van Der Merwe
- *
  * Cleaned up and generalized based on mtd_dataflash.c
+ *
+ * Copyright (C) 2014-2015 Emcraft Systems
+ * Pavel Boldin <paboldin@emcraft.com>
+ * Vladimir Khusainov <vlad@emcraft.com>
+ * Support for the LPC43XX SPIFI interface
  *
  * This code is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -594,8 +596,9 @@ static int m25p80_spifi_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 			wait_till_ready(flash);
 
-			if (flash->spifi_flags & SPIFI_WEN_EACH)
+			if (flash->spifi_flags & SPIFI_WEN_EACH) {
 				write_enable(flash);
+			}
 
 			spifi_program(flash, to + i, buf + i, page_size);
 
@@ -702,11 +705,16 @@ static struct platform_device_id m25p_spifi_ids[] = {
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
 	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, 0) },
 	{ "s25fl129p1", INFO(0x012018, 0x4d01,  64 * 1024, 256, 0) },
-	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512, M25P_QUAD | M25P_WEN_EACH) },
-	{ "s25fl008k",  INFO(0xef4014,      0,  64 * 1024,  16, SECT_4K) },
-	{ "s25fl016k",  INFO(0xef4015,      0,  64 * 1024,  32, SECT_4K) },
-	{ "s25fl064k",  INFO(0xef4017,      0,  64 * 1024, 128, SECT_4K) },
-	{ "s25fl132k",  INFO(0x014016,      0,  64 * 1024,  64, 0) },
+	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512,
+		M25P_QUAD | M25P_WEN_EACH) },
+	{ "s25fl008k",  INFO(0xef4014,      0,  64 * 1024,  16,
+		SECT_4K | M25P_QUAD | M25P_WEN_EACH) },
+	{ "s25fl016k",  INFO(0xef4015,      0,  64 * 1024,  32,
+		SECT_4K | M25P_QUAD | M25P_WEN_EACH) },
+	{ "s25fl064k",  INFO(0xef4017,      0,  64 * 1024, 128,
+		SECT_4K | M25P_QUAD | M25P_WEN_EACH) },
+	{ "s25fl132k",  INFO(0x014016,      0,  64 * 1024,  64,
+		SECT_4K | M25P_QUAD | M25P_WEN_EACH) },
 
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
 	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8, SECT_4K) },
@@ -846,7 +854,6 @@ static inline int set_4byte(struct m25p_spifi *flash, u32 jedec_id, u8 enable)
 	}
 }
 
-
 /*
  * board specific setup should have ensured the SPI clock used here
  * matches what the READ command supports, at least until this driver
@@ -874,7 +881,6 @@ static int __devinit m25p_spifi_probe(struct platform_device *pdev)
 	}
 
 	flash->mem = (void __iomem*)res->start;
-
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
