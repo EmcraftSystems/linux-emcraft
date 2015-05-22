@@ -72,11 +72,6 @@
  */
 	.macro	v7m_exception_entry
 	cpsid	i
-#ifdef CONFIG_VFPM
-	get_thread_info r0
-	and	r1, lr, #1 << 4		@ VFP clean state
-	str	r1, [r0, #TI_VFPSTATE_CLEAN]
-#endif
 	cmp	lr, #0xfffffffd		@ check the return stack
 #ifdef CONFIG_VFPM
 	cmpne	lr, #0xffffffed

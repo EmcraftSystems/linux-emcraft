@@ -262,6 +262,8 @@ static int restore_vfp_context(struct vfp_sigframe __user *frame)
  * Do a signal return; undo the signal stack.  These are aligned to 64-bit.
  */
 struct sigframe {
+	unsigned long registers_frame[8]; /* {r0-r3, ip, lr, pc, PSR) */
+	unsigned long fpu_high_frame[18]; /* {FPU.s0-s15, FPSCR, 4-byte pad} */
 	struct ucontext uc;
 	unsigned long retcode[2];
 };
@@ -302,6 +304,7 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 	__get_user_error(regs->ARM_sp, &sf->uc.uc_mcontext.arm_sp, err);
 	__get_user_error(regs->ARM_lr, &sf->uc.uc_mcontext.arm_lr, err);
 	__get_user_error(regs->ARM_pc, &sf->uc.uc_mcontext.arm_pc, err);
+	__get_user_error(regs->ARM_ORIG_r0, &sf->uc.uc_mcontext.arm_old_r0, err);
 	__get_user_error(regs->ARM_cpsr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
 	err |= !valid_user_regs(regs);
@@ -412,6 +415,7 @@ setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs, sigset_t *set)
 	__put_user_error(regs->ARM_sp, &sf->uc.uc_mcontext.arm_sp, err);
 	__put_user_error(regs->ARM_lr, &sf->uc.uc_mcontext.arm_lr, err);
 	__put_user_error(regs->ARM_pc, &sf->uc.uc_mcontext.arm_pc, err);
+	__put_user_error(regs->ARM_ORIG_r0, &sf->uc.uc_mcontext.arm_old_r0, err);
 	__put_user_error(regs->ARM_cpsr, &sf->uc.uc_mcontext.arm_cpsr, err);
 
 	__put_user_error(current->thread.trap_no, &sf->uc.uc_mcontext.trap_no, err);

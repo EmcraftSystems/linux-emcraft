@@ -20,53 +20,101 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/sched.h>
 
 #include <asm/thread_notify.h>
+
+#define FPCCR_ADDR	0xe000ef34	/* Floating-point Context Control Register */
+#define FPCCR_ASPEN	(1 << 31)	/* Enable FPU stacking */
+#define FPCCR_LSPEN	(1 << 30)	/* Enable lazy FPU stacking */
+#define FPCCR_LSPACT	(1 << 0)	/* 1 => Deferred (lazy) FPU stacking is waiting to be saved */
+
+#define FPCAR_ADDR	0xe000ef38	/* Floating-point Context Address Register */
+
+#define CPACR_ADDR	0xe000ed88	/* Coprocessor Access Control Register */
+#define CPACR_CP0_FULL	(0x3 << 20)	/* Full access to coprocessor 0 */
+#define CPACR_CP1_FULL	(0x3 << 22)	/* Full access to coprocessor 1 */
+
+#define MVFR0_ADDR	0xe000ef40	/* Media and VFP Feature Register 0 */
+#define MVFR0_SP	0x20		/* Single precision supported in VFPv3 */
+#define MVFR0_SP_MASK	0xf0		/* Single precision supported in VFPv3: Bitmask */
+
 
 static union vfp_state *last_vfp_context;
 
 static void save_vfp_context(union vfp_state *vfp)
 {
-	/* vstmia %0!, {d8-d15} */
 	asm("	stc	p11, cr8, [%0], #16*4\n" : : "r" (vfp) : "cc");
 }
 
 static void load_vfp_context(union vfp_state *vfp)
 {
-	/* vldmia %0!, {d8-d15} */
 	asm("	ldc	p11, cr8, [%0], #16*4\n" : : "r" (vfp) : "cc");
 }
 
 static int vfpm_notifier(struct notifier_block *self, unsigned long cmd,
 			 void *t)
 {
-	struct thread_info *thread = t;
-	union vfp_state *vfp = &thread->vfpstate;
-	union vfp_state *old_vfp = &current_thread_info()->vfpstate;
-	u32 *fpccr = (u32 *)0xe000ef34;
+	struct thread_info *thread_from = current_thread_info();
+	struct thread_info *thread_to = t;
+	union vfp_state *vfp_from = &thread_from->vfpstate;
+	union vfp_state *vfp_to = &thread_to->vfpstate;
+	struct pt_regs *regs_from = task_pt_regs(thread_from->task);
+	struct pt_regs *regs_to = task_pt_regs(thread_to->task);
+	int used_fpu = !!(regs_from->ARM_EXC_lr == 0xffffffed);
+	int will_use_fpu = !!(regs_to->ARM_EXC_lr == 0xffffffed);
+
+	u32 *fpccr = (u32 *)FPCCR_ADDR;
+	u32 *fpcar = (u32 *)FPCAR_ADDR;
+
+	int deferred_fpu_stacking = *fpccr & FPCCR_LSPACT;
 
 	switch (cmd) {
 	case THREAD_NOTIFY_FLUSH:
-		memset(vfp, 0, sizeof(*vfp));
-		vfp->hard.clean = 1;
+		memset(vfp_to, 0, sizeof(*vfp_to));
+		will_use_fpu = 0;
 		/* fall through */
 
 	case THREAD_NOTIFY_EXIT:
-		if (last_vfp_context == vfp) {
-			/* disable lazy state saving */
-			*fpccr &= ~1;
+		if (last_vfp_context == vfp_to) {
+			/* disable deferred FPU stacking */
+			*fpccr &= ~FPCCR_LSPACT;
 			last_vfp_context = NULL;
 		}
 		break;
 
 	case THREAD_NOTIFY_SWITCH:
-		if (!old_vfp->hard.clean) {
-			save_vfp_context(old_vfp);
-			last_vfp_context = old_vfp;
+		if (deferred_fpu_stacking) {
+			save_vfp_context(vfp_from);
+			vfp_from->hard.fpcar = *fpcar;
+			last_vfp_context = vfp_from;
 		}
-		if (!vfp->hard.clean && last_vfp_context != vfp) {
-			load_vfp_context(vfp);
-			last_vfp_context = vfp;
+		if (will_use_fpu && last_vfp_context != vfp_to) {
+			load_vfp_context(vfp_to);
+			*fpcar = vfp_to->hard.fpcar;
+			last_vfp_context = vfp_to;
+		}
+		break;
+
+	case THREAD_NOTIFY_COPY:
+		if (used_fpu) {
+			/* {s8-s15, FPSCR, 4-byte pad */
+			int fp_stack_size = (16 + 1 + 1) * 4;
+
+			save_vfp_context(vfp_from);
+			vfp_from->hard.fpcar = *fpcar;
+			last_vfp_context = vfp_from;
+
+			/* Copy s8-s15 and FPSCR from thread ctx */
+			memcpy(vfp_to, vfp_from, sizeof(*vfp_to));
+
+			/* Copy s0-s7 from stack */
+			regs_to->ARM_sp -= fp_stack_size;
+			vfp_to->hard.fpcar = regs_to->ARM_sp + 32;
+			memcpy((void*)vfp_to->hard.fpcar, (void*)vfp_from->hard.fpcar, fp_stack_size);
+
+		} else {
+			memset(vfp_to, 0, sizeof(*vfp_to));
 		}
 		break;
 	}
