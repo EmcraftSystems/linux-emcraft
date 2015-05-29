@@ -102,6 +102,7 @@ void __init stm32_sdcard_init(void)
 	switch (platform) {
 	case PLATFORM_STM32_STM3220G_EVAL:
 	case PLATFORM_STM32_STM3240G_EVAL:
+	case PLATFORM_STM32_STM_STM32F439_SOM:
 		have_sd = 1;
 		break;
 	default:
@@ -115,7 +116,7 @@ void __init stm32_sdcard_init(void)
 	 * Register the SD card interface of STM32
 	 */
 	amba_ahb_device_add(
-		NULL, "mmci0",
+		NULL, "mmci-pl18x",
 		STM32_SD_BASE, STM32_SD_SIZE, STM32_SD_IRQ, NO_IRQ,
 		&stm32_mci_data, U8500_SDI_V2_PERIPHID);
 

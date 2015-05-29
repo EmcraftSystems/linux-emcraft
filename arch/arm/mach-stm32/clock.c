@@ -328,7 +328,7 @@ static struct clk clk_sai_r = {
 		.con_id		= _conname,		\
 	}
 static struct clk_lookup stm32_clkregs[] = {
-	INIT_CLKREG(&clk_mci, "mmci0", NULL),
+	INIT_CLKREG(&clk_mci, "mmci-pl18x", NULL),
 	INIT_CLKREG(&clk_ltdc, "stm32f4-ltdc.0", NULL),
 	INIT_CLKREG(&clk_sai_r, NULL, "sai_r_clk"),
 };
