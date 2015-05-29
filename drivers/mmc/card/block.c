@@ -38,6 +38,7 @@
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/delay.h>
 
 #include "queue.h"
 
@@ -238,12 +239,14 @@ static u32 get_card_status(struct mmc_card *card, struct request *req)
 	return cmd.resp[0];
 }
 
+#define RQ_RETRY_CNT	10
+
 static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
-	int ret = 1, disable_multi = 0;
+	int ret = 1, disable_multi = 0, retries = 0;
 
 	mmc_claim_host(card->host);
 
@@ -333,6 +336,11 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		mmc_wait_for_req(card->host, &brq.mrq);
 
 		mmc_queue_bounce_post(mq);
+
+		if (brq.data.error == -EAGAIN && retries++ < RQ_RETRY_CNT) {
+			udelay(1000);
+			continue;
+		}
 
 		/*
 		 * Check for errors here, but don't jump to cmd_err

@@ -86,6 +86,7 @@
 #define MCI_CMDRESPEND		(1 << 6)
 #define MCI_CMDSENT		(1 << 7)
 #define MCI_DATAEND		(1 << 8)
+#define MCI_STARTBITERR		(1 << 9)
 #define MCI_DATABLOCKEND	(1 << 10)
 #define MCI_CMDACTIVE		(1 << 11)
 #define MCI_TXACTIVE		(1 << 12)

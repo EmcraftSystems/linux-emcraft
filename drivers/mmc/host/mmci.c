@@ -86,7 +86,7 @@ static struct sddrv_dmac_data dmac_drvdat;
 #define MCI_IRQENABLE \
 	(MCI_CMDCRCFAILMASK | MCI_DATACRCFAILMASK | MCI_CMDTIMEOUTMASK | \
 	MCI_DATATIMEOUTMASK | MCI_TXUNDERRUNMASK | MCI_RXOVERRUNMASK| \
-	MCI_CMDRESPENDMASK | MCI_CMDSENTMASK | MCI_DATAENDMASK)
+	MCI_CMDRESPENDMASK | MCI_CMDSENTMASK | MCI_DATAENDMASK | MCI_STARTBITERR)
 
 #endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
@@ -806,12 +806,14 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 	}
 #endif /* CONFIG_LPC178X_SD_DMA || CONFIG_STM32_SD_DMA */
 
-	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
+	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN|MCI_STARTBITERR)) {
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ (status %08x)\n", status);
 		if (status & MCI_DATACRCFAIL)
 			data->error = -EILSEQ;
 		else if (status & MCI_DATATIMEOUT)
 			data->error = -ETIMEDOUT;
+		else if (status & MCI_STARTBITERR)
+			data->error = -EAGAIN;
 		else if (status & (MCI_TXUNDERRUN|MCI_RXOVERRUN))
 			data->error = -EIO;
 		status |= MCI_DATAEND;
@@ -1098,7 +1100,7 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 
 		data = host->data;
 		if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|
-			      MCI_RXOVERRUN|MCI_DATAEND|MCI_DATABLOCKEND) && data)
+			      MCI_RXOVERRUN|MCI_DATAEND|MCI_DATABLOCKEND|MCI_STARTBITERR) && data)
 			mmci_data_irq(host, data, status);
 
 		cmd = host->cmd;
