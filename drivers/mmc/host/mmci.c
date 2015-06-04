@@ -558,10 +558,13 @@ static struct variant_data variant_ux500 = {
 	.fifosize		= 30 * 4,
 	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
-#if defined(CONFIG_STM32_SD_DMA)
+#if defined(CONFIG_STM32_SD_DMA) && !defined(CONFIG_ARCH_STM32F7)
 	/*
 	 * On STM32, do not use HW flow control as recommended
 	 * in the STM32F20x/STM32F21x errata sheet.
+	 * STM32F7 errata sheet does not list this issue and
+	 * it sometimes fails due TX FIFO underrun condition without the
+	 * flow control, so we enable the flow control for STM32F7.
 	 */
 	.clkreg_enable		= 0,
 #else
@@ -630,6 +633,15 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 static void
 mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 {
+	/*
+	 * Add minimal delay to ensure that MMCICOMMAND is accessed
+	 * with no violation of this rule from the STM32F7 manual:
+	 * "After a data write, data cannot be written to this register
+	 * for three SDMMCCLK (48 MHz) clock periods plus two PCLK2
+	 * clock periods."
+	 */
+	udelay(1);
+
 	writel(0, host->base + MMCICOMMAND);
 
 	BUG_ON(host->data);

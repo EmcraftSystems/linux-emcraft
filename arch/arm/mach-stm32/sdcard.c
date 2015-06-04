@@ -103,6 +103,7 @@ void __init stm32_sdcard_init(void)
 	case PLATFORM_STM32_STM3220G_EVAL:
 	case PLATFORM_STM32_STM3240G_EVAL:
 	case PLATFORM_STM32_STM_STM32F439_SOM:
+	case PLATFORM_STM32_STM_STM32F7_SOM:
 		have_sd = 1;
 		break;
 	default:
