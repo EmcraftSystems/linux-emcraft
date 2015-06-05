@@ -75,11 +75,7 @@ static unsigned int mmc_card_detect(struct device *dev)
 static struct mmci_platform_data stm32_mci_data = {
 	.ios_handler = stm32_ios_handler,
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34,
-#ifdef CONFIG_STM32_SD_DMA
 	.f_max = 25000000,
-#else
-	.f_max = 400000,
-#endif /* CONFIG_STM32_SD_DMA */
 	.capabilities = MMC_CAP_4_BIT_DATA,
 	.gpio_cd = -1,
 	.gpio_wp = -1,

@@ -847,7 +847,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		}
 	}
 
-	if (status & MCI_DATAEND) {
+	if (status & (MCI_DATAEND|MCI_DATABLOCKEND)) {
 #if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 		if (data->flags & MMC_DATA_READ) {
 #if defined(CONFIG_LPC178X_SD_DMA)
@@ -1095,7 +1095,8 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 		status = readl(host->base + MMCISTATUS);
 
 		if (host->singleirq) {
-			if (status & readl(host->base + MMCIMASK1))
+			if (status &
+				(readl(host->base + MMCIMASK0) & MCI_IRQ1MASK))
 				mmci_pio_irq(irq, dev_id);
 
 			status &= ~MCI_IRQ1MASK;
@@ -1444,10 +1445,18 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	 */
 	mmc->max_blk_size = 2048;
 
+#if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	/*
 	 * No limit on the number of blocks transferred.
 	 */
 	mmc->max_blk_count = mmc->max_req_size;
+#else
+	/*
+	 * Some SD cards fail to be read in PIO mode with multiple block
+	 * transactions
+	 */
+	mmc->max_blk_count = 1;
+#endif
 
 #if defined(CONFIG_LPC178X_SD_DMA) || defined(CONFIG_STM32_SD_DMA)
 	/*
