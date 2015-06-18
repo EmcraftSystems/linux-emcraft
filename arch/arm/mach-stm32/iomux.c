@@ -351,6 +351,7 @@ void __init stm32_iomux_init(void)
 	/* STM32F2-based platforms */
 	case PLATFORM_STM32_STM_STM32F439_SOM:
 	case PLATFORM_STM32_STM_STM32F7_SOM:
+	case PLATFORM_STM32_STM32F7_DISCO:
 
 #if defined(CONFIG_STM32_USART1)
 		gpio_dsc.port = 1;
@@ -369,6 +370,15 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.port = 2;
 		gpio_dsc.pin  = 11;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART3);
+#endif
+#if defined(CONFIG_STM32_USART6)
+		gpio_dsc.port = 2;
+		gpio_dsc.pin  = 6;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART6);
+
+		gpio_dsc.port = 2;
+		gpio_dsc.pin  = 7;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART6);
 #endif
 
 		goto uartdone;

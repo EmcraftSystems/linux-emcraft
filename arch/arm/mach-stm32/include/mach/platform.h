@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2011
+ * (C) Copyright 2011-2015
  * Emcraft Systems, <www.emcraft.com>
  * Yuri Tikhonov <yur@emcraft.com>
  *
@@ -51,6 +51,7 @@
 #define PLATFORM_STM32_STM_STM32F439_SOM	3
 #define PLATFORM_STM32_STM_DISCO		4
 #define PLATFORM_STM32_STM_STM32F7_SOM		5
+#define PLATFORM_STM32_STM32F7_DISCO		6
 #else
 /* STM32F1-based */
 #define PLATFORM_STM32_SWISSEMBEDDED_COMM	1000

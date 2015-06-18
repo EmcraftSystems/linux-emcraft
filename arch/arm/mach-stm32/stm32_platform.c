@@ -111,6 +111,7 @@ int stm32_device_get(void)
 		r = DEVICE_STM32F439II;
 		break;
 	case PLATFORM_STM32_STM_STM32F7_SOM:
+	case PLATFORM_STM32_STM32F7_DISCO:
 		r = DEVICE_STM32F746NG;
 		break;
 #endif
@@ -146,6 +147,8 @@ static int __init stm32_platform_parse(char *s)
 		stm32_platform = PLATFORM_STM32_STM_STM32F439_SOM;
 	else if (!strcmp(s, "stm32f7-som"))
 		stm32_platform = PLATFORM_STM32_STM_STM32F7_SOM;
+	else if (!strcmp(s, "stm32f7-disco"))
+		stm32_platform = PLATFORM_STM32_STM32F7_DISCO;
 	else if (!strcmp(s, "stm-disco"))
 		stm32_platform = PLATFORM_STM32_STM_DISCO;
 #endif
