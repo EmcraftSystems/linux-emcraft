@@ -173,6 +173,12 @@ void __init a2f_i2c_init(void)
 #endif
 
 #endif
+	} else if (p == PLATFORM_A2F500_SOM) {
+#ifdef CONFIG_RTC_DRV_RX6110
+		static struct i2c_board_info i2c_rtc = {
+			I2C_BOARD_INFO("rx6110-i2c", 0x32)
+		};
+		i2c_register_board_info(1, &i2c_rtc, 1);
+#endif
 	}
 }
-

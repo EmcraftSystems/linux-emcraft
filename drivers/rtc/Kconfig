@@ -305,6 +305,14 @@ config RTC_DRV_RX8581
 	  This driver can also be built as a module. If so the module
 	  will be called rtc-rx8581.
 
+config RTC_DRV_RX6110
+	tristate "Epson RX-6110"
+	help
+	  If you say yes here you will get support for the Epson RX-6110.
+
+	  This driver can also be built as a module. If so the module
+	  will be called rtc-rx6110.
+
 config RTC_DRV_RX8025
 	tristate "Epson RX-8025SA/NB"
 	help
