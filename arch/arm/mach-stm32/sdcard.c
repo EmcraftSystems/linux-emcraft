@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2012,2013
+ * (C) Copyright 2012-2015
  * Emcraft Systems, <www.emcraft.com>
  * Alexander Potashev <aspotashev@emcraft.com>
  * Vladimir Khusainov <vlad@emcraft.com>
@@ -100,6 +100,7 @@ void __init stm32_sdcard_init(void)
 	case PLATFORM_STM32_STM3240G_EVAL:
 	case PLATFORM_STM32_STM_STM32F439_SOM:
 	case PLATFORM_STM32_STM_STM32F7_SOM:
+	case PLATFORM_STM32_STM32F7_DISCO:
 		have_sd = 1;
 		break;
 	default:
