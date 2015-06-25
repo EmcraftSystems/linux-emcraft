@@ -429,7 +429,8 @@ uartdone:
 			if (platform == PLATFORM_STM32_STM_SOM ||
 			    platform == PLATFORM_STM32_STM_DISCO ||
 			    platform == PLATFORM_STM32_STM_STM32F439_SOM ||
-			    platform == PLATFORM_STM32_STM_STM32F7_SOM) {
+			    platform == PLATFORM_STM32_STM_STM32F7_SOM ||
+			    platform == PLATFORM_STM32_STM32F7_DISCO) {
 				for (i = 0; i < ARRAY_SIZE(rmii_gpio); i++) {
 					stm32f2_gpio_config(&rmii_gpio[i],
 						STM32F2_GPIO_ROLE_ETHERNET);
