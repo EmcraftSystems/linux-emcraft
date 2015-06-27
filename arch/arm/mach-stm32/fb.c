@@ -77,13 +77,19 @@ static struct i2c_board_info __initdata emcraft_iot_lcd_crtouch = {
 };
 #endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 
-static int emcraft_iot_lcd_init(int init)
+static int stm32f4x9_fb_lcd_init(int init)
 {
+	int p = stm32_platform_get();
+
+	if (p == PLATFORM_STM32_STM32F7_DISCO) {
+		gpio_direction_output(STM32_GPIO_PORTPIN2NUM(7, 3), 0);
+	}
+
 #if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT)
 	/*
 	 * Set wake-up active
 	 */
-	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM)
+	else if (p == PLATFORM_STM32_STM_STM32F7_SOM)
 		gpio_direction_output(STM32_GPIO_PORTPIN2NUM(7, 3), 0);
 #endif
 
@@ -105,7 +111,7 @@ void __init stm32f4x9_fb_init(void)
 		 */
 		i2c_register_board_info(0, &emcraft_iot_lcd_crtouch, 1);
 #endif
-		stm32f4x9_fb_data.init = emcraft_iot_lcd_init;
+		stm32f4x9_fb_data.init = stm32f4x9_fb_lcd_init;
 		ret = platform_device_register(&stm32f4_fb_device);
 	}
 
