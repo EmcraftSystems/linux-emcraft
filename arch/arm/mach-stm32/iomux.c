@@ -624,6 +624,16 @@ uartdone:
 		gpio_dsc.pin  = 2;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
 	}
+	if (platform == PLATFORM_STM32_STM32F7_DISCO) {
+		/* PI11 = User Push Button */
+		gpio_dsc.port = 8;
+		gpio_dsc.pin  = 11;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_IN_PUP);
+		/* PI1 = LED LD1 */
+		gpio_dsc.port = 8;
+		gpio_dsc.pin  = 1;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_OUT);
+	}
 
 	/*
 	 * Pin configuration for the User Push Button and User LEDs
