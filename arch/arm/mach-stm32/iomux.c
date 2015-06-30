@@ -577,7 +577,6 @@ uartdone:
 				{0, 5 }, /* CLK PA5 */
 				{2, 0 }, /* STP PC0 */
 				{7, 4 }, /* NXT PH4 */
-				{8, 11}, /* DIR PI11 */
 
 				{0, 3 }, /* DATA0 PA3  */
 				{1, 0 }, /* DATA1 PB0  */
@@ -594,6 +593,16 @@ uartdone:
 				stm32f2_gpio_config(&otg_gpio[i],
 						    STM32F2_GPIO_ROLE_USB_OTG);
 			}
+
+			/* configure ULPI_DIR */
+			if (platform == PLATFORM_STM32_STM32F7_DISCO) {
+				struct stm32f2_gpio_dsc ulpi_dir = { 2, 2 };
+				stm32f2_gpio_config(&ulpi_dir, STM32F2_GPIO_ROLE_USB_OTG);
+			} else /* default */ {
+				struct stm32f2_gpio_dsc ulpi_dir = { 8, 11 };
+				stm32f2_gpio_config(&ulpi_dir, STM32F2_GPIO_ROLE_USB_OTG);
+			}
+
 		} while (0);
 #endif /* defined(CONFIG_STM32_USB_OTG_HS) */
 
