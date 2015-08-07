@@ -87,6 +87,12 @@ out:
 }
 
 static const struct stm32f2_dma_ch_config stm32f2_dmamux_table[] = {
+#if defined(CONFIG_I2C_STM32F7)
+	/* I2C1 Rx: {DMA1-stream0, channel1} or {DMA2-stream5, channel1} */
+	{STM32F7_DMACH_I2C_RX, 1},
+	/* I2C1 Tx: {DMA1-stream6, channel1} or {DMA2-stream7, channel1} */
+	{STM32F7_DMACH_I2C_TX, 1},
+#endif
 	/*
 	 * DMA2 request mapping (channels 7-15)
 	 */

@@ -236,7 +236,7 @@ static void __init stm32_init(void)
 	stm32_spi_init();
 #endif
 
-#if defined(CONFIG_I2C_STM32)
+#if defined(CONFIG_I2C_STM32) || defined(CONFIG_I2C_STM32F7)
 	/*
 	 * Configure the STM32 I2C devices
 	 */

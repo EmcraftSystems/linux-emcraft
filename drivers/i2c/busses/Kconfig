@@ -559,9 +559,15 @@ config I2C_SIMTEC
 
 config I2C_STM32
 	tristate "STM32 I2C support"
-	depends on MACH_STM32
+	depends on MACH_STM32 && !ARCH_STM32F7
 	help
 	  This is the I2C bus driver for the STM32F2/F4.
+
+config I2C_STM32F7
+	tristate "STM32F7 I2C support"
+	depends on ARCH_STM32F7
+	help
+	  This is the I2C bus driver for the STM32F7.
 
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"

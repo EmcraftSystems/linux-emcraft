@@ -61,7 +61,11 @@ static struct resource i2c_stm32_dev1_resources[] = {
 };
 
 static struct platform_device i2c_stm32_dev1 = {
+#if defined (CONFIG_ARCH_STM32F7)
+	.name           = "i2c_stm32f7",
+#else
 	.name           = "i2c_stm32",
+#endif
 	.id             = 0,
 	.num_resources  = ARRAY_SIZE(i2c_stm32_dev1_resources),
 	.resource       = i2c_stm32_dev1_resources,
@@ -191,7 +195,8 @@ void __init stm32_i2c_init(void)
  	 * Perform board-specific I2C device registration
  	 */
 	if (p == PLATFORM_STM32_STM_SOM ||
-	    p == PLATFORM_STM32_STM_STM32F439_SOM) {
+	    p == PLATFORM_STM32_STM_STM32F439_SOM ||
+	    p == PLATFORM_STM32_STM_STM32F7_SOM) {
 #if defined(CONFIG_STM32_I2C1)
 
 		/*

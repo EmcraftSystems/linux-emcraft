@@ -31,6 +31,15 @@
  * DMA channels ("streams" in terms of STM32) used for particular DMA requests
  */
 #ifndef CONFIG_ARCH_STM32F1
+#if defined(CONFIG_I2C_STM32F7)
+/*
+ * STM32F7
+ */
+/* I2C: Rx - DMA1, stream0 */
+#define STM32F7_DMACH_I2C_RX	0
+/* I2C: Tx - DMA1, stream6 */
+#define STM32F7_DMACH_I2C_TX	6
+#endif
 /*
  * STM32F2
  */
