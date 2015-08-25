@@ -139,10 +139,6 @@ int ks8051_suspend(struct phy_device *phydev)
 	regval |= BMCR_PDOWN;
 	phy_write(phydev, MII_BMCR, regval);
 
-	if (phydev->dev_flags & MICREL_PHY_EXT_OSC) {
-		gpio_set_value(31, 0);
-	}
-
 out:
 	mutex_unlock(&phydev->lock);
 
@@ -153,11 +149,6 @@ int ks8051_resume(struct phy_device *phydev)
 {
 	int regval, ret = 0;
 	mutex_lock(&phydev->lock);
-
-	if (phydev->dev_flags & MICREL_PHY_EXT_OSC) {
-		gpio_set_value(31, 1);
-		msleep(3); /* Startup time from datasheet */
-	}
 
 	if (phydev->dev_flags & MICREL_PHY_PM_SLOW_OSC) {
 		/* Slow oscillator mode */
@@ -218,6 +209,24 @@ static struct phy_driver ks8041_driver = {
 	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
+	.ack_interrupt	= kszphy_ack_interrupt,
+	.config_intr	= kszphy_config_intr,
+	.driver		= { .owner = THIS_MODULE,},
+};
+
+static struct phy_driver ks8081_driver = {
+	.phy_id		= PHY_ID_KS8081,
+	.phy_id_mask	= 0x00fffff0,
+	.name		= "Micrel KS8081",
+	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
+				| SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.config_init	= ks8051_config_init,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.suspend	= ks8051_suspend,
+	.resume		= ks8051_resume,
+	.probe		= ks8051_probe,
 	.ack_interrupt	= kszphy_ack_interrupt,
 	.config_intr	= kszphy_config_intr,
 	.driver		= { .owner = THIS_MODULE,},
@@ -285,15 +294,23 @@ static int __init ksphy_init(void)
 	ret = phy_driver_register(&ks8737_driver);
 	if (ret)
 		goto err3;
+
 	ret = phy_driver_register(&ks8041_driver);
 	if (ret)
 		goto err4;
+
 	ret = phy_driver_register(&ks8051_driver);
 	if (ret)
 		goto err5;
 
+	ret = phy_driver_register(&ks8081_driver);
+	if (ret)
+		goto err6;
+
 	return 0;
 
+err6:
+	phy_driver_unregister(&ks8051_driver);
 err5:
 	phy_driver_unregister(&ks8041_driver);
 err4:
@@ -313,6 +330,7 @@ static void __exit ksphy_exit(void)
 	phy_driver_unregister(&ksz9021_driver);
 	phy_driver_unregister(&ks8041_driver);
 	phy_driver_unregister(&ks8051_driver);
+	phy_driver_unregister(&ks8081_driver);
 }
 
 module_init(ksphy_init);
@@ -328,6 +346,7 @@ static struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KS8737, 0x00ffffff },
 	{ PHY_ID_KS8041, 0x00ffffff },
 	{ PHY_ID_KS8051, 0x00ffffff },
+	{ PHY_ID_KS8081, 0x00ffffff },
 	{ }
 };
 

@@ -7,6 +7,7 @@
 #define PHY_ID_KS8737		0x00221720
 #define PHY_ID_KS8041		0x00221510
 #define PHY_ID_KS8051		0x00221550
+#define PHY_ID_KS8081		0x00221560
 /* both for ks8001 Rev. A/B, and for ks8721 Rev 3. */
 #define PHY_ID_KS8001		0x0022161A
 
