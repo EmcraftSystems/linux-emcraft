@@ -111,6 +111,11 @@ config STM32_I2C3
 	bool "Enable STM32 I2C3 port"
 	default n
 
+config STM32_I2C4
+	depends on I2C_STM32F7
+	bool "Enable STM32 I2C4 port"
+	default n
+
 config STM32_SD
 	depends on ARCH_STM32 && MMC_ARMMMCI
 	bool "Enable STM32 SD Card interface"

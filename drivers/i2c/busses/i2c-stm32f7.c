@@ -697,7 +697,7 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	 * Get the bus # from the platform device:
 	 */
 	bus = dev->id;
-	if (! (0 <= bus && bus <= 2)) {
+	if (! (0 <= bus && bus <= 3)) {
 		dev_err(&dev->dev, "invalid bus number %d\n", bus);
 		ret = -ENXIO;
 		goto Error_release_nothing;

@@ -135,6 +135,7 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_I2C1,		/* I2C1				      */
 	STM32F2_GPIO_ROLE_I2C2,		/* I2C2				      */
 	STM32F2_GPIO_ROLE_I2C3,		/* I2C3				      */
+	STM32F2_GPIO_ROLE_I2C4,		/* I2C4				      */
 	STM32F2_GPIO_ROLE_SDIO,		/* SDIO				      */
 	STM32F2_GPIO_ROLE_USB_OTG,	/* USB OTG			      */
 	STM32F2_GPIO_ROLE_LTDC,		/* LCD controller		      */
@@ -223,6 +224,7 @@ static int stm32f2_gpio_config(
 	case STM32F2_GPIO_ROLE_I2C1:
 	case STM32F2_GPIO_ROLE_I2C2:
 	case STM32F2_GPIO_ROLE_I2C3:
+	case STM32F2_GPIO_ROLE_I2C4:
 		otype  = STM32F2_GPIO_OTYPE_OD;
 		ospeed = STM32F2_GPIO_SPEED_2M;
 		pupd   = STM32F2_GPIO_PUPD_UP;
@@ -529,20 +531,34 @@ uartdone:
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C1);
 #endif
 #if defined(CONFIG_STM32_I2C2)
-#error		IOMUX for STM32 I2C2 undefined
+		gpio_dsc.port = 1;	/* SCL: PB10*/
+		gpio_dsc.pin  = 10;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C2);
+
+		gpio_dsc.port = 1;	/* SDA: PB11*/
+		gpio_dsc.pin  = 11;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C2);
 #endif
 #if defined(CONFIG_STM32_I2C3)
-		gpio_dsc.port = 0;	/* SCL */
+		gpio_dsc.port = 0;	/* SCL: PA8*/
 		gpio_dsc.pin  = 8;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C3);
 
-		gpio_dsc.port = 2;	/* SDA */
+		gpio_dsc.port = 2;	/* SDA: PC9*/
 		gpio_dsc.pin  = 9;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C3);
 #endif
+#if defined(CONFIG_STM32_I2C4)
+		gpio_dsc.port = 7;	/* SCL: PH11*/
+		gpio_dsc.pin  = 11;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C4);
+
+		gpio_dsc.port = 7;	/* SDA: PH12*/
+		gpio_dsc.pin  = 12;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_I2C4);
+#endif
 
 #if defined(CONFIG_MMC_ARMMMCI) || defined(CONFIG_MMC_ARMMMCI_MODULE)
-
 		do {
 			static struct stm32f2_gpio_dsc sdcard_gpio[] = {
 				{2,  8}, {2,  9}, {2, 10}, {2, 11},
