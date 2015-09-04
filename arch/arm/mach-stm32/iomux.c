@@ -69,6 +69,7 @@
 #define STM32F2_GPIO_AF_I2C1	0x04
 #define STM32F2_GPIO_AF_I2C2	0x04
 #define STM32F2_GPIO_AF_I2C3	0x04
+#define STM32F2_GPIO_AF_I2C4	0x04
 
 /*
  * SPI AF
@@ -117,6 +118,7 @@
 
 /*
  * GPIO roles (alternative functions); role determines by whom GPIO is used
+ * WARNING: enums must be in sync with af_val[]!
  */
 enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_USART1,	/* USART1			      */
@@ -173,6 +175,7 @@ static const u32 af_val[] = {
 	STM32F2_GPIO_AF_SPI1, STM32F2_GPIO_AF_SPI2, STM32F2_GPIO_AF_SPI3,
 	STM32F2_GPIO_AF_SPI4, STM32F2_GPIO_AF_SPI5, STM32F2_GPIO_AF_SPI6,
 	STM32F2_GPIO_AF_I2C1, STM32F2_GPIO_AF_I2C2, STM32F2_GPIO_AF_I2C3,
+	STM32F2_GPIO_AF_I2C4,
 	STM32F2_GPIO_AF_SDIO, STM32F2_GPIO_AF_USB_OTG,
 	STM32F2_GPIO_AF_LTDC,
 	0
