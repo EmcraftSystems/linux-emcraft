@@ -34,7 +34,7 @@ SECTIONS
 		_stext = .;
 		_sinittext = .;
 			HEAD_TEXT
-#if !defined(CONFIG_M2S_CACHE) && !defined(CONFIG_KERNEL_IN_ENVM)
+#if !defined(CONFIG_M2S_CACHE)
 			INIT_TEXT
 #endif
 		_einittext = .;
@@ -61,7 +61,7 @@ SECTIONS
 			*(.taglist.init)
 		__tagtable_end = .;
 
-#if !defined(CONFIG_M2S_CACHE) && !defined(CONFIG_KERNEL_IN_ENVM)
+#if !defined(CONFIG_M2S_CACHE)
 		INIT_SETUP(16)
 #endif
 
@@ -69,7 +69,7 @@ SECTIONS
 			*(.early_param.init)
 		__early_end = .;
 
-#if !defined(CONFIG_M2S_CACHE) && !defined(CONFIG_KERNEL_IN_ENVM)
+#if !defined(CONFIG_M2S_CACHE)
 		INIT_CALLS
 		CON_INITCALL
 		SECURITY_INITCALL
@@ -148,12 +148,6 @@ SECTIONS
 		_envm_start = .;
 
 #if CONFIG_KERNEL_IN_ENVM_SIZE>0
-		INIT_TEXT
-		INIT_SETUP(16)
-		INIT_CALLS
-		CON_INITCALL
-		SECURITY_INITCALL
-		INIT_RAM_FS
 		__exception_text_start = .;
 		*(.exception.text*)
 		*(.exception.rodata*)
@@ -199,8 +193,10 @@ SECTIONS
 		drivers/built-in.o(.rodata*)
 		fs/built-in.o(.text)
 		fs/built-in.o(.rodata*)
+#if 0
 		net/built-in.o(.text)
 		net/built-in.o(.rodata*)
+#endif
 
 #endif /* CONFIG_KERNEL_IN_ENVM_SIZE>384 */
 #endif /* CONFIG_KERNEL_IN_ENVM_SIZE>128 */
@@ -306,23 +302,6 @@ SECTIONS
 		_edata = .;
 	}
 	_edata_loc = __data_loc + SIZEOF(.data);
-
-#ifdef SRAM_PHYS_OFFSET
-/*
- * SRAM code for Flash/SDRAM issue, see errata 2.8.7
- */
-	. = ALIGN(PAGE_SIZE);
-	__sram_loc = .;
-	.sram SRAM_PHYS_OFFSET + vector_table_end - vector_table : AT(__sram_loc) {
-		_sram_start = .;
-		*(.sram.text)
-		*(.sram.data)
-		_sram_end = .;
-	}
-	_esram_loc = __sram_loc + SIZEOF(.sram);
-	. = _esram_loc;
-	. = ALIGN(4);
-#endif
 
 #ifdef CONFIG_HAVE_TCM
         /*
