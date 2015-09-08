@@ -49,7 +49,7 @@
 #ifdef CONFIG_ARCH_STM32F1
 #define STM32_NR_UARTS		4	/* STM32F1 */
 #else
-#define STM32_NR_UARTS		6	/* STM32F2 */
+#define STM32_NR_UARTS		8	/* STM32F4 */
 #endif
 
 #define STM32_USART_NAME	"ttyS"
@@ -321,7 +321,11 @@ static struct stm32_dma_ini	stm32_usart_rx_dma[STM32_NR_UARTS] = {
 	/* USART5 */
 	{STM32_DMA_STREAM_0, STM32_DMA_CHAN_4},
 	/* USART6 */
-	{STM32_DMA_STREAM_2, STM32_DMA_CHAN_5}
+	{STM32_DMA_STREAM_2, STM32_DMA_CHAN_5},
+	/* USART7 */
+	{STM32_DMA_STREAM_3, STM32_DMA_CHAN_5},
+	/* USART8 */
+	{STM32_DMA_STREAM_6, STM32_DMA_CHAN_5}
 };
 #endif
 

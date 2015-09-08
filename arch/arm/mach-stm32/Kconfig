@@ -61,6 +61,16 @@ config STM32_USART6
 	bool "Enable STM32 USART6 port"
 	default n
 
+config STM32_USART7
+	depends on ARCH_STM32 && SERIAL_STM32 && !ARCH_STM32F1
+	bool "Enable STM32 USART7 port"
+	default n
+
+config STM32_USART8
+	depends on ARCH_STM32 && SERIAL_STM32 && !ARCH_STM32F1
+	bool "Enable STM32 USART8 port"
+	default n
+
 config STM32_MAC
 	depends on ARCH_STM32 && STM32_ETHER
 	bool "Enable STM32 Ethernet port"

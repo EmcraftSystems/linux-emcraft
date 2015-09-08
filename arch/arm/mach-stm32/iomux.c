@@ -90,6 +90,8 @@
 #define STM32F2_GPIO_AF_USART4	0x08
 #define STM32F2_GPIO_AF_USART5	0x08
 #define STM32F2_GPIO_AF_USART6	0x08
+#define STM32F2_GPIO_AF_USART7	0x08
+#define STM32F2_GPIO_AF_USART8	0x08
 
 /*
 * AF10 selection
@@ -127,6 +129,8 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_USART4,	/* USART4			      */
 	STM32F2_GPIO_ROLE_USART5,	/* USART5			      */
 	STM32F2_GPIO_ROLE_USART6,	/* USART6			      */
+	STM32F2_GPIO_ROLE_USART7,	/* USART7			      */
+	STM32F2_GPIO_ROLE_USART8,	/* USART8			      */
 	STM32F2_GPIO_ROLE_ETHERNET,	/* MAC				      */
 	STM32F2_GPIO_ROLE_SPI1,		/* SPI1				      */
 	STM32F2_GPIO_ROLE_SPI2,		/* SPI2				      */
@@ -171,7 +175,7 @@ static const unsigned long stm32_gpio_base[] = {
 static const u32 af_val[] = {
 	STM32F2_GPIO_AF_USART1, STM32F2_GPIO_AF_USART2, STM32F2_GPIO_AF_USART3,
 	STM32F2_GPIO_AF_USART4, STM32F2_GPIO_AF_USART5, STM32F2_GPIO_AF_USART6,
-	STM32F2_GPIO_AF_MAC,
+	STM32F2_GPIO_AF_USART7, STM32F2_GPIO_AF_USART8, STM32F2_GPIO_AF_MAC,
 	STM32F2_GPIO_AF_SPI1, STM32F2_GPIO_AF_SPI2, STM32F2_GPIO_AF_SPI3,
 	STM32F2_GPIO_AF_SPI4, STM32F2_GPIO_AF_SPI5, STM32F2_GPIO_AF_SPI6,
 	STM32F2_GPIO_AF_I2C1, STM32F2_GPIO_AF_I2C2, STM32F2_GPIO_AF_I2C3,
@@ -214,6 +218,8 @@ static int stm32f2_gpio_config(
 	case STM32F2_GPIO_ROLE_USART4:
 	case STM32F2_GPIO_ROLE_USART5:
 	case STM32F2_GPIO_ROLE_USART6:
+	case STM32F2_GPIO_ROLE_USART7:
+	case STM32F2_GPIO_ROLE_USART8:
 	case STM32F2_GPIO_ROLE_SPI1:
 	case STM32F2_GPIO_ROLE_SPI2:
 	case STM32F2_GPIO_ROLE_SPI3:
@@ -384,6 +390,15 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.port = 2;
 		gpio_dsc.pin  = 7;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART6);
+#endif
+#if defined(CONFIG_STM32_USART7)
+		gpio_dsc.port = 5;
+		gpio_dsc.pin  = 7;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART7);
+
+		gpio_dsc.port = 5;
+		gpio_dsc.pin  = 6;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART7);
 #endif
 
 		goto uartdone;

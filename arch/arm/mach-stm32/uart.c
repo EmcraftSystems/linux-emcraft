@@ -48,6 +48,9 @@
 /* USART5 and USART6 with DMA support are available only on STM32F2 */
 #define STM32_USART5_DMA_BASE	STM32_DMA1_BASE
 #define STM32_USART6_DMA_BASE	STM32_DMA2_BASE
+/* USART7 and USART8 are available only on STM32F4/F7 */
+#define STM32_USART7_DMA_BASE	STM32_DMA1_BASE
+#define STM32_USART8_DMA_BASE	STM32_DMA1_BASE
 #endif
 
 /*
@@ -61,6 +64,9 @@
 /* USART6 is available only on STM32F2 */
 #ifndef CONFIG_ARCH_STM32F1
 #define STM32_USART6_IRQ	71
+/* USART7,8 are available on STM32F4/F7 */
+#define STM32_USART7_IRQ	82
+#define STM32_USART8_IRQ	83
 #endif
 
 /*
@@ -80,6 +86,8 @@
 #define STM32_USART4_DMA_IRQ	13
 #define STM32_USART5_DMA_IRQ	11
 #define STM32_USART6_DMA_IRQ	58
+#define STM32_USART7_DMA_IRQ	14
+#define STM32_USART8_DMA_IRQ	17
 #endif
 
 /*
@@ -109,6 +117,11 @@
 #ifndef CONFIG_ARCH_STM32F1
 #define STM32_RCC_ENR_USART6	offsetof(struct stm32_rcc_regs, apb2enr)
 #define STM32_RCC_MSK_USART6	(1 <<  5)
+
+#define STM32_RCC_ENR_USART7	offsetof(struct stm32_rcc_regs, apb1enr)
+#define STM32_RCC_MSK_USART7	(1 << 30)
+#define STM32_RCC_ENR_USART8	offsetof(struct stm32_rcc_regs, apb1enr)
+#define STM32_RCC_MSK_USART8	(1 << 31)
 #endif
 
 /*
@@ -195,6 +208,16 @@ USART_PLAT_RESOURCES(6);
 USART_PLAT_DEVICE(6);
 #endif
 
+#if defined(CONFIG_STM32_USART7)
+USART_PLAT_RESOURCES(7);
+USART_PLAT_DEVICE(7);
+#endif
+
+#if defined(CONFIG_STM32_USART8)
+USART_PLAT_RESOURCES(8);
+USART_PLAT_DEVICE(8);
+#endif
+
 /*
  * RCC UART register offsets
  */
@@ -202,7 +225,8 @@ static const unsigned long stm32_uart_rcc_enr_ofs[] = {
 	STM32_RCC_ENR_USART1, STM32_RCC_ENR_USART2, STM32_RCC_ENR_USART3,
 	STM32_RCC_ENR_USART4,
 #ifndef CONFIG_ARCH_STM32F1
-	STM32_RCC_ENR_USART5, STM32_RCC_ENR_USART6
+	STM32_RCC_ENR_USART5, STM32_RCC_ENR_USART6,
+	STM32_RCC_ENR_USART7, STM32_RCC_ENR_USART8,
 #endif
 };
 
@@ -213,7 +237,8 @@ static const unsigned long stm32_uart_rcc_enr_msk[] = {
 	STM32_RCC_MSK_USART1, STM32_RCC_MSK_USART2, STM32_RCC_MSK_USART3,
 	STM32_RCC_MSK_USART4,
 #ifndef CONFIG_ARCH_STM32F1
-	STM32_RCC_MSK_USART5, STM32_RCC_MSK_USART6
+	STM32_RCC_MSK_USART5, STM32_RCC_MSK_USART6,
+	STM32_RCC_MSK_USART7, STM32_RCC_MSK_USART8,
 #endif
 };
 
@@ -242,5 +267,11 @@ void __init stm32_uart_init(void)
 #endif
 #if defined(CONFIG_STM32_USART6)
 	usart_init_clocks_and_register(6);
+#endif
+#if defined(CONFIG_STM32_USART7)
+	usart_init_clocks_and_register(7);
+#endif
+#if defined(CONFIG_STM32_USART8)
+	usart_init_clocks_and_register(8);
 #endif
 }
