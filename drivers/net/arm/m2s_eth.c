@@ -1044,15 +1044,20 @@ out:
 static int m2s_mac_net_set_mac_address(struct net_device *dev, void *p)
 {
 	struct m2s_mac_dev	*d = netdev_priv(dev);
-	u8			*adr = p;
+	struct sockaddr *address = (struct sockaddr *)p;
+	u8			*adr;
 	int			rv = 0;
 
-	if (!d || !adr) {
-		printk(KERN_ERR "%s: bad params %p/%p\n", __func__, d, adr);
+	if (!d || !address) {
+		printk(KERN_ERR "%s: bad params %p/%p\n", __func__, d, address);
 		rv = -EINVAL;
 		goto out;
 	}
+	if (!is_valid_ether_addr(address->sa_data))
+		return -EADDRNOTAVAIL;
 
+	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
+	adr = (u8 *)address->sa_data;
 	debug("%s %02x:%02x:%02x:%02x:%02x:%02x\n", __func__, adr[0], adr[1],
 		adr[2], adr[3], adr[4], adr[5]);
 
