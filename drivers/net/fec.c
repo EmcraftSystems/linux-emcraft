@@ -1248,17 +1248,14 @@ fec_enet_close(struct net_device *ndev)
 #define HASH_BITS	6		/* #bits in hash */
 #define CRC32_POLY	0xEDB88320
 
-static void set_multicast_list(struct net_device *ndev)
+static void set_multicast_list(struct net_device *dev)
 {
-#if defined(CONFIG_ARCH_KINETIS)
-	/* printk(KERN_ERR "FEC: %s not supported\n", __func__); */
-#else
-	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct netdev_hw_addr *ha;
-	unsigned int i, bit, data, crc, tmp;
+	struct fec_enet_private *fep = netdev_priv(dev);
+	struct dev_mc_list *dmi;
+	unsigned int i, j, bit, data, crc, tmp;
 	unsigned char hash;
 
-	if (ndev->flags & IFF_PROMISC) {
+	if (dev->flags & IFF_PROMISC) {
 		tmp = readl(fep->hwp + FEC_R_CNTRL);
 		tmp |= 0x8;
 		writel(tmp, fep->hwp + FEC_R_CNTRL);
@@ -1269,7 +1266,7 @@ static void set_multicast_list(struct net_device *ndev)
 	tmp &= ~0x8;
 	writel(tmp, fep->hwp + FEC_R_CNTRL);
 
-	if (ndev->flags & IFF_ALLMULTI) {
+	if (dev->flags & IFF_ALLMULTI) {
 		/* Catch all multicast addresses, so set the
 		 * filter to all 1's
 		 */
@@ -1284,16 +1281,18 @@ static void set_multicast_list(struct net_device *ndev)
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 
-	netdev_for_each_mc_addr(ha, ndev) {
+	dmi = dev->mc_list;
+
+	for (j = 0; j < dev->mc_count; j++, dmi = dmi->next) {
 		/* Only support group multicast for now */
-		if (!(ha->addr[0] & 1))
+		if (!(dmi->dmi_addr[0] & 1))
 			continue;
 
 		/* calculate crc32 value of mac address */
 		crc = 0xffffffff;
 
-		for (i = 0; i < ndev->addr_len; i++) {
-			data = ha->addr[i];
+		for (i = 0; i < dmi->dmi_addrlen; i++) {
+			data = dmi->dmi_addr[i];
 			for (bit = 0; bit < 8; bit++, data >>= 1) {
 				crc = (crc >> 1) ^
 				(((crc ^ data) & 1) ? CRC32_POLY : 0);
@@ -1315,7 +1314,6 @@ static void set_multicast_list(struct net_device *ndev)
 			writel(tmp, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 		}
 	}
-#endif
 }
 
 /* Set a MAC change in hardware. */
