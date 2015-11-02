@@ -68,13 +68,6 @@ static unsigned int clock_mss_divisor(unsigned int r, unsigned int s)
 }
 
 /*
- * System frequencies are defined by Libero, with no
- * known way (as of yet) to read them in run time. Hence,
- * we define them as build-time constants
- */
-#define CONFIG_SYS_M2S_SYSREF		166000000
-
-/*
  * Perform reference clocks learning
  */
 static void clock_mss_learn(void)

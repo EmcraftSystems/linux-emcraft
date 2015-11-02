@@ -77,5 +77,11 @@ struct m2s_sysreg {
 #define M2S_SYSREG_BASE			0x40038000
 #define M2S_SYSREG			((volatile struct m2s_sysreg *)\
 					(M2S_SYSREG_BASE))
+/*
+ * System frequencies are defined by Libero, with no
+ * known way (as of yet) to read them in run time. Hence,
+ * we define them as build-time constants
+ */
+#define CONFIG_SYS_M2S_SYSREF		142000000
 
 #endif	/*_MACH_M2S_H_ */
