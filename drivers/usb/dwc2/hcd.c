@@ -1672,6 +1672,11 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		/* No HUB features supported */
 		break;
 
+	case (USB_RT_PORT << 8) | HUB_CLEAR_TT_BUFFER:
+		dev_dbg(hsotg->dev, "ClearTT\n");
+		/* Clear transaction translator buffer isn't supported */
+		break;
+
 	case SetPortFeature:
 		dev_dbg(hsotg->dev, "SetPortFeature\n");
 		if (wvalue != USB_PORT_FEAT_TEST && (!windex || windex > 1))
