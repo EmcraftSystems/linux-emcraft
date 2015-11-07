@@ -584,4 +584,9 @@ config TOUCHSCREEN_CRTOUCH_MT
 	help
 	  Say Y here if you have a Freescale CRTouch-based
 	  touchscreen connected via I2C.
+config TOUCHSCREEN_CRTOUCH_MT_PRESSURE
+	depends on TOUCHSCREEN_CRTOUCH_MT
+	bool "Enable generation of the Pressure events"
+	default n
+
 endif
