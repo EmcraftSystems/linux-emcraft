@@ -104,7 +104,7 @@ static struct platform_device	usb_otg_hs_device = {
 	.name		= "dwc2",
 	.resource	= usb_otg_hs_resources,
 	.num_resources	= ARRAY_SIZE(usb_otg_hs_resources),
-	.id		= 0,
+	.id		= 1,
 };
 
 void __init stm32_usb_otg_hs_init(void)
