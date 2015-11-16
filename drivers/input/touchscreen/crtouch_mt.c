@@ -38,7 +38,13 @@
 #undef CAPACITIVE
 #undef WAKE_SIGNAL
 #undef IRQ_EVENT_HANDLING
+#if defined(CONFIG_TOUCHSCREEN_CRTOUCH_MT_GPIO_IRQ)
+#define IRQ_EVENT_HANDLING
+#undef GPIO_IRQ
+#define GPIO_IRQ	CONFIG_TOUCHSCREEN_CRTOUCH_MT_GPIO_IRQ
+#else
 #define IRQ_POLL_PERIOD		(msecs_to_jiffies(20))
+#endif
 #else /* CONFIG_ARCH_xxx */
 #define MULTITOUCH
 #define PRESSURE_EVENT
@@ -167,13 +173,59 @@ static void report_MT(struct work_struct *work)
 	s32 fifo_capacitive = 0;
 #endif /* CAPACITIVE */
 
+#ifdef IRQ_EVENT_HANDLING
+	unsigned char regs_buf[7];
+
+	if (gpio_get_value(GPIO_IRQ) == 1) {
+		/* interrupt alredy handled */
+		return;
+	}
+
+	/* reading the status register 1 (address = 1) resets the current event,
+	   so read other registers first. */
+
+	result = i2c_smbus_read_i2c_block_data(client, 2, 5, &regs_buf[2]);
+
+	if (result < 0) {
+		printk(KERN_DEBUG "smbus read error %d\n", result);
+		return;
+	}
+
+#ifdef GESTURES
+	rotate_angle = i2c_smbus_read_byte_data(client, ROTATE_ANGLE);
+	if (rotate_angle < 0) {
+		printk(KERN_DEBUG "smbus read error %d\n", rotate_angle);
+		return;
+	}
+#endif
+
+	result = i2c_smbus_read_i2c_block_data(client, 0, 2, &regs_buf[0]);
+
+	if (result < 0) {
+		printk(KERN_DEBUG "smbus read error %d\n", result);
+		return;
+	}
+
+	if (regs_buf[0] != 0) {
+		printk(KERN_DEBUG "an error detected in crtouch error register: %02x\n", regs_buf[0]);
+		return;
+	}
+
+#ifdef GESTURES
+	status_register_2 = regs_buf[2];
+#endif
+	status_register_1 = regs_buf[1];
+#else
 	status_register_1 = i2c_smbus_read_byte_data(client, STATUS_REGISTER_1);
+#endif
 
 #ifdef GESTURES
 	/*check zoom resistive*/
 	if ((status_register_1 & MASK_EVENTS_ZOOM_R) == MASK_EVENTS_ZOOM_R && (status_register_1 & TWO_TOUCH)) {
 
+#ifndef IRQ_EVENT_HANDLING
 		status_register_2 = i2c_smbus_read_byte_data(client, STATUS_REGISTER_2);
+#endif
 
 		if ((status_register_2 & MASK_ZOOM_DIRECTION) == MASK_ZOOM_DIRECTION) {
 			command = ZOOM_OUT;
@@ -184,8 +236,10 @@ static void report_MT(struct work_struct *work)
 	/*check rotate resistive*/
 	} else if ((status_register_1 & MASK_EVENTS_ROTATE_R) == MASK_EVENTS_ROTATE_R  && (status_register_1 & TWO_TOUCH)) {
 
+#ifndef IRQ_EVENT_HANDLING
 		status_register_2 = i2c_smbus_read_byte_data(client, STATUS_REGISTER_2);
 		rotate_angle = i2c_smbus_read_byte_data(client, ROTATE_ANGLE);
+#endif
 		rotate_angle_help = rotate_angle;
 
 		if ((status_register_2 & MASK_ROTATE_DIRECTION) == MASK_ROTATE_DIRECTION) {
@@ -215,7 +269,9 @@ static void report_MT(struct work_struct *work)
 	/*check slide resistive*/
 	if ((status_register_1 & MASK_EVENTS_SLIDE_R) == MASK_EVENTS_SLIDE_R) {
 
+#ifndef IRQ_EVENT_HANDLING
 		status_register_2 = i2c_smbus_read_byte_data(client, STATUS_REGISTER_2);
+#endif
 
 		if ((status_register_2 & MASK_SLIDE_DOWN) == MASK_SLIDE_DOWN) {
 			input_report_key(crtouch->input_dev, KEY_H, 1);
@@ -347,7 +403,11 @@ static void report_MT(struct work_struct *work)
 			if (status_pressed)
 				free_touch();
 		} else {
+#ifdef IRQ_EVENT_HANDLING
+			memcpy(xy, &regs_buf[3], 4);
+#else
 			result = i2c_smbus_read_i2c_block_data(client, X_COORDINATE_MSB, LEN_XY, xy);
+#endif
 
 			if (result < 0) {
 				/*Do nothing*/
@@ -832,11 +892,21 @@ static int __devinit crtouch_probe(struct i2c_client *client,
 	}
 
 	data_configuration = i2c_smbus_read_byte_data(client, CONFIGURATION);
+	if (data_configuration < 0) {
+		printk(KERN_DEBUG "couldn't read configuration register via I2C %d\n", data_configuration);
+		result = -EIO;
+		goto err_free_wq;
+	}
 	data_configuration &= CLEAN_SLIDE_EVENTS;
 	data_configuration |= SET_MULTITOUCH;
 	i2c_smbus_write_byte_data(client, CONFIGURATION, data_configuration);
 
 	mask_trigger = i2c_smbus_read_byte_data(client, TRIGGER_EVENTS);
+	if (mask_trigger < 0) {
+		printk(KERN_DEBUG "couldn't read the trigger events register via I2C %d\n", mask_trigger);
+		result = -EIO;
+		goto err_free_wq;
+	}
 	mask_trigger |= SET_TRIGGER_RESISTIVE;
 	i2c_smbus_write_byte_data(client, TRIGGER_EVENTS, mask_trigger);
 

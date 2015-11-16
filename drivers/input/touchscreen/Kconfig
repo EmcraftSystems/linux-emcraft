@@ -589,4 +589,14 @@ config TOUCHSCREEN_CRTOUCH_MT_PRESSURE
 	bool "Enable generation of the Pressure events"
 	default n
 
+config TOUCHSCREEN_CRTOUCH_MT_IRQ_EVENTS
+	depends on TOUCHSCREEN_CRTOUCH_MT
+	bool "Enable IRQ events handling mode"
+	default n
+
+config TOUCHSCREEN_CRTOUCH_MT_GPIO_IRQ
+	depends on TOUCHSCREEN_CRTOUCH_MT_IRQ_EVENTS
+	int "GPIO pin number connected to the TOUCHPENDING pin on the Freescale CRTouch"
+	default 0
+
 endif
