@@ -28,6 +28,7 @@
 
 #include <mach/dmac.h>
 #include <mach/dmainit.h>
+#include <linux/dmamem.h>
 
 /*
  * Debug output control. While debugging, have I2C_STM32_DEBUG defined.
@@ -98,6 +99,8 @@ struct i2c_stm32f7 {
 	volatile int			msg_status;	/* Message status */
 	struct i2c_adapter		adap;		/* I2C adapter data */
 	wait_queue_head_t		wait;		/* Wait queue */
+	int				nbytes;		/* Count of the remained bytes after reload */
+	caddr_t				dmabuf;		/* Buffer in non-cached region to perform DMA */
 };
 
 /*
@@ -128,6 +131,11 @@ struct i2c_stm32f7_regs {
 #define MHZ(v)				((v) * 1000000)
 
 #define I2C_TIMEOUT_BUSY	25	/* 25 ms */
+
+/* DMA buffer is allocated from non-cached region in order
+   to guarantee validity of the DMA transactions when cache
+   is enabled. */
+#define DMABUF_SIZE		1024
 
 /*
  * Some bits in various CSRs
@@ -490,6 +498,20 @@ static irqreturn_t i2c_stm32_irq(int irq, void *d)
 		_cr2_set_val(c, 0);
 
 		wake_up(&c->wait);
+	} else if (isr & _ISR_TCR) {
+		uint32_t cr2 = readl(&I2C_STM32F7(c)->cr2);
+
+		if (c->nbytes > 255) {
+			c->nbytes -= 255;
+			cr2 |= _CR2_NBYTES(255);
+		} else {
+			c->nbytes = 0;
+			cr2 |= _CR2_NBYTES(c->nbytes);
+			cr2 &= ~_CR2_RELOAD;
+			_cr1_clear_bits(c, _CR1_TCIE);
+		}
+
+		_cr2_set_val(c, cr2);
 	} else {
 		/*
 		 * Some error condition -> let's stop and report a failure
@@ -527,6 +549,26 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 
 		/* Setup transfer */
 
+		/* Transfer length */
+
+		/* Maximum size of a single transfer
+		   is limited by the DMA buffer size. */
+		if (m[i].len > DMABUF_SIZE) {
+			if (ret == 0) {
+				ret = -EINVAL;
+			}
+			break;
+		}
+		if (m[i].len > 255) {
+			cr2 |= _CR2_NBYTES(255);
+			c->nbytes = m[i].len - 255;
+			cr2 |= _CR2_RELOAD;
+			_cr1_set_bits(c, _CR1_TCIE);
+		} else {
+			c->nbytes = 0;
+			cr2 |= _CR2_NBYTES(m[i].len);
+		}
+
 		/* Addressing mode */
 		if (m[i].flags & I2C_M_TEN) {
 			cr2 |= _CR2_SADDR10(m[i].addr);
@@ -534,14 +576,12 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 			cr2 |= _CR2_SADDR7(m[i].addr);
 		}
 
-		/* Transfer length */
-		cr2 |= _CR2_NBYTES(m[i].len);
-
 		/* Direction */
 		if (m[i].flags & I2C_M_RD) {
 			cr2 |= _CR2_RD_WRN;
 			dma_ch = STM32F7_DMACH_I2C_RX;
 		} else {
+			memcpy(c->dmabuf, m[i].buf, m[i].len);
 			dma_ch = STM32F7_DMACH_I2C_TX;
 		}
 
@@ -561,7 +601,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 		 * Memory data size: 8-bit
 		 * Burst transfer configuration: no burst
 		 */
-		if (stm32_dma_ch_set_memory(dma_ch, (uint32_t)m[i].buf, 1, 0, 1) < 0) {
+		if (stm32_dma_ch_set_memory(dma_ch, (u32)c->dmabuf, 1, 0, 1) < 0) {
 			goto err_dma;
 		}
 
@@ -610,7 +650,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 
 			if (tmout > tmout_jiffies) {
 				/* Disable interrupts */
-				_cr1_clear_bits(c, _CR1_ERRIE | _CR1_STOPIE);
+				_cr1_clear_bits(c, _CR1_ERRIE | _CR1_STOPIE | _CR1_TCIE);
 
 				/* Clean up the transfer */
 				_cr2_set_val(c, 0);
@@ -627,7 +667,7 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 		 */
 		if (wait_event_timeout(c->wait, c->msg_status != -EBUSY, 5*HZ) == 0) {
 			/* Disable interrupts */
-			_cr1_clear_bits(c, _CR1_ERRIE | _CR1_STOPIE);
+			_cr1_clear_bits(c, _CR1_ERRIE | _CR1_STOPIE | _CR1_TCIE);
 
 			/* Clean up the transfer */
 			_cr2_set_val(c, 0);
@@ -651,6 +691,10 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 		if (ret != (i + 1)) {
 			/* Error */
 			break;
+		}
+
+		if (m[i].flags & I2C_M_RD) {
+			memcpy(m[i].buf, c->dmabuf, m[i].len);
 		}
 	}
 
@@ -802,11 +846,20 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	c->adap.dev.parent = &dev->dev;
 
 	/*
+	 * Allocate DMA buffer
+	 */
+	c->dmabuf = dmamem_alloc(DMABUF_SIZE, 0, GFP_KERNEL | GFP_DMA);
+	if (c->dmabuf == NULL) {
+		dev_err(&dev->dev, "unable to allocate DMA buffer\n");
+		goto Error_release_irq2;
+	}
+
+	/*
 	 * Initialize the controller hardware
 	 */
 	ret = i2c_stm32_hw_init(c);
 	if (ret) {
-		goto Error_release_irq2;
+		goto Error_release_dmabuf;
 	}
 
 	/*
@@ -835,6 +888,8 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	 */
 Error_release_hw:
 	i2c_stm32_hw_release(c);
+Error_release_dmabuf:
+	dmamem_free(c->dmabuf);
 Error_release_irq2:
 	free_irq(c->irq + 1, c);
 Error_release_irq1:
@@ -865,6 +920,8 @@ static int __devexit i2c_stm32_remove(struct platform_device *dev)
 {
 	struct i2c_stm32f7 *c  = platform_get_drvdata(dev);
 	int ret = 0;
+
+	dmamem_free(c->dmabuf);
 
 	/*
 	 * Shut the hardware down
