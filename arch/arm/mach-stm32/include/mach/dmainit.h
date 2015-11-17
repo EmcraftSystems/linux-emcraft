@@ -35,10 +35,30 @@
 /*
  * STM32F7
  */
-/* I2C: Rx - DMA1, stream0 */
-#define STM32F7_DMACH_I2C_RX	0
-/* I2C: Tx - DMA1, stream6 */
-#define STM32F7_DMACH_I2C_TX	6
+#if defined(CONFIG_STM32_I2C1)
+/* I2C1: Rx - DMA1, stream0 */
+#define STM32F7_DMACH_I2C1_RX	0
+/* I2C1: Tx - DMA1, stream6 */
+#define STM32F7_DMACH_I2C1_TX	6
+#endif
+#if defined(CONFIG_STM32_I2C2)
+/* I2C2: Rx - DMA1, stream2 */
+#define STM32F7_DMACH_I2C2_RX	3
+/* I2C2: Tx - DMA1, stream7 */
+#define STM32F7_DMACH_I2C2_TX	7
+#endif
+#if defined(CONFIG_STM32_I2C3)
+/* I2C3: Rx - DMA1, stream1 */
+#define STM32F7_DMACH_I2C3_RX	1
+/* I2C3: Tx - DMA1, stream4 */
+#define STM32F7_DMACH_I2C3_TX	4
+#endif
+#if defined(CONFIG_STM32_I2C4)
+/* I2C4: Rx - DMA1, stream5 */
+#define STM32F7_DMACH_I2C4_RX	2
+/* I2C4: Tx - DMA1, stream6 */
+#define STM32F7_DMACH_I2C4_TX	5
+#endif
 #endif
 /*
  * STM32F2

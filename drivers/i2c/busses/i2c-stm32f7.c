@@ -27,7 +27,6 @@
 #include <mach/stm32.h>
 
 #include <mach/dmac.h>
-#include <mach/dmainit.h>
 #include <linux/dmamem.h>
 
 /*
@@ -101,6 +100,8 @@ struct i2c_stm32f7 {
 	wait_queue_head_t		wait;		/* Wait queue */
 	int				nbytes;		/* Count of the remained bytes after reload */
 	caddr_t				dmabuf;		/* Buffer in non-cached region to perform DMA */
+	int				dma_ch_tx;	/* DMA channel configured for I2C TX */
+	int				dma_ch_rx;	/* DMA channel configured for I2C RX */
 };
 
 /*
@@ -361,14 +362,14 @@ static int i2c_stm32_hw_init(struct i2c_stm32f7 *c)
 	 * Double buffer mode: disabled
 	 * Circular mode: disabled
 	 */
-	if (stm32_dma_ch_init(STM32F7_DMACH_I2C_RX, 0, 1, 3, 0, 0) < 0) {
+	if (stm32_dma_ch_init(c->dma_ch_rx, 0, 1, 3, 0, 0) < 0) {
 		goto err_dma;
 	}
 
 	/*
 	 * Disable burst mode; set FIFO threshold to "full FIFO"
 	 */
-	if (stm32_dma_ch_init_fifo(STM32F7_DMACH_I2C_RX, 0, 3) < 0) {
+	if (stm32_dma_ch_init_fifo(c->dma_ch_rx, 0, 3) < 0) {
 		goto err_dma;
 	}
 
@@ -378,7 +379,7 @@ static int i2c_stm32_hw_init(struct i2c_stm32f7 *c)
 	 * Peripheral data size: 8-bit
 	 * Burst transfer configuration: incremental burst of 0 beats
 	 */
-	if (stm32_dma_ch_set_periph(STM32F7_DMACH_I2C_RX,
+	if (stm32_dma_ch_set_periph(c->dma_ch_rx,
 				    (uint32_t)&I2C_STM32F7(c)->rxdr, 0, 0, 0)) {
 		goto err_dma;
 	}
@@ -390,14 +391,14 @@ static int i2c_stm32_hw_init(struct i2c_stm32f7 *c)
 	 * Double buffer mode: disabled
 	 * Circular mode: disabled
 	 */
-	if (stm32_dma_ch_init(STM32F7_DMACH_I2C_TX, 1, 1, 3, 0, 0) < 0) {
+	if (stm32_dma_ch_init(c->dma_ch_tx, 1, 1, 3, 0, 0) < 0) {
 		goto err_dma;
 	}
 
 	/*
 	 * Enable burst mode; set FIFO threshold to "full FIFO"
 	 */
-	if (stm32_dma_ch_init_fifo(STM32F7_DMACH_I2C_TX, 0, 3) < 0) {
+	if (stm32_dma_ch_init_fifo(c->dma_ch_tx, 0, 3) < 0) {
 		goto err_dma;
 	}
 
@@ -407,7 +408,7 @@ static int i2c_stm32_hw_init(struct i2c_stm32f7 *c)
 	 * Peripheral data size: 8-bit
 	 * Burst transfer configuration: incremental burst of 0 beats
 	 */
-	if (stm32_dma_ch_set_periph(STM32F7_DMACH_I2C_TX,
+	if (stm32_dma_ch_set_periph(c->dma_ch_tx,
 				    (uint32_t)&I2C_STM32F7(c)->txdr, 0, 0, 0) < 0) {
 		goto err_dma;
 	}
@@ -579,10 +580,10 @@ static int i2c_stm32_transfer(struct i2c_adapter *a, struct i2c_msg *m, int n)
 		/* Direction */
 		if (m[i].flags & I2C_M_RD) {
 			cr2 |= _CR2_RD_WRN;
-			dma_ch = STM32F7_DMACH_I2C_RX;
+			dma_ch = c->dma_ch_rx;
 		} else {
 			memcpy(c->dmabuf, m[i].buf, m[i].len);
-			dma_ch = STM32F7_DMACH_I2C_TX;
+			dma_ch = c->dma_ch_tx;
 		}
 
 		/* Autogenerate STOP when finished */
@@ -733,6 +734,7 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	struct i2c_stm32f7 *c = NULL;
 	struct i2c_stm32_data *d;
 	struct resource *regs;
+	struct resource	*dma_res;
 	int bus;
 	int irq;
 	int ret = 0;
@@ -827,9 +829,6 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	c->ref_clk = d->ref_clk;
 	c->i2c_clk = d->i2c_clk;
 
-	stm32_dma_ch_get(STM32F7_DMACH_I2C_RX);
-	stm32_dma_ch_get(STM32F7_DMACH_I2C_TX);
-
 	/*
 	 * Link the private data to dev
 	 */
@@ -846,12 +845,42 @@ static int __devinit i2c_stm32_probe(struct platform_device *dev)
 	c->adap.dev.parent = &dev->dev;
 
 	/*
-	 * Allocate DMA buffer
+	 * Initialize DMA
 	 */
+	dma_res = platform_get_resource_byname(dev, IORESOURCE_DMA, "dma_tx_channel");
+	if (!dma_res) {
+		dev_err(&dev->dev, "no DMA TX channel provided\n");
+		ret = -ENXIO;
+		goto Error_release_irq2;
+	}
+
+	c->dma_ch_tx = dma_res->start;
+
+	if (stm32_dma_ch_get(c->dma_ch_tx) != 0) {
+		dev_err(&dev->dev, "can't acquire DMA TX channel\n");
+		ret = -ENXIO;
+		goto Error_release_irq2;
+	}
+
+	dma_res = platform_get_resource_byname(dev, IORESOURCE_DMA, "dma_rx_channel");
+	if (!dma_res) {
+		dev_err(&dev->dev, "no DMA RX channel provided\n");
+		ret = -ENXIO;
+		goto Error_release_dma_tx;
+	}
+
+	c->dma_ch_rx = dma_res->start;
+
+	if (stm32_dma_ch_get(c->dma_ch_rx) != 0) {
+		dev_err(&dev->dev, "can't acquire DMA RX channel\n");
+		ret = -ENXIO;
+		goto Error_release_dma_tx;
+	}
+
 	c->dmabuf = dmamem_alloc(DMABUF_SIZE, 0, GFP_KERNEL | GFP_DMA);
 	if (c->dmabuf == NULL) {
 		dev_err(&dev->dev, "unable to allocate DMA buffer\n");
-		goto Error_release_irq2;
+		goto Error_release_dma_rx;
 	}
 
 	/*
@@ -890,6 +919,10 @@ Error_release_hw:
 	i2c_stm32_hw_release(c);
 Error_release_dmabuf:
 	dmamem_free(c->dmabuf);
+Error_release_dma_rx:
+	stm32_dma_ch_put(c->dma_ch_rx);
+Error_release_dma_tx:
+	stm32_dma_ch_put(c->dma_ch_tx);
 Error_release_irq2:
 	free_irq(c->irq + 1, c);
 Error_release_irq1:
@@ -928,8 +961,8 @@ static int __devexit i2c_stm32_remove(struct platform_device *dev)
 	 */
 	i2c_stm32_hw_release(c);
 
-	stm32_dma_ch_put(STM32F7_DMACH_I2C_RX);
-	stm32_dma_ch_put(STM32F7_DMACH_I2C_TX);
+	stm32_dma_ch_put(c->dma_ch_rx);
+	stm32_dma_ch_put(c->dma_ch_tx);
 	/*
 	 * Release kernel resources.
 	 */

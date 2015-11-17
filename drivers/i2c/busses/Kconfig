@@ -566,6 +566,7 @@ config I2C_STM32
 config I2C_STM32F7
 	tristate "STM32F7 I2C support"
 	depends on ARCH_STM32F7
+	select STM32_DMA
 	help
 	  This is the I2C bus driver for the STM32F7.
 

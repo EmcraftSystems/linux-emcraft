@@ -29,6 +29,7 @@
 #include <mach/platform.h>
 #include <mach/clock.h>
 #include <mach/i2c.h>
+#include <mach/dmainit.h>
 #if defined(CONFIG_GPIO_PCAL6416A)
 #include <mach/gpio.h>
 #include <linux/i2c/pcal6416a.h>
@@ -58,6 +59,18 @@ static struct resource i2c_stm32_dev1_resources[] = {
 		.end	= I2C_STM32_DEV1_REGS + I2C_STM32_REGS_SIZE,
 		.flags	= IORESOURCE_MEM,
 	},
+#if defined (CONFIG_ARCH_STM32F7)
+	{
+		.name	= "dma_tx_channel",
+		.start	= STM32F7_DMACH_I2C1_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.name	= "dma_rx_channel",
+		.start	= STM32F7_DMACH_I2C1_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+#endif
 };
 
 static struct platform_device i2c_stm32_dev1 = {
@@ -96,6 +109,18 @@ static struct resource i2c_stm32_dev2_resources[] = {
 		.end	= I2C_STM32_DEV2_REGS + I2C_STM32_REGS_SIZE,
 		.flags	= IORESOURCE_MEM,
 	},
+#if defined (CONFIG_ARCH_STM32F7)
+	{
+		.name	= "dma_tx_channel",
+		.start	= STM32F7_DMACH_I2C2_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.name	= "dma_rx_channel",
+		.start	= STM32F7_DMACH_I2C2_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+#endif
 };
 
 static struct platform_device i2c_stm32_dev2 = {
@@ -134,6 +159,18 @@ static struct resource i2c_stm32_dev3_resources[] = {
 		.end	= I2C_STM32_DEV3_REGS + I2C_STM32_REGS_SIZE,
 		.flags	= IORESOURCE_MEM,
 	},
+#if defined (CONFIG_ARCH_STM32F7)
+	{
+		.name	= "dma_tx_channel",
+		.start	= STM32F7_DMACH_I2C3_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.name	= "dma_rx_channel",
+		.start	= STM32F7_DMACH_I2C3_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+#endif
 };
 
 static struct platform_device i2c_stm32_dev3 = {
@@ -172,6 +209,16 @@ static struct resource i2c_stm32_dev4_resources[] = {
 		.end	= I2C_STM32_DEV4_REGS + I2C_STM32_REGS_SIZE,
 		.flags	= IORESOURCE_MEM,
 	},
+	{
+		.name	= "dma_tx_channel",
+		.start	= STM32F7_DMACH_I2C4_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.name	= "dma_rx_channel",
+		.start	= STM32F7_DMACH_I2C4_RX,
+		.flags	= IORESOURCE_DMA,
+	}
 };
 
 static struct platform_device i2c_stm32_dev4 = {

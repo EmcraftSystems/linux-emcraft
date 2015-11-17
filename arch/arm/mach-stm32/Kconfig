@@ -107,7 +107,7 @@ config STM32_SPI6
 	default n
 
 config STM32_I2C1
-	depends on ARCH_STM32 && (I2C_STM32 || I2C_STM32F7)
+	depends on ARCH_STM32 && (I2C_STM32 || I2C_STM32F7) && !I2C_GPIO
 	bool "Enable STM32 I2C1 port"
 	default n
 
