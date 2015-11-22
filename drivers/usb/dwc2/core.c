@@ -348,11 +348,6 @@ static void dwc2_gusbcfg_init(struct dwc2_hsotg *hsotg)
 	usbcfg = readl(hsotg->regs + GUSBCFG);
 	usbcfg &= ~(GUSBCFG_HNPCAP | GUSBCFG_SRPCAP);
 
-#if 0
-	writel(usbcfg, hsotg->regs + GUSBCFG);
-	return;
-#endif
-
 	switch (hsotg->hw_params.op_mode) {
 	case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
 		if (hsotg->core_params->otg_cap ==
@@ -439,6 +434,14 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq)
 	otgctl &= ~GOTGCTL_OTGVER;
 	if (hsotg->core_params->otg_ver > 0)
 		otgctl |= GOTGCTL_OTGVER;
+#if defined(CONFIG_ARCH_STM32F7)
+	/*
+	 * USB FS on STM32F7 has additional controls to override Vbus validity
+	 * signalling, which have to be set to avoid 'overcurrent change' events
+	 */
+	otgctl |= GOTGCTL_VBVALOVAL | GOTGCTL_VBVALOEN;
+#endif
+
 	writel(otgctl, hsotg->regs + GOTGCTL);
 	dev_dbg(hsotg->dev, "OTG VER PARAM: %d\n", hsotg->core_params->otg_ver);
 
@@ -1657,7 +1660,7 @@ int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
 				 hcchar);
 		writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
 		chan->requests++;
-		return chan->requests < 128;
+		return 1;
 	}
 
 	/* OUT transfers */
@@ -2732,7 +2735,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	width = (hwcfg3 & GHWCFG3_PACKET_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_PACKET_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_packet_count = (1 << (width + 4)) - 1;
-	hw->i2c_enable = 0; //!!(hwcfg3 & GHWCFG3_I2C);
+	hw->i2c_enable = !!(hwcfg3 & GHWCFG3_I2C);
 	hw->total_fifo_size = (hwcfg3 & GHWCFG3_DFIFO_DEPTH_MASK) >>
 			      GHWCFG3_DFIFO_DEPTH_SHIFT;
 

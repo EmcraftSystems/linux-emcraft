@@ -90,8 +90,7 @@ static void dwc2_qh_init(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			 "QH init: EP %d: TT found at hub addr %d, for port %d\n",
 			 dwc2_hcd_get_ep_num(&urb->pipe_info), hub_addr,
 			 hub_port);
-		//qh->do_split = 1;
-		qh->do_split = 0;
+		qh->do_split = 1;
 	}
 
 	if (qh->ep_type == USB_ENDPOINT_XFER_INT ||

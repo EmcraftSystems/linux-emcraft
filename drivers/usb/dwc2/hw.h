@@ -52,6 +52,8 @@
 #define GOTGCTL_HSTSETHNPEN		(1 << 10)
 #define GOTGCTL_HNPREQ			(1 << 9)
 #define GOTGCTL_HSTNEGSCS		(1 << 8)
+#define GOTGCTL_VBVALOVAL		(1 << 3)
+#define GOTGCTL_VBVALOEN		(1 << 2)
 #define GOTGCTL_SESREQ			(1 << 1)
 #define GOTGCTL_SESREQSCS		(1 << 0)
 
