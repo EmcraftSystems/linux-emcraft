@@ -781,6 +781,7 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	chan->halt_on_queue = 0;
 	chan->halt_pending = 0;
 	chan->requests = 0;
+	chan->naks = 0;
 
 	/*
 	 * The following values may be modified in the transfer type section

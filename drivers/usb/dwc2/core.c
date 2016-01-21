@@ -1652,6 +1652,26 @@ int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
 		 */
 		u32 hcchar = readl(hsotg->regs + HCCHAR(chan->hc_num));
 
+#if defined(CONFIG_MACH_STM32)
+		/*
+		 * With USB FS we sometimes observe the permanent NAKs from
+		 * devices on our first BULK IN request. This actually hangs up
+		 * the system due to permanent BULK IN transaction rescheduling.
+		 * Count how much NAKs we got, and stop rescheduling if this
+		 * number exceed some value (1000).
+		 */
+		u32 hcintmsk = readl(hsotg->regs + HCINTMSK(chan->hc_num));
+		u32 hcint = readl(hsotg->regs + HCINT(chan->hc_num));
+
+		if ((hcint & HCINTMSK_NAK) && !(hcintmsk & HCINTMSK_NAK) &&
+		    chan->ep_type == USB_ENDPOINT_XFER_BULK) {
+			writel(HCINTMSK_NAK, hsotg->regs + HCINT(chan->hc_num));
+			chan->naks++;
+			if (chan->naks >= 1000)
+				return 0;
+		}
+#endif
+
 		dwc2_hc_set_even_odd_frame(hsotg, chan, &hcchar);
 		hcchar |= HCCHAR_CHENA;
 		hcchar &= ~HCCHAR_CHDIS;

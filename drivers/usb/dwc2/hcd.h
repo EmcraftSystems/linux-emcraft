@@ -102,6 +102,7 @@ struct dwc2_qh;
  *                      assigned to the current transfer (not counting PINGs)
  * @schinfo:            Scheduling micro-frame bitmap
  * @ntd:                Number of transfer descriptors for the transfer
+ * @naks:               Number of BULK IN NAKs detected
  * @halt_status:        Reason for halting the host channel
  * @hcint               Contents of the HCINT register when the interrupt came
  * @qh:                 QH for the transfer being processed by this channel
@@ -154,6 +155,7 @@ struct dwc2_host_chan {
 	u8 requests;
 	u8 schinfo;
 	u16 ntd;
+	u32 naks;
 	enum dwc2_halt_status halt_status;
 	u32 hcint;
 	struct dwc2_qh *qh;
