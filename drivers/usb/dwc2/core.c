@@ -2735,7 +2735,11 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	width = (hwcfg3 & GHWCFG3_PACKET_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_PACKET_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_packet_count = (1 << (width + 4)) - 1;
+#if !defined(CONFIG_MACH_STM32)
 	hw->i2c_enable = !!(hwcfg3 & GHWCFG3_I2C);
+#else
+	hw->i2c_enable = 0;
+#endif
 	hw->total_fifo_size = (hwcfg3 & GHWCFG3_DFIFO_DEPTH_MASK) >>
 			      GHWCFG3_DFIFO_DEPTH_SHIFT;
 
