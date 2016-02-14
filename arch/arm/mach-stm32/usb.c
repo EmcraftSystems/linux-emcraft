@@ -29,6 +29,13 @@
 #include <mach/platform.h>
 #include <mach/usb.h>
 
+#include <linux/usb/dwc2-otg.h>
+
+#if defined(CONFIG_STM32_USB_OTG_FS_DEVICE) && \
+    defined(CONFIG_STM32_USB_OTG_HS_DEVICE)
+#warn "Linux USB Gadget sybsystem doesn't support more than one UDC!"
+#endif
+
 /*
  * STM32 USB interrupt
  */
@@ -43,7 +50,42 @@
 
 #define STM32_RCC_ENR_OTGFSEN		(1 << 7)
 
+#define DWC2_DRIVER_HOST		"dwc2"
+#define DWC2_DRIVER_DEVICE		"dwc2-udc"
+
 #ifdef CONFIG_STM32_USB_OTG_FS
+
+#ifdef CONFIG_STM32_USB_OTG_FS_DEVICE
+/*
+ * USB platform device data
+ */
+static struct dwc2_otg_plat	usb_otg_fs_data = {
+	/*
+	 * Overall FIFO size is 1280 bytes (320 words).
+	 * Full-speed maximum packet sizes:
+	 * - CTL (64), BLK (64), INT (64), ISO (1023)
+	 * Full-speed ACM Serial gadget configuration:
+	 * - CTL IN/OUT (64), BLK IN/OUT (64), INT IN (10)
+	 * Full-speed Mass-Storage gadget configuration:
+	 * - CTL IN/OUT (64), BLK IN/OUT (64)
+	 * Optimize FIFO distribution accordingly
+	 */
+#if defined(CONFIG_USB_G_SERIAL)
+	.rx_fifo_sz	= 160,
+	.tx_fifo_sz	= { 64, 32, 64 },
+#elif defined(CONFIG_USB_MASS_STORAGE) || defined(CONFIG_USB_FILE_STORAGE)
+	.rx_fifo_sz	= 160,
+	.tx_fifo_sz	= { 64, 96 },
+#else
+	.rx_fifo_sz	= 128,
+	.tx_fifo_sz	= { 48, 48, 48, 48 },
+#endif
+
+	/* GCCFG: NOVBUSSENS | PWRDWN */
+	.ggpio		= (1 << 21) | (1 << 16),
+};
+#endif /* CONFIG_STM32_USB_OTG_FS_DEVICE */
+
 /*
  * USB platform device resources
  */
@@ -60,13 +102,22 @@ static struct resource		usb_otg_fs_resources[] = {
 };
 
 /*
- * Ethernet platform device instance
+ * USB platform device instance
  */
 static struct platform_device	usb_otg_fs_device = {
-	.name		= "dwc2",
+#ifdef CONFIG_STM32_USB_OTG_FS_HOST
+	.name		= DWC2_DRIVER_HOST,
+#else
+	.name		= DWC2_DRIVER_DEVICE,
+#endif
 	.resource	= usb_otg_fs_resources,
 	.num_resources	= ARRAY_SIZE(usb_otg_fs_resources),
 	.id		= 0,
+#ifdef CONFIG_STM32_USB_OTG_FS_DEVICE
+	.dev		= {
+		.platform_data = &usb_otg_fs_data,
+	},
+#endif
 };
 
 void __init stm32_usb_otg_fs_init(void)
@@ -82,6 +133,51 @@ void __init stm32_usb_otg_fs_init(void)
 
 
 #ifdef CONFIG_STM32_USB_OTG_HS
+
+#ifdef CONFIG_STM32_USB_OTG_HS_DEVICE
+/*
+ * USB platform device data
+ */
+static struct dwc2_otg_plat	usb_otg_hs_data = {
+	/*
+	 * Overall FIFO size is ~4KB (F4: 1012 words, F7: 1006 words).
+	 * High-speed maximum packet sizes:
+	 * - CTL (64), BLK (512), INT (1024), ISO (1024)
+	 * High-speed ACM Serial gadget configuration:
+	 * - CTL IN/OUT (64), BLK IN/OUT (512), INT IN (10)
+	 * High-speed Mass-Storage gadget configuration:
+	 * - CTL IN/OUT (64), BLK IN/OUT (512)
+	 * Optimize FIFO distribution accordingly
+	 */
+#if defined(CONFIG_ARCH_STM32F7)
+#if defined(CONFIG_USB_G_SERIAL)
+	.rx_fifo_sz	= 512,
+	.tx_fifo_sz	= { 64, 46, 384 },
+#elif defined(CONFIG_USB_MASS_STORAGE) || defined(CONFIG_USB_FILE_STORAGE)
+	.rx_fifo_sz	= 558,
+	.tx_fifo_sz	= { 64, 384 },
+#else
+	.rx_fifo_sz	= 238,
+	.tx_fifo_sz	= { 128, 128, 128, 128, 128, 128 },
+#endif /* CONFIG_<gadgets> */
+#else
+#if defined(CONFIG_USB_G_SERIAL)
+	.rx_fifo_sz	= 512,
+	.tx_fifo_sz	= { 64, 52, 384 },
+#elif defined(CONFIG_USB_MASS_STORAGE) || defined(CONFIG_USB_FILE_STORAGE)
+	.rx_fifo_sz	= 564,
+	.tx_fifo_sz	= { 64, 384 },
+#else
+	.rx_fifo_sz	= 244,
+	.tx_fifo_sz	= { 128, 128, 128, 128, 128, 128 },
+#endif /* CONFIG_<gadgets> */
+#endif /* CONFIG_ARCH_STM32F7 */
+
+	/* GCCFG: NOVBUSSENS | PWRDWN */
+	.ggpio		= (1 << 21) | (1 << 16),
+};
+#endif /* CONFIG_STM32_USB_OTG_HS_DEVICE */
+
 /*
  * USB platform device resources
  */
@@ -98,13 +194,22 @@ static struct resource		usb_otg_hs_resources[] = {
 };
 
 /*
- * Ethernet platform device instance
+ * USB platform device instance
  */
 static struct platform_device	usb_otg_hs_device = {
-	.name		= "dwc2",
+#ifdef CONFIG_STM32_USB_OTG_HS_HOST
+	.name		= DWC2_DRIVER_HOST,
+#else
+	.name		= DWC2_DRIVER_DEVICE,
+#endif
 	.resource	= usb_otg_hs_resources,
 	.num_resources	= ARRAY_SIZE(usb_otg_hs_resources),
 	.id		= 1,
+#ifdef CONFIG_STM32_USB_OTG_HS_DEVICE
+	.dev		= {
+		.platform_data = &usb_otg_hs_data,
+	},
+#endif
 };
 
 void __init stm32_usb_otg_hs_init(void)

@@ -157,7 +157,6 @@ struct s3c_hsotg_ep {
  * struct s3c_hsotg - driver state.
  * @dev: The parent device supplied to the probe function
  * @driver: USB gadget driver
- * @phy: The otg phy transceiver structure for phy control.
  * @uphy: The otg phy transceiver structure for old USB phy control.
  * @plat: The platform specific configuration data. This can be removed once
  * all SoCs support usb transceiver.
@@ -181,9 +180,8 @@ struct s3c_hsotg_ep {
 struct s3c_hsotg {
 	struct device            *dev;
 	struct usb_gadget_driver *driver;
-	struct phy               *phy;
 	struct usb_phy           *uphy;
-	struct s3c_hsotg_plat    *plat;
+	struct dwc2_otg_plat     *plat;
 
 	spinlock_t              lock;
 

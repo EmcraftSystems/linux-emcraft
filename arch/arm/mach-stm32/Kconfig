@@ -146,10 +146,49 @@ config STM32_USB_OTG_FS
 	bool "Enable STM32 USB OTG FS"
 	default n
 
+choice
+	prompt "USB FS Role"
+	depends on STM32_USB_OTG_FS
+	help
+	  Integrated USB Full-Speed controller mode
+
+config STM32_USB_OTG_FS_HOST
+	bool "Host"
+	select USB_DWC2_HOST
+	select USB_DWC2_PLATFORM
+
+config STM32_USB_OTG_FS_DEVICE
+	bool "Device"
+	select USB_DWC2_PERIPHERAL
+	select USB_GADGET
+	select USB_GADGET_SELECTED
+
+endchoice
+
 config STM32_USB_OTG_HS
 	depends on ARCH_STM32 && USB_DWC2
 	bool "Enable STM32 USB OTG HS"
 	default n
+
+choice
+	prompt "USB HS Role"
+	depends on STM32_USB_OTG_HS
+	help
+	  Integrated USB High-Speed controller mode
+
+config STM32_USB_OTG_HS_HOST
+	bool "Host"
+	select USB_DWC2_HOST
+	select USB_DWC2_PLATFORM
+
+config STM32_USB_OTG_HS_DEVICE
+	bool "Device"
+	select USB_DWC2_PERIPHERAL
+	select USB_GADGET
+	select USB_GADGET_SELECTED
+	select USB_GADGET_DUALSPEED
+
+endchoice
 
 config STM32_GPIO
 	depends on ARCH_STM32 && GPIOLIB

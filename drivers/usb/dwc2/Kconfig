@@ -22,14 +22,14 @@ if USB_DWC2
 
 config USB_DWC2_HOST
 	tristate "Host only mode"
-	depends on USB
+	depends on USB && !MACH_STM32
 	help
 	  The Designware USB2.0 high-speed host controller
 	  integrated into many SoCs.
 
 config USB_DWC2_PLATFORM
 	bool "DWC2 Platform"
-	depends on USB_DWC2_HOST
+	depends on USB_DWC2_HOST && !MACH_STM32
 	default USB_DWC2_HOST
 	help
 	  The Designware USB2.0 platform interface module for
@@ -44,11 +44,9 @@ config USB_DWC2_PCI
 	  The Designware USB2.0 PCI interface module for controllers
 	  connected to a PCI bus. This is only used for host mode.
 
-comment "Gadget mode requires USB Gadget support to be enabled"
-
 config USB_DWC2_PERIPHERAL
 	tristate "Gadget only mode"
-	depends on USB_GADGET
+	depends on USB_GADGET && !MACH_STM32
 	help
 	  The Designware USB2.0 high-speed gadget controller
 	  integrated into many SoCs.
