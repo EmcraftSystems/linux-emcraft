@@ -25,7 +25,7 @@ struct platform_device;
  */
 struct dwc2_otg_plat {
 	u32		rx_fifo_sz;
-	u32		tx_fifo_sz[15];
+	u32		tx_fifo_sz[17];
 	u32		ggpio;
 
 	int		phy_type;

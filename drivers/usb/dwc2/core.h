@@ -87,6 +87,23 @@ static const char * const s3c_hsotg_supply_names[] = {
 struct s3c_hsotg;
 struct s3c_hsotg_req;
 
+/* Gadget ep0 states */
+enum dwc2_ep0_state {
+	DWC2_EP0_SETUP,
+	DWC2_EP0_DATA_IN,
+	DWC2_EP0_DATA_OUT,
+	DWC2_EP0_STATUS_IN,
+	DWC2_EP0_STATUS_OUT,
+};
+
+/* Device States */
+enum dwc2_lx_state {
+	DWC2_L0,	/* On state */
+	DWC2_L1,	/* LPM sleep state */
+	DWC2_L2,	/* USB suspend state */
+	DWC2_L3,	/* Off state */
+};
+
 /**
  * struct s3c_hsotg_ep - driver endpoint definition.
  * @ep: The gadget layer representation of the endpoint.
@@ -108,7 +125,7 @@ struct s3c_hsotg_req;
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt
  * @isochronous: Set if this is a isochronous ep
- * @sent_zlp: Set if we've sent a zero-length packet.
+ * @send_zlp: Set if need to send a zero-length packet.
  * @total_data: The total number of data bytes done.
  * @fifo_size: The size of the FIFO (for periodic IN endpoints)
  * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
@@ -139,6 +156,7 @@ struct s3c_hsotg_ep {
 	unsigned int            last_load;
 	unsigned int            fifo_load;
 	unsigned short          fifo_size;
+	unsigned short		fifo_index;
 
 	unsigned char           dir_in;
 	unsigned char           index;
@@ -148,10 +166,13 @@ struct s3c_hsotg_ep {
 	unsigned int            halted:1;
 	unsigned int            periodic:1;
 	unsigned int            isochronous:1;
-	unsigned int            sent_zlp:1;
+	unsigned int            send_zlp:1;
 
 	char                    name[10];
 };
+
+/* Size of control and EP0 buffers */
+#define DWC2_CTRL_BUFF_SIZE	8
 
 /**
  * struct s3c_hsotg - driver state.
@@ -178,50 +199,55 @@ struct s3c_hsotg_ep {
  * @eps: The endpoints being supplied to the gadget framework
  */
 struct s3c_hsotg {
-	struct device            *dev;
+	struct device		*dev;
 	struct usb_gadget_driver *driver;
-	struct usb_phy           *uphy;
-	struct dwc2_otg_plat     *plat;
+	struct usb_phy		*uphy;
+	struct dwc2_otg_plat	*plat;
 
-	spinlock_t              lock;
+	struct mutex		init_mutex;
+	spinlock_t		lock;
+	enum dwc2_lx_state	lx_state;
 
-	void __iomem            *regs;
-	int                     irq;
-	struct clk              *clk;
+	void __iomem		*regs;
+	int			irq;
 
-	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
+	u32			phyif;
+	int			fifo_mem;
+	unsigned int		dedicated_fifos:1;
+	unsigned char		num_of_eps;
+	u32			fifo_map;
 
-	u32                     phyif;
-	unsigned int            dedicated_fifos:1;
-	unsigned char           num_of_eps;
+	struct dentry		*debug_root;
+	struct dentry		*debug_file;
+	struct dentry		*debug_fifo;
 
-	struct dentry           *debug_root;
-	struct dentry           *debug_file;
-	struct dentry           *debug_fifo;
+	struct usb_request	*ep0_reply;
+	struct usb_request	*ctrl_req;
+	u8			*ep0_buff;
+	u8			*ctrl_buff;
+	enum dwc2_ep0_state	ep0_state;
 
-	struct usb_request      *ep0_reply;
-	struct usb_request      *ctrl_req;
-	u8                      ep0_buff[8];
-	u8                      ctrl_buff[8];
-
-	struct usb_gadget       gadget;
-	unsigned int            setup;
-	unsigned long           last_rst;
-	struct s3c_hsotg_ep     *eps;
+	struct usb_gadget	gadget;
+	unsigned int		enabled:1;
+	unsigned int		connected:1;
+	unsigned int		setup;
+	unsigned long		last_rst;
+	struct s3c_hsotg_ep	*eps_in[MAX_EPS_CHANNELS];
+	struct s3c_hsotg_ep	*eps_out[MAX_EPS_CHANNELS];
 };
 
 /**
  * struct s3c_hsotg_req - data transfer request
  * @req: The USB gadget request
  * @queue: The list of requests for the endpoint this is queued for.
- * @in_progress: Has already had size/packets written to core
  * @mapped: DMA buffer for this request has been mapped via dma_map_single().
+ * @saved_req_buf: variable to save req.buf when bounce buffers are used.
  */
 struct s3c_hsotg_req {
 	struct usb_request      req;
 	struct list_head        queue;
-	unsigned char           in_progress;
-	unsigned char           mapped;
+	unsigned char		mapped;
+	void			*saved_req_buf;
 };
 
 #define call_gadget(_hs, _entry) \
@@ -236,14 +262,6 @@ do { \
 
 struct dwc2_hsotg;
 struct dwc2_host_chan;
-
-/* Device States */
-enum dwc2_lx_state {
-	DWC2_L0,	/* On state */
-	DWC2_L1,	/* LPM sleep state */
-	DWC2_L2,	/* USB suspend state */
-	DWC2_L3,	/* Off state */
-};
 
 /**
  * struct dwc2_core_params - Parameters for configuring the core
