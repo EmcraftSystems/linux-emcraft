@@ -70,16 +70,18 @@ static struct dwc2_otg_plat	usb_otg_fs_data = {
 	 * - CTL IN/OUT (64), BLK IN/OUT (64)
 	 * Optimize FIFO distribution accordingly
 	 */
-#if defined(CONFIG_USB_G_SERIAL)
-	.rx_fifo_sz	= 160,
-	.tx_fifo_sz	= { 64, 32, 64 },
-#elif defined(CONFIG_USB_MASS_STORAGE) || defined(CONFIG_USB_FILE_STORAGE)
-	.rx_fifo_sz	= 160,
-	.tx_fifo_sz	= { 64, 96 },
-#else
-	.rx_fifo_sz	= 128,
-	.tx_fifo_sz	= { 48, 48, 48, 48 },
-#endif
+	.fifo = {
+		   {	.name	= "default",
+			.rx	= 128,
+			.tx	= { 48, 48, 48, 48 },
+		}, {	.name	= "g_serial",
+			.rx	= 160,
+			.tx	= { 64, 32, 64 },
+		}, {	.name	= "g_file_storage",
+			.rx	= 160,
+			.tx	= { 64, 96 },
+		},
+	},
 
 	/* GCCFG: NOVBUSSENS | PWRDWN */
 	.ggpio		= (1 << 21) | (1 << 16),
@@ -150,28 +152,32 @@ static struct dwc2_otg_plat	usb_otg_hs_data = {
 	 * Optimize FIFO distribution accordingly
 	 */
 #if defined(CONFIG_ARCH_STM32F7)
-#if defined(CONFIG_USB_G_SERIAL)
-	.rx_fifo_sz	= 512,
-	.tx_fifo_sz	= { 64, 46, 384 },
-#elif defined(CONFIG_USB_MASS_STORAGE) || defined(CONFIG_USB_FILE_STORAGE)
-	.rx_fifo_sz	= 558,
-	.tx_fifo_sz	= { 64, 384 },
+	.fifo = {
+		   {	.name	= "default",
+			.rx	= 238,
+			.tx	= { 128, 128, 128, 128, 128, 128 },
+		}, {	.name	= "g_serial",
+			.rx	= 512,
+			.tx	= { 64, 46, 384 },
+		}, {	.name	= "g_file_storage",
+			.rx	= 558,
+			.tx	= { 64, 384 },
+		},
+	},
 #else
-	.rx_fifo_sz	= 238,
-	.tx_fifo_sz	= { 128, 128, 128, 128, 128, 128 },
-#endif /* CONFIG_<gadgets> */
-#else
-#if defined(CONFIG_USB_G_SERIAL)
-	.rx_fifo_sz	= 512,
-	.tx_fifo_sz	= { 64, 52, 384 },
-#elif defined(CONFIG_USB_MASS_STORAGE) || defined(CONFIG_USB_FILE_STORAGE)
-	.rx_fifo_sz	= 564,
-	.tx_fifo_sz	= { 64, 384 },
-#else
-	.rx_fifo_sz	= 244,
-	.tx_fifo_sz	= { 128, 128, 128, 128, 128, 128 },
-#endif /* CONFIG_<gadgets> */
-#endif /* CONFIG_ARCH_STM32F7 */
+	.fifo = {
+		   {	.name	= "default",
+			.rx	= 244,
+			.tx	= { 128, 128, 128, 128, 128, 128 },
+		}, {	.name	= "g_serial",
+			.rx	= 512,
+			.tx	= { 64, 52, 384 },
+		}, {	.name	= "g_file_storage",
+			.rx	= 564,
+			.tx	= { 64, 384 },
+		},
+	},
+#endif
 
 	/* GCCFG: NOVBUSSENS | PWRDWN */
 	.ggpio		= (1 << 21) | (1 << 16),

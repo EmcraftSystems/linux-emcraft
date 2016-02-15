@@ -173,7 +173,7 @@ static void s3c_hsotg_ctrl_epint(struct s3c_hsotg *hsotg,
 static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 {
 	struct dwc2_otg_plat *p = hsotg->plat;
-	unsigned int ep;
+	unsigned int ep, i;
 	unsigned int addr;
 	int timeout;
 	u32 val, rx_fifo_sz, tx_fifo_sz;
@@ -182,13 +182,19 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 	WARN_ON(hsotg->fifo_map);
 	hsotg->fifo_map = 0;
 
-	if (p) {
-		rx_fifo_sz = p->rx_fifo_sz;
-		tx_fifo_sz = p->tx_fifo_sz[0];
-	} else {
-		rx_fifo_sz = 2048;
-		tx_fifo_sz = 1024;
+	if (hsotg->driver) {
+		for (i = 1; i < ARRAY_SIZE(p->fifo) && p->fifo[i].name; i++) {
+			if (strcmp(p->fifo[i].name, hsotg->driver->driver.name))
+				continue;
+
+			p->fifo[0] = p->fifo[i];
+			break;
+		}
 	}
+
+	dev_dbg(hsotg->dev, "use FIFO optimized for '%s'\n", p->fifo[0].name);
+	rx_fifo_sz = p->fifo[0].rx;
+	tx_fifo_sz = p->fifo[0].tx[0];
 
 	/* set RX/NPTX FIFO sizes */
 	writel(rx_fifo_sz, hsotg->regs + GRXFSIZ);
@@ -197,25 +203,15 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 		hsotg->regs + GNPTXFSIZ);
 
 	/*
-	 * arange all the rest of the TX FIFOs, as some versions of this
-	 * block have overlapping default addresses. This also ensures
-	 * that if the settings have been changed, then they are set to
-	 * known values.
-	 */
-
-	/* start at the end of the GNPTXFSIZ, rounded up */
-	addr = rx_fifo_sz + tx_fifo_sz;
-
-	/*
 	 * Configure fifos sizes from provided configuration and assign
 	 * them to endpoints dynamically according to maxpacket size value of
 	 * given endpoint.
 	 */
-	for (ep = 1; ep <= MAX_EPS_CHANNELS; ep++) {
-		if (p && !p->tx_fifo_sz[ep])
+	for (ep = 1, addr = rx_fifo_sz + tx_fifo_sz; ep <= MAX_EPS_CHANNELS; ep++) {
+		if (!p->fifo[0].tx[ep])
 			continue;
 		val = addr;
-		tx_fifo_sz = p ? p->tx_fifo_sz[ep] : 768;
+		tx_fifo_sz = p->fifo[0].tx[ep];
 		val |= tx_fifo_sz << FIFOSIZE_DEPTH_SHIFT;
 		WARN_ONCE(addr + tx_fifo_sz > hsotg->fifo_mem,
 			  "insufficient fifo memory");
@@ -2747,7 +2743,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 		for (i = 1; i < hsotg->num_of_eps; ++i) {
 			if (hsotg->fifo_map & (1<<i))
 				continue;
-			if (hsotg->plat && !hsotg->plat->tx_fifo_sz[i])
+			if (!hsotg->plat->fifo[0].tx[i])
 				continue;
 			val = readl(hsotg->regs + DPTXFSIZN(i));
 			val = (val >> FIFOSIZE_DEPTH_SHIFT)*4;
@@ -3018,7 +3014,7 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 	u32 trdtim;
 
 	/* set GGPIO if necessary */
-	if (hsotg->plat && hsotg->plat->ggpio)
+	if (hsotg->plat->ggpio)
 		writel(hsotg->plat->ggpio, hsotg->regs + GGPIO);
 
 	/* unmask subset of endpoint interrupts */
@@ -3656,20 +3652,17 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	mutex_init(&hsotg->init_mutex);
 
 	hsotg->plat = dev_get_platdata(&pdev->dev);
+	if (!hsotg->plat) {
+		dev_err(dev, "no platform data defined\n");
+		return -EFAULT;
+	}
 
 	/*
 	 * Look for an old style USB PHY, finally fall back to pdata
 	 */
 	uphy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR(uphy)) {
-		if (!hsotg->plat) {
-			dev_err(&pdev->dev,
-				"no platform data or transceiver defined\n");
-			return -EFAULT;
-		}
-	} else {
+	if (!IS_ERR(uphy))
 		hsotg->uphy = uphy;
-	}
 
 	hsotg->dev = dev;
 	platform_set_drvdata(pdev, hsotg);

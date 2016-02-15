@@ -24,8 +24,12 @@ struct platform_device;
  * ggpio:	GGPIO register value
  */
 struct dwc2_otg_plat {
-	u32		rx_fifo_sz;
-	u32		tx_fifo_sz[17];
+	/* FIFO specific configurations */
+	struct {
+		char	*name;		/* gadget name */
+		u32	rx;		/* rx_fifo_sz */
+		u32	tx[1 + 16];	/* tx_fifo_sz (per IN EPx) */
+	} fifo[8];			/* [0]: default, [x] - for 'name' gadget */
 	u32		ggpio;
 
 	int		phy_type;
