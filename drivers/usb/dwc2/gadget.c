@@ -3902,7 +3902,7 @@ static int s3c_hsotg_resume(struct platform_device *pdev)
 
 static struct platform_driver dwc2_hsotg_driver = {
 	.driver		= {
-		.name	= "dwc2-udc",
+		.name	= DWC2_DRIVER_DEVICE,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s3c_hsotg_probe,

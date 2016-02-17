@@ -66,6 +66,12 @@ static int stm32_platform = PLATFORM_STM32_STM3220G_EVAL;
 #endif
 
 /*
+ * Number of usb device controllers registered so far
+ */
+int stm32_udc_num;
+EXPORT_SYMBOL(stm32_udc_num);
+
+/*
  * Data structure for the timer system.
  */
 static struct sys_timer stm32_timer = {

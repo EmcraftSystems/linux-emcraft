@@ -34,7 +34,9 @@
 #define STM32_USB_OTG_HS_BASE		(STM32_AHB1PERITH_BASE + 0x20000)
 #define STM32_USB_OTG_FS_BASE		(STM32_AHB2PERITH_BASE + 0x0000)
 
-void __init stm32_usb_otg_hs_init(void);
-void __init stm32_usb_otg_fs_init(void);
+extern int stm32_udc_num;
+
+int __init stm32_usb_otg_hs_init(void);
+int __init stm32_usb_otg_fs_init(void);
 
 #endif /* _MACH_STM32_USB_H_ */

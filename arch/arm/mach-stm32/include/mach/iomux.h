@@ -66,4 +66,11 @@ struct stm32f2_gpio_regs {
  */
 void __init stm32_iomux_init(void);
 
+/*
+ * USB is a special case since USB may be compiled as modules, so
+ * the appropriate CONFIG_STM_USB_OTG_xS will be undefined
+ */
+void stm32_iomux_usb_fs_init(void);
+void stm32_iomux_usb_hs_init(void);
+
 #endif	/*_MACH_STM32_IOMUX_H_ */

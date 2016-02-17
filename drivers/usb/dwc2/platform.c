@@ -47,7 +47,7 @@
 #include "core.h"
 #include "hcd.h"
 
-static const char dwc2_driver_name[] = "dwc2";
+static const char dwc2_driver_name[] = DWC2_DRIVER_HOST;
 
 static const struct dwc2_core_params params_bcm2835 = {
 	.otg_cap			= 0,	/* HNP/SRP capable */

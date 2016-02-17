@@ -15,6 +15,9 @@
 #ifndef __LINUX_USB_DWC2_OTG_H
 #define __LINUX_USB_DWC2_OTG_H
 
+#define DWC2_DRIVER_HOST	"dwc2"
+#define DWC2_DRIVER_DEVICE	"dwc2-udc"
+
 struct platform_device;
 
 /**
