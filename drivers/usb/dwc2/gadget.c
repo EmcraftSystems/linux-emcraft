@@ -2321,7 +2321,7 @@ static void s3c_hsotg_core_init_disconnected(struct s3c_hsotg *hsotg,
 	/* Clear any pending interrupts */
 	writel(0xffffffff, hsotg->regs + GINTSTS);
 
-	writel(GINTSTS_ERLYSUSP | GINTSTS_SESSREQINT |
+	writel(GINTSTS_SESSREQINT |
 		GINTSTS_GOUTNAKEFF | GINTSTS_GINNAKEFF |
 		GINTSTS_USBRST |
 		GINTSTS_RESETDET | GINTSTS_ENUMDONE |
@@ -2472,7 +2472,18 @@ irq_retry:
 		 * Check the Device status register to determine if the Suspend
 		 * state is active
 		 */
-		dev_dbg(hsotg->dev, "DSTS=0x%0x\n", readl(hsotg->regs + DSTS));
+		u32 dsts = readl(hsotg->regs + DSTS);
+		dev_dbg(hsotg->dev, "DSTS=0x%0x\n", dsts);
+		if (dsts & DSTS_SUSPSTS) {
+			/*
+			 * Suspend on the bus: device is disconnected, clean-up
+			 * resources to be able to process the next connection
+			 * correctly
+			 */
+			s3c_hsotg_disconnect(hsotg);
+		}
+		hsotg->lx_state = DWC2_L2;
+
 		writel(GINTSTS_USBSUSP, hsotg->regs + GINTSTS);
 	}
 
@@ -2507,12 +2518,11 @@ irq_retry:
 		writel(GINTSTS_RESETDET, hsotg->regs + GINTSTS);
 
 		/* This event must be used only if controller is suspended */
-		if (hsotg->lx_state == DWC2_L2) {
+		if (hsotg->lx_state == DWC2_L2)
 			hsotg->lx_state = DWC2_L0;
-		}
 	}
 
-	if (gintsts & (GINTSTS_USBRST | GINTSTS_RESETDET)) {
+	if (gintsts & GINTSTS_USBRST) {
 
 		u32 usb_status = readl(hsotg->regs + GOTGCTL);
 
@@ -2532,8 +2542,16 @@ irq_retry:
 				kill_all_requests(hsotg, hsotg->eps_out[0],
 							  -ECONNRESET);
 
-				hsotg->lx_state = DWC2_L0;
-				s3c_hsotg_core_init_disconnected(hsotg, true);
+				/*
+				 * If some FIFOs are mapped, then wait for gadget driver
+				 * to release them, and then reinit the core
+				 */
+				if (!hsotg->fifo_map) {
+					hsotg->lx_state = DWC2_L0;
+					s3c_hsotg_core_init_disconnected(hsotg, true);
+				} else {
+					hsotg->lx_state = DWC2_L3;
+				}
 			}
 		}
 	}
@@ -2570,11 +2588,6 @@ irq_retry:
 		 */
 
 		s3c_hsotg_handle_rx(hsotg);
-	}
-
-	if (gintsts & GINTSTS_ERLYSUSP) {
-		dev_dbg(hsotg->dev, "GINTSTS_ErlySusp\n");
-		writel(GINTSTS_ERLYSUSP, hsotg->regs + GINTSTS);
 	}
 
 	if (gintsts & GINTSTS_SESSREQINT) {
@@ -2829,6 +2842,15 @@ static int s3c_hsotg_ep_disable(struct usb_ep *ep)
 	/* terminate all requests with shutdown */
 	kill_all_requests(hsotg, hs_ep, -ESHUTDOWN);
 
+	/*
+	 * If previously, on USB reset, we detected some busy FIFO, then we
+	 * didn't reinit the core; do it now
+	 */
+	if (!hsotg->fifo_map && hsotg->lx_state == DWC2_L3) {
+		hsotg->lx_state = DWC2_L0;
+		s3c_hsotg_core_init_disconnected(hsotg, true);
+	}
+
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return 0;
 }
@@ -3013,9 +3035,11 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 {
 	u32 trdtim;
 
-	/* set GGPIO if necessary */
+	/* set platform-specific regs if necessary */
 	if (hsotg->plat->ggpio)
 		writel(hsotg->plat->ggpio, hsotg->regs + GGPIO);
+	if (hsotg->plat->gotgctl)
+		writel(hsotg->plat->gotgctl, hsotg->regs + GOTGCTL);
 
 	/* unmask subset of endpoint interrupts */
 	writel(DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK |

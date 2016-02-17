@@ -85,6 +85,10 @@ static struct dwc2_otg_plat	usb_otg_fs_data = {
 
 	/* GCCFG: NOVBUSSENS | PWRDWN */
 	.ggpio		= (1 << 21) | (1 << 16),
+#if defined(CONFIG_ARCH_STM32F7)
+	/* GOTGCTL: BVALOVAL | BVALOEN */
+	.gotgctl	= (1 << 7) | (1 << 6),
+#endif
 };
 #endif /* CONFIG_STM32_USB_OTG_FS_DEVICE */
 
@@ -181,6 +185,10 @@ static struct dwc2_otg_plat	usb_otg_hs_data = {
 
 	/* GCCFG: NOVBUSSENS | PWRDWN */
 	.ggpio		= (1 << 21) | (1 << 16),
+#if defined(CONFIG_ARCH_STM32F7)
+	/* GOTGCTL: BVALOVAL | BVALOEN */
+	.gotgctl	= (1 << 7) | (1 << 6),
+#endif
 };
 #endif /* CONFIG_STM32_USB_OTG_HS_DEVICE */
 

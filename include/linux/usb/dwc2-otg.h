@@ -30,7 +30,9 @@ struct dwc2_otg_plat {
 		u32	rx;		/* rx_fifo_sz */
 		u32	tx[1 + 16];	/* tx_fifo_sz (per IN EPx) */
 	} fifo[8];			/* [0]: default, [x] - for 'name' gadget */
-	u32		ggpio;
+
+	u32		ggpio;		/* GCCFG register value in STM32 */
+	u32		gotgctl;
 
 	int		phy_type;
 
