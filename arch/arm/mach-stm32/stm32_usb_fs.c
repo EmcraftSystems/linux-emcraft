@@ -71,11 +71,14 @@ static struct dwc2_otg_plat	usb_otg_fs_data = {
 		},
 	},
 
-	/* GCCFG: NOVBUSSENS | PWRDWN */
-	.ggpio		= (1 << 21) | (1 << 16),
 #if defined(CONFIG_ARCH_STM32F7)
+	/* GCCFG: PWRDWN */
+	.ggpio		= (1 << 16),
 	/* GOTGCTL: BVALOVAL | BVALOEN */
 	.gotgctl	= (1 << 7) | (1 << 6),
+#else
+	/* GCCFG: NOVBUSSENS | PWRDWN */
+	.ggpio		= (1 << 21) | (1 << 16),
 #endif
 };
 #endif /* CONFIG_STM32_USB_OTG_FS_DEVICE */
