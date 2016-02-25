@@ -42,6 +42,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb.h>
 
+#include <linux/usb/dwc2-otg.h>
 #include "../core/hcd.h"
 
 #include "core.h"
