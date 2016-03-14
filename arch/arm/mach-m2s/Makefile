@@ -1,5 +1,5 @@
 #
-# Makefile for the Actel SmartFusion2 platform files
+# Makefile for the Microsemi SmartFusion2 platform files
 #
 
 obj-$(CONFIG_MACH_M2S)		+= m2s_platform.o timer.o clock.o \

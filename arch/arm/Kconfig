@@ -779,12 +779,12 @@ config ARCH_A2F
 	  This enables support for the Actel A2F (SmartFusion) SoC
 
 config ARCH_M2S
-	bool "Actel M2S (SmartFusion2) eSoC"
+	bool "Microsemi M2S (SmartFusion2) eSoC"
 	depends on !MMU
 	select ARM_CORTEXM3
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
-	  This enables support for the Actel M2S (SmartFusion2) eSoC
+	  This enables support for the Microsemi (former Actel) M2S (SmartFusion2) eSoC
 
 config ARCH_STM32
 	bool "STMicro STM32 SoC"

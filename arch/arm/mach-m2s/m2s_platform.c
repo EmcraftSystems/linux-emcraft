@@ -109,7 +109,7 @@ static struct sys_timer m2s_timer = {
 /*
  * M2S plaform machine description.
  */
-MACHINE_START(M2S, "Actel M2S")
+MACHINE_START(M2S, "Microsemi M2S")
 	/*
 	 * Physical address of the serial port used for the early
 	 * kernel debugging (CONFIG_DEBUG_LL=y).

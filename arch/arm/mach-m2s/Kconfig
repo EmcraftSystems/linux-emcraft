@@ -5,7 +5,7 @@ config MACH_M2S
 	default y
 	select ARM_NVIC if CPU_V7M
 	help
-	  Include support for the Actel M2S (SmartFusion2) cSoC
+	  Include support for the Microsemi M2S (SmartFusion2) cSoC
 
 menu "M2S I/O interfaces"
 	depends on ARCH_M2S
