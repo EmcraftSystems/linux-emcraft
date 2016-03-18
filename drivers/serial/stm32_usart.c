@@ -598,6 +598,26 @@ out:
 }
 
 /*
+ * Release resource used
+ */
+static void stm_port_release_port(struct uart_port *port)
+{
+	struct stm32_usart_priv	*priv = stm32_drv_priv(port);
+	int			i;
+
+	free_irq(priv->dma_irq, port);
+	free_irq(priv->usart_irq, port);
+
+	for (i = 0; i < STM32_DMA_RX_BUF_NUM; i++) {
+		if (!priv->rxb[i])
+			continue;
+		dma_free_coherent(NULL, STM32_DMA_RX_BUF_LEN,
+			priv->rxb[i], priv->rxb_dma[i]);
+		priv->rxb[i] = NULL;
+	}
+}
+
+/*
  * Disable the port
  */
 static void stm_port_shutdown(struct uart_port *port)
@@ -616,8 +636,7 @@ static void stm_port_shutdown(struct uart_port *port)
 	uart->sr   = 0;
 #endif
 
-	free_irq(priv->dma_irq, port);
-	free_irq(priv->usart_irq, port);
+	stm_port_release_port(port);
 }
 
 /*
@@ -709,23 +728,6 @@ static int stm_port_verify_port(struct uart_port *port, struct serial_struct *se
 	 */
 
 	return -EINVAL;
-}
-
-/*
- * Release resource used
- */
-static void stm_port_release_port(struct uart_port *port)
-{
-	struct stm32_usart_priv	*priv = stm32_drv_priv(port);
-	int			i;
-
-	for (i = 0; i < STM32_DMA_RX_BUF_NUM; i++) {
-		if (!priv->rxb[i])
-			continue;
-		dma_free_coherent(NULL, STM32_DMA_RX_BUF_LEN,
-			priv->rxb[i], priv->rxb_dma[0]);
-		priv->rxb[i] = NULL;
-	}
 }
 
 /*
