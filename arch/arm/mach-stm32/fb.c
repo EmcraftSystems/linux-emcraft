@@ -32,6 +32,7 @@
 #include <mach/stm32.h>
 #include <mach/fb.h>
 #include <mach/platform.h>
+#include <mach/gpio.h>
 
 #define STM32F4_LTDC_IRQ	88
 #define STM32F4_LTDC_ERR_IRQ	89
