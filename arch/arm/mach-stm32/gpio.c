@@ -59,7 +59,7 @@ static const unsigned long stm32_gpio_base[] = {
 /*
  * Number of EXTI lines -> there are more of those than EXTI IRQ lines
  */
-#define	STM32_EXTI_LINES_LEN		15
+#define	STM32_EXTI_LINES_LEN		16
 
 /*
  * STM32-specific GPIO chip data structure definition

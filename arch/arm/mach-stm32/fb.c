@@ -78,6 +78,17 @@ static struct i2c_board_info __initdata emcraft_iot_lcd_crtouch = {
 };
 #endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 
+#if defined(CONFIG_TOUCHSCREEN_GOODIX)
+static struct i2c_board_info __initdata emcraft_interposer_lcd_goodix = {
+	I2C_BOARD_INFO("GDIX1001:00", 0x5d),
+	/*
+	 * INT is connected to PB15 =>
+	 * .irq = NVIC_IRQS + GPIO(PB15) = 90 + (16 * 1 + 15)
+	 */
+	.irq = 121,
+};
+#endif
+
 static int stm32f4x9_fb_lcd_init(int init)
 {
 	int p = stm32_platform_get();
@@ -111,6 +122,12 @@ void __init stm32f4x9_fb_init(void)
 		 * Register the I2C-connected CRTouch touchscreen
 		 */
 		i2c_register_board_info(0, &emcraft_iot_lcd_crtouch, 1);
+#endif
+#if defined(CONFIG_TOUCHSCREEN_GOODIX)
+		/*
+		 * Register the I2C-connected Goodix touchscreen
+		 */
+		i2c_register_board_info(0, &emcraft_interposer_lcd_goodix, 1);
 #endif
 		stm32f4x9_fb_data.init = stm32f4x9_fb_lcd_init;
 		ret = platform_device_register(&stm32f4_fb_device);
