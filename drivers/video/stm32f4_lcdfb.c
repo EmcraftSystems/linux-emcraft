@@ -52,6 +52,13 @@
 
 #define DRIVER_NAME	"stm32f4-ltdc"
 
+/*
+ * Select the appopriate default pixclock, kHz:
+ *  9000: IOT LCD
+ * 12000: Promate 4.3 TN LCD
+ */
+#define LTDC_PIXCLOCK	9000
+
 /* STM32F4 LTDC registers */
 #define LTDC_SSCR	0x08
 #define LTDC_BPCR	0x0c
@@ -86,7 +93,7 @@ static struct fb_videomode __devinitdata default_mode_db[] = {
 		.vsync_len	= 10,
 		.sync		= FB_SYNC_COMP_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 		.vmode		= FB_VMODE_NONINTERLACED,
-		.pixclock	= KHZ2PICOS(9000),
+		.pixclock	= KHZ2PICOS(LTDC_PIXCLOCK),
 	},
 };
 
