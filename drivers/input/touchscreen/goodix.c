@@ -27,11 +27,14 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/input/goodix.h>
+
 #include <asm/unaligned.h>
 
 struct goodix_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
+	struct goodix_ts_platform_data pdat;
 	int abs_x_max;
 	int abs_y_max;
 	bool swapped_x_y;
@@ -48,10 +51,6 @@ struct goodix_ts_data {
 	struct completion firmware_loading_complete;
 	unsigned long irq_flags;
 };
-
-#undef PIN_INT
-#undef PIN_RST
-#undef MULTITOUCH
 
 #define GOODIX_GPIO_INT_NAME		"irq"
 #define GOODIX_GPIO_RST_NAME		"reset"
@@ -208,9 +207,7 @@ static void goodix_ts_report_touch(struct goodix_ts_data *ts, u8 *coor_data)
 {
 	int input_x = get_unaligned_le16(&coor_data[1]);
 	int input_y = get_unaligned_le16(&coor_data[3]);
-#if defined(MULTITOUCH)
 	int input_w = get_unaligned_le16(&coor_data[5]);
-#endif
 
 	/* Inversions have to happen before axis swapping */
 	if (ts->inverted_x)
@@ -220,12 +217,12 @@ static void goodix_ts_report_touch(struct goodix_ts_data *ts, u8 *coor_data)
 	if (ts->swapped_x_y)
 		swap(input_x, input_y);
 
-#if defined(MULTITOUCH)
-	input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
-	input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
-	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
-	input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
-#endif
+	if (ts->pdat.multitouch) {
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
+		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);
+		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
+		input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
+	}
 
 	input_event(ts->input_dev, EV_ABS, ABS_X, input_x);
 	input_event(ts->input_dev, EV_ABS, ABS_Y, input_y);
@@ -357,36 +354,34 @@ static int goodix_reset(struct goodix_ts_data *ts)
  */
 static int goodix_get_gpio_config(struct goodix_ts_data *ts)
 {
-#if defined(PIN_INT) || defined(PIN_RST)
 	int error;
-#endif
 	struct device *dev;
 
 	if (!ts->client)
 		return -EINVAL;
 	dev = &ts->client->dev;
 
-#if defined(PIN_INT)
-	/* Get the interrupt GPIO pin number */
-	error = gpio_request(PIN_INT, GOODIX_GPIO_INT_NAME);
-	if (error) {
-		dev_err(dev, "Failed to get %s GPIO: %d\n",
-			GOODIX_GPIO_INT_NAME, error);
-		return error;
+	if (ts->pdat.pin_int) {
+		/* Get the interrupt GPIO pin number */
+		error = gpio_request(ts->pdat.pin_int, GOODIX_GPIO_INT_NAME);
+		if (error) {
+			dev_err(dev, "Failed to get %s GPIO: %d\n",
+				GOODIX_GPIO_INT_NAME, error);
+			return error;
+		}
 	}
-	ts->gpiod_int = PIN_INT;
-#endif
+	ts->gpiod_int = ts->pdat.pin_int;
 
-#if defined(PIN_RST)
-	/* Get the reset line GPIO pin number */
-	error = gpio_request(PIN_RST, GOODIX_GPIO_RST_NAME);
-	if (error) {
-		dev_err(dev, "Failed to get %s GPIO: %d\n",
-			GOODIX_GPIO_RST_NAME, error);
-		return error;
+	if (ts->pdat.pin_rst) {
+		/* Get the reset line GPIO pin number */
+		error = gpio_request(ts->pdat.pin_rst, GOODIX_GPIO_RST_NAME);
+		if (error) {
+			dev_err(dev, "Failed to get %s GPIO: %d\n",
+				GOODIX_GPIO_RST_NAME, error);
+			return error;
+		}
 	}
-	ts->gpiod_rst = PIN_RST;
-#endif
+	ts->gpiod_rst = ts->pdat.pin_rst;
 
 	return 0;
 }
@@ -592,6 +587,9 @@ static int goodix_ts_probe(struct i2c_client *client,
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
 	init_completion(&ts->firmware_loading_complete);
+
+	if (client->dev.platform_data)
+		memcpy(&ts->pdat, client->dev.platform_data, sizeof(ts->pdat));
 
 	error = goodix_get_gpio_config(ts);
 	if (error)

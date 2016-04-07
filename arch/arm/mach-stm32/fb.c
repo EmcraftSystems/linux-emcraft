@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/input/goodix.h>
 
 #include <mach/stm32.h>
 #include <mach/fb.h>
@@ -79,6 +80,11 @@ static struct i2c_board_info __initdata emcraft_iot_lcd_crtouch = {
 #endif /* CONFIG_TOUCHSCREEN_CRTOUCH_MT */
 
 #if defined(CONFIG_TOUCHSCREEN_GOODIX)
+struct goodix_ts_platform_data	goodix_ts_data = {
+	.pin_int = 31,	/* PB15 */
+	.pin_rst = 137,	/* PI9  */
+};
+
 static struct i2c_board_info __initdata emcraft_interposer_lcd_goodix = {
 	I2C_BOARD_INFO("GDIX1001:00", 0x5d),
 	/*
@@ -86,6 +92,7 @@ static struct i2c_board_info __initdata emcraft_interposer_lcd_goodix = {
 	 * .irq = NVIC_IRQS + GPIO(PB15) = 90 + (16 * 1 + 15)
 	 */
 	.irq = 121,
+	.platform_data = &goodix_ts_data,
 };
 #endif
 
