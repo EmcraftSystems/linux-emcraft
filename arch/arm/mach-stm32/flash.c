@@ -74,12 +74,12 @@ static struct resource flash_resources[] = {
  *
  * 0-1ffff:				U-boot environment
  * 20000-2fffff:			Linux bootable image
- * 330000-end of Flash or 192Kb less:	JFFS2 filesystem
- * 192Kb at end of Flash (optional):	Splashscreen image
+ * 330000-end of Flash or 132Kb less:	JFFS2 filesystem
+ * 132Kb at end of Flash (optional):	Splashscreen image
  */
 #define FLASH_IMAGE_OFFSET	0x20000
 #define FLASH_JFFS2_OFFSET	(3*1024*1024)
-#define FLASH_SPLASH_SIZE	0x30000
+#define FLASH_SPLASH_SIZE	0x20000*3
 static struct mtd_partition flash_partitions[] = {
 	{
 		.name	= "flash_uboot_env",
