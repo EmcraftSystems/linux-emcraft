@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 
 #include <mach/stm32.h>
+#include <mach/platform.h>
 #include <mach/rtc.h>
 #include <mach/exti.h>
 
@@ -52,6 +53,14 @@ struct stm32f2_pwr_regs {
 #define STM32F2_RCC_BDCR_RTCSEL_BITS	8
 #define STM32F2_RCC_BDCR_RTCSEL_MSK	(3 << STM32F2_RCC_BDCR_RTCSEL_BITS)
 #define STM32F2_RCC_BDCR_RTCSEL_LSE	(1 << STM32F2_RCC_BDCR_RTCSEL_BITS)
+/* LSE Drive bits, STM32F7 only */
+#define STM32F2_RCC_BDCR_LSEDRV_BITS	3
+#define STM32F2_RCC_BDCR_LSEDRV_MSK	(3 << STM32F2_RCC_BDCR_LSEDRV_BITS)
+#define STM32F2_RCC_BDCR_LSEDRV_LOW	(0 << STM32F2_RCC_BDCR_LSEDRV_BITS)
+#define STM32F2_RCC_BDCR_LSEDRV_MEDHI	(1 << STM32F2_RCC_BDCR_LSEDRV_BITS)
+#define STM32F2_RCC_BDCR_LSEDRV_MEDLO	(2 << STM32F2_RCC_BDCR_LSEDRV_BITS)
+#define STM32F2_RCC_BDCR_LSEDRV_HIGH	STM32F2_RCC_BDCR_LSEDRV_MSK
+
 /* External low-speed oscillator ready */
 #define STM32F2_RCC_BDCR_LSERDY_MSK	(1 << 1)
 /*  External low-speed oscillator enable */
@@ -87,6 +96,9 @@ void __init stm32_rtc_init(void)
 
 	/* Disable the low-speed external oscillator */
 	STM32_RCC->bdcr = 0;
+	/* Wait till LSE is stopped */
+	while ((STM32_RCC->bdcr & STM32F2_RCC_BDCR_LSERDY_MSK));
+
 	/* Enable the low-speed external oscillator */
 	STM32_RCC->bdcr = STM32F2_RCC_BDCR_LSEON_MSK;
 
@@ -97,6 +109,12 @@ void __init stm32_rtc_init(void)
 	STM32_RCC->bdcr =
 		(STM32_RCC->bdcr & ~STM32F2_RCC_BDCR_RTCSEL_MSK) |
 		STM32F2_RCC_BDCR_RTCSEL_LSE;
+
+	/* For STM32F7-SOM, change the default LSE drive strength */
+	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
+		STM32_RCC->bdcr & ~STM32F2_RCC_BDCR_LSEDRV_MSK;
+		STM32_RCC->bdcr |= STM32F2_RCC_BDCR_LSEDRV_MEDHI;
+	}
 
 	/* Enable the RTC */
 	STM32_RCC->bdcr |= STM32F2_RCC_BDCR_RTCEN_MSK;
