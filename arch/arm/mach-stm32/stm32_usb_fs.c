@@ -56,6 +56,8 @@ static struct dwc2_otg_plat	usb_otg_fs_data = {
 	 * - CTL IN/OUT (64), BLK IN/OUT (64), INT IN (10)
 	 * Full-speed Mass-Storage gadget configuration:
 	 * - CTL IN/OUT (64), BLK IN/OUT (64)
+	 * Full-speed Ethernet gadget configuration:
+	 * - CTL IN/OUT (64), BLK IN/OUT (64), INT IN (8)
 	 * Optimize FIFO distribution accordingly
 	 */
 	.fifo = {
@@ -68,6 +70,9 @@ static struct dwc2_otg_plat	usb_otg_fs_data = {
 		}, {	.name	= "g_file_storage",
 			.rx	= 160,
 			.tx	= { 64, 96 },
+		}, {	.name	= "g_ether",
+			.rx	= 160,
+			.tx	= { 64, 32, 64 },
 		},
 	},
 

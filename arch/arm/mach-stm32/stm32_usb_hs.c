@@ -58,6 +58,8 @@ static struct dwc2_otg_plat	usb_otg_hs_data = {
 	 * - CTL IN/OUT (64), BLK IN/OUT (512), INT IN (10)
 	 * High-speed Mass-Storage gadget configuration:
 	 * - CTL IN/OUT (64), BLK IN/OUT (512)
+	 * High-speed Ethernet gadget configuration:
+	 * - CTL IN/OUT (64), BLK IN/OUT (512), INT IN (8)
 	 * Optimize FIFO distribution accordingly
 	 */
 #if defined(CONFIG_ARCH_STM32F7)
@@ -71,6 +73,9 @@ static struct dwc2_otg_plat	usb_otg_hs_data = {
 		}, {	.name	= "g_file_storage",
 			.rx	= 558,
 			.tx	= { 64, 384 },
+		}, {	.name	= "g_ether",
+			.rx	= 512,
+			.tx	= { 64, 46, 384 },
 		},
 	},
 #else
@@ -84,6 +89,9 @@ static struct dwc2_otg_plat	usb_otg_hs_data = {
 		}, {	.name	= "g_file_storage",
 			.rx	= 564,
 			.tx	= { 64, 384 },
+		}, {	.name	= "g_ether",
+			.rx	= 512,
+			.tx	= { 64, 52, 384 },
 		},
 	},
 #endif
