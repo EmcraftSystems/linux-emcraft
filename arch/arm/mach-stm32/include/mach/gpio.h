@@ -29,7 +29,11 @@
 /*
  * Number of GPIO ports
  */
-#define STM32_GPIO_PORTS			9
+#if defined(CONFIG_ARCH_STM32F1)
+# define STM32_GPIO_PORTS			9
+#else
+# define STM32_GPIO_PORTS			11
+#endif
 
 /*
  * Number of pins per port
@@ -56,6 +60,8 @@
 #define ARCH_NR_GPIOS				\
 	(STM32_GPIO_LEN - STM32_GPIO_OFF + 16)
 
+#ifndef __ASSEMBLY__
+
 #if defined(CONFIG_GPIOLIB)
 
 #define gpio_get_value				__gpio_get_value
@@ -68,5 +74,7 @@
 #endif /* CONFIG_GPIOLIB */
 
 void __init stm32_gpio_init(void);
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _MACH_STM32_GPIO_H_ */

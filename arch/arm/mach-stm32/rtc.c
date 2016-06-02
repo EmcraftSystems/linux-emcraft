@@ -31,14 +31,6 @@
 #include <mach/exti.h>
 
 /*
- * Power Control module (PWR) register map
- */
-struct stm32f2_pwr_regs {
-	u32 cr;		/* PWR power control register */
-	u32 csr;	/* PWR power control/status register */
-};
-
-/*
  * PWR power control register
  */
 /* Disable backup domain write protection */
@@ -70,13 +62,6 @@ struct stm32f2_pwr_regs {
 #define STM32_RCC_ENR_PWREN		(1 << 28)
 
 #if defined(CONFIG_STM32_RTC)
-/*
- * PWR registers base
- */
-#define STM32F2_PWR_BASE		0x40007000
-#define STM32F2_PWR			((volatile struct stm32f2_pwr_regs *) \
-					STM32F2_PWR_BASE)
-
 static struct platform_device rtc_device = {
 	.name = "rtc-stm32f2",
 	.id   = -1,
@@ -92,7 +77,7 @@ void __init stm32_rtc_init(void)
 	STM32_RCC->apb1enr |= STM32_RCC_ENR_PWREN;
 
 	/* Allow access to RTC */
-	STM32F2_PWR->cr |= STM32F2_PWR_CR_DBP_MSK;
+	STM32_PWR->cr |= STM32F2_PWR_CR_DBP_MSK;
 
 	/* Disable the low-speed external oscillator */
 	STM32_RCC->bdcr = 0;

@@ -110,8 +110,7 @@ static volatile map_word SRAM_DATA sr_val;
 
 static volatile unsigned long SRAM_DATA sram_buffer_start, sram_buffer_size;
 
-extern char _sram_start, _sram_end;
-extern char __sram_loc, _esram_loc;
+extern char _sram_end;
 
 static inline int enter_critical_code(void)
 {
@@ -461,19 +460,21 @@ static int __init stm32f4_init(void)
 	int err;
 	unsigned long p;
 
-	printk(KERN_INFO "Initializing STM32F4 mapper, copying code from %p to %p, size %d", &__sram_loc, &_sram_start, &_esram_loc - &__sram_loc);
-
-	/*
-	 * Copy code to SRAM
-	 */
-	memcpy((void*)&_sram_start, (void*)&__sram_loc, &_esram_loc - &__sram_loc);
-
 	p = (unsigned long)&_sram_end;
 	p = ALIGN(p, 0x100);
 
 	sram_buffer_start = p;
 	sram_buffer_size = CONFIG_MTD_STM32F4_SRAM_BUFFER_SIZE;
-	printk(KERN_INFO "Using SRAM as buffer with start %lx and size %x\n",
+
+#if defined(CONFIG_STM32_ETHER_BUF_IN_SRAM_BASE)
+	if (sram_buffer_start + sram_buffer_size >
+	    SRAM_PHYS_OFFSET + CONFIG_STM32_ETHER_BUF_IN_SRAM_BASE) {
+		printk(KERN_ERR "STM32 Flash SRAM bufs overlap eth bufs!\n");
+		return -ENOMEM;
+	}
+#endif
+
+	printk(KERN_INFO "Using SRAM as buffer with start %lx and size %lx\n",
 		sram_buffer_start, sram_buffer_size);
 
 	err = platform_driver_register(&stm32f4_flash_driver);

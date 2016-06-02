@@ -48,6 +48,12 @@
 #include <mach/i2c-gpio.h>
 
 /*
+ * Linker symbols
+ */
+extern char _sram_start;
+extern char __sram_loc, _esram_loc;
+
+/*
  * Prototypes
  */
 static void __init stm32_map_io(void);
@@ -205,10 +211,26 @@ static void __init stm32_init_irq(void)
 }
 
 /*
+ * If we have to execute some code from SRAM, then relocate it
+ */
+static void stm32_sram_relocate(void)
+{
+	if (&_esram_loc != &__sram_loc) {
+		memcpy((void*)&_sram_start, (void*)&__sram_loc,
+			&_esram_loc - &__sram_loc);
+	}
+}
+
+/*
  * STM32 plaform initialization.
  */
 static void __init stm32_init(void)
 {
+	/*
+	 * Relocate SRAM code
+	 */
+	stm32_sram_relocate();
+
 	/*
 	 * Configure the IOMUXes of STM32
 	 */

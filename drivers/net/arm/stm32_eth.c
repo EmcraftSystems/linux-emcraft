@@ -1652,12 +1652,40 @@ out:
 	return 0;
 }
 
+#if defined(CONFIG_PM)
+static int stm32_plat_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device	*dev = platform_get_drvdata(pdev);
+	struct stm32_eth_priv	*stm = netdev_priv(dev);
+	int			rv;
+
+	rv = stm32_netdev_close(dev);
+	stm->regs->maccr &= ~(STM32_MAC_CR_TE | STM32_MAC_CR_RE);
+
+	return rv;
+}
+
+static int stm32_plat_resume(struct platform_device *pdev)
+{
+	struct net_device	*dev = platform_get_drvdata(pdev);
+	int			rv;
+
+	rv = stm32_netdev_open(dev);
+
+	return rv;
+}
+#endif
+
 /*
  * Platform driver instance
  */
 static struct platform_driver	stm32_eth_driver = {
 	.probe		= stm32_plat_probe,
 	.remove		= stm32_plat_remove,
+#if defined(CONFIG_PM)
+	.suspend	= stm32_plat_suspend,
+	.resume		= stm32_plat_resume,
+#endif
 	.driver		= {
 		.name	= STM32_ETH_DRV_NAME,
 		.owner	= THIS_MODULE,

@@ -29,7 +29,7 @@
 #define STM32_GPIO_NUM	140
 #else
 #define NVIC_IRQS	90
-#define STM32_GPIO_NUM	168
+#define STM32_GPIO_NUM	176
 #endif
 
 #if defined (CONFIG_STM32_GPIO_INT)

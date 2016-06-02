@@ -118,6 +118,24 @@ struct stm32_rcc_regs {
 #endif
 #define STM32_RCC	((volatile struct stm32_rcc_regs *)STM32_RCC_BASE)
 
+/******************************************************************************
+ * Power Control
+ ******************************************************************************/
+
+/*
+ * Power Control module (PWR) register map
+ */
+struct stm32_pwr_regs {
+	u32	cr;		/* PWR power control register */
+	u32	csr;		/* PWR power control/status register */
+};
+
+/*
+ * PWR registers base
+ */
+#define STM32_PWR_BASE		(STM32_APB1PERITH_BASE + 0x7000)
+#define STM32_PWR	((volatile struct stm32_pwr_regs *)STM32_PWR_BASE)
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _MACH_STM32_H_ */

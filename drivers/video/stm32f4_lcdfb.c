@@ -59,27 +59,6 @@
  */
 #define LTDC_PIXCLOCK	9000
 
-/* STM32F4 LTDC registers */
-#define LTDC_SSCR	0x08
-#define LTDC_BPCR	0x0c
-#define LTDC_AWCR	0x10
-#define LTDC_TWCR	0x14
-#define LTDC_GCR	0x18
-#define LTDC_SRCR	0x24
-#define LTDC_BCCR	0x2c
-
-/* STM32F4 LTDC per-layer registers */
-#define LTDC_LAYER_CR(i)	(0x84 + 0x80 * (i))
-#define LTDC_LAYER_WHPCR(i)	(0x88 + 0x80 * (i))
-#define LTDC_LAYER_WVPCR(i)	(0x8c + 0x80 * (i))
-#define LTDC_LAYER_PFCR(i)	(0x94 + 0x80 * (i))
-#define LTDC_LAYER_CFBAR(i)	(0xac + 0x80 * (i))
-#define LTDC_LAYER_CFBLR(i)	(0xb0 + 0x80 * (i))
-#define LTDC_LAYER_CFBLNR(i)	(0xb4 + 0x80 * (i))
-
-/* LTDC GCR Mask */
-#define GCR_MASK	((u32)0x0FFE888F)
-
 static struct fb_videomode __devinitdata default_mode_db[] = {
 	{
 		.name		= "480x272",
@@ -605,6 +584,8 @@ static int fb_suspend(struct platform_device *pdev,
 {
 	struct stm32f4_ltdc_fb_data *fb = dev_get_drvdata(&pdev->dev);
 
+	if (fb->fb_enabled)
+		writel(readl(fb->base + LTDC_GCR) & ~1 , fb->base + LTDC_GCR);
 	clk_disable(fb->pix_clk);
 	clk_disable(fb->clk);
 	return 0;
@@ -616,6 +597,9 @@ static int fb_resume(struct platform_device *pdev)
 
 	clk_enable(fb->clk);
 	clk_enable(fb->pix_clk);
+	if (fb->fb_enabled)
+		writel(readl(fb->base + LTDC_GCR) | 1 , fb->base + LTDC_GCR);
+
 	return 0;
 }
 #else

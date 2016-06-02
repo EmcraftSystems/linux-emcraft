@@ -19,3 +19,4 @@ obj-$(CONFIG_RTC_DRV_STM32F2)	+= rtc.o
 obj-$(CONFIG_STM32_USB_OTG_FS)	+= stm32_usb_fs.o
 obj-$(CONFIG_STM32_USB_OTG_HS)	+= stm32_usb_hs.o
 obj-$(CONFIG_STM32_FB)		+= fb.o
+obj-$(CONFIG_PM)		+= suspend.o pm.o

@@ -1288,12 +1288,30 @@ static int __devexit stm32_remove(struct platform_device *pdev)
 	return stm32_release(&pdev->dev);
 }
 
+#if defined(CONFIG_PM)
+static int stm32_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	stm_port_shutdown(&stm32_ports[pdev->id]);
+
+	return 0;
+}
+
+static int stm32_resume(struct platform_device *pdev)
+{
+	return stm_port_startup(&stm32_ports[pdev->id]);
+}
+#endif
+
 /*
  * Platform driver instance
  */
 static struct platform_driver stm32_platform_driver = {
 	.probe		= stm32_probe,
 	.remove		= __devexit_p(stm32_remove),
+#if defined(CONFIG_PM)
+	.suspend	= stm32_suspend,
+	.resume		= stm32_resume,
+#endif
 	.driver		= {
 			.owner	= THIS_MODULE,
 			.name	= STM32_USART_DRV_NAME,
