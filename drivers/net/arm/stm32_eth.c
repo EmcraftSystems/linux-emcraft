@@ -142,6 +142,7 @@
  * DMA transmit buffer descriptor bits
  */
 #define STM32_DMA_TBD_DMA_OWN		(1 << 31)	/* DMA/CPU owns bd    */
+#define STM32_DMA_TBD_IC		(1 << 30)	/* Interrupt on compl.*/
 #define STM32_DMA_TBD_LS		(1 << 29)	/* Last segment	      */
 #define STM32_DMA_TBD_FS		(1 << 28)	/* First segment      */
 #define STM32_DMA_TBD_TCH		(1 << 20)	/* 2nd address chained*/
@@ -1141,7 +1142,7 @@ static int stm32_netdev_xmit(struct sk_buff *skb, struct net_device *dev)
 					       skb->len, DMA_TO_DEVICE);
 #endif
 	stm->tx_bd[idx].stat |= STM32_DMA_TBD_FS | STM32_DMA_TBD_LS |
-				STM32_DMA_TBD_DMA_OWN;
+				STM32_DMA_TBD_IC | STM32_DMA_TBD_DMA_OWN;
 
 	/*
 	 * Command DMA to refetch BD (legaly even if DMA already running)
