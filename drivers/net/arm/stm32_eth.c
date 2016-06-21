@@ -37,6 +37,7 @@
 #include <asm/setup.h>
 
 #include <mach/eth.h>
+#include <mach/platform.h>
 
 #if defined(CONFIG_STM32_ETHER_BUF_IN_SRAM)
 # define STM32_SRAM	(SRAM_PHYS_OFFSET + CONFIG_STM32_ETHER_BUF_IN_SRAM_BASE)
@@ -981,6 +982,21 @@ static int stm32_netdev_open(struct net_device *dev)
 		goto out;
 	}
 #endif /* CONFIG_ARCH_LPC18XX */
+
+	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
+		/*
+		 * When exiting from PHY power-off state on STM32F7-SOM we may
+		 * sometimes have 16h.0 (MII Override) bit set. Obviously, this
+		 * results to an incorrect PHY operating. So, we always
+		 * set the necessary override val (16h.1 RMII Override) here
+		 */
+		u16	val;
+
+		val = phy_read(stm->phy_dev, MII_SREVISION);
+		val &= ~(1 << 0);	/* Clear MII */
+		val |= (1 << 1);	/* Set RMII */
+		phy_write(stm->phy_dev, MII_SREVISION, val);
+	}
 
 	/*
 	 * Start aneg on PHY
