@@ -283,6 +283,7 @@ struct stm32_eth_priv {
 
 	spinlock_t			rx_lock;
 	spinlock_t			tx_lock;
+	u32				opened;
 
 	/*
 	 * PHY settings
@@ -975,6 +976,11 @@ static int stm32_netdev_open(struct net_device *dev)
 	struct stm32_eth_priv	*stm = netdev_priv(dev);
 	int			rv;
 
+	if (stm->opened) {
+		rv = 0;
+		goto out;
+	}
+
 #if defined(CONFIG_ARCH_LPC18XX)
 	rv = stm32_eth_get_mdio_clock(dev);
 	if (rv < 0) {
@@ -1053,13 +1059,15 @@ static int stm32_netdev_open(struct net_device *dev)
 	rv = 0;
 
 init_err:
-	if (rv)
+	if (rv) {
 		phy_stop(stm->phy_dev);
-
 #if defined(CONFIG_ARCH_LPC18XX)
-	stm32_eth_put_mdio_clock(dev);
-out:
+		stm32_eth_put_mdio_clock(dev);
 #endif /* CONFIG_ARCH_LPC18XX */
+	} else {
+		stm->opened = 1;
+	}
+out:
 	return rv;
 }
 
@@ -1069,6 +1077,9 @@ out:
 static int stm32_netdev_close(struct net_device *dev)
 {
 	struct stm32_eth_priv	*stm = netdev_priv(dev);
+
+	if (!stm->opened)
+		goto out;
 
 	napi_disable(&stm->napi);
 	netif_stop_queue(dev);
@@ -1084,6 +1095,8 @@ static int stm32_netdev_close(struct net_device *dev)
 	stm32_eth_put_mdio_clock(dev);
 #endif /* CONFIG_ARCH_LPC18XX */
 
+	stm->opened = 0;
+out:
 	return 0;
 }
 
