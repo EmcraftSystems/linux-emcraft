@@ -2640,6 +2640,18 @@ static void _dwc2_hcd_clear_tt_buffer_complete(struct usb_hcd *hcd,
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 }
 
+#ifdef CONFIG_PM
+static int _dwc2_hcd_bus_suspend(struct usb_hcd *hcd)
+{
+	return 0;
+}
+
+static int _dwc2_hcd_bus_resume(struct usb_hcd *hcd)
+{
+	return 0;
+}
+#endif
+
 static struct hc_driver dwc2_hc_driver = {
 	.description = "dwc2_hsotg",
 	.product_desc = "DWC OTG Controller",
@@ -2659,6 +2671,10 @@ static struct hc_driver dwc2_hc_driver = {
 	.hub_status_data = _dwc2_hcd_hub_status_data,
 	.hub_control = _dwc2_hcd_hub_control,
 	.clear_tt_buffer_complete = _dwc2_hcd_clear_tt_buffer_complete,
+#ifdef CONFIG_PM
+	.bus_suspend = _dwc2_hcd_bus_suspend,
+	.bus_resume = _dwc2_hcd_bus_resume,
+#endif
 };
 
 /*
