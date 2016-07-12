@@ -23,6 +23,14 @@ config ARCH_STM32F7
 	help
 	  Build kernel for the STMicro STM32F7 MCU
 
+config STM32_CACHE_USR
+	bool "User-level cache control"
+	default n
+	depends on CPU_CACHE_V7M
+	select CPU_CACHE_V7M_USR
+	help
+	  Allow to control cache from user-level applications
+
 menu "STM32 I/O interfaces"
 	depends on ARCH_STM32
 

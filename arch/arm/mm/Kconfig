@@ -521,6 +521,9 @@ config CPU_CACHE_V7
 config CPU_CACHE_V7M
 	bool
 
+config CPU_CACHE_V7M_USR
+	bool
+
 config CPU_CACHE_VIVT
 	bool
 
