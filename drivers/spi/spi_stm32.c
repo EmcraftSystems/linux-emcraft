@@ -176,6 +176,7 @@ struct reg_spi {
 #define SPI_SR_UDR			(1<<3)
 #define SPI_SR_TXE			(1<<1)
 #define SPI_SR_RXNE			(1<<0)
+#define SPI_SR_FTLVL_FULL		(3<<11)
 
 /*
  * Hardware initialization of the SPI controller
@@ -468,7 +469,8 @@ static inline int spi_stm32_hw_mode_set(struct spi_stm32 *c, unsigned int mode)
  */
 static inline int spi_stm32_hw_txfifo_full(struct spi_stm32 *c)
 {
-	return !(readl(&SPI(c)->spi_sr) & SPI_SR_TXE);
+	int sr = readl(&SPI(c)->spi_sr);
+	return (sr & SPI_SR_FTLVL_FULL) == SPI_SR_FTLVL_FULL;
 }
 
 /*
@@ -491,7 +493,7 @@ static inline void spi_stm32_hw_txfifo_put(
 			d |= p[i*wb + j];
 		}
 	}
-	writel(d, &SPI(c)->spi_dr);
+	(wb == 1) ? writeb(d, &SPI(c)->spi_dr) : writew(d, &SPI(c)->spi_dr);
 }
 
 /*
@@ -526,7 +528,7 @@ static inline void spi_stm32_hw_rxfifo_get(
 	struct spi_stm32 *c, unsigned int wb, void *rx, int i)
 {
 	int j;
-	unsigned long d = readl(&SPI(c)->spi_dr);
+	unsigned int d = (wb == 1) ? readb(&SPI(c)->spi_dr) : readw(&SPI(c)->spi_dr);
 	unsigned char *p = (unsigned char *)rx;
 
 	if (p) {
