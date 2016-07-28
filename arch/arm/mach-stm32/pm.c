@@ -41,6 +41,7 @@
 #include <mach/stm32.h>
 #include <mach/irqs.h>
 #include <mach/fb.h>
+#include <mach/iomux.h>
 
 /*
  * Assembler-level imports (from SRAM)
@@ -60,6 +61,29 @@ extern u32 stm32_suspend_moder[STM32_GPIO_PORTS];
 #if !defined(CONFIG_STM32_GPIO_INT) || (STM32_WAKEUP_GPIO >= STM32_GPIO_NUM)
 # error "Bad wake-up GPIO or GPIO interrupts disabled."
 #endif
+
+/*
+ * Wake-up USB
+ */
+#define STM32_WAKEUP_UHS_PORT	1	/* PB10/OTG_HS_ULPI_D3 (phy LP irq) */
+#define STM32_WAKEUP_UHS_PIN	10
+#define STM32_WAKEUP_UHS_GPIO	STM32_GPIO_PORTPIN2NUM(STM32_WAKEUP_UHS_PORT, \
+						       STM32_WAKEUP_UHS_PIN)
+
+#define STM32_WAKEUP_UFSP_PORT	0	/* PA12/OTG_FS_DP */
+#define STM32_WAKEUP_UFSP_PIN	12
+#define STM32_WAKEUP_UFSP_GPIO	STM32_GPIO_PORTPIN2NUM(STM32_WAKEUP_UFSP_PORT, \
+						       STM32_WAKEUP_UFSP_PIN)
+
+#define STM32_USTP_PORT		2	/* PC0/OTG_HS_ULPI_STP */
+#define STM32_USTP_PIN		0
+#define STM32_USTP_GPIO		STM32_GPIO_PORTPIN2NUM(STM32_USTP_PORT, \
+						       STM32_USTP_PIN)
+
+#define STM32_UDIR_PORT		8	/* PI11/OTG_HS_ULPI_DIR */
+#define STM32_UDIR_PIN		11
+#define STM32_UDIR_GPIO		STM32_GPIO_PORTPIN2NUM(STM32_UDIR_PORT, \
+						       STM32_UDIR_PIN)
 
 /*
  * PHY switch GPIO
@@ -115,6 +139,20 @@ static struct {
 } stm32_pm_bck;
 
 /*
+ * Device data structure
+ */
+static struct platform_driver stm32_pm_driver = {
+	.driver = {
+		.name = "stm32_pm",
+	},
+};
+
+static irqreturn_t stm32_pm_wakeup_handler(int irq, void *dev)
+{
+	return IRQ_HANDLED;
+}
+
+/*
  * Validate suspend state
  * @state		State being entered
  * @returns		1->valid, 0->invalid
@@ -144,6 +182,22 @@ static int stm32_pm_valid(suspend_state_t state)
  */
 static void stm32_pm_prepare_to_suspend(void)
 {
+#if defined(CONFIG_STM32_USB_OTG_HS_HOST)
+	if (request_irq(NVIC_IRQS + STM32_WAKEUP_UHS_GPIO,
+			stm32_pm_wakeup_handler,
+			IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TIMER,
+			"Wake-up USB HS", &stm32_pm_driver))
+		printk(KERN_ERR "%s: irq request failed\n", __func__);
+#endif
+
+#if defined(CONFIG_STM32_USB_OTG_FS_DEVICE)
+	if (request_irq(NVIC_IRQS + STM32_WAKEUP_UFSP_GPIO,
+			stm32_pm_wakeup_handler,
+			IRQF_DISABLED | IRQF_TRIGGER_FALLING | IRQF_TIMER,
+			"Wake-up USB FS D+", &stm32_pm_driver))
+		printk(KERN_ERR "%s: irq request failed\n", __func__);
+#endif
+
 	/*
 	 * Save RCC
 	 */
@@ -158,8 +212,16 @@ static void stm32_pm_prepare_to_suspend(void)
 	/*
 	 * Switch off PHY power
 	 */
-	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM)
+	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
 		gpio_direction_output(STM32_PHY_GPIO, 1);
+
+#if defined(CONFIG_STM32_USB_OTG_HS_HOST)
+		/*
+		 * Set ULPI STOP to zero to avoid incidental wake-up
+		 */
+		gpio_direction_output(STM32_USTP_GPIO, 0);
+#endif
+	}
 
 	/*
 	 * FB driver may be off, so always stop LTDC here to avoid SDRAM access
@@ -183,11 +245,38 @@ static void stm32_pm_prepare_to_resume(void)
 	if (stm32_pm_bck.ltdc.gcr & 1)
 		writel(stm32_pm_bck.ltdc.gcr, STM32F4_LTDC_BASE + LTDC_GCR);
 
-	/*
-	 * Restore PHY power
-	 */
-	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM)
+	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
+		/*
+		 * Restore PHY power
+		 */
 		gpio_direction_input(STM32_PHY_GPIO);
+
+#if defined(CONFIG_STM32_USB_OTG_HS_HOST)
+		/*
+		 * Bring USB HS ULPI PHY out of low-power:
+		 * - set STOP high
+		 * - wait for DIR low
+		 * - set STOP low
+		 * Maximum CLKOUT start-up time is several ms (e.g. 3.5ms
+		 * in USB3300 PHY).
+		 */
+		gpio_direction_output(STM32_USTP_GPIO, 1);
+		gpio_direction_input(STM32_UDIR_GPIO);
+		for (i = 2000; i > 0; i--) {
+			if (!gpio_get_value(STM32_UDIR_GPIO))
+				break;
+			udelay(10);
+		}
+		if (!i)
+			printk(KERN_WARNING "USB HS ULPI recovering timeout\n");
+		gpio_set_value(STM32_USTP_GPIO, 0);
+
+		/*
+		 * Recover GPIO AFs
+		 */
+		stm32_iomux_usb_hs_init();
+#endif
+	}
 
 	/*
 	 * Restore over-drive
@@ -212,6 +301,14 @@ static void stm32_pm_prepare_to_resume(void)
 	STM32_RCC->cfgr |= stm32_pm_bck.rcc.cfgr;
 	while ((STM32_RCC->cfgr & STM32_RCC_CFGR_SW_MSK) !=
 		stm32_pm_bck.rcc.cfgr);
+
+#if defined(CONFIG_STM32_USB_OTG_FS_DEVICE_DEVICE)
+	free_irq(NVIC_IRQS + STM32_WAKEUP_UFSP_GPIO, &stm32_pm_driver);
+#endif
+
+#if defined(CONFIG_STM32_USB_OTG_HS_HOST)
+	free_irq(NVIC_IRQS + STM32_WAKEUP_UHS_GPIO, &stm32_pm_driver);
+#endif
 }
 
 /*
@@ -260,20 +357,6 @@ static struct platform_suspend_ops stm32_pm_ops = {
 };
 
 /*
- * Device data structure
- */
-static struct platform_driver stm32_pm_driver = {
-	.driver = {
-		   .name = "stm32_pm",
-	},
-};
-
-static irqreturn_t stm32_pm_wakeup_handler(int irq, void *dev)
-{
-	return IRQ_HANDLED;
-}
-
-/*
  * Driver init
  * @returns		0->success, <0->error code
  */
@@ -297,13 +380,34 @@ static int __init stm32_pm_init(void)
 	stm32_suspend_moder[STM32_PHY_PORT] &= ~(3 << (STM32_PHY_PIN * 2));
 	stm32_suspend_moder[STM32_PHY_PORT] |= 1 << (STM32_PHY_PIN * 2);
 
+#if defined(CONFIG_STM32_USB_OTG_HS_HOST)
+	stm32_suspend_moder[STM32_USTP_PORT] &= ~(3 << (STM32_USTP_PIN *2));
+	stm32_suspend_moder[STM32_USTP_PORT] |= 1 << (STM32_USTP_PIN * 2);
+
+	stm32_suspend_moder[STM32_WAKEUP_UHS_PORT] &= ~(3 << (STM32_WAKEUP_UHS_PIN *2));
+	stm32_suspend_moder[STM32_WAKEUP_UHS_PORT] |= 0 << (STM32_WAKEUP_UHS_PIN * 2);
+#endif
+
+#if defined(CONFIG_STM32_USB_OTG_FS_DEVICE)
+	stm32_suspend_moder[STM32_WAKEUP_UFSP_PORT] &= ~(3 << (STM32_WAKEUP_UFSP_PIN *2));
+	stm32_suspend_moder[STM32_WAKEUP_UFSP_PORT] |= 0 << (STM32_WAKEUP_UFSP_PIN * 2);
+#endif
+
 	/*
 	 * Request PHY control GPIO
 	 */
 	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
-		ret = gpio_request(STM32_PHY_GPIO, "PM");
+		ret = gpio_request(STM32_PHY_GPIO, "PHY");
 		if (ret)
-			printk(KERN_ERR "%s: gpio request failed\n", __func__);
+			printk(KERN_ERR "%s: phy gpio req failed\n", __func__);
+
+		ret = gpio_request(STM32_USTP_GPIO, "USTP");
+		if (ret)
+			printk(KERN_ERR "%s: ustp gpio req failed\n", __func__);
+
+		ret = gpio_request(STM32_UDIR_GPIO, "UDIR");
+		if (ret)
+			printk(KERN_ERR "%s: udir gpio req failed\n", __func__);
 	}
 
 	/*

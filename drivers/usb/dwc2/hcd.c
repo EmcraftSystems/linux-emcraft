@@ -2641,9 +2641,97 @@ static void _dwc2_hcd_clear_tt_buffer_complete(struct usb_hcd *hcd,
 }
 
 #ifdef CONFIG_PM
+
+/*
+ * Read ULPI PHY register 'reg'.
+ * Implementation is based on a non-documented PHYCR (+0x34) register, see the
+ * STM32746G-Discovery/PWR_CurrentConsumption example in STM32Cube_FW_F7_V1.3.0
+ */
+static unsigned int _dwc2_ulpi_reg_read(struct usb_hcd *hcd, unsigned int reg)
+{
+	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+	unsigned long val = 0, timeout = 100;
+
+	writel(GPVNDCTL_NEW | (reg << 16), hsotg->regs + GPVNDCTL);
+	val = readl(hsotg->regs + GPVNDCTL);
+	while (!(val & GPVNDCTL_S_DONE) && timeout--)
+		val = readl(hsotg->regs + GPVNDCTL);
+	val = readl(hsotg->regs + GPVNDCTL);
+
+	return val & GPVNDCTL_D07;
+}
+
+/*
+ * Write UPLI PHY register 'reg'
+ * Implementation is based on a non-documented PHYCR (+0x34) register, see the
+ * STM32746G-Discovery/PWR_CurrentConsumption example in STM32Cube_FW_F7_V1.3.0
+ */
+static unsigned int _dwc2_ulpi_reg_write(struct usb_hcd *hcd, unsigned int reg,
+					 unsigned int data)
+{
+	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+	unsigned long val, timeout = 10;
+
+	writel(GPVNDCTL_NEW | GPVNDCTL_RW | (reg << 16) | (data & GPVNDCTL_D07),
+	       hsotg->regs + GPVNDCTL);
+
+	val = readl(hsotg->regs + GPVNDCTL);
+	while (!(val & GPVNDCTL_S_DONE) && timeout--)
+		val = readl(hsotg->regs + GPVNDCTL);
+	val = readl(hsotg->regs + GPVNDCTL);
+
+	return 0;
+}
+
+/*
+ * Put ULPI PHY into low-power
+ */
+static int _dwc2_ulpi_suspend(struct usb_hcd *hcd)
+{
+	unsigned long i, val;
+	unsigned long ids[] = {
+		/* VID hi, VID lo, PID hi, PID lo */
+		0x24040400,	/* Microchip USB3300 PHY */
+	};
+
+	/*
+	 * Check if this is one of the PHYs supported
+	 */
+	for (i = 0, val = 0; i < 4; i++)
+		val |= _dwc2_ulpi_reg_read(hcd, i) << ((3 - i) << 3);
+
+	for (i = 0; i < ARRAY_SIZE(ids); i++) {
+		if (val == ids[i])
+			break;
+	}
+
+	if (i == ARRAY_SIZE(ids)) {
+		printk("%s: bad VID/PID %08lx\n", __func__, val);
+		return -EINVAL;
+	}
+
+	/*
+	 * Disable PullUp on STP in InterfaceControl reg to avoid
+	 * PHY wake-up when MCU goes stop/standby
+	 */
+	val = _dwc2_ulpi_reg_read(hcd, 0x07);
+	_dwc2_ulpi_reg_write(hcd, 0x07, val | 0x80);
+
+	/*
+	 * Set FunctionControl reg to enter LowPower mode
+	 */
+	val = _dwc2_ulpi_reg_read(hcd, 0x04);
+	_dwc2_ulpi_reg_write(hcd, 0x04, val & ~0x40);
+
+	return 0;
+}
+
 static int _dwc2_hcd_bus_suspend(struct usb_hcd *hcd)
 {
-	return 0;
+	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+
+	return hsotg->core_params->phy_type == DWC2_PHY_TYPE_PARAM_ULPI ?
+		_dwc2_ulpi_suspend(hcd) : 0;
 }
 
 static int _dwc2_hcd_bus_resume(struct usb_hcd *hcd)
