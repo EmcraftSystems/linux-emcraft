@@ -1620,6 +1620,9 @@ static int __init stm32_plat_probe(struct platform_device *pdev)
 		stm->tx_buf_num * sizeof(void *));
 #endif
 
+	/* Carrier starts down, phylib will bring it up */
+	netif_carrier_off(dev);
+
 	rv = register_netdev(dev);
 	if (rv) {
 		printk(STM32_INFO ": netdev registration failed\n");
