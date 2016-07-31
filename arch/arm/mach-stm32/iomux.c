@@ -361,8 +361,9 @@ EXPORT_SYMBOL(stm32_iomux_usb_fs_init);
 void stm32_iomux_usb_hs_init(void)
 {
 	static struct stm32f2_gpio_dsc otg_gpio[] = {
-		{0, 5 }, /* CLK PA5 */
+		{0, 0 }, /* DIR <?> */
 		{2, 0 }, /* STP PC0 */
+		{0, 5 }, /* CLK PA5 */
 		{7, 4 }, /* NXT PH4 */
 
 		{0, 3 }, /* DATA0 PA3  */
@@ -374,20 +375,32 @@ void stm32_iomux_usb_hs_init(void)
 		{1, 13}, /* DATA6 PB13 */
 		{1, 5 }, /* DATA7 PB5  */
 	};
+	volatile struct stm32f2_gpio_regs *gpio_reg;
 	int	i;
+
+	/* select the appropriate ULPI_DIR */
+	if (stm32_platform_get() == PLATFORM_STM32_STM32F7_DISCO) {
+		otg_gpio[0].port = 2;
+		otg_gpio[0].pin  = 2;
+	} else {
+		otg_gpio[0].port = 8;
+		otg_gpio[0].pin  = 11;
+	}
+
+	/*
+	 * if we are reset from low power mode, then ULPI_STP may be
+	 * still driving high, thus not allow USB PHY to fully wake-up
+	 */
+	gpio_reg = (void *)stm32_gpio_base[otg_gpio[1].port];
+	if (gpio_reg->idr & (1 << otg_gpio[1].pin)) {
+		gpio_reg->moder &= ~(3 << (otg_gpio[1].pin * 2));
+		gpio_reg->moder |=  (1 << (otg_gpio[1].pin * 2));
+		gpio_reg->odr &= ~(1 << otg_gpio[1].pin);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(otg_gpio); i++) {
 		stm32f2_gpio_config(&otg_gpio[i],
 				    STM32F2_GPIO_ROLE_USB_OTG);
-	}
-
-	/* configure ULPI_DIR */
-	if (stm32_platform_get() == PLATFORM_STM32_STM32F7_DISCO) {
-		struct stm32f2_gpio_dsc ulpi_dir = { 2, 2 };
-		stm32f2_gpio_config(&ulpi_dir, STM32F2_GPIO_ROLE_USB_OTG);
-	} else /* default */ {
-		struct stm32f2_gpio_dsc ulpi_dir = { 8, 11 };
-		stm32f2_gpio_config(&ulpi_dir, STM32F2_GPIO_ROLE_USB_OTG);
 	}
 }
 EXPORT_SYMBOL(stm32_iomux_usb_hs_init);
