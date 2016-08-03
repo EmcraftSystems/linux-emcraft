@@ -53,22 +53,23 @@ extern u32 stm32_suspend_moder[STM32_GPIO_PORTS];
 /*
  * Wake-up GPIO
  */
-#define STM32_WAKEUP_PORT	0	/* PA0 */
-#define STM32_WAKEUP_PIN	0
-#define STM32_WAKEUP_GPIO	STM32_GPIO_PORTPIN2NUM(STM32_WAKEUP_PORT, \
-						       STM32_WAKEUP_PIN)
-
-#if !defined(CONFIG_STM32_GPIO_INT) || (STM32_WAKEUP_GPIO >= STM32_GPIO_NUM)
-# error "Bad wake-up GPIO or GPIO interrupts disabled."
-#endif
+#define STM32_WAKEUP_GPIO_PORT	9	/* PJ4/LCD_R5, also see iomux.c */
+#define STM32_WAKEUP_GPIO_PIN	4
+#define STM32_WAKEUP_GPIO_GPIO	STM32_GPIO_PORTPIN2NUM(STM32_WAKEUP_GPIO_PORT, \
+						       STM32_WAKEUP_GPIO_PIN)
 
 /*
  * Wake-up USB
  */
-#define STM32_WAKEUP_UHS_PORT	1	/* PB10/OTG_HS_ULPI_D3 (phy LP irq) */
-#define STM32_WAKEUP_UHS_PIN	10
-#define STM32_WAKEUP_UHS_GPIO	STM32_GPIO_PORTPIN2NUM(STM32_WAKEUP_UHS_PORT, \
-						       STM32_WAKEUP_UHS_PIN)
+#define STM32_WAKEUP_UHS0_PORT	0	/* PA3/OTG_HS_ULPI_D0 */
+#define STM32_WAKEUP_UHS0_PIN	3
+#define STM32_WAKEUP_UHS0_GPIO	STM32_GPIO_PORTPIN2NUM(STM32_WAKEUP_UHS0_PORT, \
+						       STM32_WAKEUP_UHS0_PIN)
+
+#define STM32_WAKEUP_UHS1_PORT	1	/* PB0/OTG_HS_ULPI_D1 */
+#define STM32_WAKEUP_UHS1_PIN	0
+#define STM32_WAKEUP_UHS1_GPIO	STM32_GPIO_PORTPIN2NUM(STM32_WAKEUP_UHS1_PORT, \
+						       STM32_WAKEUP_UHS1_PIN)
 
 #define STM32_WAKEUP_UFSP_PORT	0	/* PA12/OTG_FS_DP */
 #define STM32_WAKEUP_UFSP_PIN	12
@@ -182,12 +183,30 @@ static int stm32_pm_valid(suspend_state_t state)
  */
 static void stm32_pm_prepare_to_suspend(void)
 {
+#if defined(STM32_WAKEUP_GPIO_GPIO)
+	/*
+	 * Specify IRQF_TIMER to avoid disabling this IRQ during
+	 * suspend_device_irqs() procedure
+	 */
+	if (request_irq(NVIC_IRQS + STM32_WAKEUP_GPIO_GPIO,
+			stm32_pm_wakeup_handler,
+			IRQF_DISABLED | IRQF_TRIGGER_FALLING | IRQF_TIMER,
+			"Wake-up GPIO", &stm32_pm_driver))
+		printk(KERN_ERR "%s: gpio irq request failed\n", __func__);
+#endif
+
 #if defined(CONFIG_STM32_USB_OTG_HS_HOST)
-	if (request_irq(NVIC_IRQS + STM32_WAKEUP_UHS_GPIO,
+	if (request_irq(NVIC_IRQS + STM32_WAKEUP_UHS0_GPIO,
 			stm32_pm_wakeup_handler,
 			IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TIMER,
-			"Wake-up USB HS", &stm32_pm_driver))
-		printk(KERN_ERR "%s: irq request failed\n", __func__);
+			"Wake-up USB HS D0", &stm32_pm_driver))
+		printk(KERN_ERR "%s: usb hs d0 irq request failed\n", __func__);
+
+	if (request_irq(NVIC_IRQS + STM32_WAKEUP_UHS1_GPIO,
+			stm32_pm_wakeup_handler,
+			IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TIMER,
+			"Wake-up USB HS D1", &stm32_pm_driver))
+		printk(KERN_ERR "%s: usb hs d1 irq request failed\n", __func__);
 #endif
 
 #if defined(CONFIG_STM32_USB_OTG_FS_DEVICE)
@@ -195,7 +214,7 @@ static void stm32_pm_prepare_to_suspend(void)
 			stm32_pm_wakeup_handler,
 			IRQF_DISABLED | IRQF_TRIGGER_FALLING | IRQF_TIMER,
 			"Wake-up USB FS D+", &stm32_pm_driver))
-		printk(KERN_ERR "%s: irq request failed\n", __func__);
+		printk(KERN_ERR "%s: usb fs d+ irq request failed\n", __func__);
 #endif
 
 	/*
@@ -307,7 +326,12 @@ static void stm32_pm_prepare_to_resume(void)
 #endif
 
 #if defined(CONFIG_STM32_USB_OTG_HS_HOST)
-	free_irq(NVIC_IRQS + STM32_WAKEUP_UHS_GPIO, &stm32_pm_driver);
+	free_irq(NVIC_IRQS + STM32_WAKEUP_UHS1_GPIO, &stm32_pm_driver);
+	free_irq(NVIC_IRQS + STM32_WAKEUP_UHS0_GPIO, &stm32_pm_driver);
+#endif
+
+#if defined(STM32_WAKEUP_GPIO_GPIO)
+	free_irq(NVIC_IRQS + STM32_WAKEUP_GPIO_GPIO, &stm32_pm_driver);
 #endif
 }
 
@@ -374,8 +398,10 @@ static int __init stm32_pm_init(void)
 	/*
 	 * Exceptions are GPIOs which are used for WakeUp/Phy controls
 	 */
-	stm32_suspend_moder[STM32_WAKEUP_PORT] &= ~(3 << (STM32_WAKEUP_PIN *2));
-	stm32_suspend_moder[STM32_WAKEUP_PORT] |= 0 << (STM32_WAKEUP_PIN * 2);
+#if defined(STM32_WAKEUP_GPIO_GPIO)
+	stm32_suspend_moder[STM32_WAKEUP_GPIO_PORT] &=
+					~(3 << (STM32_WAKEUP_GPIO_PIN * 2));
+#endif
 
 	stm32_suspend_moder[STM32_PHY_PORT] &= ~(3 << (STM32_PHY_PIN * 2));
 	stm32_suspend_moder[STM32_PHY_PORT] |= 1 << (STM32_PHY_PIN * 2);
@@ -384,13 +410,15 @@ static int __init stm32_pm_init(void)
 	stm32_suspend_moder[STM32_USTP_PORT] &= ~(3 << (STM32_USTP_PIN *2));
 	stm32_suspend_moder[STM32_USTP_PORT] |= 1 << (STM32_USTP_PIN * 2);
 
-	stm32_suspend_moder[STM32_WAKEUP_UHS_PORT] &= ~(3 << (STM32_WAKEUP_UHS_PIN *2));
-	stm32_suspend_moder[STM32_WAKEUP_UHS_PORT] |= 0 << (STM32_WAKEUP_UHS_PIN * 2);
+	stm32_suspend_moder[STM32_WAKEUP_UHS0_PORT] &=
+					~(3 << (STM32_WAKEUP_UHS0_PIN * 2));
+	stm32_suspend_moder[STM32_WAKEUP_UHS1_PORT] &=
+					~(3 << (STM32_WAKEUP_UHS1_PIN * 2));
 #endif
 
 #if defined(CONFIG_STM32_USB_OTG_FS_DEVICE)
-	stm32_suspend_moder[STM32_WAKEUP_UFSP_PORT] &= ~(3 << (STM32_WAKEUP_UFSP_PIN *2));
-	stm32_suspend_moder[STM32_WAKEUP_UFSP_PORT] |= 0 << (STM32_WAKEUP_UFSP_PIN * 2);
+	stm32_suspend_moder[STM32_WAKEUP_UFSP_PORT] &=
+					~(3 << (STM32_WAKEUP_UFSP_PIN * 2));
 #endif
 
 	/*
@@ -415,20 +443,6 @@ static int __init stm32_pm_init(void)
 	 */
 	STM32_PWR->cr |= STM32_PWR_CR_UDEN | STM32_PWR_CR_LPUDS |
 			 STM32_PWR_CR_FPDS | STM32_PWR_CR_LPDS;
-
-	/*
-	 * Specify IRQF_TIMER to avoid disabling this IRQ during
-	 * suspend_device_irqs() procedure
-	 */
-	ret = request_irq(NVIC_IRQS + STM32_WAKEUP_GPIO,
-			  stm32_pm_wakeup_handler,
-			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TIMER,
-			  "Wake-up GPIO (PA0)", &stm32_pm_driver);
-	if (ret) {
-		printk(KERN_ERR "%s: irq request failed\n", __func__);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	/*
 	 * Register the PM driver

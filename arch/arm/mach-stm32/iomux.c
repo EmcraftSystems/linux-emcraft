@@ -656,6 +656,15 @@ uartdone:
 		} while (0);
 #endif /* CONFIG_MMC_ARMMMCI */
 
+#if defined(CONFIG_PM)
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM) {
+		/* PJ4 = Wake-Up GPIO */
+		gpio_dsc.port = 9;
+		gpio_dsc.pin  = 4;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_IN_PUP);
+	}
+#endif
+
 #if defined(CONFIG_GPIOLIB) && defined(CONFIG_GPIO_SYSFS)
 
 	/*
