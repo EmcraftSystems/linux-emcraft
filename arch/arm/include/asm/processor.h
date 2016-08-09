@@ -83,7 +83,6 @@ extern void mpu_start_thread(struct pt_regs *regs);
 ({									\
 	unsigned long *stack = (unsigned long *)sp;			\
 	set_fs(USER_DS);						\
-	memset(regs->uregs, 0, sizeof(regs->uregs));			\
 	if (current->personality & ADDR_LIMIT_32BIT)			\
 		regs->ARM_cpsr = USR_MODE;				\
 	else								\

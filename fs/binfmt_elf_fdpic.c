@@ -319,7 +319,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	 * defunct, deceased, etc. after this point we have to exit via
 	 * error_kill */
 	set_personality(PER_LINUX_FDPIC);
-	if (elf_read_implies_exec(&exec_params.hdr, executable_stack))
+	if (elf_read_implies_exec(exec_params.hdr, executable_stack))
 		current->personality |= READ_IMPLIES_EXEC;
 
 	setup_new_exec(bprm);
@@ -440,8 +440,13 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 
 	/* everything is now ready... get the userspace context ready to roll */
 	entryaddr = interp_params.entry_addr ?: exec_params.entry_addr;
+
+	kdebug("start thread: entry @%08x, stack @%08x\n",
+		entryaddr, current->mm->start_stack);
+
 	start_thread(regs, entryaddr, current->mm->start_stack);
 
+	kdebug("thread started\n");
 	retval = 0;
 
 error:
@@ -454,6 +459,7 @@ error:
 	kfree(exec_params.loadmap);
 	kfree(interp_params.phdrs);
 	kfree(interp_params.loadmap);
+	kdebug("%s: exit\n", __func__);
 	return retval;
 
 	/* unrecoverable error - kill the process */

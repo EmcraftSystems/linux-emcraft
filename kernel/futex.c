@@ -236,14 +236,18 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key)
 	 * Note : We do have to check 'uaddr' is a valid user address,
 	 *        but access_ok() should be faster than find_vma()
 	 */
+#if defined(CONFIG_MMU)
 	if (!fshared) {
+#endif
 		if (unlikely(!access_ok(VERIFY_WRITE, uaddr, sizeof(u32))))
 			return -EFAULT;
 		key->private.mm = mm;
 		key->private.address = address;
 		get_futex_key_refs(key);
 		return 0;
+#if defined(CONFIG_MMU)
 	}
+#endif
 
 again:
 	err = get_user_pages_fast(address, 1, 1, &page);

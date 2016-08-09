@@ -30,6 +30,11 @@
 #define PTRACE_GETVFPREGS	27
 #define PTRACE_SETVFPREGS	28
 
+#define PTRACE_GETFDPIC	31	/* get the ELF fdpic loadmap address */
+
+#define PTRACE_GETFDPIC_EXEC	0	/* [addr] request the executable loadmap */
+#define PTRACE_GETFDPIC_INTERP	1	/* [addr] request the interpreter loadmap */
+
 /*
  * PSR bits
  */

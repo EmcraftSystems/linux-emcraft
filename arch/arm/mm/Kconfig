@@ -464,6 +464,7 @@ config CPU_32v7
 
 config CPU_32v7M
 	bool
+	select TLS_REG_EMUL
 
 # The abort model
 config CPU_ABRT_NOMMU

@@ -45,6 +45,23 @@
 #define SWI_THUMB_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_sigreturn - __NR_SYSCALL_BASE))
 #define SWI_THUMB_RT_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
 
+struct fdpic_func_descriptor {
+	unsigned long	text;
+	unsigned long	GOT;
+};
+
+const unsigned long sigreturn_fdpic_codes[3] = {
+    0xe59fc004, /* ldr r12, [pc, #4] to read function descriptor */
+    0xe59c9004, /* ldr r9, [r12, #4] to setup got */
+    0xe59cf000  /* ldr pc, [r12] to jump into restorer */
+};
+
+const unsigned long sigreturn_fdpic__thumb_codes[3] = {
+    0xc008f8df, /* ldr r12, [pc, #8] to read function descriptor */
+    0x9004f8dc, /* ldr r9, [r12, #4] to setup got */
+    0xf000f8dc  /* ldr pc, [r12] to jump into restorer */
+};
+
 const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
@@ -265,7 +282,7 @@ struct sigframe {
 	unsigned long registers_frame[8]; /* {r0-r3, ip, lr, pc, PSR) */
 	unsigned long fpu_high_frame[18]; /* {FPU.s0-s15, FPSCR, 4-byte pad} */
 	struct ucontext uc;
-	unsigned long retcode[2];
+	unsigned long retcode[4];
 };
 
 struct rt_sigframe {
@@ -473,10 +490,18 @@ static int
 setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	     unsigned long __user *rc, void __user *frame, int usig)
 {
-	unsigned long handler = (unsigned long)ka->sa.sa_handler;
+	unsigned long handler;
 	unsigned long retcode;
 	int thumb = 0;
 	unsigned long cpsr = regs->ARM_cpsr & ~PSR_f;
+	unsigned long r9 = 0;
+
+	if (current->personality & FDPIC_FUNCPTRS) {
+		struct fdpic_func_descriptor __user *funcptr = (struct fdpic_func_descriptor __user *)ka->sa.sa_handler;
+		__get_user(handler, &funcptr->text);
+		__get_user(r9, &funcptr->GOT);
+	} else
+		handler = (unsigned long)ka->sa.sa_handler;
 
 	/*
 	 * Maybe we need to deliver a 32-bit signal to a 26-bit task.
@@ -504,7 +529,32 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 #endif
 
 	if (ka->sa.sa_flags & SA_RESTORER) {
-		retcode = (unsigned long)ka->sa.sa_restorer;
+	        if (current->personality & FDPIC_FUNCPTRS) {
+	            /* for fdpic we ensure that restorer is call with a correct r9 value
+	             * for that we need to write code on stack that setup r9 and jump back to restorer value
+	             */
+			struct fdpic_func_descriptor __user *funcptr = (struct fdpic_func_descriptor __user *)ka->sa.sa_restorer;
+
+	            if (thumb) {
+	                if (__put_user(sigreturn_fdpic__thumb_codes[0],   rc) ||
+	                    __put_user(sigreturn_fdpic__thumb_codes[1],   rc+1) ||
+	                    __put_user(sigreturn_fdpic__thumb_codes[2],   rc+2) ||
+	                    __put_user((unsigned long)funcptr,     rc+3))
+	                    return 1;
+	            } else {
+	                if (__put_user(sigreturn_fdpic_codes[0],   rc) ||
+	                    __put_user(sigreturn_fdpic_codes[1],   rc+1) ||
+	                    __put_user(sigreturn_fdpic_codes[2],   rc+2) ||
+	                    __put_user((unsigned long)funcptr,     rc+3))
+	                    return 1;
+	            }
+	            /* last word of rc is data and so we don't need to invalidate icache for it */
+	            flush_icache_range((unsigned long)rc, (unsigned long)(rc + 3));
+
+	            retcode = (unsigned long)rc + thumb;
+	        } else {
+		    retcode = (unsigned long)ka->sa.sa_restorer;
+		}
 	} else {
 		unsigned int idx = thumb << 1;
 
@@ -538,6 +588,9 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	regs->ARM_lr = retcode;
 	regs->ARM_pc = handler;
 	regs->ARM_cpsr = cpsr;
+
+	if (current->personality & FDPIC_FUNCPTRS)
+		regs->ARM_r9 = r9;
 
 	return 0;
 }

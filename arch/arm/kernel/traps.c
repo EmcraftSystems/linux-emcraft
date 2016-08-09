@@ -522,6 +522,9 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 #endif
 		return 0;
 
+	case NR(get_tls):
+	    return thread->tp_value;
+
 #ifdef CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG
 	/*
 	 * Atomically store r1 in *r2 if *r2 is equal to r0 for user space.
