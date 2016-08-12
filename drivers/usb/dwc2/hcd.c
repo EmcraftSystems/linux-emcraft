@@ -2641,6 +2641,13 @@ static void _dwc2_hcd_clear_tt_buffer_complete(struct usb_hcd *hcd,
 }
 
 #ifdef CONFIG_PM
+/*
+ * The list of ULPI PHYs we support (for low-powering)
+ */
+static unsigned long ulpi_phy_ids[] = {
+	/* VID hi, VID lo, PID hi, PID lo */
+	0x24040400,	/* Microchip USB3300 PHY */
+};
 
 /*
  * Read ULPI PHY register 'reg'.
@@ -2689,23 +2696,19 @@ static unsigned int _dwc2_ulpi_reg_write(struct usb_hcd *hcd, unsigned int reg,
 static int _dwc2_ulpi_suspend(struct usb_hcd *hcd)
 {
 	unsigned long i, val;
-	unsigned long ids[] = {
-		/* VID hi, VID lo, PID hi, PID lo */
-		0x24040400,	/* Microchip USB3300 PHY */
-	};
 
 	/*
-	 * Check if this is one of the PHYs supported
+	 * Check if ULPI link is OK, and this is one of the PHYs supported
 	 */
 	for (i = 0, val = 0; i < 4; i++)
 		val |= _dwc2_ulpi_reg_read(hcd, i) << ((3 - i) << 3);
 
-	for (i = 0; i < ARRAY_SIZE(ids); i++) {
-		if (val == ids[i])
+	for (i = 0; i < ARRAY_SIZE(ulpi_phy_ids); i++) {
+		if (val == ulpi_phy_ids[i])
 			break;
 	}
 
-	if (i == ARRAY_SIZE(ids)) {
+	if (i == ARRAY_SIZE(ulpi_phy_ids)) {
 		printk("%s: bad VID/PID %08lx\n", __func__, val);
 		return -EINVAL;
 	}
@@ -2726,6 +2729,41 @@ static int _dwc2_ulpi_suspend(struct usb_hcd *hcd)
 	return 0;
 }
 
+static int _dwc2_ulpi_resume(struct usb_hcd *hcd)
+{
+	unsigned long i, val;
+
+	/*
+	 * Check if ULPI link is OK, and this is one of the PHYs supported
+	 */
+	for (i = 0, val = 0; i < 4; i++)
+		val |= _dwc2_ulpi_reg_read(hcd, i) << ((3 - i) << 3);
+
+	for (i = 0; i < ARRAY_SIZE(ulpi_phy_ids); i++) {
+		if (val == ulpi_phy_ids[i])
+			break;
+	}
+
+	if (i == ARRAY_SIZE(ulpi_phy_ids)) {
+		printk("%s: bad VID/PID %08lx\n", __func__, val);
+		return -EINVAL;
+	}
+
+	/*
+	 * Reset VBUS power via OTGControl[DrvVbus|DrvVbusExternal]. This is for
+	 * reliable detection of the devices, which might be connected while we
+	 * slept. With smaller VBUS-off interval some devices are missed (e.g.
+	 * with 10..15ms delay a USB WiFi Dongle is detected reliably, but USB
+	 * Flash Memory stick is not).
+	 */
+	val = _dwc2_ulpi_reg_read(hcd, 0x0A);
+	_dwc2_ulpi_reg_write(hcd, 0x0A, val & ~0x60);
+	usleep_range(100000, 125000);
+	_dwc2_ulpi_reg_write(hcd, 0x0A, val);
+
+	return 0;
+}
+
 static int _dwc2_hcd_bus_suspend(struct usb_hcd *hcd)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
@@ -2736,7 +2774,10 @@ static int _dwc2_hcd_bus_suspend(struct usb_hcd *hcd)
 
 static int _dwc2_hcd_bus_resume(struct usb_hcd *hcd)
 {
-	return 0;
+	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
+
+	return hsotg->core_params->phy_type == DWC2_PHY_TYPE_PARAM_ULPI ?
+		_dwc2_ulpi_resume(hcd) : 0;
 }
 #endif
 
