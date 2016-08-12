@@ -657,7 +657,8 @@ uartdone:
 #endif /* CONFIG_MMC_ARMMMCI */
 
 #if defined(CONFIG_PM)
-	if (platform == PLATFORM_STM32_STM_STM32F7_SOM) {
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM ||
+	    platform == PLATFORM_STM32_OLYMPUS_STM32F7) {
 		/* PJ4 = Wake-Up GPIO */
 		gpio_dsc.port = 9;
 		gpio_dsc.pin  = 4;

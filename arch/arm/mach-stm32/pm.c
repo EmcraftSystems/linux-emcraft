@@ -183,6 +183,7 @@ static int stm32_pm_valid(suspend_state_t state)
  */
 static void stm32_pm_prepare_to_suspend(void)
 {
+	int	platform = stm32_platform_get();
 #if defined(STM32_WAKEUP_GPIO_GPIO)
 	/*
 	 * Specify IRQF_TIMER to avoid disabling this IRQ during
@@ -231,13 +232,15 @@ static void stm32_pm_prepare_to_suspend(void)
 	/*
 	 * Switch off PHY power
 	 */
-	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM)
 		gpio_direction_output(STM32_PHY_GPIO, 1);
 
+	/*
+	 * Set ULPI STOP to zero to avoid incidental wake-up
+	 */
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM ||
+	    platform == PLATFORM_STM32_OLYMPUS_STM32F7) {
 #if defined(CONFIG_STM32_USB_OTG_HS_HOST)
-		/*
-		 * Set ULPI STOP to zero to avoid incidental wake-up
-		 */
 		gpio_direction_output(STM32_USTP_GPIO, 0);
 #endif
 	}
@@ -256,6 +259,7 @@ static void stm32_pm_prepare_to_resume(void)
 {
 	u32 pll[] = { STM32_RCC_CR_HSE_BIT, STM32_RCC_CR_PLL_BIT,
 		      STM32_RCC_CR_I2S_BIT, STM32_RCC_CR_SAI_BIT };
+	int platform = stm32_platform_get();
 	int i;
 
 	/*
@@ -264,12 +268,14 @@ static void stm32_pm_prepare_to_resume(void)
 	if (stm32_pm_bck.ltdc.gcr & 1)
 		writel(stm32_pm_bck.ltdc.gcr, STM32F4_LTDC_BASE + LTDC_GCR);
 
-	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
-		/*
-		 * Restore PHY power
-		 */
+	/*
+	 * Restore PHY power
+	 */
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM)
 		gpio_direction_input(STM32_PHY_GPIO);
 
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM ||
+	    platform == PLATFORM_STM32_OLYMPUS_STM32F7) {
 #if defined(CONFIG_STM32_USB_OTG_HS_HOST)
 		/*
 		 * Bring USB HS ULPI PHY out of low-power:
@@ -387,6 +393,7 @@ static struct platform_suspend_ops stm32_pm_ops = {
 static int __init stm32_pm_init(void)
 {
 	int i, ret;
+	int platform = stm32_platform_get();
 
 	/*
 	 * Initialize GPIOx_MODER we'll use in suspend: to get the minimal
@@ -424,11 +431,14 @@ static int __init stm32_pm_init(void)
 	/*
 	 * Request PHY control GPIO
 	 */
-	if (stm32_platform_get() == PLATFORM_STM32_STM_STM32F7_SOM) {
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM) {
 		ret = gpio_request(STM32_PHY_GPIO, "PHY");
 		if (ret)
 			printk(KERN_ERR "%s: phy gpio req failed\n", __func__);
+	}
 
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM ||
+	    platform == PLATFORM_STM32_OLYMPUS_STM32F7) {
 		ret = gpio_request(STM32_USTP_GPIO, "USTP");
 		if (ret)
 			printk(KERN_ERR "%s: ustp gpio req failed\n", __func__);
