@@ -235,7 +235,7 @@ void v7m_dma_inv_range(const void *start, const void *end)
 	}
 	if (e & (L1_CACHE_BYTES - 1)) {
 		DCCIMVAC(e);
-		e = (e - L1_CACHE_BYTES) & ~(L1_CACHE_BYTES - 1);
+		e &= ~(L1_CACHE_BYTES - 1);
 	}
 
 	/* Invalidate aligned part */
