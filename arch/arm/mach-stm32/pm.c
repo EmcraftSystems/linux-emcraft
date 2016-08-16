@@ -210,13 +210,17 @@ static void stm32_pm_prepare_to_suspend(void)
 		printk(KERN_ERR "%s: usb hs d1 irq request failed\n", __func__);
 #endif
 
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM) {
 #if defined(CONFIG_STM32_USB_OTG_FS_DEVICE)
-	if (request_irq(NVIC_IRQS + STM32_WAKEUP_UFSP_GPIO,
-			stm32_pm_wakeup_handler,
-			IRQF_DISABLED | IRQF_TRIGGER_FALLING | IRQF_TIMER,
-			"Wake-up USB FS D+", &stm32_pm_driver))
-		printk(KERN_ERR "%s: usb fs d+ irq request failed\n", __func__);
+		if (request_irq(NVIC_IRQS + STM32_WAKEUP_UFSP_GPIO,
+				stm32_pm_wakeup_handler, IRQF_DISABLED |
+				IRQF_TRIGGER_FALLING | IRQF_TIMER,
+				"Wake-up USB FS D+", &stm32_pm_driver)) {
+			printk(KERN_ERR "%s: usb fs d+ irq request failed\n",
+				__func__);
+		}
 #endif
+	}
 
 	/*
 	 * Save RCC
@@ -327,9 +331,11 @@ static void stm32_pm_prepare_to_resume(void)
 	while ((STM32_RCC->cfgr & STM32_RCC_CFGR_SW_MSK) !=
 		stm32_pm_bck.rcc.cfgr);
 
-#if defined(CONFIG_STM32_USB_OTG_FS_DEVICE_DEVICE)
-	free_irq(NVIC_IRQS + STM32_WAKEUP_UFSP_GPIO, &stm32_pm_driver);
+	if (platform == PLATFORM_STM32_STM_STM32F7_SOM) {
+#if defined(CONFIG_STM32_USB_OTG_FS_DEVICE)
+		free_irq(NVIC_IRQS + STM32_WAKEUP_UFSP_GPIO, &stm32_pm_driver);
 #endif
+	}
 
 #if defined(CONFIG_STM32_USB_OTG_HS_HOST)
 	free_irq(NVIC_IRQS + STM32_WAKEUP_UHS1_GPIO, &stm32_pm_driver);
