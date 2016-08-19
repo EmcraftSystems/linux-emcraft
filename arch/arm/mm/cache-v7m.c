@@ -145,6 +145,7 @@ void v7m_flush_kern_cache_all(void)
 	}
 
 	/* Invalidate all Instruction Cache */
+	asm("isb");
 	ICIALLU(0);
 
 	/* Invalidate BPU */
@@ -183,14 +184,30 @@ void v7m_flush_user_cache_range(unsigned long start, unsigned long end,
  */
 void v7m_coherent_kern_range(unsigned long start, unsigned long end)
 {
-	while (start < end) {
+	asm("dsb");
+	asm("isb");
+
+	/* Synchronize unaligned head & tail */
+	if (start & (L1_CACHE_BYTES - 1)) {
 		/* Clean D-line */
 		DCCMVAC(start);
 		asm("dsb");
 		/* Invalidate I-line */
 		ICIMVAU(start);
+		start = (start + L1_CACHE_BYTES) & ~(L1_CACHE_BYTES - 1);
+	}
+	if (end & (L1_CACHE_BYTES - 1)) {
+		DCCMVAC(start);
+		asm("dsb");
+		ICIMVAU(start);
+		end &= ~(L1_CACHE_BYTES - 1);
+	}
 
-		start += L1_CACHE_BYTES;
+	/* Synchronize aligned part */
+	for ( ; start < end; start += L1_CACHE_BYTES) {
+		DCCMVAC(start);
+		asm("dsb");
+		ICIMVAU(start);
 	}
 
 	asm("dsb");
@@ -210,10 +227,22 @@ void v7m_coherent_user_range(unsigned long start, unsigned long end)
  */
 void v7m_flush_kern_dcache_area(void *addr, size_t size)
 {
-	u32	s, e;
+	u32	s = (u32)addr, e = (u32)addr + size;
 
-	/* Clean & invalidate */
-	for (s = (u32)addr, e = s + size; s < e; s += L1_CACHE_BYTES)
+	asm("dsb");
+
+	/* Flush cache-unaligned head & tail */
+	if (s & (L1_CACHE_BYTES - 1)) {
+		DCCIMVAC(s);
+		s = (s + L1_CACHE_BYTES) & ~(L1_CACHE_BYTES - 1);
+	}
+	if (e & (L1_CACHE_BYTES - 1)) {
+		DCCIMVAC(e);
+		e &= ~(L1_CACHE_BYTES - 1);
+	}
+
+	/* Flush aligned part */
+	for ( ; s < e; s += L1_CACHE_BYTES)
 		DCCIMVAC(s);
 
 	asm("dsb");
@@ -227,6 +256,8 @@ void v7m_flush_kern_dcache_area(void *addr, size_t size)
 void v7m_dma_inv_range(const void *start, const void *end)
 {
 	u32	s = (u32)start, e = (u32)end;
+
+	asm("dsb");
 
 	/* Flush cache-unaligned head & tail */
 	if (s & (L1_CACHE_BYTES - 1)) {
@@ -252,15 +283,26 @@ void v7m_dma_inv_range(const void *start, const void *end)
  */
 void v7m_dma_clean_range(const void *start, const void *end)
 {
-	u32	s, e;
+	u32	s = (u32)start, e = (u32)end;
 
-	/* Clean */
-	for (s = (u32)start, e = (u32)end; s < e; s += L1_CACHE_BYTES)
+	asm("dsb");
+
+	/* Clean cache-unaligned head & tail */
+	if (s & (L1_CACHE_BYTES - 1)) {
+		DCCMVAC(s);
+		s = (s + L1_CACHE_BYTES) & ~(L1_CACHE_BYTES - 1);
+	}
+	if (e & (L1_CACHE_BYTES - 1)) {
+		DCCMVAC(e);
+		e &= ~(L1_CACHE_BYTES - 1);
+	}
+
+	/* Clean aligned part */
+	for ( ; s < e; s += L1_CACHE_BYTES)
 		DCCMVAC(s);
 
 	asm("dsb");
 }
-
 
 /*
  * Clean & invalidate the data cache within the specified region.
@@ -269,10 +311,22 @@ void v7m_dma_clean_range(const void *start, const void *end)
  */
 void v7m_dma_flush_range(const void *start, const void *end)
 {
-	u32	s, e;
+	u32	s = (u32)start, e = (u32)end;
 
-	/* Clean & invalidate */
-	for (s = (u32)start, e = (u32)end; s < e; s += L1_CACHE_BYTES)
+	asm("dsb");
+
+	/* Flush cache-unaligned head & tail */
+	if (s & (L1_CACHE_BYTES - 1)) {
+		DCCIMVAC(s);
+		s = (s + L1_CACHE_BYTES) & ~(L1_CACHE_BYTES - 1);
+	}
+	if (e & (L1_CACHE_BYTES - 1)) {
+		DCCIMVAC(e);
+		e &= ~(L1_CACHE_BYTES - 1);
+	}
+
+	/* Flush aligned part */
+	for ( ; s < e; s += L1_CACHE_BYTES)
 		DCCIMVAC(s);
 
 	asm("dsb");
