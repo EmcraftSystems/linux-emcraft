@@ -36,7 +36,4 @@
 
 extern int stm32_udc_num;
 
-int __init stm32_usb_otg_hs_init(void);
-int __init stm32_usb_otg_fs_init(void);
-
 #endif /* _MACH_STM32_USB_H_ */

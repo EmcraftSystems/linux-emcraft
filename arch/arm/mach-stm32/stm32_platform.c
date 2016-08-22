@@ -292,20 +292,6 @@ static void __init stm32_init(void)
 	stm32_rtc_init();
 #endif
 
-#if defined(CONFIG_STM32_USB_OTG_FS)
-       /*
-        * Initialize the USB OTG FS controller
-        */
-       stm32_usb_otg_fs_init();
-#endif
-
-#if defined(CONFIG_STM32_USB_OTG_HS)
-       /*
-        * Initialize the USB OTG HS controller
-        */
-       stm32_usb_otg_hs_init();
-#endif
-
 #if defined(CONFIG_GPIOLIB)
 	/*
 	 * Register the MCU GPIO chip

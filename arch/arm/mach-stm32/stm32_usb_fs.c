@@ -124,12 +124,14 @@ static struct platform_device	usb_otg_fs_device = {
 
 int __init stm32_usb_otg_fs_init(void)
 {
+#if defined(CONFIG_STM32_USB_OTG_FS_DEVICE)
 	if (stm32_udc_num++ > 0) {
 		printk(KERN_ERR "USB Device Controller (high-speed) is already "
 			"registered in the system.\nLinux USB Gadget sybsystem "
 			"doesn't support more than one UDC so far!\n");
 		return -EBUSY;
 	}
+#endif
 
 	/*
 	 * Init IO mux, and enable clocks
