@@ -590,15 +590,16 @@ static int stm32_eth_buffers_alloc(struct net_device *dev)
 static void stm32_eth_buffers_free(struct net_device *dev)
 {
 	struct stm32_eth_priv	*stm = netdev_priv(dev);
+	u32			sz, skb_sz;
 
-	u32 total_alloc_size;
-	total_alloc_size =
-		sizeof(struct stm32_eth_dma_bd) +
-		sizeof(struct stm32_sk_buff_fake) +
-		stm->frame_max_size + 4;
-	total_alloc_size *= (stm->rx_buf_num + stm->tx_buf_num);
+	sz  = ALIGN(sizeof(struct stm32_eth_dma_bd) * stm->rx_buf_num, 4) + 4;
+	sz += ALIGN(sizeof(struct stm32_eth_dma_bd) * stm->tx_buf_num, 4) + 4;
 
-	stm->sram_pointer -= total_alloc_size;
+	skb_sz = sizeof(struct stm32_sk_buff_fake) + stm->frame_max_size + 4;
+	sz += stm->rx_buf_num * (ALIGN(skb_sz, 4) + 4);
+	sz += stm->tx_buf_num * (ALIGN(skb_sz, 4) + 4);
+
+	stm->sram_pointer -= sz;
 }
 #else /* !STM32_SRAM */
 
