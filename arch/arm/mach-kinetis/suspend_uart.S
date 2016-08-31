@@ -32,11 +32,11 @@
 	strb r1, [r0, #3]
 
 	adr.w r2, \uart_bdr
-	ldr r1, [r2, #3]
+	ldrb r1, [r2, #3]
 	strb r1, [r0, #0]
-	ldr r1, [r2, #4]
+	ldrb r1, [r2, #4]
 	strb r1, [r0, #1]
-	ldr r1, [r2, #5]
+	ldrb r1, [r2, #5]
 	strb r1, [r0, #10]
 
 	ldrb r1, [r0, #3]
@@ -114,11 +114,11 @@
 	strb r1, [r0, #3]
 
 	adr.w r2, \uart_bdr
-	ldr r1, [r2, #0]
+	ldrb r1, [r2, #0]
 	strb r1, [r0, #0]
-	ldr r1, [r2, #1]
+	ldrb r1, [r2, #1]
 	strb r1, [r0, #1]
-	ldr r1, [r2, #2]
+	ldrb r1, [r2, #2]
 	strb r1, [r0, #10]
 
 	ldrb r1, [r0, #3]

@@ -1309,12 +1309,10 @@ static int kinetis_uart_probe(struct platform_device *pdev)
 #if defined(CONFIG_PM)
 	sprintf(suspend_clk_name, "kinetis-suspend-uart.%d", id);
 	up->suspend_clk = clk_get(NULL, suspend_clk_name);
-	if (IS_ERR(up->suspend_clk)) {
-		rv = PTR_ERR(up->suspend_clk);
-		goto err_cleanup_clk;
+	if (!IS_ERR(up->suspend_clk)) {
+		clk_enable(up->suspend_clk);
+		up->baud = 115200;
 	}
-	clk_enable(up->suspend_clk);
-	up->baud = 115200;
 #endif
 
 #if defined(CONFIG_KINETIS_EDMA)
@@ -1374,11 +1372,6 @@ err_dma_rx_put:
 	}
 #endif /* CONFIG_KINETIS_EDMA */
 
-#if defined(CONFIG_PM)
-	clk_disable(up->suspend_clk);
-	clk_put(up->suspend_clk);
-err_cleanup_clk:
-#endif
 	clk_disable(up->clk);
 	clk_put(up->clk);
 err_cleanup_priv:
@@ -1415,8 +1408,10 @@ static int __devexit kinetis_uart_remove(struct platform_device *pdev)
 	clk_disable(up->clk);
 	clk_put(up->clk);
 #if defined(CONFIG_PM)
-	clk_disable(up->suspend_clk);
-	clk_put(up->suspend_clk);
+	if (!IS_ERR(up->suspend_clk)) {
+		clk_disable(up->suspend_clk);
+		clk_put(up->suspend_clk);
+	}
 #endif
 
 	/* Reset pointers */
