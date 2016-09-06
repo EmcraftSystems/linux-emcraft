@@ -34,6 +34,7 @@
 #include <linux/elf.h>
 #include <linux/elf-fdpic.h>
 #include <linux/elfcore.h>
+#include <linux/backing-dev.h>
 
 #include <asm/uaccess.h>
 #include <asm/param.h>
@@ -1064,10 +1065,21 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 
 		/* determine the mapping parameters */
 		if (phdr->p_flags & PF_R) prot |= PROT_READ;
-		if (phdr->p_flags & PF_W) prot |= PROT_WRITE;
+		flags = MAP_PRIVATE;
+		if (phdr->p_flags & PF_W) {
+			prot |= PROT_WRITE;
+		} else {
+			/* A trick to make the kernel on NOMMU architectures
+			   mmap r/o sections in ramfs rather than copy them
+			   (the NOMMU mm doesn't allow sharing of
+			   private mappings) */
+			if (file->f_mapping->backing_dev_info->capabilities &
+					BDI_CAP_MAP_DIRECT)
+				flags = MAP_SHARED;
+		}
 		if (phdr->p_flags & PF_X) prot |= PROT_EXEC;
 
-		flags = MAP_PRIVATE | MAP_DENYWRITE;
+		flags |= MAP_DENYWRITE;
 		if (params->flags & ELF_FDPIC_FLAG_EXECUTABLE)
 			flags |= MAP_EXECUTABLE;
 
