@@ -145,6 +145,15 @@ config KINETIS_SPI2
 	bool "Enable Kinetis SPI2"
 	default n
 
+config KINETIS_USBFS
+	depends on ARCH_KINETIS && KINETIS_NO_IDLE_SLEEP
+	bool "Enable Kinetis USB-FS"
+	default n
+
+config KINETIS_NO_IDLE_SLEEP
+	depends on ARCH_KINETIS
+	bool "Do not sleep in Idle state"
+	default y
 
 endmenu
 
