@@ -746,7 +746,7 @@ static void inline spi_stm32_xfer_tx_complete(struct spi_stm32 *c)
 	if (c->tx_t->delay_usecs)
 		udelay(c->tx_t->delay_usecs);
 
-	if (c->tx_t->cs_change)
+	if (c->tx_t->cs_change && c->rx_i == c->rx_l)
 		spi_stm32_release_slave(c, c->slave);
 }
 
