@@ -906,7 +906,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	}
 #endif
 
-	kdebug("Mapped Object [%s]:", what);
+	kdebug("Mapped Object [%s](%s):", what, current->comm);
 	kdebug("- elfhdr   : %lx", params->elfhdr_addr);
 	kdebug("- entry    : %lx", params->entry_addr);
 	kdebug("- PHDR[]   : %lx", params->ph_addr);
