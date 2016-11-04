@@ -743,7 +743,7 @@ static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat)
 	khci->reg->istat = KHCI_INT_TOKDNE;
 
 	if (!khci->td) {
-		dbg(0, "%s: no active TD (stat=%02x)\n", __func__, stat);
+		dbg(1, "%s: no active TD (stat=%02x)\n", __func__, stat);
 		goto out;
 	}
 
@@ -812,8 +812,10 @@ static void khci_irq_error(struct khci_hcd *khci, u8 istat)
 {
 	u8	err = khci->reg->errstat;
 
-	dbg(0, "ERR IRQ %02x\n", err);
+#if DEBUG >= 1
+	dbg(1, "ERR IRQ %02x\n", err);
 	khci_dbg_dump_reg(khci);
+#endif
 
 	if (khci->td)
 		khci->td->status = -EFAULT;
