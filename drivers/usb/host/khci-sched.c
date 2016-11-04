@@ -579,7 +579,6 @@ static int khci_urb_process(struct khci_urb *kurb)
 	struct khci_td		*td;
 	int			busy, usec;
 	u32			len;
-	u8			mask;
 
 	dbg(3, "%s %d,%x,%x %s.%s.%x\n", __func__,
 	    kurb->state, kurb->dev_addr, kurb->ep_cfg,
@@ -683,17 +682,13 @@ static int khci_urb_process(struct khci_urb *kurb)
 	    td->kurb->urb, td->token, td->bd_flg, td->bd_adr);
 
 	/*
-	 * Wait for transaction completes, max 100ms.
-	 * Note, if we just return here, then sometimes we get TOK_DNE IRQ, but
-	 * BD's OWN flag remains set. This is observed if cache enabled, even
-	 * if we use SRAM, or non-cacheable DRAM slot in UFS DMA BD's addr field
+	 * Wait for transaction completes, max 100ms. It seems that OWN
+	 * flag is reset after TOK_DNE interrupt, so monitor this flag
+	 * instead of interrupt status register
 	 */
-	mask = KHCI_INT_TOKDNE | KHCI_INT_ERROR | KHCI_INT_RST;
 	usec = 100000;
-	while (!(reg->istat & mask) && usec > 0) {
+	while ((bd->flg & KHCI_BD_OWN) && (usec-- > 0))
 		udelay(1);
-		usec--;
-	}
 
 	busy = 0;
 out:

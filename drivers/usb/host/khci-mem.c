@@ -117,7 +117,13 @@ struct khci_urb *khci_urb_alloc(struct khci_hcd *khci, struct urb *urb)
 		       KHCI_EP_EPHSHK;
 	if (urb->dev->speed == USB_SPEED_LOW) {
 		kurb->dev_addr |= KHCI_ADDR_LSEN;
-		kurb->ep_cfg |= KHCI_EP_HOSTWOHUB;
+
+		/*
+		 * If the LS device is connected to the root hub directly
+		 * then don't produce PRE_PID
+		 */
+		if (urb->dev->parent && !urb->dev->parent->parent)
+			kurb->ep_cfg |= KHCI_EP_HOSTWOHUB;
 	}
 	if (kep->type != USB_ENDPOINT_XFER_CONTROL)
 		kurb->ep_cfg |= KHCI_EP_EPCTLDIS;
