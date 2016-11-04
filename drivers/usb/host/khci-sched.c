@@ -944,7 +944,7 @@ static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td)
 	    khci->reg->addr, khci->reg->ep[0].endpt,
 	    urb->actual_length, status);
 	list_for_each_entry_safe(td, nxt, &khci->td_done_lst, node) {
-		list_del(&td->node);
+		list_del_init(&td->node);
 		dbg(3, "     TD[%d.%3d.%d]: %s L:%2d/%2d BD:%08x.%08x "
 		    "TOK:%02x ER:%02x ST:%02x "
 		    "I:%02x RTR:%d.%d.%d.%d.%d "

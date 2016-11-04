@@ -312,6 +312,7 @@ struct khci_urb {
 struct khci_td {
 	struct list_head	node;	/* Node in td_*_lst lists */
 	struct khci_urb		*kurb;
+	struct khci_hcd		*khci;
 
 	int			tries;
 	int			tries_max;

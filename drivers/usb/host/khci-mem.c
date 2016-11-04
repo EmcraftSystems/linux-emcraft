@@ -139,6 +139,7 @@ struct khci_td *khci_td_alloc(struct khci_urb *kurb)
 	if (!td)
 		goto out;
 
+	td->khci = kurb->kep->khci;
 	td->kurb = kurb;
 
 	td->tries = 0;
@@ -227,7 +228,7 @@ int khci_urb_free(struct khci_urb *kurb)
 	 */
 	list_for_each_entry_safe(td, tmp, &kurb->td_sched_lst, node) {
 		kurb->td_done++;
-		list_del(&td->node);
+		list_del_init(&td->node);
 		khci_td_free(td);
 	}
 
@@ -268,5 +269,15 @@ out:
  */
 void khci_td_free(struct khci_td *td)
 {
+	struct khci_hcd	*khci = td->khci;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&khci->lock, flags);
+	if (!list_empty(&td->node))
+		dbg(0, "%s remove linked td(%p)\n", __func__, td);
+	if (khci->td == td)
+		khci->td = NULL;
 	kfree(td);
+
+	spin_unlock_irqrestore(&khci->lock, flags);
 }
