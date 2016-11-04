@@ -31,11 +31,11 @@
  * Static routines prototypes:
  *****************************************************************************/
 
-static void khci_irq_attach(struct khci_hcd *khci, u8 istat, struct timeval *tm);
-static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat, struct timeval *tm);
-static void khci_irq_error(struct khci_hcd *khci, u8 istat, struct timeval *tm);
-static void khci_irq_rst(struct khci_hcd *khci, u8 istat, struct timeval *tm);
-static void khci_irq_sof(struct khci_hcd *khci, u8 istat, struct timeval *tm);
+static void khci_irq_attach(struct khci_hcd *khci, u8 istat);
+static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat);
+static void khci_irq_error(struct khci_hcd *khci, u8 istat);
+static void khci_irq_rst(struct khci_hcd *khci, u8 istat);
+static void khci_irq_sof(struct khci_hcd *khci, u8 istat);
 
 static int khci_queue_xfer_control(struct khci_hcd *khci, struct khci_urb *kurb);
 static int khci_queue_xfer_bulk_int(struct khci_hcd *khci, struct khci_urb *kurb);
@@ -55,33 +55,27 @@ static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td);
 irqreturn_t khci_hc_irq(struct usb_hcd *hcd)
 {
 	struct khci_hcd		*khci = hcd_to_khci(hcd);
-	struct timeval		tm;
-	unsigned long		flags;
 	u8			istat, inten;
-
-	do_gettimeofday(&tm);
-
-	spin_lock_irqsave(&khci->lock, flags);
 
 	istat = khci->reg->istat;
 	inten = khci->reg->inten;
 
-	dbg(4, "IRQ ISTAT: %02x %ld.%06ld\n", istat, tm.tv_sec, tm.tv_usec);
+	dbg(4, "IRQ ISTAT: %02x\n", istat);
 
 	if (istat & KHCI_INT_ATTACH)
-		khci_irq_attach(khci, istat, &tm);
+		khci_irq_attach(khci, istat);
 
 	if (istat & KHCI_INT_TOKDNE)
-		khci_irq_tokdne(khci, istat, &tm);
+		khci_irq_tokdne(khci, istat);
 
 	if (istat & KHCI_INT_ERROR)
-		khci_irq_error(khci, istat, &tm);
+		khci_irq_error(khci, istat);
 
 	if (istat & KHCI_INT_RST)
-		khci_irq_rst(khci, istat, &tm);
+		khci_irq_rst(khci, istat);
 
 	if ((istat & inten) & KHCI_INT_SOFTOK)
-		khci_irq_sof(khci, istat, &tm);
+		khci_irq_sof(khci, istat);
 
 	if (khci->td && khci->td->status != -EBUSY && !khci->td_proc) {
 		khci->td_proc = 1;
@@ -90,8 +84,6 @@ irqreturn_t khci_hc_irq(struct usb_hcd *hcd)
 		khci->sof_wrk = (unsigned int)-1;
 		queue_work(khci->wq, &khci->wrk);
 	}
-
-	spin_unlock_irqrestore(&khci->lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -644,10 +636,8 @@ static int khci_urb_process(struct khci_urb *kurb)
 	 * these will be updated then in IRQ handler, and may be necessary if
 	 * we'll decide to retry the xfer
 	 */
-	if (!td->tries) {
-		do_gettimeofday(&td->tm_run);
+	if (!td->tries)
 		td->org_flg = td->bd_flg;
-	}
 
 	td->tries++;
 	td->bd_flg = td->org_flg;
@@ -713,7 +703,7 @@ out:
 /*
  * Process ATTACH interrupt
  */
-static void khci_irq_attach(struct khci_hcd *khci, u8 istat, struct timeval *tm)
+static void khci_irq_attach(struct khci_hcd *khci, u8 istat)
 {
 	volatile struct khci_reg	*reg = khci->reg;
 
@@ -748,7 +738,7 @@ out:
 /*
  * Process TOKDNE interrupt
  */
-static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat, struct timeval *tm)
+static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat)
 {
 	volatile struct khci_bd	*bd;
 	struct khci_td		*td;
@@ -770,7 +760,6 @@ static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat, struct timeval *tm)
 	if (td->status != -EBUSY)
 		goto out;
 
-	td->tm_done = *tm;
 	td->istat = istat;
 	td->stat = stat;
 	td->err = khci->reg->errstat;
@@ -824,7 +813,7 @@ out:
 /*
  * Process ERROR interrupt
  */
-static void khci_irq_error(struct khci_hcd *khci, u8 istat, struct timeval *tm)
+static void khci_irq_error(struct khci_hcd *khci, u8 istat)
 {
 	u8	err = khci->reg->errstat;
 
@@ -841,7 +830,7 @@ static void khci_irq_error(struct khci_hcd *khci, u8 istat, struct timeval *tm)
 /*
  * Process RESET interrupt
  */
-static void khci_irq_rst(struct khci_hcd *khci, u8 istat, struct timeval *tm)
+static void khci_irq_rst(struct khci_hcd *khci, u8 istat)
 {
 	volatile struct khci_reg	*reg = khci->reg;
 	struct usb_hcd			*hcd = khci_to_hcd(khci);
@@ -874,7 +863,7 @@ static void khci_irq_rst(struct khci_hcd *khci, u8 istat, struct timeval *tm)
 /*
  * Process SOF interrupt
  */
-static void khci_irq_sof(struct khci_hcd *khci, u8 istat, struct timeval *tm)
+static void khci_irq_sof(struct khci_hcd *khci, u8 istat)
 {
 	khci->reg->istat = KHCI_INT_SOFTOK;
 	khci->sof++;
@@ -958,14 +947,12 @@ static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td)
 		list_del(&td->node);
 		dbg(3, "     TD[%d.%3d.%d]: %s L:%2d/%2d BD:%08x.%08x "
 		    "TOK:%02x ER:%02x ST:%02x "
-		    "%ld.%06ld->%ld.%06ld I:%02x RTR:%d.%d.%d.%d.%d "
+		    "I:%02x RTR:%d.%d.%d.%d.%d "
 		    "RES:%s\n",
 		    i++, td->tries, td->skip, td->tx ? "TX" : "RX",
 		    KHCI_BD_BC_GET(td->bd_flg), KHCI_BD_BC_GET(td->org_flg),
 		    td->bd_flg, td->bd_adr,
 		    td->token, td->err, td->stat,
-		    td->tm_run.tv_sec, td->tm_run.tv_usec,
-		    td->tm_done.tv_sec, td->tm_done.tv_usec,
 		    td->istat,
 		    td->retry.own, td->retry.nak, td->retry.bus,
 		    td->retry.err, td->retry.len,
@@ -997,8 +984,6 @@ free:
 		khci_td_free(td);
 	}
 	dbg(3, "----------------------------------------------------\n");
-
-	do_gettimeofday(&kurb->tm_done);
 
 	dbg(1, "%s URB:%p,EP:%p.%p,Stat:%d,Len:%d/%d\n", __func__,
 	    urb, urb->ep, urb->ep->hcpriv,

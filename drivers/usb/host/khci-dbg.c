@@ -68,13 +68,11 @@ void khci_dbg_dump_reg(struct khci_hcd *khci)
 	if (khci->td) {
 		td = khci->td;
 		printk("Curr TD: %d/%d %s %d/%d %08x.%08x %02x.%02x.%02x.%02x "
-		    "%ld.%06ld->%ld.%06ld %d.%d.%d.%d.%d %s\n",
+		    "%d.%d.%d.%d.%d %s\n",
 		    td->tries, td->status, td->tx ? "TX" : "RX",
 		    KHCI_BD_BC_GET(td->bd_flg), KHCI_BD_BC_GET(td->org_flg),
 		    td->bd_flg, td->bd_adr,
 		    td->token, td->err, td->stat, td->istat,
-		    td->tm_run.tv_sec, td->tm_run.tv_usec,
-		    td->tm_done.tv_sec, td->tm_done.tv_usec,
 		    td->retry.own, td->retry.nak, td->retry.bus,
 		    td->retry.err, td->retry.len,
 		    khci_dbg_flg2tock(td->bd_flg));
@@ -87,13 +85,11 @@ void khci_dbg_dump_reg(struct khci_hcd *khci)
 
 	list_for_each_entry(td, &khci->td_done_lst, node) {
 		printk("Done TD: %d/%d %s %d/%d %08x.%08x %02x.%02x.%02x.%02x "
-		    "%ld.%06ld->%ld.%06ld %d.%d.%d.%d.%d %s\n",
+		    "%d.%d.%d.%d.%d %s\n",
 		    td->tries, td->status, td->tx ? "TX" : "RX",
 		    KHCI_BD_BC_GET(td->bd_flg), KHCI_BD_BC_GET(td->org_flg),
 		    td->bd_flg, td->bd_adr,
 		    td->token, td->err, td->stat, td->istat,
-		    td->tm_run.tv_sec, td->tm_run.tv_usec,
-		    td->tm_done.tv_sec, td->tm_done.tv_usec,
 		    td->retry.own, td->retry.nak, td->retry.bus,
 		    td->retry.err, td->retry.len,
 		    khci_dbg_flg2tock(td->bd_flg));
@@ -110,15 +106,12 @@ void khci_dbg_dump_reg(struct khci_hcd *khci)
 				ep->type, ep, ep->hep, ep->state);
 			list_for_each_entry(urb, &ep->urb_lst, node) {
 				printk(" URB.%p.%p td:%d/%d len:%d/%d "
-					"tm:%ld.%06ld->%ld.%06ld "
 					"st:%d %d,%d,%d,%d "
 					"ss:%d/%d\n",
 					urb, urb->urb,
 					urb->td_done, urb->td_todo,
 					urb->urb->actual_length,
 					urb->urb->transfer_buffer_length,
-					urb->tm_run.tv_sec, urb->tm_run.tv_usec,
-					urb->tm_done.tv_sec, urb->tm_done.tv_usec,
 					urb->stat.ok, urb->stat.own, urb->stat.nak,
 					urb->stat.bus, urb->stat.err,
 					urb->state, urb->status);

@@ -279,9 +279,6 @@ struct khci_urb {
 	struct khci_ep		*kep;	/* EP for this URB */
 	unsigned int		sof_nxt;/* INT: next SOF to process this URB */
 
-	struct timeval		tm_run;
-	struct timeval		tm_done;
-
 	u8			dev_addr;
 	u8			ep_addr;
 	u8			ep_cfg;
@@ -319,8 +316,6 @@ struct khci_td {
 	int			tries;
 	int			tries_max;
 
-	struct timeval		tm_run;
-	struct timeval		tm_done;
 	volatile struct khci_bd	*bd;
 
 	u8			softhld;

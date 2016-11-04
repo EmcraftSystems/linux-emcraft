@@ -100,9 +100,6 @@ struct khci_urb *khci_urb_alloc(struct khci_hcd *khci, struct urb *urb)
 
 	urb->hcpriv = kurb;
 
-	do_gettimeofday(&kurb->tm_run);
-	memset(&kurb->tm_done, 0, sizeof(kurb->tm_done));
-
 	memset(&kurb->stat, 0, sizeof(kurb->stat));
 
 	INIT_LIST_HEAD(&kurb->td_sched_lst);
