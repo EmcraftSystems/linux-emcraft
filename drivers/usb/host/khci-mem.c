@@ -45,13 +45,43 @@ struct khci_ep *khci_ep_alloc(struct khci_hcd *khci, struct urb *urb)
 	kep->state = KHCI_EP_IDLE;
 	kep->hep = urb->ep;
 	kep->khci = khci;
+
+	/*
+	 * Add EP to the appropriate list
+	 */
 	kep->type = usb_endpoint_type(&urb->ep->desc);
+	switch (kep->type) {
+	case USB_ENDPOINT_XFER_CONTROL:
+		list_add_tail(&kep->node, &khci->ctrl_lst);
+		break;
+	case USB_ENDPOINT_XFER_INT:
+		list_add_tail(&kep->node, &khci->intr_lst);
+		break;
+	case USB_ENDPOINT_XFER_BULK:
+		list_add_tail(&kep->node, &khci->bulk_lst);
+		break;
+	default:
+		printk("%s: EP type (%d) not supported\n", __func__,
+			kep->type);
+		kfree(kep);
+		kep = NULL;
+		goto out;
+	}
 
 	kep->plen = usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe));
 
-	kep->hep->hcpriv = kep;
+	/*
+	 * Enable SOF IRQs if there are INT EPs
+	 */
+	if (!list_empty(&khci->intr_lst)) {
+		unsigned long	flags;
 
-	list_add_tail(&kep->node, &khci->ep_lst);
+		spin_lock_irqsave(&khci->lock, flags);
+		khci->reg->inten |= KHCI_INT_SOFTOK;
+		spin_unlock_irqrestore(&khci->lock, flags);
+	}
+
+	kep->hep->hcpriv = kep;
 out:
 	return kep;
 }
@@ -78,11 +108,12 @@ struct khci_urb *khci_urb_alloc(struct khci_hcd *khci, struct urb *urb)
 	INIT_LIST_HEAD(&kurb->td_sched_lst);
 	kurb->td_todo = kurb->td_done = 0;
 
-	kurb->state = KHCI_URB_IDLE;
+	kurb->state = KHCI_URB_INIT;
 	kurb->status = -ERANGE;
 
 	kurb->urb = urb;
 	kurb->kep = kep;
+	kurb->sof_nxt = 0;
 
 	kurb->dev_addr = usb_pipedevice(urb->pipe);
 	kurb->ep_cfg = KHCI_EP_RETRYDIS | KHCI_EP_EPRXEN | KHCI_EP_EPTXEN |
@@ -114,7 +145,7 @@ struct khci_td *khci_td_alloc(struct khci_urb *kurb)
 	td->kurb = kurb;
 
 	td->tries = 0;
-	switch (usb_endpoint_type(&kurb->urb->ep->desc)) {
+	switch (kurb->kep->type) {
 	case USB_ENDPOINT_XFER_CONTROL:
 	case USB_ENDPOINT_XFER_BULK:
 		td->tries_max = 32;
@@ -142,6 +173,7 @@ out:
 int khci_ep_free(struct khci_ep *kep)
 {
 	struct khci_urb	*kurb, *tmp;
+	struct khci_hcd	*khci = kep->khci;
 	int		busy = 0;
 
 	/*
@@ -155,11 +187,26 @@ int khci_ep_free(struct khci_ep *kep)
 	/*
 	 * Clean-up EP
 	 */
-	if (!busy)
-		kfree(kep);
-	else
+	if (busy) {
 		kep->state = KHCI_EP_DEL;
+		goto out;
+	}
 
+	kep->hep->hcpriv = NULL;
+	list_del(&kep->node);
+	kfree(kep);
+
+	/*
+	 * If there's no more INT EPs, then stop SOF IRQs generation
+	 */
+	if (list_empty(&khci->intr_lst)) {
+		unsigned long	flags;
+
+		spin_lock_irqsave(&khci->lock, flags);
+		khci->reg->inten &= ~KHCI_INT_SOFTOK;
+		spin_unlock_irqrestore(&khci->lock, flags);
+	}
+out:
 	return busy;
 }
 
@@ -169,21 +216,14 @@ int khci_ep_free(struct khci_ep *kep)
 int khci_urb_free(struct khci_urb *kurb)
 {
 	struct khci_td	*td, *tmp;
+	struct urb	*urb = kurb->urb;
 	int		busy = 0;
 
 	/*
 	 * Delete URB from EP's URB list if necessary
 	 */
-	switch (kurb->state) {
-	case KHCI_URB_DEL:
-		break;
-	default:
+	if (kurb->state != KHCI_URB_DEL)
 		list_del(&kurb->node);
-		break;
-	}
-
-	kurb->state = KHCI_URB_DEL;
-	kurb->urb->hcpriv = NULL;
 
 	/*
 	 * Clean-up queued TDs
@@ -198,12 +238,31 @@ int khci_urb_free(struct khci_urb *kurb)
 	 * Check if some TDs are executed right now, so URB can't be
 	 * deleted
 	 */
-	if (kurb->td_done < kurb->td_todo)
+	if (kurb->td_done < kurb->td_todo) {
 		busy = 1;
+		kurb->state = KHCI_URB_DEL;
+		goto out;
+	}
 
-	if (!busy)
-		kfree(kurb);
+	/*
+	 * Callback may re-submit this URB, so update it before giveback()
+	 */
+	urb->hcpriv = NULL;
 
+	/*
+	 * If we returned from enqueue(), then we must giveback() URB
+	 */
+	if (kurb->state != KHCI_URB_INIT) {
+		struct khci_hcd	*khci = kurb->kep->khci;
+		struct usb_hcd	*hcd = khci_to_hcd(khci);
+
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+		spin_unlock(&khci->lock);
+		usb_hcd_giveback_urb(hcd, urb, kurb->status);
+		spin_lock(&khci->lock);
+	}
+	kfree(kurb);
+out:
 	return busy;
 }
 

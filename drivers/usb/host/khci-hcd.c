@@ -251,7 +251,9 @@ static int __devinit khci_probe(struct platform_device *pdev)
 	spin_lock_init(&dev->lock);
 	dev->reg = reg;
 
-	INIT_LIST_HEAD(&dev->ep_lst);
+	INIT_LIST_HEAD(&dev->ctrl_lst);
+	INIT_LIST_HEAD(&dev->intr_lst);
+	INIT_LIST_HEAD(&dev->bulk_lst);
 	INIT_LIST_HEAD(&dev->td_done_lst);
 
 	dev->bd[0] = dev->bd[1] = 0;
@@ -301,7 +303,11 @@ static int __init_or_module khci_remove(struct platform_device *pdev)
 	struct usb_hcd	*hcd = khci_to_hcd(dev);
 	struct khci_ep	*kep, *tmp;
 
-	list_for_each_entry_safe(kep, tmp, &dev->ep_lst, node)
+	list_for_each_entry_safe(kep, tmp, &dev->ctrl_lst, node)
+		khci_hc_endpoint_dis(hcd, kep->hep);
+	list_for_each_entry_safe(kep, tmp, &dev->intr_lst, node)
+		khci_hc_endpoint_dis(hcd, kep->hep);
+	list_for_each_entry_safe(kep, tmp, &dev->bulk_lst, node)
 		khci_hc_endpoint_dis(hcd, kep->hep);
 
 	usb_remove_hcd(hcd);
@@ -357,8 +363,11 @@ static int khci_hc_start(struct usb_hcd *hcd)
 	reg->bdtpage3 = (u32)dev->bdt >> 24;
 
 	reg->ctl |= KHCI_CTL_ODDRST;
+
 	memset(dev->bd, 0, sizeof(dev->bd));
 	memset(dev->bdt, 0, sizeof(struct khci_bd) * 4);
+	dev->sof = 0;
+	dev->sof_wrk = (unsigned int)-1;
 
 	/*
 	 * Enable host mode, and ATTACH interrupt
@@ -399,10 +408,8 @@ static void khci_hc_endpoint_dis(struct usb_hcd *hcd,
 	spin_lock_irqsave(&khci->lock, flags);
 
 	kep = hep->hcpriv;
-	if (kep && !khci_ep_free(kep)) {
-		list_del(&kep->node);
-		hep->hcpriv = NULL;
-	}
+	if (kep)
+		khci_ep_free(kep);
 
 	spin_unlock_irqrestore(&khci->lock, flags);
 }

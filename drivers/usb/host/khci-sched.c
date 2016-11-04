@@ -35,12 +35,13 @@ static void khci_irq_attach(struct khci_hcd *khci, u8 istat, struct timeval *tm)
 static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat, struct timeval *tm);
 static void khci_irq_error(struct khci_hcd *khci, u8 istat, struct timeval *tm);
 static void khci_irq_rst(struct khci_hcd *khci, u8 istat, struct timeval *tm);
+static void khci_irq_sof(struct khci_hcd *khci, u8 istat, struct timeval *tm);
 
 static int khci_queue_xfer_control(struct khci_hcd *khci, struct khci_urb *kurb);
 static int khci_queue_xfer_bulk_int(struct khci_hcd *khci, struct khci_urb *kurb);
 
 static void khci_ep_process(struct khci_hcd *khci);
-static int khci_urb_process(struct khci_hcd *khci, struct khci_urb *kurb);
+static int khci_urb_process(struct khci_urb *kurb);
 
 static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td);
 
@@ -56,13 +57,14 @@ irqreturn_t khci_hc_irq(struct usb_hcd *hcd)
 	struct khci_hcd		*khci = hcd_to_khci(hcd);
 	struct timeval		tm;
 	unsigned long		flags;
-	u8			istat;
+	u8			istat, inten;
 
 	do_gettimeofday(&tm);
 
 	spin_lock_irqsave(&khci->lock, flags);
 
 	istat = khci->reg->istat;
+	inten = khci->reg->inten;
 
 	dbg(4, "IRQ ISTAT: %02x %ld.%06ld\n", istat, tm.tv_sec, tm.tv_usec);
 
@@ -78,8 +80,16 @@ irqreturn_t khci_hc_irq(struct usb_hcd *hcd)
 	if (istat & KHCI_INT_RST)
 		khci_irq_rst(khci, istat, &tm);
 
-	if (khci->td && khci->td->status != -EBUSY)
+	if ((istat & inten) & KHCI_INT_SOFTOK)
+		khci_irq_sof(khci, istat, &tm);
+
+	if (khci->td && khci->td->status != -EBUSY && !khci->td_proc) {
+		khci->td_proc = 1;
 		queue_work(khci->wq, &khci->wrk);
+	} else if (khci->sof >= khci->sof_wrk) {
+		khci->sof_wrk = (unsigned int)-1;
+		queue_work(khci->wq, &khci->wrk);
+	}
 
 	spin_unlock_irqrestore(&khci->lock, flags);
 
@@ -102,12 +112,10 @@ int khci_hc_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	    urb, urb->ep, urb->ep->hcpriv, type, urb->transfer_flags);
 
 	/*
-	 * Don't support ISO and INT for now
+	 * Don't support ISO for now
 	 */
-	if (type != USB_ENDPOINT_XFER_CONTROL &&
-	    type != USB_ENDPOINT_XFER_BULK &&
-	    type != USB_ENDPOINT_XFER_INT) {
-		dbg(0, "%d transfers not supported\n", type);
+	if (type == USB_ENDPOINT_XFER_ISOC) {
+		dbg(0, "ISOCHRONOUS transfers not supported\n");
 		rv = -EINVAL;
 		goto out;
 	}
@@ -120,15 +128,11 @@ int khci_hc_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		goto out_spin;
 	}
 
-	if (urb->ep->hcpriv) {
-		kep = urb->ep->hcpriv;
-	} else {
-		kep = khci_ep_alloc(khci, urb);
-		if (!kep) {
-			dbg(0, "failed allo EP\n");
-			rv = -ENOMEM;
-			goto out_unlink;
-		}
+	kep = urb->ep->hcpriv ? urb->ep->hcpriv : khci_ep_alloc(khci, urb);
+	if (!kep) {
+		dbg(0, "failed get EP\n");
+		rv = -ENOMEM;
+		goto out_unlink;
 	}
 
 	kurb = khci_urb_alloc(khci, urb);
@@ -152,11 +156,13 @@ int khci_hc_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		break;
 	}
 
-	if (!rv)
-		khci_ep_process(khci);
-
-	if (rv)
+	if (rv) {
 		khci_urb_free(kurb);
+		goto out_spin;
+	}
+
+	kurb->state = KHCI_URB_IDLE;
+	khci_ep_process(khci);
 out_unlink:
 	if (rv)
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
@@ -187,19 +193,8 @@ int khci_hc_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	kurb = urb->hcpriv;
 	if (kurb) {
-		if (khci_urb_free(kurb)) {
-			/*
-			 * URB processing is in progress, dequeue later
-			 */
-			kurb->status = status;
-			goto out;
-		}
-
-		usb_hcd_unlink_urb_from_ep(hcd, urb);
-
-		spin_unlock(&khci->lock);
-		usb_hcd_giveback_urb(hcd, urb, status);
-		spin_lock(&khci->lock);
+		kurb->status = status;
+		khci_urb_free(kurb);
 	}
 out:
 	spin_unlock_irqrestore(&khci->lock, flags);
@@ -225,7 +220,9 @@ void khci_worker(struct work_struct *wrk)
 
 	spin_lock_irqsave(&khci->lock, flags);
 	if (!khci->td) {
-		dbg(0, "%s: called with no td\n", __func__);
+		/*
+		 * SOF condition triggers this call
+		 */
 		goto retry;
 	}
 
@@ -236,6 +233,11 @@ void khci_worker(struct work_struct *wrk)
 	case 0:
 		kurb->urb->actual_length += KHCI_BD_BC_GET(td->bd_flg);
 		break;
+	case -ENOMSG:
+		/*
+		 * NAK on INT xfer
+		 */
+		goto retry;
 	case -EPIPE:
 	case -ESHUTDOWN:
 		/*
@@ -308,6 +310,7 @@ void khci_worker(struct work_struct *wrk)
 	khci_td_complete(khci, td);
 retry:
 	khci->td = NULL;
+	khci->td_proc = 0;
 	khci_ep_process(khci);
 	spin_unlock_irqrestore(&khci->lock, flags);
 }
@@ -477,46 +480,110 @@ out:
 }
 
 /*
+ * Process EP transaction
+ */
+static int khci_xfer_process(struct khci_hcd *khci,
+			     struct list_head *lst, int type)
+{
+	struct khci_ep	*kep, *tmp;
+	struct khci_urb	*kurb;
+	unsigned int sof, sof_wrk;
+	LIST_HEAD(done_lst);
+	unsigned long flags;
+	int num = 0;
+
+	/*
+	 * Walk through the EP list, and process URBs scheduled.
+	 * Upon flushing all URBs scheduled - move this EP to the end of list
+	 */
+	spin_lock_irqsave(&khci->lock, flags);
+	sof = khci->sof;
+	sof_wrk = khci->sof_wrk;
+	spin_unlock_irqrestore(&khci->lock, flags);
+
+	list_for_each_entry_safe(kep, tmp, lst, node) {
+		if (type != USB_ENDPOINT_XFER_INT) {
+			/*
+			 * Don't process next EP entry until there are some
+			 * unprocessed URBs in it.
+			 */
+			while (!list_empty(&kep->urb_lst)) {
+				kurb = list_first_entry(&kep->urb_lst,
+							struct khci_urb, node);
+				if (khci_urb_process(kurb))
+					break;
+				num++;
+			}
+
+			if (!list_empty(&kep->urb_lst))
+				break;
+
+			list_move_tail(&kep->node, &done_lst);
+		} else {
+			/*
+			 * Check intervals
+			 */
+			list_for_each_entry(kurb, &kep->urb_lst, node) {
+				if (sof < kurb->sof_nxt) {
+					if (sof_wrk > kurb->sof_nxt)
+						sof_wrk = kurb->sof_nxt;
+					continue;
+				}
+
+				khci_urb_process(kurb);
+				num++;
+				kurb->sof_nxt = sof + kurb->urb->interval;
+				if (sof_wrk > kurb->sof_nxt)
+					sof_wrk = kurb->sof_nxt;
+			}
+		}
+	}
+
+	if (!list_empty(&done_lst))
+		list_splice_tail(&done_lst, lst);
+
+	spin_lock_irqsave(&khci->lock, flags);
+	khci->sof_wrk = sof_wrk;
+	spin_unlock_irqrestore(&khci->lock, flags);
+
+	return num;
+}
+
+/*
  * Process EP list
  */
 static void khci_ep_process(struct khci_hcd *khci)
 {
-	struct khci_ep	*kep, *tmp;
-	struct khci_urb	*kurb;
-	LIST_HEAD(done_lst);
+	int	num = 0;
 
 	dbg(3, "%s in\n", __func__);
 
 	/*
-	 * Walk through the EP list, and process URBs scheduled.
-	 * Don't process next EP entry until there are some unprocessed
-	 * URBs in it. Upon flushing all URBs scheduled - move this
-	 * EP to the end of list
+	 * Very dummy scheduling: don't schedule BULK transfers in the time
+	 * frames with the CONTROL/INT transactions. To implement more intel-
+	 * legent schemas we should count bytes sent on the bus in this frame,
+	 * and estimate if the time remaining in the current frame will be
+	 * enough to process BULK transfer.
 	 */
-	list_for_each_entry_safe(kep, tmp, &khci->ep_lst, node) {
-		while (!list_empty(&kep->urb_lst)) {
-			kurb = list_first_entry(&kep->urb_lst, struct khci_urb,
-						node);
-			if (khci_urb_process(khci, kurb))
-				break;
-		}
+	num += khci_xfer_process(khci, &khci->ctrl_lst,
+				 USB_ENDPOINT_XFER_CONTROL);
+	num += khci_xfer_process(khci, &khci->intr_lst,
+				 USB_ENDPOINT_XFER_INT);
 
-		if (!list_empty(&kep->urb_lst))
-			break;
-
-		list_move_tail(&kep->node, &done_lst);
+	if (!num) {
+		khci_xfer_process(khci, &khci->bulk_lst,
+				  USB_ENDPOINT_XFER_BULK);
 	}
-
-	list_splice_tail(&done_lst, &khci->ep_lst);
 }
 
 /*
  * Transfer next TD of URB
  */
-static int khci_urb_process(struct khci_hcd *khci, struct khci_urb *kurb)
+static int khci_urb_process(struct khci_urb *kurb)
 {
+	struct khci_hcd		*khci = kurb->kep->khci;
 	volatile struct khci_bd	*bd;
-	volatile struct khci_reg	*reg = khci->reg;
+	volatile struct khci_reg *reg = khci->reg;
 	struct khci_td		*td;
 	int			busy, usec;
 	u32			len;
@@ -738,6 +805,12 @@ static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat, struct timeval *tm)
 		 * STALL can't be recovered
 		 */
 		td->status = -EPIPE;
+	} else if (tok == KHCI_BD_TOK_NAK &&
+		   usb_endpoint_xfer_int(&td->kurb->urb->ep->desc)) {
+		/*
+		 * INT NAK
+		 */
+		td->status = -ENOMSG;
 	} else {
 		/*
 		 * Some error
@@ -799,6 +872,15 @@ static void khci_irq_rst(struct khci_hcd *khci, u8 istat, struct timeval *tm)
 }
 
 /*
+ * Process SOF interrupt
+ */
+static void khci_irq_sof(struct khci_hcd *khci, u8 istat, struct timeval *tm)
+{
+	khci->reg->istat = KHCI_INT_SOFTOK;
+	khci->sof++;
+}
+
+/*
  * Called upon completion xfering TD
  */
 static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td)
@@ -806,7 +888,6 @@ static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td)
 	struct khci_urb	*kurb = td->kurb;
 	struct urb	*urb = kurb->urb;
 	struct khci_ep	*kep = urb->ep->hcpriv;
-	struct usb_hcd	*hcd = khci_to_hcd(khci);
 	struct khci_td	*nxt;
 	int		i, status = 0;
 
@@ -858,7 +939,7 @@ static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td)
 	 * Check if URB was rejected (free) while we processed it
 	 */
 	if (kurb->state == KHCI_URB_DEL)
-		status = kurb->state;
+		status = -EINTR;
 
 	/*
 	 * If this is a CONTROL transfer, then substract the length
@@ -918,23 +999,16 @@ free:
 	dbg(3, "----------------------------------------------------\n");
 
 	do_gettimeofday(&kurb->tm_done);
-	kurb->status = status;
-	kurb->state = KHCI_URB_DONE;
 
 	dbg(1, "%s URB:%p,EP:%p.%p,Stat:%d,Len:%d/%d\n", __func__,
 	    urb, urb->ep, urb->ep->hcpriv,
 	    status, urb->actual_length, urb->transfer_buffer_length);
 
-	usb_hcd_unlink_urb_from_ep(hcd, urb);
-
-	spin_unlock(&khci->lock);
-	usb_hcd_giveback_urb(hcd, urb, status);
-	spin_lock(&khci->lock);
-
-	kurb->state = KHCI_URB_CLEAN;
-	if (kurb->kep->state == KHCI_EP_DEL)
-		khci_ep_free(kurb->kep);
+	kurb->status = status;
 	khci_urb_free(kurb);
+
+	if (kep->state == KHCI_EP_DEL)
+		khci_ep_free(kep);
 out:
 	return;
 }

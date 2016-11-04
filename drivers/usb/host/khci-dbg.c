@@ -33,9 +33,14 @@
 void khci_dbg_dump_reg(struct khci_hcd *khci)
 {
 	volatile struct khci_reg	*reg = khci->reg;
+	struct list_head		*lst[] = { &khci->ctrl_lst,
+						   &khci->intr_lst,
+						   &khci->bulk_lst };
+	char				*lst_name[] = {"CTRL", "INTR", "BULK"};
 	struct khci_td			*td;
 	struct khci_urb			*urb;
 	struct khci_ep			*ep;
+	int				i;
 
 	printk("istat:%02x,inten:%02x,errstat:%02x,erren:%02x,stat:%02x,\n",
 		reg->istat, reg->inten, reg->errstat, reg->erren, reg->stat);
@@ -99,23 +104,25 @@ void khci_dbg_dump_reg(struct khci_hcd *khci)
 		}
 	}
 
-	list_for_each_entry(ep, &khci->ep_lst, node) {
-		printk("EP.%d.%p.%p: %d\n",
-			ep->type, ep, ep->hep, ep->state);
-		list_for_each_entry(urb, &ep->urb_lst, node) {
-			printk(" URB.%p.%p td:%d/%d len:%d/%d "
-				"tm:%ld.%06ld->%ld.%06ld "
-				"st:%d %d,%d,%d,%d "
-				"ss:%d/%d\n",
-				urb, urb->urb,
-				urb->td_done, urb->td_todo,
-				urb->urb->actual_length,
-				urb->urb->transfer_buffer_length,
-				urb->tm_run.tv_sec, urb->tm_run.tv_usec,
-				urb->tm_done.tv_sec, urb->tm_done.tv_usec,
-				urb->stat.ok, urb->stat.own, urb->stat.nak,
-				urb->stat.bus, urb->stat.err,
-				urb->state, urb->status);
+	for (i = 0; i < ARRAY_SIZE(lst); i++) {
+		list_for_each_entry(ep, lst[i], node) {
+			printk("%s.EP.%d.%p.%p: %d\n", lst_name[i],
+				ep->type, ep, ep->hep, ep->state);
+			list_for_each_entry(urb, &ep->urb_lst, node) {
+				printk(" URB.%p.%p td:%d/%d len:%d/%d "
+					"tm:%ld.%06ld->%ld.%06ld "
+					"st:%d %d,%d,%d,%d "
+					"ss:%d/%d\n",
+					urb, urb->urb,
+					urb->td_done, urb->td_todo,
+					urb->urb->actual_length,
+					urb->urb->transfer_buffer_length,
+					urb->tm_run.tv_sec, urb->tm_run.tv_usec,
+					urb->tm_done.tv_sec, urb->tm_done.tv_usec,
+					urb->stat.ok, urb->stat.own, urb->stat.nak,
+					urb->stat.bus, urb->stat.err,
+					urb->state, urb->status);
+			}
 		}
 	}
 }

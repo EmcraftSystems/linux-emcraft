@@ -208,6 +208,9 @@ struct khci_hcd {
 
 	volatile struct khci_reg *reg;	/* Register map */
 
+	unsigned int		sof;	/* SOF counter */
+	unsigned int		sof_wrk;/* Next SOF to run worker */
+
 	struct khci_bd		*bdt;	/* BD table (from DMA pool) */
 	dma_addr_t		bdt_hdl;
 
@@ -234,13 +237,16 @@ struct khci_hcd {
 
 	u8			bd[2];	/* 'odd' BD index (tx/rx) */
 
-	struct list_head	ep_lst;
+	struct list_head	ctrl_lst;	/* CONTROL EPs */
+	struct list_head	intr_lst;	/* INTERRUPT EPs */
+	struct list_head	bulk_lst;	/* BULK EPs */
 
 	struct workqueue_struct	*wq;
 	struct work_struct	wrk;
 
 	struct khci_td		*td;		/* Currently xfering TD */
 	struct list_head	td_done_lst;	/* Completed TD */
+	int			td_proc;
 };
 
 /*
@@ -253,7 +259,6 @@ struct khci_ep {
 	struct khci_hcd		*khci;
 
 	int			type;	/* EP type */
-
 	u32			plen;	/* Max packet length */
 
 	enum {
@@ -272,6 +277,7 @@ struct khci_urb {
 
 	struct urb		*urb;
 	struct khci_ep		*kep;	/* EP for this URB */
+	unsigned int		sof_nxt;/* INT: next SOF to process this URB */
 
 	struct timeval		tm_run;
 	struct timeval		tm_done;
@@ -282,11 +288,10 @@ struct khci_urb {
 	int			status;
 
 	enum {
-		KHCI_URB_IDLE	= 0,
+		KHCI_URB_INIT	= 0,
+		KHCI_URB_IDLE,
 		KHCI_URB_RUN,
-		KHCI_URB_DEL,
-		KHCI_URB_DONE,
-		KHCI_URB_CLEAN
+		KHCI_URB_DEL
 	}			state;
 
 	struct {
