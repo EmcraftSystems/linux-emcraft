@@ -9,6 +9,7 @@ obj-$(CONFIG_KINETIS_MAC)	+= eth.o
 obj-$(CONFIG_MTD_NAND_FSL_NFC)	+= nand.o
 obj-$(CONFIG_KINETIS_FB)	+= fb.o
 obj-$(CONFIG_I2C_GPIO)		+= i2c-gpio.o
+obj-$(CONFIG_I2C_IMX)		+= i2c-imx.o
 obj-$(CONFIG_KINETIS_EDMA)	+= dmainit.o dmac.o
 obj-$(CONFIG_USB_EHCI_MXC)	+= ehci.o
 obj-$(CONFIG_USB_KHCI_HCD)	+= khci.o

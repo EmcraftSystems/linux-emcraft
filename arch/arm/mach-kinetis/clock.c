@@ -384,6 +384,15 @@ static struct clk clk_usbfs = {
 	.clk_enable = usb_clk_enable,
 };
 
+#if defined(CONFIG_I2C_IMX)
+/*
+ * Clock for I2C
+ */
+static struct clk clk_i2c0 = {
+	.gate = KINETIS_CG_I2C0,
+};
+#endif
+
 /*
  * Array of all clock to register with the `clk_*` infrastructure
  */
@@ -448,6 +457,9 @@ static struct clk_lookup kinetis_clkregs[] = {
 #endif
 	INIT_CLKREG(&clk_usbhs, "mxc-ehci.0", "usb"),
 	INIT_CLKREG(&clk_usbfs, "khci-hcd.0", "khci"),
+#ifdef CONFIG_I2C_IMX
+	INIT_CLKREG(&clk_i2c0, NULL, "i2c_clk"),
+#endif
 };
 
 /*
@@ -825,6 +837,10 @@ void __init kinetis_clock_init(void)
 #endif
 #ifdef CONFIG_KINETIS_SPI2
 	clk_spi2.rate = clock_val[CLOCK_PCLK];
+#endif
+
+#ifdef CONFIG_I2C_IMX
+	clk_i2c0.rate = clock_val[CLOCK_PCLK];
 #endif
 
 	/*

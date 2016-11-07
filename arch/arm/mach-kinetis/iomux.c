@@ -167,7 +167,13 @@ static const struct kinetis_gpio_pin_config common_iomux[] = {
 	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
 	/* E.19 = GPIO (for I2C_SCL) */
 	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(1)},
-#endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
+#elif defined(CONFIG_I2C_IMX)
+	/* E.18 = I2C_SDA */
+	{{KINETIS_GPIO_PORT_E, 18}, KINETIS_GPIO_CONFIG_MUX(4)},
+	/* E.19 = I2C_SCL */
+	{{KINETIS_GPIO_PORT_E, 19}, KINETIS_GPIO_CONFIG_MUX(4)},
+#endif /* CONFIG_I2C_* */
+
 
 #if defined(CONFIG_USB_EHCI_MXC) || defined(CONFIG_USB_EHCI_MXC_MODULE)
 	/* A.6 = ULPI_CLK */
