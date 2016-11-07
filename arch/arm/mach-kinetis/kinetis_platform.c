@@ -59,6 +59,10 @@ static void __init kinetis_map_io(void);
 static void __init kinetis_init_irq(void);
 static void __init kinetis_init(void);
 
+#if defined(CONFIG_I2C_IMX)
+#include <mach/i2c.h>
+#endif
+
 /*
  * Define a particular platform (board) and other default parameters
  */
@@ -251,6 +255,8 @@ static void __init kinetis_init(void)
 	 * the `i2c-gpio` GPIO-emulated I2C driver.
 	 */
 	kinetis_i2c_gpio_init();
+#elif defined(CONFIG_I2C_IMX)
+	kinetis_i2c_imx_init();
 #endif /* defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE) */
 
 #if defined(CONFIG_KINETIS_FB)

@@ -61,6 +61,14 @@
 /* Default value */
 #define IMX_I2C_BIT_RATE	100000	/* 100kHz */
 
+#ifdef CONFIG_ARCH_KINETIS
+/* Kinetis I2C registers */
+#define IMX_I2C_IADR    0x00    /* i2c slave address */
+#define IMX_I2C_IFDR    0x01    /* i2c frequency divider */
+#define IMX_I2C_I2CR    0x02    /* i2c control */
+#define IMX_I2C_I2SR    0x03    /* i2c status */
+#define IMX_I2C_I2DR    0x04    /* i2c transfer data */
+#else
 /* IMX I2C registers */
 #define IMX_I2C_IADR	0x00	/* i2c slave address */
 #define IMX_I2C_IFDR	0x04	/* i2c frequency divider */
@@ -68,6 +76,7 @@
 #define IMX_I2C_I2SR	0x0C	/* i2c status */
 #define IMX_I2C_I2DR	0x10	/* i2c transfer data */
 
+#endif
 /* Bits of IMX I2C registers */
 #define I2SR_RXAK	0x01
 #define I2SR_IIF	0x02
@@ -94,7 +103,25 @@
  *
  * Duplicated divider values removed from list
  */
-
+#ifdef CONFIG_ARCH_KINETIS
+static u16 __initdata i2c_clk_div[60][2] = {
+	{ 20,	0x00 }, { 22,	0x01 }, { 24,	0x02 }, { 26,	0x03 },
+	{ 28,	0x04 },	{ 30,	0x05 },	{ 32,	0x09 }, { 34,	0x06 },
+	{ 36,	0x0A }, { 40,	0x07 }, { 44,	0x0C }, { 48,	0x0D },
+	{ 52,	0x43 },	{ 56,	0x0E }, { 60,	0x45 }, { 64,	0x12 },
+	{ 68,	0x0F },	{ 72,	0x13 },	{ 80,	0x14 },	{ 88,	0x15 },
+	{ 96,	0x19 },	{ 104,	0x16 },	{ 112,	0x1A },	{ 128,	0x17 },
+	{ 136,	0x4F }, { 144,	0x1C },	{ 160,	0x1D }, { 176,	0x55 },
+	{ 192,	0x1E }, { 208,	0x56 },	{ 224,	0x22 }, { 228,	0x24 },
+	{ 240,	0x1F },	{ 256,	0x23 }, { 288,	0x5C },	{ 320,	0x25 },
+	{ 384,	0x26 }, { 448,	0x2A },	{ 480,	0x27 }, { 512,	0x2B },
+	{ 576,	0x2C },	{ 640,	0x2D },	{ 768,	0x31 }, { 896,	0x32 },
+	{ 960,	0x2F },	{ 1024,	0x33 },	{ 1152,	0x34 }, { 1280,	0x35 },
+	{ 1536,	0x36 }, { 1792,	0x3A },	{ 1920,	0x37 },	{ 2048,	0x3B },
+	{ 2304,	0x3C },	{ 2560,	0x3D },	{ 3072,	0x3E }, { 3584,	0x7A },
+	{ 3840,	0x3F }, { 4096,	0x7B }, { 5120,	0x7D },	{ 6144,	0x7E },
+};
+#else
 static u16 __initdata i2c_clk_div[50][2] = {
 	{ 22,	0x20 }, { 24,	0x21 }, { 26,	0x22 }, { 28,	0x23 },
 	{ 30,	0x00 },	{ 32,	0x24 }, { 36,	0x25 }, { 40,	0x26 },
@@ -110,7 +137,7 @@ static u16 __initdata i2c_clk_div[50][2] = {
 	{ 1920,	0x1B },	{ 2048,	0x3F }, { 2304,	0x1C }, { 2560,	0x1D },
 	{ 3072,	0x1E }, { 3840,	0x1F }
 };
-
+#endif
 struct imx_i2c_struct {
 	struct i2c_adapter	adapter;
 	struct resource		*res;
@@ -227,6 +254,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 		temp &= ~(I2CR_MSTA | I2CR_MTX);
 		writeb(temp, i2c_imx->base + IMX_I2C_I2CR);
 	}
+#if !defined(CONFIG_ARCH_KINETIS)
 	if (cpu_is_mx1()) {
 		/*
 		 * This delay caused by an i.MXL hardware bug.
@@ -234,6 +262,7 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 		 */
 		udelay(i2c_imx->disable_delay);
 	}
+#endif
 
 	if (!i2c_imx->stopped) {
 		i2c_imx_bus_busy(i2c_imx, 0);
@@ -289,10 +318,9 @@ static irqreturn_t i2c_imx_isr(int irq, void *dev_id)
 	unsigned int temp;
 
 	temp = readb(i2c_imx->base + IMX_I2C_I2SR);
-	if (temp & I2SR_IIF) {
+	if (temp & (I2SR_IIF|I2SR_IAL)) {
 		/* save status register */
 		i2c_imx->i2csr = temp;
-		temp &= ~I2SR_IIF;
 		writeb(temp, i2c_imx->base + IMX_I2C_I2SR);
 		wake_up_interruptible(&i2c_imx->queue);
 		return IRQ_HANDLED;
@@ -443,6 +471,9 @@ static int i2c_imx_xfer(struct i2c_adapter *adapter,
 			result = i2c_imx_read(i2c_imx, &msgs[i]);
 		else
 			result = i2c_imx_write(i2c_imx, &msgs[i]);
+
+		if (result < 0)
+			break;
 	}
 
 fail0:
