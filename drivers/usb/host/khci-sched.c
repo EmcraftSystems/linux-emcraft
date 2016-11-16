@@ -20,6 +20,7 @@
  *****************************************************************************/
 
 #include <linux/kernel.h>
+#include <linux/time.h>
 
 #if defined(CONFIG_ARCH_KINETIS)
 #include <mach/cache.h>
@@ -35,13 +36,14 @@ static void khci_irq_attach(struct khci_hcd *khci, u8 istat);
 static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat);
 static void khci_irq_error(struct khci_hcd *khci, u8 istat);
 static void khci_irq_rst(struct khci_hcd *khci, u8 istat);
-static void khci_irq_sof(struct khci_hcd *khci, u8 istat);
 
 static int khci_queue_xfer_control(struct khci_hcd *khci, struct khci_urb *kurb);
 static int khci_queue_xfer_bulk_int(struct khci_hcd *khci, struct khci_urb *kurb);
 
 static void khci_ep_process(struct khci_hcd *khci);
 static int khci_urb_process(struct khci_urb *kurb);
+
+static int khci_xfer_process_int(struct khci_hcd *khci, struct list_head *lst);
 
 static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td);
 
@@ -55,10 +57,9 @@ static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td);
 irqreturn_t khci_hc_irq(struct usb_hcd *hcd)
 {
 	struct khci_hcd		*khci = hcd_to_khci(hcd);
-	u8			istat, inten;
+	u8			istat;
 
 	istat = khci->reg->istat;
-	inten = khci->reg->inten;
 
 	dbg(4, "IRQ ISTAT: %02x\n", istat);
 
@@ -74,14 +75,8 @@ irqreturn_t khci_hc_irq(struct usb_hcd *hcd)
 	if (istat & KHCI_INT_RST)
 		khci_irq_rst(khci, istat);
 
-	if ((istat & inten) & KHCI_INT_SOFTOK)
-		khci_irq_sof(khci, istat);
-
 	if (khci->td && khci->td->status != -EBUSY && !khci->td_proc) {
 		khci->td_proc = 1;
-		queue_work(khci->wq, &khci->wrk);
-	} else if (khci->sof >= khci->sof_wrk) {
-		khci->sof_wrk = (unsigned int)-1;
 		queue_work(khci->wq, &khci->wrk);
 	}
 
@@ -310,6 +305,17 @@ retry:
 /*****************************************************************************
  * Functions local to this module:
  *****************************************************************************/
+/*
+ *
+ */
+enum hrtimer_restart khci_int_tmr_cb(struct hrtimer *timer)
+{
+	struct khci_hcd	*khci = container_of(timer, struct khci_hcd, tmr);
+
+	khci_xfer_process_int(khci, &khci->intr_lst);
+
+	return HRTIMER_NORESTART;
+}
 
 /*
  * Submit CONTROL transfer
@@ -472,71 +478,103 @@ out:
 }
 
 /*
- * Process EP transaction
+ * Process INT transaction
  */
-static int khci_xfer_process(struct khci_hcd *khci,
-			     struct list_head *lst, int type)
+static int khci_xfer_process_int(struct khci_hcd *khci,
+				 struct list_head *lst)
+{
+	struct khci_ep *kep;
+	struct khci_urb *kurb;
+	struct timeval tv;
+	u64 msec, dmsec;
+	int rv, num = 0;
+
+	/*
+	 * Get current time
+	 */
+	do_gettimeofday(&tv);
+	msec = (tv.tv_sec * 1000000 + tv.tv_usec) / 1000;
+
+	/*
+	 * Walk through the list of INT EP, initiate INT transactions, and
+	 * analyze when to schedule INT next time
+	 */
+	dmsec = (u64)-1;
+	list_for_each_entry(kep, lst, node) {
+		list_for_each_entry(kurb, &kep->urb_lst, node) {
+			/*
+			 * Check if it's time to do this INT transaction
+			 */
+			if (kurb->nxt_msec > msec)
+				goto next;
+
+			/*
+			 * Do INT transaction
+			 */
+			khci_urb_process(kurb);
+			num++;
+			kurb->nxt_msec = msec + kurb->urb->interval;
+next:
+			/*
+			 * Check when we need to do this INT next time
+			 */
+			if (kurb->nxt_msec - msec < dmsec)
+				dmsec = kurb->nxt_msec - msec;
+		}
+	}
+
+	if (dmsec == (u64)-1)
+		goto out;
+
+	if (!khci->tmr.function) {
+		hrtimer_init(&khci->tmr, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		khci->tmr.function = khci_int_tmr_cb;
+	}
+
+	rv = hrtimer_start(&khci->tmr, ktime_set(0, dmsec * 1000000),
+			   HRTIMER_MODE_REL);
+	if (rv < 0)
+		dbg(0, "%s hrt start error %d\n", __func__, rv);
+out:
+	return num;
+}
+
+/*
+ * Process Control/Bulk transaction
+ */
+static int khci_xfer_process_ctl_blk(struct khci_hcd *khci,
+				     struct list_head *lst)
 {
 	struct khci_ep	*kep, *tmp;
 	struct khci_urb	*kurb;
-	unsigned int sof, sof_wrk;
 	LIST_HEAD(done_lst);
-	unsigned long flags;
 	int num = 0;
 
 	/*
 	 * Walk through the EP list, and process URBs scheduled.
 	 * Upon flushing all URBs scheduled - move this EP to the end of list
 	 */
-	spin_lock_irqsave(&khci->lock, flags);
-	sof = khci->sof;
-	sof_wrk = khci->sof_wrk;
-	spin_unlock_irqrestore(&khci->lock, flags);
-
 	list_for_each_entry_safe(kep, tmp, lst, node) {
-		if (type != USB_ENDPOINT_XFER_INT) {
-			/*
-			 * Don't process next EP entry until there are some
-			 * unprocessed URBs in it.
-			 */
-			while (!list_empty(&kep->urb_lst)) {
-				kurb = list_first_entry(&kep->urb_lst,
-							struct khci_urb, node);
-				if (khci_urb_process(kurb))
-					break;
-				num++;
-			}
-
-			if (!list_empty(&kep->urb_lst))
+		/*
+		 * Don't process next EP entry until there are some
+		 * unprocessed URBs in it.
+		 */
+		while (!list_empty(&kep->urb_lst)) {
+			kurb = list_first_entry(&kep->urb_lst,
+						struct khci_urb, node);
+			if (khci_urb_process(kurb))
 				break;
-
-			list_move_tail(&kep->node, &done_lst);
-		} else {
-			/*
-			 * Check intervals
-			 */
-			list_for_each_entry(kurb, &kep->urb_lst, node) {
-				if (sof < kurb->sof_nxt) {
-					if (sof_wrk > kurb->sof_nxt)
-						sof_wrk = kurb->sof_nxt;
-					continue;
-				}
-
-				khci_urb_process(kurb);
-				num++;
-				kurb->sof_nxt = sof + kurb->urb->interval;
-				if (sof_wrk > kurb->sof_nxt)
-					sof_wrk = kurb->sof_nxt;
-			}
+			num++;
 		}
+
+		if (!list_empty(&kep->urb_lst))
+			break;
+
+		list_move_tail(&kep->node, &done_lst);
 	}
 
 	if (!list_empty(&done_lst))
 		list_splice_tail(&done_lst, lst);
-
-	spin_lock_irqsave(&khci->lock, flags);
-	khci->sof_wrk = sof_wrk;
-	spin_unlock_irqrestore(&khci->lock, flags);
 
 	return num;
 }
@@ -557,15 +595,11 @@ static void khci_ep_process(struct khci_hcd *khci)
 	 * and estimate if the time remaining in the current frame will be
 	 * enough to process BULK transfer.
 	 */
-	num += khci_xfer_process(khci, &khci->ctrl_lst,
-				 USB_ENDPOINT_XFER_CONTROL);
-	num += khci_xfer_process(khci, &khci->intr_lst,
-				 USB_ENDPOINT_XFER_INT);
+	num += khci_xfer_process_ctl_blk(khci, &khci->ctrl_lst);
+	num += khci_xfer_process_int(khci, &khci->intr_lst);
 
-	if (!num) {
-		khci_xfer_process(khci, &khci->bulk_lst,
-				  USB_ENDPOINT_XFER_BULK);
-	}
+	if (!num)
+		khci_xfer_process_ctl_blk(khci, &khci->bulk_lst);
 }
 
 /*
@@ -855,15 +889,6 @@ static void khci_irq_rst(struct khci_hcd *khci, u8 istat)
 				        USB_PORT_STAT_ENABLE);
 	khci->vrh.port.wPortChange |= USB_PORT_STAT_C_CONNECTION |
 				      USB_PORT_STAT_C_ENABLE;
-}
-
-/*
- * Process SOF interrupt
- */
-static void khci_irq_sof(struct khci_hcd *khci, u8 istat)
-{
-	khci->reg->istat = KHCI_INT_SOFTOK;
-	khci->sof++;
 }
 
 /*

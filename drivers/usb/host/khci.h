@@ -22,6 +22,7 @@
  *****************************************************************************/
 
 #include <linux/usb.h>
+#include <linux/hrtimer.h>
 #include "../core/hcd.h"
 
 /*****************************************************************************
@@ -208,8 +209,7 @@ struct khci_hcd {
 
 	volatile struct khci_reg *reg;	/* Register map */
 
-	unsigned int		sof;	/* SOF counter */
-	unsigned int		sof_wrk;/* Next SOF to run worker */
+	struct hrtimer		tmr;	/* INT timer */
 
 	struct khci_bd		*bdt;	/* BD table (from DMA pool) */
 	dma_addr_t		bdt_hdl;
@@ -277,7 +277,7 @@ struct khci_urb {
 
 	struct urb		*urb;
 	struct khci_ep		*kep;	/* EP for this URB */
-	unsigned int		sof_nxt;/* INT: next SOF to process this URB */
+	u64			nxt_msec;
 
 	u8			dev_addr;
 	u8			ep_addr;

@@ -366,8 +366,6 @@ static int khci_hc_start(struct usb_hcd *hcd)
 
 	memset(dev->bd, 0, sizeof(dev->bd));
 	memset(dev->bdt, 0, sizeof(struct khci_bd) * 4);
-	dev->sof = 0;
-	dev->sof_wrk = (unsigned int)-1;
 
 	/*
 	 * Enable host mode, and ATTACH interrupt
