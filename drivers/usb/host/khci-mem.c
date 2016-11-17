@@ -21,6 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/time.h>
 
 #include "khci.h"
 
@@ -98,7 +99,21 @@ struct khci_urb *khci_urb_alloc(struct khci_hcd *khci, struct urb *urb)
 
 	kurb->urb = urb;
 	kurb->kep = kep;
-	kurb->nxt_msec = 0;
+	if (usb_pipeint(urb->pipe)) {
+		struct timeval tv;
+
+		/*
+		 * This actually isn't fully correct - we should schedule INT
+		 * on 'urb->start_frame + urb->interval'. But since we do not
+		 * count SOFs, then just use current system time in ms here,
+		 * and in xfer_process_int() function
+		 */
+		do_gettimeofday(&tv);
+		kurb->nxt_msec = (tv.tv_sec * 1000000 + tv.tv_usec) / 1000;
+		kurb->nxt_msec += urb->interval;
+	} else {
+		kurb->nxt_msec = 0;
+	}
 
 	kurb->dev_addr = usb_pipedevice(urb->pipe);
 	kurb->ep_cfg = KHCI_EP_RETRYDIS | KHCI_EP_EPRXEN | KHCI_EP_EPTXEN |

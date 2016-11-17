@@ -75,8 +75,8 @@ irqreturn_t khci_hc_irq(struct usb_hcd *hcd)
 	if (istat & KHCI_INT_RST)
 		khci_irq_rst(khci, istat);
 
-	if (khci->td && khci->td->status != -EBUSY && !khci->td_proc) {
-		khci->td_proc = 1;
+	if (khci->td_state == TD_SCHED) {
+		khci->td_state = TD_DONE;
 		queue_work(khci->wq, &khci->wrk);
 	}
 
@@ -203,17 +203,15 @@ void khci_worker(struct work_struct *wrk)
 	struct khci_td	*td;
 	unsigned long	flags;
 	int		msec;
-	u8		tok;
+	u8		tok, done = 0;
 
 	spin_lock_irqsave(&khci->lock, flags);
-	if (!khci->td) {
-		/*
-		 * SOF condition triggers this call
-		 */
+	td = khci->td;
+	if (!td) {
+		dbg(0, "%s: called with no td\n", __func__);
 		goto retry;
 	}
 
-	td = khci->td;
 	kurb = td->kurb;
 
 	switch (td->status) {
@@ -293,12 +291,15 @@ void khci_worker(struct work_struct *wrk)
 	 * Free TD, complete current URB if necessary, and initiate
 	 * next xfer
 	 */
-	list_move_tail(&td->node, &khci->td_done_lst);
-	khci_td_complete(khci, td);
+	done = 1;
 retry:
 	khci->td = NULL;
-	khci->td_proc = 0;
+	if (done)
+		khci_td_complete(khci, td);
+
+	khci->td_state = TD_NONE;
 	khci_ep_process(khci);
+
 	spin_unlock_irqrestore(&khci->lock, flags);
 }
 
@@ -511,13 +512,14 @@ static int khci_xfer_process_int(struct khci_hcd *khci,
 			/*
 			 * Do INT transaction
 			 */
-			khci_urb_process(kurb);
 			num++;
+			if (khci_urb_process(kurb) < 0) {
+				dmsec = 1;
+				goto next;
+			}
+
 			kurb->nxt_msec = msec + kurb->urb->interval;
 next:
-			/*
-			 * Check when we need to do this INT next time
-			 */
 			if (kurb->nxt_msec - msec < dmsec)
 				dmsec = kurb->nxt_msec - msec;
 		}
@@ -562,7 +564,7 @@ static int khci_xfer_process_ctl_blk(struct khci_hcd *khci,
 		while (!list_empty(&kep->urb_lst)) {
 			kurb = list_first_entry(&kep->urb_lst,
 						struct khci_urb, node);
-			if (khci_urb_process(kurb))
+			if (khci_urb_process(kurb) < 0)
 				break;
 			num++;
 		}
@@ -611,7 +613,7 @@ static int khci_urb_process(struct khci_urb *kurb)
 	volatile struct khci_bd	*bd;
 	volatile struct khci_reg *reg = khci->reg;
 	struct khci_td		*td;
-	int			busy, usec;
+	int			rv, usec;
 	u32			len;
 
 	dbg(3, "%s %d,%x,%x %s.%s.%x\n", __func__,
@@ -623,8 +625,13 @@ static int khci_urb_process(struct khci_urb *kurb)
 	 * Check if we have some TDs for this URB, if there's nothing
 	 * transmitting right now, and if it's OK to xfer next token
 	 */
-	if (list_empty(&kurb->td_sched_lst) || khci->td) {
-		busy = 1;
+	if (list_empty(&kurb->td_sched_lst)) {
+		rv = 0;
+		goto out;
+	}
+
+	if (khci->td_state || !(reg->ctl & KHCI_CTL_USBENSOFEN)) {
+		rv = -EBUSY;
 		goto out;
 	}
 
@@ -640,7 +647,7 @@ static int khci_urb_process(struct khci_urb *kurb)
 	if (bd->flg & KHCI_BD_OWN) {
 		dbg(0, "BD [%d][%d] BUSY\n", td->tx, khci->bd[td->tx]);
 		khci_dbg_dump_reg(khci);
-		busy = 1;
+		rv = -EIO;
 		goto out;
 	}
 
@@ -657,7 +664,7 @@ static int khci_urb_process(struct khci_urb *kurb)
 		usec--;
 	}
 	if (usec <= 0) {
-		busy = 1;
+		rv = -ETIMEDOUT;
 		goto out;
 	}
 
@@ -692,6 +699,7 @@ static int khci_urb_process(struct khci_urb *kurb)
 #endif
 
 	khci->td = td;
+	khci->td_state = TD_SCHED;
 
 	/*
 	 * Program hw.
@@ -724,9 +732,9 @@ static int khci_urb_process(struct khci_urb *kurb)
 	while ((bd->flg & KHCI_BD_OWN) && (usec-- > 0))
 		udelay(1);
 
-	busy = 0;
+	rv = 1;
 out:
-	return busy;
+	return rv;
 }
 
 /*
@@ -777,7 +785,7 @@ static void khci_irq_tokdne(struct khci_hcd *khci, u8 istat)
 	khci->reg->istat = KHCI_INT_TOKDNE;
 
 	if (!khci->td) {
-		dbg(1, "%s: no active TD (stat=%02x)\n", __func__, stat);
+		dbg(0, "%s: no active TD (stat=%02x)\n", __func__, stat);
 		goto out;
 	}
 
@@ -846,10 +854,7 @@ static void khci_irq_error(struct khci_hcd *khci, u8 istat)
 {
 	u8	err = khci->reg->errstat;
 
-#if DEBUG >= 1
-	dbg(1, "ERR IRQ %02x\n", err);
-	khci_dbg_dump_reg(khci);
-#endif
+	dbg(0, "ERR IRQ %02x\n", err);
 
 	if (khci->td)
 		khci->td->status = -EFAULT;
@@ -902,7 +907,9 @@ static void khci_td_complete(struct khci_hcd *khci, struct khci_td *td)
 	struct khci_td	*nxt;
 	int		i, status = 0;
 
+	list_move_tail(&td->node, &khci->td_done_lst);
 	kurb->td_done++;
+
 	dbg(3, "%s URB:%p %dof%d %d.%d.%x\n", __func__, urb, kurb->td_done,
 	    kurb->td_todo, td->tx, KHCI_BD_BC_GET(td->org_flg), td->bd_adr);
 

@@ -246,7 +246,11 @@ struct khci_hcd {
 
 	struct khci_td		*td;		/* Currently xfering TD */
 	struct list_head	td_done_lst;	/* Completed TD */
-	int			td_proc;
+	enum {
+		TD_NONE		= 0,
+		TD_SCHED,
+		TD_DONE
+	}			td_state;
 };
 
 /*
