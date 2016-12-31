@@ -217,6 +217,11 @@ config STM32_FB
 	bool "Enable STM32F4x9 LTDC framebuffer"
 	default n
 
+config STM32_CAN1
+	depends on ARCH_STM32 && CAN_STM32
+	bool "Enable STM32 CAN1 controller"
+	default n
+
 endmenu
 
 endif

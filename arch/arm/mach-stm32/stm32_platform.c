@@ -46,6 +46,7 @@
 #include <mach/gpio.h>
 #include <mach/fb.h>
 #include <mach/i2c-gpio.h>
+#include <mach/can.h>
 
 /*
  * Linker symbols
@@ -311,5 +312,9 @@ static void __init stm32_init(void)
 	 * Register LCD controller with the framebuffer driver
 	 */
 	stm32f4x9_fb_init();
+#endif
+
+#if defined(CONFIG_CAN_STM32)
+	stm32_can_init();
 #endif
 }

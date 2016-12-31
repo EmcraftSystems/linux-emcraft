@@ -94,8 +94,13 @@
 #define STM32F2_GPIO_AF_USART8	0x08
 
 /*
-* AF10 selection
-*/
+ * CAN AF
+ */
+#define STM32F2_GPIO_AF_CAN1	0x09
+
+/*
+ * AF10 selection
+ */
 #define STM32F2_GPIO_AF_USB_OTG	0x0A
 
 /*
@@ -145,6 +150,7 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_SDIO,		/* SDIO				      */
 	STM32F2_GPIO_ROLE_USB_OTG,	/* USB OTG			      */
 	STM32F2_GPIO_ROLE_LTDC,		/* LCD controller		      */
+	STM32F2_GPIO_ROLE_CAN1,		/* CAN				      */
 	STM32F2_GPIO_ROLE_MCO,		/* MC external output clock	      */
 	STM32F2_GPIO_ROLE_OUT,		/* General purpose output	      */
 	STM32F2_GPIO_ROLE_IN,		/* General purpose input no pull      */
@@ -181,7 +187,7 @@ static const u32 af_val[] = {
 	STM32F2_GPIO_AF_I2C1, STM32F2_GPIO_AF_I2C2, STM32F2_GPIO_AF_I2C3,
 	STM32F2_GPIO_AF_I2C4,
 	STM32F2_GPIO_AF_SDIO, STM32F2_GPIO_AF_USB_OTG,
-	STM32F2_GPIO_AF_LTDC,
+	STM32F2_GPIO_AF_LTDC, STM32F2_GPIO_AF_CAN1,
 	0
 };
 
@@ -226,6 +232,7 @@ static int stm32f2_gpio_config(
 	case STM32F2_GPIO_ROLE_SPI4:
 	case STM32F2_GPIO_ROLE_SPI5:
 	case STM32F2_GPIO_ROLE_SPI6:
+	case STM32F2_GPIO_ROLE_CAN1:
 		otype  = STM32F2_GPIO_OTYPE_PP;
 		ospeed = STM32F2_GPIO_SPEED_50M;
 		pupd   = STM32F2_GPIO_PUPD_UP;
@@ -465,7 +472,15 @@ void __init stm32_iomux_init(void)
 		gpio_dsc.pin  = 6;
 		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_USART7);
 #endif
+#if defined(CONFIG_STM32_CAN1)
+		gpio_dsc.port = 1;
+		gpio_dsc.pin  = 8;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_CAN1);
 
+		gpio_dsc.port = 1;
+		gpio_dsc.pin  = 9;
+		stm32f2_gpio_config(&gpio_dsc, STM32F2_GPIO_ROLE_CAN1);
+#endif
 		goto uartdone;
 
 	case PLATFORM_STM32_STM3220G_EVAL:
