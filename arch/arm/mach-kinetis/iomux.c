@@ -424,6 +424,12 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
        {{KINETIS_GPIO_PORT_D,  2}, KINETIS_GPIO_CONFIG_SRE(4)},
 #endif
 
+#if defined(CONFIG_CAN_FLEXCAN)
+        /* CAN0 */
+       {{KINETIS_GPIO_PORT_F,  0}, KINETIS_GPIO_CONFIG_MUX(2)},
+       {{KINETIS_GPIO_PORT_F,  1}, KINETIS_GPIO_CONFIG_MUX(2)},
+#endif
+
 };
 
 /*

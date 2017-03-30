@@ -44,6 +44,7 @@
 #include <mach/khci.h>
 #include <mach/spi.h>
 #include <mach/rtc.h>
+#include <mach/flexcan.h>
 
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
@@ -310,5 +311,12 @@ static void __init kinetis_init(void)
 	 * Configure SPI buses emulated using GPIOs
 	 */
 	kinetis_esdhc_init();
+#endif
+
+#if defined(CONFIG_CAN_FLEXCAN)
+	/*
+	 * Configure CAN buses
+	 */
+	kinetis_flexcan_init();
 #endif
 }

@@ -70,6 +70,14 @@ enum can_state {
 };
 
 /*
+ * CAN bus error counters
+ */
+struct can_berr_counter {
+	__u16 txerr;
+	__u16 rxerr;
+};
+
+/*
  * CAN controller mode
  */
 struct can_ctrlmode {
