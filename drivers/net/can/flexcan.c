@@ -906,10 +906,18 @@ static int flexcan_chip_start(struct net_device *dev)
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	/* enable interrupts atomically */
-	disable_irq(priv->irqs[0]);
+	for (i = 0; i < FLEXCAN_MAX_IRQ_CNT; i++) {
+		if (priv->irqs[i] <= 0)
+			break;
+		disable_irq(priv->irqs[i]);
+	}
 	flexcan_write(priv->reg_ctrl_default, &regs->ctrl);
 	flexcan_write(FLEXCAN_IFLAG_DEFAULT, &regs->imask1);
-	enable_irq(priv->irqs[0]);
+	for (i = 0; i < FLEXCAN_MAX_IRQ_CNT; i++) {
+		if (priv->irqs[i] <= 0)
+			break;
+		enable_irq(priv->irqs[i]);
+	}
 
 	/* print chip status */
 	dev_dbg(dev->dev.parent, "%s: reading mcr=0x%08x ctrl=0x%08x\n", __func__,
@@ -960,7 +968,7 @@ static int flexcan_open(struct net_device *dev)
 			break;
 		err = request_irq(priv->irqs[i], flexcan_irq, IRQF_SHARED, dev->name, dev);
 		if (err) {
-			for (; i > 0; i--)
+			for (; i >= 0; i--)
 				free_irq(priv->irqs[i], dev);
 			goto out_close;
 		}
@@ -1126,7 +1134,8 @@ static int flexcan_probe(struct platform_device *pdev)
 		if (priv->irqs[i] <= 0) {
 			if (i == 0) {
 				dev_err(&pdev->dev, "cannot get IRQ number\n");
-				return -ENODEV;
+				err = -ENODEV;
+				goto failed_register;
 			}
 			break;
 		}
