@@ -23,7 +23,7 @@
 #include <linux/list.h>
 #include <linux/time.h>
 
-#include "khci.h"
+#include "khci-hcd.h"
 
 /*****************************************************************************
  * Exported API:

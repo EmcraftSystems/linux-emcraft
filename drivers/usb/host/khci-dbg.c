@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 
-#include "khci.h"
+#include "khci-hcd.h"
 
 /*****************************************************************************
  * Exported API:

@@ -504,6 +504,18 @@ config USB_LANGWELL
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_KHCI
+	boolean "Freescale KHCI USB Device Controller"
+	select USB_GADGET_DUALSPEED
+	help
+	   A full Speed USB controller available on
+	   Freescale Kinetis processors.
+
+config USB_KHCI_UDC
+	tristate
+	depends on USB_GADGET_KHCI
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 #
 # LAST -- dummy/emulated controller

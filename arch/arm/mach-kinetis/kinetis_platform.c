@@ -285,7 +285,7 @@ static void __init kinetis_init(void)
 	kinetis_ehci_init();
 #endif
 
-#if defined(CONFIG_USB_KHCI_HCD)
+#if defined(CONFIG_USB_KHCI_HCD) || defined(CONFIG_USB_KHCI_UDC)
 	/*
 	 * Configure the Freescale Kinetis USB Full Speed controller
 	 */

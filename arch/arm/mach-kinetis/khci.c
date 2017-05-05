@@ -62,6 +62,13 @@ struct platform_device khci_dev = {
 	.num_resources = ARRAY_SIZE(khci_resources),
 };
 
+struct platform_device khci_udc = {
+	.name = "khci-udc",
+	.id = 0,
+	.resource = khci_resources,
+	.num_resources = ARRAY_SIZE(khci_resources),
+};
+
 void __init kinetis_khci_init(void)
 {
 	int	rv;
@@ -80,6 +87,14 @@ void __init kinetis_khci_init(void)
 	rv = platform_device_register(&khci_dev);
 	if (rv)
 		pr_err("%s: register device failed.\n", __func__);
+
+	/*
+	 * Register the USB Device controller
+	 */
+	rv = platform_device_register(&khci_udc);
+	if (rv)
+		pr_err("%s: register device failed.\n", __func__);
+
 out:
 	return;
 }

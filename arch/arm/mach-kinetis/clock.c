@@ -465,7 +465,12 @@ static struct clk_lookup kinetis_clkregs[] = {
 	INIT_CLKREG(&clk_ftm3, NULL, "kinetis-ftm.3"),
 #endif
 	INIT_CLKREG(&clk_usbhs, "mxc-ehci.0", "usb"),
+#ifdef CONFIG_USB_KHCI_HCD
 	INIT_CLKREG(&clk_usbfs, "khci-hcd.0", "khci"),
+#endif
+#ifdef CONFIG_USB_KHCI_UDC
+	INIT_CLKREG(&clk_usbfs, "khci-udc.0", "khci"),
+#endif
 #ifdef CONFIG_I2C_IMX
 	INIT_CLKREG(&clk_i2c0, NULL, "i2c_clk"),
 #endif

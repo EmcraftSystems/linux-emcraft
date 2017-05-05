@@ -26,7 +26,7 @@
 #include <mach/cache.h>
 #endif
 
-#include "khci.h"
+#include "khci-hcd.h"
 
 /*****************************************************************************
  * Static routines prototypes:

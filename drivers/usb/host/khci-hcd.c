@@ -29,7 +29,7 @@
 #include <linux/clk.h>
 #include <linux/workqueue.h>
 
-#include "khci.h"
+#include "khci-hcd.h"
 
 /*****************************************************************************
  * Local macros and constants:
