@@ -72,3 +72,5 @@ GTAGS
 *.orig
 *~
 \#*#
+
+arch/arm/kernel/vmlinux.lds.S
