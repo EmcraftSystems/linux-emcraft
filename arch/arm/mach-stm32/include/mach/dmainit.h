@@ -60,6 +60,9 @@
 #define STM32F7_DMACH_I2C4_TX	5
 #endif
 #endif
+
+#define STM32F7_DMACH_DAC1	5
+#define STM32F7_DMACH_DAC2	6
 /*
  * STM32F2
  */

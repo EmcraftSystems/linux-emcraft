@@ -58,6 +58,7 @@ enum stm32_dma_map_codes {
 	UART6_TX,
 	UART7_TX,
 	UART8_TX,
+	DAC,
 	NOTSUP,		/* not supported by software */
 	NOTDEF,		/* not defined by hardware */
 };
@@ -81,9 +82,9 @@ static enum stm32_dma_map_codes request_map[16][8] =
 	/* DMA1-stream 4 */
 	{ NOTSUP, NOTSUP, NOTDEF, I2C3_TX, UART4_TX, NOTSUP, NOTSUP, UART3_TX },
 	/* DMA1-stream 5 */
-	{ NOTSUP, I2C1_RX, I2C4_TX, NOTSUP, UART2_RX, NOTSUP, NOTDEF, NOTSUP },
+	{ NOTSUP, I2C1_RX, I2C4_TX, NOTSUP, UART2_RX, NOTSUP, NOTDEF, DAC },
 	/* DMA1-stream 6 */
-	{ NOTSUP, I2C1_TX, NOTSUP, NOTSUP, UART2_TX, UART8_RX, NOTSUP, NOTSUP },
+	{ NOTSUP, I2C1_TX, NOTSUP, NOTSUP, UART2_TX, UART8_RX, NOTSUP, DAC },
 	/* DMA1-stream 7 */
 	{ NOTSUP, I2C1_TX, NOTSUP, NOTSUP, UART5_TX, NOTSUP, NOTDEF, I2C2_TX },
 	/* DMA2-stream 0 */
@@ -179,26 +180,34 @@ static const struct stm32f2_dma_ch_config stm32f2_dmamux_table[] = {
 	{STM32F7_DMACH_I2C1_RX, I2C1_RX},
 	/* I2C1 Tx: {DMA1-stream6, channel1} or {DMA1-stream7, channel1} */
 	{STM32F7_DMACH_I2C1_TX, I2C1_TX},
-#endif
+#endif /* CONFIG_STM32_I2C1 */
 #if defined(CONFIG_STM32_I2C2)
 	/* I2C2 Rx: {DMA1-stream2, channel7} or {DMA1-stream3, channel7} */
 	{STM32F7_DMACH_I2C2_RX, I2C2_RX},
 	/* I2C2 Tx: {DMA1-stream7, channel7} */
 	{STM32F7_DMACH_I2C2_TX, I2C2_TX},
-#endif
+#endif /* CONFIG_STM32_I2C2 */
 #if defined(CONFIG_STM32_I2C3)
 	/* I2C1 Rx: {DMA1-stream1, channel1} or {DMA1-stream2, channel3} */
 	{STM32F7_DMACH_I2C3_RX, I2C3_RX},
 	/* I2C1 Tx: {DMA1-stream4, channel3} */
 	{STM32F7_DMACH_I2C3_TX, I2C3_TX},
-#endif
+#endif /* CONFIG_STM32_I2C3 */
 #if defined(CONFIG_STM32_I2C4)
 	/* I2C1 Rx: {DMA1-stream2, channel2} */
 	{STM32F7_DMACH_I2C4_RX, I2C4_RX},
 	/* I2C1 Tx: {DMA1-stream5, channel2} */
 	{STM32F7_DMACH_I2C4_TX, I2C4_TX},
-#endif
-#endif
+#endif /* CONFIG_STM32_I2C4 */
+#endif /* CONFIG_I2C_STM32F7 */
+
+#if defined(CONFIG_STM32_DAC1_DMA)
+	{STM32F7_DMACH_DAC1, DAC },
+#endif /* CONFIG_STM32_DAC1_DMA */
+#if defined(CONFIG_STM32_DAC2_DMA)
+	{STM32F7_DMACH_DAC2, DAC },
+#endif /* CONFIG_STM32_DAC2_DMA */
+
 	/*
 	 * DMA2 request mapping (channels 7-15)
 	 */
