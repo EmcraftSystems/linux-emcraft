@@ -47,6 +47,7 @@
 #include <mach/fb.h>
 #include <mach/i2c-gpio.h>
 #include <mach/can.h>
+#include <mach/pwm.h>
 
 /*
  * Linker symbols
@@ -316,5 +317,9 @@ static void __init stm32_init(void)
 
 #if defined(CONFIG_CAN_STM32)
 	stm32_can_init();
+#endif
+
+#if defined(CONFIG_PWM_STM32)
+	stm32_pwm_init();
 #endif
 }

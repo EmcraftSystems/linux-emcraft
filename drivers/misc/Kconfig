@@ -292,6 +292,16 @@ config TI_DAC7512
 	  This driver can also be built as a module. If so, the module
 	  will be calles ti_dac7512.
 
+config PWM_STM32
+	bool "STM32 PWM support"
+	depends on ARCH_STM32
+	help
+	  Generic PWM framework driver for STM32 SoCs.
+
+config PWM_STM32_TIM5
+	bool "Enable STM32 Timer5"
+	depends on PWM_STM32
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
