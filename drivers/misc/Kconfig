@@ -302,6 +302,33 @@ config PWM_STM32_TIM5
 	bool "Enable STM32 Timer5"
 	depends on PWM_STM32
 
+config STM32_DAC
+	bool "STM32 Digital-to-analog converter"
+	depends on ARCH_STM32 && HAS_DMA
+	help
+	  Say yes here to build support for STM32 Digital to Analog Converter.
+
+config STM32_DAC1
+	bool "Enable STM32 DAC1"
+	depends on STM32_DAC
+
+config STM32_DAC2
+	bool "Enable STM32 DAC2"
+	depends on STM32_DAC
+
+config STM32_DAC1_DMA
+	bool "Enable DMA for STM32 DAC1"
+	depends on STM32_DAC1 && PWM_STM32 && HAS_DMA
+
+config STM32_DAC2_DMA
+	bool "Enable DMA for STM32 DAC2"
+	depends on STM32_DAC2 && PWM_STM32 && HAS_DMA
+
+config STM32_DAC_TIMER_ID
+	int "Select STM32 Timer for STM32 DACs"
+	range 2 8
+	depends on STM32_DAC1_DMA || STM32_DAC2_DMA
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

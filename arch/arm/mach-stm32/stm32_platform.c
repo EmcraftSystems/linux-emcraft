@@ -47,6 +47,7 @@
 #include <mach/fb.h>
 #include <mach/i2c-gpio.h>
 #include <mach/can.h>
+#include <mach/dac.h>
 #include <mach/pwm.h>
 
 /*
@@ -321,5 +322,9 @@ static void __init stm32_init(void)
 
 #if defined(CONFIG_PWM_STM32)
 	stm32_pwm_init();
+#endif
+
+#if defined(CONFIG_STM32_DAC)
+	stm32_dac_init();
 #endif
 }
