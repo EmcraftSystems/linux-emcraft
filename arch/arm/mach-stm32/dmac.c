@@ -460,7 +460,12 @@ EXPORT_SYMBOL(stm32_dma_ch_free_irq);
  * This function must be called before stm32_dma_ch_init_fifo()
  * and stm32_dma_ch_set_*().
  */
-int stm32_dma_ch_init(int ch, u8 dir, u8 fpctrl, u8 pl, u8 dbm, u8 circ)
+int stm32_dma_ch_init(int ch,
+		      enum stm32_dma_direction dir,
+		      enum stm32_dma_flow_control fpctrl,
+		      enum stm32_dma_priority pl,
+		      enum stm32_dma_double_buffer dbm,
+		      enum stm32_dma_circular_mode circ)
 {
 	volatile struct stm32_dma_ch_regs *ch_regs;
 	DMAAPI_LOCKED_BEGIN
@@ -521,7 +526,9 @@ EXPORT_SYMBOL(stm32_dma_ch_init);
  *    2 means 3/4 full FIFO;
  *    3 means full FIFO.
  */
-int stm32_dma_ch_init_fifo(int ch, u8 burst, u8 threshold)
+int stm32_dma_ch_init_fifo(int ch,
+			   enum stm32_dma_mode burst,
+			   enum stm32_dma_threshold threshold)
 {
 	volatile struct stm32_dma_ch_regs *ch_regs;
 	DMAAPI_LOCKED_BEGIN
@@ -563,7 +570,10 @@ EXPORT_SYMBOL(stm32_dma_ch_init_fifo);
  *
  * @burst = 0..3. Peripheral burst transfer configuration (DMA_SxCR[PBURST]).
  */
-int stm32_dma_ch_set_periph(int ch, u32 addr, u8 inc, u8 bitwidth, u8 burst)
+int stm32_dma_ch_set_periph(int ch, u32 addr,
+			    enum stm32_dma_increment inc,
+			    enum stm32_dma_bitwidth bitwidth,
+			    enum stm32_dma_burst burst)
 {
 	volatile struct stm32_dma_ch_regs *ch_regs;
 	DMAAPI_LOCKED_BEGIN
@@ -607,7 +617,10 @@ EXPORT_SYMBOL(stm32_dma_ch_set_periph);
  *
  * @burst = 0..3. Memory burst transfer configuration (DMA_SxCR[MBURST]).
  */
-int stm32_dma_ch_set_memory(int ch, u32 addr, u8 inc, u8 bitwidth, u8 burst)
+int stm32_dma_ch_set_memory(int ch, u32 addr,
+			    enum stm32_dma_increment inc,
+			    enum stm32_dma_bitwidth bitwidth,
+			    enum stm32_dma_burst burst)
 {
 	volatile struct stm32_dma_ch_regs *ch_regs;
 	DMAAPI_LOCKED_BEGIN

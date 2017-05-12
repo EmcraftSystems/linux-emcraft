@@ -34,6 +34,64 @@
 #define STM32_DMA_INTCOMPLETE		(1 << 0)
 #define STM32_DMA_INTHALF		(1 << 1)
 
+enum stm32_dma_direction {
+	DMA_DIR_DEV_TO_MEM=0,
+	DMA_DIR_MEM_TO_DEV,
+	DMA_DIR_MEM_TO_MEM
+};
+
+enum stm32_dma_flow_control {
+	DMA_FLOW_CONTROL_DISABLE=0,
+	DMA_FLOW_CONTROL_ENABLE
+};
+
+enum stm32_dma_priority {
+	DMA_PRIORITY_LOW=0,
+	DMA_PRIORITY_MEDIUM,
+	DMA_PRIORITY_HIGH,
+	DMA_PRIORITY_VERY_HIGH
+};
+
+enum stm32_dma_double_buffer {
+	DMA_DOUBLE_BUFFER_DISABLE=0,
+	DMA_DOUBLE_BUFFER_ENABLE
+};
+
+enum stm32_dma_circular_mode {
+	DMA_CIRCULAR_MODE_DISABLE=0,
+	DMA_CIRCULAR_MODE_ENABLE
+};
+
+enum stm32_dma_mode {
+	DMA_DIRECT_MODE_ENABLE=0,
+	DMA_DIRECT_MODE_DISABLE
+};
+
+enum stm32_dma_threshold {
+	DMA_THRESH_1_4_FIFO=0,
+	DMA_THRESH_HALF_FIFO,
+	DMA_THRESH_3_4_FIFO,
+	DMA_THRESH_FULL_FIFO
+};
+
+enum stm32_dma_increment {
+	DMA_INCREMENT_DISABLE=0,
+	DMA_INCREMENT_ENABLE
+};
+
+enum stm32_dma_bitwidth {
+	DMA_BITWIDTH_8=0,
+	DMA_BITWIDTH_16,
+	DMA_BITWIDTH_32
+};
+
+enum stm32_dma_burst {
+	DMA_BURST_SINGLE=0,
+	DMA_BURST_4,
+	DMA_BURST_8,
+	DMA_BURST_16
+};
+
 /*
  * API functions of the STM32 DMA controller driver
  *
@@ -47,10 +105,23 @@ int stm32_dma_ch_request_irq(
 	int ch, void (*handler)(int ch, unsigned long flags, void *data),
 	unsigned long flags, void *data);
 int stm32_dma_ch_free_irq(int ch, void *data);
-int stm32_dma_ch_init(int ch, u8 dir, u8 fpctrl, u8 pl, u8 dbm, u8 circ);
-int stm32_dma_ch_init_fifo(int ch, u8 burst, u8 threshold);
-int stm32_dma_ch_set_periph(int ch, u32 addr, u8 inc, u8 bitwidth, u8 burst);
-int stm32_dma_ch_set_memory(int ch, u32 addr, u8 inc, u8 bitwidth, u8 burst);
+int stm32_dma_ch_init(int ch,
+		      enum stm32_dma_direction dir,
+		      enum stm32_dma_flow_control fpctrl,
+		      enum stm32_dma_priority pl,
+		      enum stm32_dma_double_buffer dbm,
+		      enum stm32_dma_circular_mode circ);
+int stm32_dma_ch_init_fifo(int ch,
+			   enum stm32_dma_mode burst,
+			   enum stm32_dma_threshold threshold);
+int stm32_dma_ch_set_periph(int ch, u32 addr,
+			    enum stm32_dma_increment inc,
+			    enum stm32_dma_bitwidth bitwidth,
+			    enum stm32_dma_burst burst);
+int stm32_dma_ch_set_memory(int ch, u32 addr,
+			    enum stm32_dma_increment inc,
+			    enum stm32_dma_bitwidth bitwidth,
+			    enum stm32_dma_burst burst);
 int stm32_dma_ch_set_nitems(int ch, u16 nitems);
 
 #endif /* _MACH_STM32_DMAC_H_ */
