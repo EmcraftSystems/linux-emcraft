@@ -23,6 +23,7 @@
 #include <linux/pwm.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/list.h>
 
 #include <asm/io.h>
 #include <mach/pwm.h>
@@ -65,6 +66,7 @@
  * STM32 PWM descriptor
  */
 struct stm_pwm_chip {
+	struct list_head node;
 	struct device	*dev;
 	void __iomem	*regs;
 
@@ -75,6 +77,8 @@ struct stm_pwm_chip {
 	bool		high_on_init;
 	bool		trigger_output;
 };
+
+static LIST_HEAD(pwm_list);
 
 static int stm_pwm_config(struct stm_pwm_chip *pc, int duty_ns, int period_ns)
 {
@@ -141,6 +145,53 @@ static int stm_pwm_enable(struct stm_pwm_chip *pc)
 
 	return 0;
 }
+
+/*
+ * PWM API: disable PWM signal
+ */
+static int stm_pwm_disable(struct stm_pwm_chip *pc)
+{
+	unsigned int val;
+	unsigned long f;
+
+	local_irq_save(f);
+	val = readl(pc->regs + TIM_CR1);
+	val &= ~CR1_CEN;
+	writel(val, pc->regs + TIM_CR1);
+	local_irq_restore(f);
+
+	return 0;
+}
+
+struct pwm_device *pwm_request(int pwm_id, const char *label)
+{
+	struct stm_pwm_chip *pc;
+
+	list_for_each_entry(pc, &pwm_list, node)
+		if (pc->tmr == pwm_id)
+			return (struct pwm_device *)pc;
+
+	return NULL;
+}
+EXPORT_SYMBOL(pwm_request);
+
+int pwm_enable(struct pwm_device *pwm)
+{
+	return stm_pwm_enable((struct stm_pwm_chip *)pwm);
+}
+EXPORT_SYMBOL(pwm_enable);
+
+int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
+{
+	return stm_pwm_config((struct stm_pwm_chip *)pwm, duty_ns, period_ns);
+}
+EXPORT_SYMBOL(pwm_config);
+
+void pwm_disable(struct pwm_device *pwm)
+{
+	stm_pwm_disable((struct stm_pwm_chip *)pwm);
+}
+EXPORT_SYMBOL(pwm_disable);
 
 static const struct of_device_id stm_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm", },
@@ -248,6 +299,12 @@ static int stm_pwm_probe(struct platform_device *pdev)
 
 	dev_info(dev, "basing on TIM%d.%d(x%d)\n", tmr, chan, pc->bits);
 	platform_set_drvdata(pdev, pc);
+
+	list_add(&pc->node, &pwm_list);
+	if (!pdata->duty_cycle) {
+		rv = 0;
+		goto out;
+	}
 
 	stm_pwm_config(pc, pdata->duty_cycle, pdata->period);
 	stm_pwm_enable(pc);
