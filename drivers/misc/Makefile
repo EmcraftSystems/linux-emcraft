@@ -29,4 +29,5 @@ obj-$(CONFIG_IWMC3200TOP)      += iwmc3200top/
 obj-y				+= eeprom/
 obj-y				+= cb710/
 obj-$(CONFIG_PWM_STM32)		+= pwm-stm32.o
+obj-$(CONFIG_STM32_ADC)		+= stm32_adc.o
 obj-$(CONFIG_STM32_DAC)		+= stm32_dac.o

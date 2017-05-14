@@ -22,4 +22,5 @@ obj-$(CONFIG_STM32_FB)		+= fb.o
 obj-$(CONFIG_PM)		+= suspend.o pm.o
 obj-$(CONFIG_CAN_STM32)		+= can.o
 obj-$(CONFIG_PWM_STM32)		+= pwm.o
+obj-$(CONFIG_STM32_ADC)		+= adc.o
 obj-$(CONFIG_STM32_DAC)		+= dac.o

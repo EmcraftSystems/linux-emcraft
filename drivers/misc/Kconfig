@@ -302,6 +302,12 @@ config PWM_STM32_TIM5
 	bool "Enable STM32 Timer5"
 	depends on PWM_STM32
 
+config STM32_ADC
+	bool "STM32 Analog-to-digital converter"
+	depends on ARCH_STM32 && HAS_DMA
+	help
+	  Say yes here to build support for STM32 Analog to Digital Converter.
+
 config STM32_DAC
 	bool "STM32 Digital-to-analog converter"
 	depends on ARCH_STM32 && HAS_DMA

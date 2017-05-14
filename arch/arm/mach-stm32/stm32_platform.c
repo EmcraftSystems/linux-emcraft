@@ -49,6 +49,7 @@
 #include <mach/can.h>
 #include <mach/dac.h>
 #include <mach/pwm.h>
+#include <mach/adc.h>
 
 /*
  * Linker symbols
@@ -322,6 +323,10 @@ static void __init stm32_init(void)
 
 #if defined(CONFIG_PWM_STM32)
 	stm32_pwm_init();
+#endif
+
+#if defined(CONFIG_STM32_ADC)
+	stm32_adc_init();
 #endif
 
 #if defined(CONFIG_STM32_DAC)

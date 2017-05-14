@@ -63,6 +63,12 @@
 
 #define STM32F7_DMACH_DAC1	5
 #define STM32F7_DMACH_DAC2	6
+
+/* ADC: DMA2, stream4,stream3,stream0 */
+#define STM32F7_DMACH_ADC1	12
+#define STM32F7_DMACH_ADC2	11
+#define STM32F7_DMACH_ADC3	8
+
 /*
  * STM32F2
  */

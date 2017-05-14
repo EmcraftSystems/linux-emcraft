@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/stm32_adc.h>
 
 #include <mach/iomux.h>
 #include <mach/platform.h>
@@ -154,7 +155,8 @@ enum stm32f2_gpio_role {
 	STM32F2_GPIO_ROLE_MCO,		/* MC external output clock	      */
 	STM32F2_GPIO_ROLE_OUT,		/* General purpose output	      */
 	STM32F2_GPIO_ROLE_IN,		/* General purpose input no pull      */
-	STM32F2_GPIO_ROLE_IN_PUP	/* General purpose input w/pullup     */
+	STM32F2_GPIO_ROLE_IN_PUP,	/* General purpose input w/pullup     */
+	STM32F2_GPIO_ROLE_AIN		/* Analog mode			      */
 };
 
 /*
@@ -273,6 +275,11 @@ static int stm32f2_gpio_config(
 		ospeed = STM32F2_GPIO_SPEED_50M;
 		pupd   = STM32F2_GPIO_PUPD_UP;
 		break;
+	case STM32F2_GPIO_ROLE_AIN:
+		otype  = STM32F2_GPIO_OTYPE_OD;
+		ospeed = STM32F2_GPIO_SPEED_2M;
+		pupd   = STM32F2_GPIO_PUPD_NO;
+		break;
 	default:
 		rv = -EINVAL;
 		goto out;
@@ -291,7 +298,8 @@ static int stm32f2_gpio_config(
 	if (role != STM32F2_GPIO_ROLE_MCO &&
 	    role != STM32F2_GPIO_ROLE_OUT &&
 	    role != STM32F2_GPIO_ROLE_IN &&
-	    role != STM32F2_GPIO_ROLE_IN_PUP) {
+	    role != STM32F2_GPIO_ROLE_IN_PUP &&
+	    role != STM32F2_GPIO_ROLE_AIN) {
 
 		/*
 		 * Connect PXy to the specified controller (role)
@@ -322,6 +330,9 @@ static int stm32f2_gpio_config(
 	}
 	else if (role == STM32F2_GPIO_ROLE_IN_PUP) {
 		mode = STM32F2_GPIO_MODE_IN;
+	}
+	else if (role == STM32F2_GPIO_ROLE_AIN) {
+		mode = STM32F2_GPIO_MODE_AN;
 	}
 	else {
 		mode = STM32F2_GPIO_MODE_AF;
@@ -741,6 +752,56 @@ uartdone:
 	}
 
 #endif /* CONFIG_GPIOLIB */
+
+#if defined(CONFIG_STM32_ADC) && defined(CONFIG_ARCH_STM32F7)
+	if (STM32_ADC1_MEAS || STM32_ADC2_MEAS || STM32_ADC3_MEAS) {
+		struct {
+			int			chan[3];
+			struct stm32f2_gpio_dsc dsc;
+		} adc_in[] = {
+			{ {  0,  0,  0}, { 0,  0 } },	/* ADC123_IN0 : PA0  */
+			{ {  1,  1,  1}, { 0,  1 } },	/* ADC123_IN1 : PA1  */
+			{ {  2,  2,  2}, { 0,  2 } },	/* ADC123_IN2 : PA2  */
+			{ {  3,  3,  3}, { 0,  3 } },	/* ADC123_IN3 : PA3  */
+			{ {  4,  4, -1}, { 0,  4 } },	/*  ADC12_IN4 : PA4  */
+			{ { -1, -1,  4}, { 5,  6 } },	/*   ADC3_IN4 : PF6  */
+			{ {  5,  5, -1}, { 0,  5 } },	/*  ADC12_IN5 : PA5  */
+			{ { -1, -1,  5}, { 5,  7 } },	/*   ADC3_IN5 : PF7  */
+			{ {  6,  6, -1}, { 0,  6 } },	/*  ADC12_IN6 : PA6  */
+			{ { -1, -1,  6}, { 5,  8 } },	/*   ADC3_IN6 : PF8  */
+			{ {  7,  7, -1}, { 0,  7 } },	/*  ADC12_IN7 : PA7  */
+			{ { -1, -1,  7}, { 5,  9 } },	/*   ADC3_IN7 : PF9  */
+			{ {  8,  8, -1}, { 1,  0 } },	/*  ADC12_IN8 : PB0  */
+			{ { -1, -1,  8}, { 5, 10 } },	/*   ADC3_IN8 : PF10 */
+			{ {  9,  9, -1}, { 1,  1 } },	/*  ADC12_IN9 : PB1  */
+			{ { -1, -1,  9}, { 5,  3 } },	/*   ADC3_IN9 : PF3  */
+			{ { 14, 14, -1}, { 2,  4 } },	/*  ADC12_IN14: PC4  */
+			{ { -1, -1, 14}, { 5,  4 } },	/*   ADC3_IN14: PF4  */
+			{ { 15, 15, -1}, { 2,  5 } },	/*  ADC12_IN15: PC5  */
+			{ { -1, -1, 15}, { 5,  5 } },	/*   ADC3_IN15: PF5  */
+		};
+		int in1[] = STM32_ADC1_SEQ;
+		int in2[] = STM32_ADC2_SEQ;
+		int in3[] = STM32_ADC3_SEQ;
+		int num[] = {ARRAY_SIZE(in1), ARRAY_SIZE(in2), ARRAY_SIZE(in3)};
+		int use[] = {STM32_ADC1_MEAS, STM32_ADC2_MEAS, STM32_ADC3_MEAS};
+		int *in[] = {in1, in2, in3};
+		int i, k, l;
+
+		for (i = 0; i < ARRAY_SIZE(num); i++) {
+			if (!use[i])
+				continue;
+			for (k = 0; k < num[i]; k++) {
+				for (l = 0; l < ARRAY_SIZE(adc_in); l++) {
+					if (adc_in[l].chan[i] != in[i][k])
+						continue;
+					stm32f2_gpio_config(&adc_in[l].dsc,
+							STM32F2_GPIO_ROLE_AIN);
+				}
+			}
+		}
+	}
+#endif
 
 #if defined(CONFIG_STM32_FB)
 		if (!stm32f4_fb_is_running()) {

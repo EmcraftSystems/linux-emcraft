@@ -59,6 +59,9 @@ enum stm32_dma_map_codes {
 	UART7_TX,
 	UART8_TX,
 	DAC,
+	ADC1,
+	ADC2,
+	ADC3,
 	NOTSUP,		/* not supported by software */
 	NOTDEF,		/* not defined by hardware */
 };
@@ -88,15 +91,15 @@ static enum stm32_dma_map_codes request_map[16][8] =
 	/* DMA1-stream 7 */
 	{ NOTSUP, I2C1_TX, NOTSUP, NOTSUP, UART5_TX, NOTSUP, NOTDEF, I2C2_TX },
 	/* DMA2-stream 0 */
-	{ NOTSUP, NOTDEF, NOTSUP, NOTSUP, NOTSUP, NOTDEF, NOTSUP, NOTDEF },
+	{ ADC1, NOTDEF, ADC3, NOTSUP, NOTSUP, NOTDEF, NOTSUP, NOTDEF },
 	/* DMA2-stream 1 */
-	{ NOTSUP, NOTSUP, NOTSUP, NOTDEF, NOTSUP, UART6_RX, NOTSUP, NOTSUP },
+	{ NOTSUP, NOTSUP, ADC3, NOTDEF, NOTSUP, UART6_RX, NOTSUP, NOTSUP },
 	/* DMA2-stream 2 */
-	{ NOTSUP, NOTSUP, NOTDEF, NOTSUP, UART1_RX, UART6_RX, NOTSUP, NOTSUP },
+	{ NOTSUP, ADC2, NOTDEF, NOTSUP, UART1_RX, UART6_RX, NOTSUP, NOTSUP },
 	/* DMA2-stream 3 */
-	{ NOTSUP, NOTSUP, NOTSUP, NOTSUP, SDMMC, NOTSUP, NOTSUP, NOTSUP },
+	{ NOTSUP, ADC2, NOTSUP, NOTSUP, SDMMC, NOTSUP, NOTSUP, NOTSUP },
 	/* DMA2-stream 4 */
-	{ NOTSUP, NOTSUP, NOTSUP, NOTSUP, NOTDEF, NOTSUP, NOTSUP, NOTSUP },
+	{ ADC1, NOTSUP, NOTSUP, NOTSUP, NOTDEF, NOTSUP, NOTSUP, NOTSUP },
 	/* DMA2-stream 5 */
 	{ NOTSUP, NOTSUP, NOTSUP, NOTSUP, UART1_RX, NOTDEF, NOTSUP, NOTSUP },
 	/* DMA2-stream 6 */
@@ -211,6 +214,15 @@ static const struct stm32f2_dma_ch_config stm32f2_dmamux_table[] = {
 	/*
 	 * DMA2 request mapping (channels 7-15)
 	 */
+#if defined(CONFIG_STM32_ADC)
+	/* ADC1: {DMA2-stream0, channel0) or {DMA2-stream4, channel0} */
+	{STM32F7_DMACH_ADC1, ADC1},
+	/* ADC2: {DMA2-stream2, channel1) or {DMA2-stream3, channel1} */
+	{STM32F7_DMACH_ADC2, ADC2},
+	/* ADC3: {DMA2-stream0, channel2) or {DMA2-stream1, channel2} */
+	{STM32F7_DMACH_ADC3, ADC3}
+#endif /* CONFIG_STM32_ADC */
+
 #if defined(CONFIG_MMC_ARMMMCI)
 	/* SDIO Tx/Rx: {DMA2-stream3, channel4} or {DMA2-stream6, channel4} */
 	{STM32F2_DMACH_SDIO, SDMMC},
