@@ -300,6 +300,18 @@ config LPC2K_WATCHDOG
 
 	  Say N if you are unsure.
 
+config A2F_WATCHDOG
+	tristate "A2F Watchdog"
+	depends on ARCH_A2F
+	help
+	  Say Y here if to include support for the watchdog timer
+	  in the Microsemi SmartFusion A2F200/500 devices.
+	  This driver can be built as a module by choosing M. The module
+	  will be called a2f_wdt. If the watchdog timeout is reached,
+	  the system will be rebooted.
+
+	  Say N if you are unsure.
+
 # AVR32 Architecture
 
 config AT32AP700X_WDT

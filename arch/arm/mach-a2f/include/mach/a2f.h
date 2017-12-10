@@ -119,4 +119,6 @@ static inline void __disable_irq(void)	{ asm volatile ("cpsid i"); }
 #define ETH_CORE_BASE	0x40003000
 #define ETH_CORE_IRQ	5
 
+#define A2F_WDT_BASE    0x40006000
+
 #endif	/*_MACH_A2F_H_ */

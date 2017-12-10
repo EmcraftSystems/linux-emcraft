@@ -10,4 +10,5 @@ obj-$(CONFIG_SPI_A2F)		+= spi.o
 obj-$(CONFIG_I2C_A2F)		+= i2c.o
 obj-$(CONFIG_MTD_PHYSMAP)	+= flash.o
 obj-$(CONFIG_GPIOLIB)		+= gpio.o
+obj-$(CONFIG_A2F_WDT)		+= wdt.o
 

@@ -56,6 +56,7 @@
 #include <mach/i2c.h>
 #include <mach/flash.h>
 #include <mach/gpio.h>
+#include <mach/wdt.h>
 
 /*
  * Define a particular platform (board)
@@ -236,4 +237,11 @@ static void __init a2f_init(void)
 	 */
 	a2f_gpio_init();
 #endif
+
+#if defined(CONFIG_A2F_WDT)
+	/*
+	 * Initialize the on-chip wdt.
+	 */
+	a2f_wdt_init();
+#endif /* CONFIG_A2F_WATCHDOG */
 }

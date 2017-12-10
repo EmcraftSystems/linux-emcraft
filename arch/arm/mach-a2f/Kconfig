@@ -206,6 +206,13 @@ config SDCARD_OVER_SPI0
 	help
 		This is option enables access to SD card via the SPI0 block.
 
+config A2F_WDT
+	depends on ARCH_A2F && A2F_WATCHDOG
+	bool "Enable the SmartFusion watchdog timer"
+	default n
+	help
+		This is option enables the SmartFusion watchdog timer.
+
 endmenu
 
 endif
