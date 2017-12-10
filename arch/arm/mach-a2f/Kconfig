@@ -199,6 +199,13 @@ config A2F_FPGA_GPIO_ADDR
 	help
 	  Specify base address of SmartFusion FPGA Core GPIO block
 
+config SDCARD_OVER_SPI0
+	depends on ARCH_A2F
+	bool "Enable SD Card via SPI0"
+	default n
+	help
+		This is option enables access to SD card via the SPI0 block.
+
 endmenu
 
 endif
