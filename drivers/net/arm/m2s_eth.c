@@ -136,7 +136,7 @@
  * Interface Control register fields
  */
 #define M2S_MAC_INTF_RESET		(1 << 31) /* Reset interface module */
-#define M2S_MAC_INTF_SPEED_100		(1 << 4)  /* MII PHY speed 100Mbit */
+#define M2S_MAC_INTF_SPEED_100		(1 << 16)  /* MII PHY speed 100Mbit */
 
 /*
  * FIFO_CFG0 register fields
@@ -173,6 +173,11 @@
 #define M2S_MAC_FIFO_CFG0_ALL_RST	(M2S_MAC_FIFO_CFG0_HSTRSTFT     | \
 		M2S_MAC_FIFO_CFG0_HSTRSTST | M2S_MAC_FIFO_CFG0_HSTRSTFR | \
 		M2S_MAC_FIFO_CFG0_HSTRSTSR | M2S_MAC_FIFO_CFG0_HSTRSTWT)
+
+/*
+ * FIFO_CFG5 register fields
+ */
+#define M2S_MAC_FIFO_CFG5_CFGHDPLX	(1 << 22) /* Half-duplex flow ctrl */
 
 /*
  * MAC Configuration Register in Sysreg block fields
@@ -335,8 +340,11 @@ static void m2s_phy_adjust_link(struct net_device *dev)
 	 * Duplex changed
 	 */
 	M2S_MAC_CFG(d)->cfg2 &= ~M2S_MAC_CFG2_FULL_DUP;
-	if (phy_dev->duplex)
+	M2S_MAC_CFG(d)->fifo_cfg[5] |= M2S_MAC_FIFO_CFG5_CFGHDPLX;
+	if (phy_dev->duplex) {
 		M2S_MAC_CFG(d)->cfg2 |= M2S_MAC_CFG2_FULL_DUP;
+		M2S_MAC_CFG(d)->fifo_cfg[5] &= ~M2S_MAC_FIFO_CFG5_CFGHDPLX;
+	}
 	d->duplex = phy_dev->duplex;
 	change = 1;
 speed:
@@ -351,7 +359,9 @@ speed:
 	switch (phy_dev->speed) {
 	case 10:
 		M2S_MAC_CFG(d)->if_ctrl &= ~M2S_MAC_INTF_SPEED_100;
-		msk = M2S_SYS_MAC_CR_LS_10 << M2S_SYS_MAC_CR_LS_BIT;
+		/* A note from the Microsemi TSEMAC driver states: avoid extra
+		 * divide by 10 of clock for 10Mbps links. */
+		msk = M2S_SYS_MAC_CR_LS_100 << M2S_SYS_MAC_CR_LS_BIT;
 		M2S_MAC_CFG(d)->cfg2 |= (M2S_MAC_CFG2_MODE_MII << M2S_MAC_CFG2_MODE_BIT);
 		break;
 	case 100:
@@ -713,6 +723,10 @@ static __init int m2s_mac_hw_init(struct m2s_mac_dev *d)
 	M2S_MAC_CFG(d)->fifo_cfg[1] = 0x0fff0000;
 	M2S_MAC_CFG(d)->fifo_cfg[2] = 0x00001fff;
 	M2S_MAC_CFG(d)->fifo_cfg[3] = 0x008001ff;
+
+	/* Filter out bad packets */
+	M2S_MAC_CFG(d)->fifo_cfg[4] = 0x0000ffff;
+	M2S_MAC_CFG(d)->fifo_cfg[5] = 0x0007ffff;
 
 	M2S_MAC_DMA(d)->irq_msk = M2S_MAC_DMA_IRQ_MSK;
 	M2S_MAC_DMA(d)->irq = M2S_MAC_DMA_IRQ_MSK;
