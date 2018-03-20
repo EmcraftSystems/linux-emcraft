@@ -28,16 +28,14 @@
 
 #include <mach/kinetis.h>
 #include <mach/power.h>
+#include <mach/clock.h>
 
 #define KINETIS_FLEXCAN0_BASE	(KINETIS_AIPS0PERIPH_BASE + 0x00024000)
 #define KINETIS_FLEXCAN0_IRQ	29
 #define KINETIS_FLEXCAN1_BASE	(KINETIS_AIPS1PERIPH_BASE + 0x00024000)
 #define KINETIS_FLEXCAN1_IRQ	37
 
-static struct flexcan_platform_data flexcan_data =
-{
-	.clock_frequency = 75000000,
-};
+static struct flexcan_platform_data flexcan_data;
 
 /*
  * We use this per-FLEXCAN structure to simplify memory allocation
@@ -51,7 +49,7 @@ struct flexcan_data_structures {
 /*
  * Enable clocks for flexcan and register platform device
  */
-static void __init kinetis_flexcan_register(u32 iomem, int irq, u32 gate)
+static void __init kinetis_flexcan_register(u32 iomem, int irq, u32 gate, int id)
 {
 	struct flexcan_data_structures *flexcan;
 	int i;
@@ -66,7 +64,7 @@ static void __init kinetis_flexcan_register(u32 iomem, int irq, u32 gate)
 	 * Initialize resources
 	 */
 	flexcan->res[0].start = iomem;
-	flexcan->res[0].end = iomem + 0x4000;
+	flexcan->res[0].end = iomem + 0x3fff;
 	flexcan->res[0].flags = IORESOURCE_MEM;
 
 	for (i = 1; i < 7; i++) {
@@ -78,7 +76,7 @@ static void __init kinetis_flexcan_register(u32 iomem, int irq, u32 gate)
 	 * Initialize platform device
 	 */
 	flexcan->pdev.name = "kinetis-flexcan";
-	flexcan->pdev.id = 0;
+	flexcan->pdev.id = id;
 	flexcan->pdev.resource = flexcan->res;
 	flexcan->pdev.num_resources = ARRAY_SIZE(flexcan->res);
 	flexcan->pdev.dev.platform_data = &flexcan_data;
@@ -103,8 +101,10 @@ err_periph_disable:
  */
 void __init kinetis_flexcan_init(void)
 {
+	flexcan_data.clock_frequency = kinetis_clock_get(CLOCK_PCLK);
+
 	kinetis_flexcan_register(KINETIS_FLEXCAN0_BASE,
-		KINETIS_FLEXCAN0_IRQ, KINETIS_CG_FLEXCAN0);
+				 KINETIS_FLEXCAN0_IRQ, KINETIS_CG_FLEXCAN0, 0);
 	kinetis_flexcan_register(KINETIS_FLEXCAN1_BASE,
-		KINETIS_FLEXCAN1_IRQ, KINETIS_CG_FLEXCAN1);
+				 KINETIS_FLEXCAN1_IRQ, KINETIS_CG_FLEXCAN1, 1);
 }

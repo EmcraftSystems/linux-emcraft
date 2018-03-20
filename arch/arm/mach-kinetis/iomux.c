@@ -252,6 +252,13 @@ static const struct kinetis_gpio_pin_config twrk70f120m_iomux[] = {
 	 KINETIS_GPIO_CONFIG_IRQC_EITHER},
 #endif
 #endif
+
+#if defined(CONFIG_CAN_FLEXCAN)
+	/* CAN0: PTB18 and PTB19 are available at J3 connector
+	   of the TWR-K70F120M board */
+	{{KINETIS_GPIO_PORT_B, 18}, KINETIS_GPIO_CONFIG_MUX(2)},
+	{{KINETIS_GPIO_PORT_B, 19}, KINETIS_GPIO_CONFIG_MUX(2)},
+#endif
 };
 
 /*
