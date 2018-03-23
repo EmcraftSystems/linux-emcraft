@@ -1086,8 +1086,7 @@ struct uart_ops kinetis_uart_ops = {
  */
 static void kinetis_console_putchar(struct uart_port *port, int ch)
 {
-	volatile struct kinetis_uart_regs *regs =
-		(volatile struct kinetis_uart_regs *)KINETIS_UART2_BASE;
+	volatile struct kinetis_uart_regs *regs = kinetis_regs(port);
 
 	while (!(regs->s1 & KINETIS_UART_S1_TDRE_MSK));
 	regs->d = ch;
@@ -1100,8 +1099,7 @@ static void kinetis_console_write(
 	struct console *co, const char *s, unsigned int count)
 {
 	struct uart_port *port = &kinetis_uart_priv[co->index].port;
-	volatile struct kinetis_uart_regs *regs =
-		(volatile struct kinetis_uart_regs *)KINETIS_UART2_BASE;
+	volatile struct kinetis_uart_regs *regs = kinetis_regs(port);
 	u8 uart_ie;
 	unsigned long flags;
 	int locked;
