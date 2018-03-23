@@ -443,6 +443,18 @@ static const struct kinetis_gpio_pin_config k70som_iomux[] = {
  * GPIO pin configuration table for TWR-K70F120M + TWR-SER + TWR-LCD-RGB
  */
 static const struct kinetis_gpio_pin_config twr_lcd_rgb_iomux[] = {
+#if defined(CONFIG_KINETIS_UART0)
+	/* D.7 = UART0_TX */
+	{{KINETIS_GPIO_PORT_D, 7}, KINETIS_GPIO_CONFIG_PULLUP(3)},
+	/* D.6 = UART0_RX */
+	{{KINETIS_GPIO_PORT_D, 6}, KINETIS_GPIO_CONFIG_PULLUP(3)},
+#if defined(CONFIG_KINETIS_UART0_CTSRTS)
+	/* B.3 = UART0_CTS */
+	{{KINETIS_GPIO_PORT_B, 3}, KINETIS_GPIO_CONFIG_MUX(3)},
+	/* B.2 = UART0_RTS */
+	{{KINETIS_GPIO_PORT_B, 2}, KINETIS_GPIO_CONFIG_MUX(3)},
+#endif /* CONFIG_KINETIS_UART0_CTSRTS */
+#endif /* CONFIG_KINETIS_UART0 */
 #if defined(CONFIG_KINETIS_FB)
 	/* C.18 = Backlight on/off */
 	{{KINETIS_GPIO_PORT_C, 18}, KINETIS_GPIO_CONFIG_MUX(1)},
