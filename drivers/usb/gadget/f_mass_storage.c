@@ -318,6 +318,7 @@ struct fsg_dev;
 /* Data shared by all the FSG instances. */
 struct fsg_common {
 	struct usb_gadget	*gadget;
+	struct usb_composite_dev *cdev;
 	struct fsg_dev		*fsg;
 	struct fsg_dev		*prev_fsg;
 
@@ -614,7 +615,10 @@ static int fsg_setup(struct usb_function *f,
 			return -EDOM;
 		VDBG(fsg, "get max LUN\n");
 		*(u8 *) req->buf = fsg->common->nluns - 1;
-		return 1;
+
+		/* Respond with data/status */
+		req->length = min((u16)1, w_length);
+		return ep0_queue(fsg->common);
 	}
 
 	VDBG(fsg,
@@ -2391,7 +2395,7 @@ static int fsg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	fsg->common->fsg = fsg;
 	fsg->common->new_config = 1;
 	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
-	return 0;
+	return USB_GADGET_DELAYED_STATUS;
 }
 
 static void fsg_disable(struct usb_function *f)
@@ -2529,7 +2533,9 @@ static void handle_exception(struct fsg_common *common)
 		if (rc != 0) {			/* STALL on errors */
 			DBG(common, "ep0 set halt\n");
 			usb_ep_set_halt(common->ep0);
-		} else {			/* Complete the status stage */
+		} else if (new_config) {	/* Complete the status stage */
+			usb_composite_setup_continue(common->cdev);
+		} else {
 			ep0_queue(common);
 		}
 		break;
@@ -2684,6 +2690,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	common->gadget = gadget;
 	common->ep0 = gadget->ep0;
 	common->ep0req = cdev->req;
+	common->cdev = cdev;
 
 	/* Maybe allocate device-global string IDs, and patch descriptors */
 	if (fsg_strings[FSG_STRING_INTERFACE].id == 0) {

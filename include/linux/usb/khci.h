@@ -28,9 +28,9 @@
 /*
  * Debug level here
  */
-#define DEBUG			1
+#define DEBUG			0
 #if defined(DEBUG)
-# define dbg(lvl, fmt...)	if (lvl <= DEBUG) printk("KHCI " fmt)
+# define dbg(lvl, fmt...)	if (lvl <= DEBUG) printk(fmt)
 #else
 # define dbg(lvl, fmt...)
 #endif
@@ -55,7 +55,7 @@
 #define KHCI_BD_DATA_SET(x)	(((x) & KHCI_BD_DATA_MSK) << KHCI_BD_DATA_OFS)
 #define KHCI_BD_BC_SET(x)	(((x) & KHCI_BD_BC_MSK) << KHCI_BD_BC_OFS)
 
-#define KHCI_BD_DATA_GET(x)	(((x) & KHCI_BD_DATA_MSK) >> KHCI_BD_DATA_OFS)
+#define KHCI_BD_DATA_GET(x)	(((x) >> KHCI_BD_DATA_OFS) & KHCI_BD_DATA_MSK)
 #define KHCI_BD_BC_GET(x)	(((x) >> KHCI_BD_BC_OFS) & KHCI_BD_BC_MSK)
 #define KHCI_BD_TOK_GET(x)	(((x) >> 2) & 0xF)
 #define KHCI_BD_FLG_SET(ln,dt)	(KHCI_BD_DATA_SET(dt) |			       \

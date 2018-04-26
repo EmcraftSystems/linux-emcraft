@@ -517,6 +517,24 @@ config USB_KHCI_UDC
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_KHCI_BUF_IN_SRAM
+	bool "Whether KHCI USB buffers reside in SRAM"
+	depends on USB_KHCI_UDC
+	default y
+	help
+	  Specify Y if you want for the RX / TX buffer and decriptors
+	  to reside in the Kinetis embedded SRAM.
+
+config USB_KHCI_BUF_IN_SRAM_BASE
+	hex "Base address of KHCI USB buffers in SRAM"
+	depends on USB_KHCI_BUF_IN_SRAM
+	default "0x1000"
+	help
+	  Specify base address of the RX / TX buffers and descriptors
+	  in the Kinetis embedded SRAM, which is 64KB in size.
+	  Note that the first 488 bytes of SRAM are ocupied by Vector Table,
+	  and the start address should be 512-byte aligned.
+
 #
 # LAST -- dummy/emulated controller
 #

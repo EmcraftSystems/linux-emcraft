@@ -4,7 +4,8 @@
  * controllers (K70,K60,...) and some Coldfire controllers (MCF52259,...).
  *
  * Copyright 2017 EmCraft Systems www.emcraft.com
- * Author: Dmitry Konyshev <probables@emcraft.com>
+ * Dmitry Konyshev <probables@emcraft.com>
+ * Alexander Dyachenko <sasha_d@emcraft.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -35,7 +36,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/khci.h>
 
-#define	DRIVER_VERSION	"0.9"
+#define	DRIVER_VERSION	"1.0"
 
 struct khci_request {
 	struct usb_request		req;
@@ -75,16 +76,100 @@ struct khci_udc {
 	u16				devstat;
 	unsigned			ep0_in:1;
 	u8				usb_addr;
+	int				double_buffering;
+	int				ep0_set_config;
+	int				device_configured;
 	struct completion		*done;
 };
 
 static const char driver_name[] = "khci-udc";
 static struct khci_udc *the_controller;
+#ifndef CONFIG_USB_KHCI_BUF_IN_SRAM
 static struct dma_pool *khci_bdt_pool;
+#endif
 static const char ep0name[] = "ep0";
 
 static void nuke(struct khci_ep *ep, int status);
+static int queue_ep0_request(struct khci_udc *dev, gfp_t gfp_flags,
+	int tx, int length, int data1,
+	void (*complete)(struct usb_ep *ep, struct usb_request *req));
+static void on_gadget_rq(struct usb_ep *ep, struct usb_request *req);
 static int prepare_for_setup_packet(struct khci_udc *dev, gfp_t gfp_flags);
+
+#if DEBUG >= 2
+static int khci_debug_count = 0;
+
+static void khci_debug_dump (struct khci_udc *dev)
+{
+	int reglist [] = {
+		0x00, 0x04, 0x08, 0x0c, 0x10, 0x14, 0x18, 0x1c,
+		0x80, 0x84, 0x88, 0x8c, 0x90, 0x94, 0x98, 0x9c,
+		0xa0, 0xa4, 0xa8, 0xac, 0xb0, 0xb4,
+		0xc0,
+		0x100, 0x104, 0x108, 0x10c, 0x114,
+	};
+	volatile struct khci_reg *reg = dev->reg;
+	volatile struct khci_bd	*bd;
+	u8 epn, tx, odd;
+	int i;
+
+	printk("\n");
+	printk("USB interface registers @ %p", reg);
+	for (i = 0; i < ARRAY_SIZE(reglist); i ++) {
+		if ((i % 6) == 0) printk("\n");
+		printk("[%03x]=%02x ", reglist[i], *((u8*)reg + reglist[i]));
+	}
+	printk("\nBDT @ %p, BUFs @ %p\n", dev->bdt, dev->dma_bufs);
+	for (epn = 0; epn < 1; epn ++)
+		for (tx = 0; tx < 2; tx ++)
+			for (odd = 0; odd < 2; odd ++) {
+				bd = KHCI_BD_PTR(dev, epn, tx, odd);
+				printk(
+				    "BDT [%02x] (ep%d, %s, odd=%d): flg=%08x, ",
+				    (u32)bd - (u32)(dev->bdt), epn,
+				    tx ? "tx" : "rx", odd, bd->flg);
+				if (bd->adr)
+				    printk("adr=buf[%d]\n",
+					(bd->adr - (u32)(dev->dma_bufs)) / 64);
+				else
+				    printk("addr=(null)\n");
+				if (bd->adr & 0x3F)
+				    printk("INVALID BUFFER %08x\n", bd->adr);
+	}
+}
+
+static void khci_debug_dump_irq(struct khci_udc *dev, u8 istat)
+{
+	if (istat == KHCI_INT_SOFTOK)
+		return;
+
+	printk("\n");
+	printk("*%04d*", (dev->reg->frmnumh << 8) | (dev->reg->frmnuml));
+
+	switch (istat) {
+	case KHCI_INT_RST:
+	case KHCI_INT_RST | KHCI_INT_SOFTOK:
+		printk("<RS--->");
+		break;
+	case KHCI_INT_TOKDNE | KHCI_INT_SOFTOK:
+	case KHCI_INT_TOKDNE:
+		printk("<DN--->");
+		break;
+	case KHCI_INT_TOKDNE | KHCI_INT_RST:
+		printk("<DN-RS>");
+		break;
+	case KHCI_INT_SLEEP:
+		printk("<SL--->");
+		break;
+	case 0:
+		printk("<!ZERO>");
+		break;
+	default:
+		printk("<%02x--->", istat);
+		break;
+	}
+}
+#endif /* DEBUG >= 2 */
 
 static int khci_ep_enable(struct usb_ep *_ep,
 		const struct usb_endpoint_descriptor *desc)
@@ -95,8 +180,6 @@ static int khci_ep_enable(struct usb_ep *_ep,
 	unsigned long	flags;
 	u16		maxp;
 
-	dbg(1, "%s:%i %s\n", __FUNCTION__, __LINE__, _ep ? _ep->name : "NULL");
-
 	maxp = desc ? le16_to_cpu(desc->wMaxPacketSize) : 0;
 
 	/* catch various bogus parameters */
@@ -104,7 +187,7 @@ static int khci_ep_enable(struct usb_ep *_ep,
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->maxpacket < maxp) {
-		dbg(1, "%s, bad ep or descriptor\n", __func__);
+		pr_err("%s: bad ep or descriptor\n", __func__);
 		return -EINVAL;
 	}
 
@@ -112,7 +195,7 @@ static int khci_ep_enable(struct usb_ep *_ep,
 				&& maxp != ep->maxpacket)
 			|| maxp > ep->maxpacket
 			|| !desc->wMaxPacketSize) {
-		dbg(1, "%s, bad %s maxpacket\n", __func__, _ep->name);
+		pr_err("%s, bad %s maxpacket\n", __func__, _ep->name);
 		return -ERANGE;
 	}
 
@@ -120,18 +203,18 @@ static int khci_ep_enable(struct usb_ep *_ep,
 	if (ep->bmAttributes != desc->bmAttributes
 			&& ep->bmAttributes != USB_ENDPOINT_XFER_BULK
 			&& desc->bmAttributes != USB_ENDPOINT_XFER_INT) {
-		dbg(1, "%s, %s type mismatch\n", __func__, _ep->name);
+		pr_err("%s, %s type mismatch\n", __func__, _ep->name);
 		return -EINVAL;
 	}
 
 	if (desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
-		dbg(1, "%s, ISO nyet\n", _ep->name);
+		pr_err("%s, ISO nyet\n", _ep->name);
 		return -EDOM;
 	}
 
 	udc = ep->udc;
 	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN) {
-		dbg(1, "%s, bogus device state\n", __func__);
+		pr_err("%s, bogus device state\n", __func__);
 		return -ESHUTDOWN;
 	}
 
@@ -147,12 +230,10 @@ static int khci_ep_enable(struct usb_ep *_ep,
 
 	/* enable endpoint communications */
 	reg->ep[ep->bEndpointAddress & 0x0f].endpt =
-		KHCI_EP_RETRYDIS | KHCI_EP_EPRXEN |
-		KHCI_EP_EPTXEN | KHCI_EP_EPHSHK;
+		KHCI_EP_EPRXEN | KHCI_EP_EPTXEN | KHCI_EP_EPHSHK;
 
 	local_irq_restore(flags);
 
-	dbg(5, "%s enabled\n", _ep->name);
 	return 0;
 }
 
@@ -163,11 +244,9 @@ static int khci_ep_disable(struct usb_ep *_ep)
 	volatile struct khci_reg *reg;
 	unsigned long flags;
 
-	dbg(1, "%s:%i\n", __FUNCTION__, __LINE__);
-
 	ep = container_of (_ep, struct khci_ep, ep);
 	if (!_ep || !ep->desc) {
-		dbg(1, "%s, %s not enabled\n", __func__,
+		dbg(1, "%s: %s not enabled\n", driver_name,
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
@@ -182,11 +261,7 @@ static int khci_ep_disable(struct usb_ep *_ep)
 	ep->desc = NULL;
 	ep->stopped = 1;
 
-	reg->ep[ep->bEndpointAddress & 0x0f].endpt = 0;
-
 	local_irq_restore(flags);
-
-	dbg(5, "%s disabled\n", _ep->name);
 
 	return 0;
 }
@@ -195,8 +270,6 @@ static struct usb_request *
 khci_ep_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct khci_request *req;
-
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 
 	req = kzalloc(sizeof(*req), gfp_flags);
 	if (req)
@@ -210,8 +283,6 @@ khci_ep_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct khci_request *req = container_of(_req, struct khci_request, req);
 
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
-
 	if (_req)
 		kfree(req);
 }
@@ -223,19 +294,12 @@ static void done(struct khci_ep *ep, struct khci_request *req, int status)
 {
 	unsigned		stopped = ep->stopped;
 
-	dbg(1, "%s:%i %p %p %i %i\n", __FUNCTION__, __LINE__, req, req->req.complete, status, req->req.status);
-
 	list_del_init(&req->queue);
 
 	if (likely(req->req.status == -EINPROGRESS))
 		req->req.status = status;
 	else
 		status = req->req.status;
-
-	if (status && status != -ESHUTDOWN)
-		dbg(8, "complete %s req %p stat %d len %u/%u\n",
-			ep->ep.name, &req->req, status,
-			req->req.actual, req->req.length);
 
 	/* don't modify queue heads during completion callback */
 	ep->stopped = 1;
@@ -244,16 +308,30 @@ static void done(struct khci_ep *ep, struct khci_request *req, int status)
 }
 
 static void khci_start_bd(struct khci_udc *dev, u8 ep, u8 tx,
-		void *addr, u32 len, u8 data1)
+		void *addr, u32 len, u8 data1, int data_zero)
 {
-	struct khci_bd *bd;
+	volatile struct khci_bd *bd;
 	struct khci_ep *kep;
 	void *buf;
 
-	dbg(1, "%s:%i ep%i %s addr %p len %i %s\n", __FUNCTION__, __LINE__,
-		ep, tx ? "tx" : "rx", addr, len, data1 ? "data1" : "data0");
-
 	BUG_ON((!addr && tx && len) || len > 64);
+
+	/*
+	 * double_buffering indicates that we prepared the RX BD for receiving
+	 * the SETUP packet earlier so we need to skip it now
+	 */
+	if (dev->double_buffering && ep == 0 && !tx) {
+		/*
+		 * Sanity check: make sure that this is indeed a SETUP phase,
+		 * so our assumption was correct
+		 */
+		if (len != 64 || data1 != 0) {
+			pr_err("%s: error in double_buffering: len=%d, data1=%d\n",
+				driver_name, len, data1);
+		}
+		dev->double_buffering = 0;
+		return;
+	}
 
 	kep = &dev->ep[ep ? ep + 16 * tx : 0];
 
@@ -265,16 +343,31 @@ static void khci_start_bd(struct khci_udc *dev, u8 ep, u8 tx,
 	if (tx && len)
 		memcpy(buf, addr, len);
 
-	bd->flg = KHCI_BD_FLG_SET(len, (!ep ? data1 : kep->datan));
 	if (len)
 		bd->adr = (u32)buf;
 	else
 		bd->adr = 0;
 
-	dbg(1, "%s:%i bd %p adr %x flg %x\n", __FUNCTION__, __LINE__, bd, bd->adr, bd->flg);
+	bd->flg = KHCI_BD_FLG_SET(len, (!ep ? data1 : kep->datan)) & ~KHCI_BD_OWN;
 
 	kep->bd[tx] ^= 1;
 	kep->datan ^= 1;
+
+	bd->flg |= KHCI_BD_OWN;
+
+	/*
+	 * Double buffering is required before the status phase
+	 * of the control transfer on EP0 since the host may send
+	 * the subsequent SETUP packet very quickly.
+	 * The status packet has zero length, and the data_zero
+	 * flag is used to distinguish it from a zero-length data packet.
+	 * In this case, we prepare the RX BD for receiving
+	 * the subsequent SETUP packet.
+	 */
+	if (!data_zero && ep == 0 && len == 0) {
+		khci_start_bd(dev, 0, 0, 0, 64, 0, 0);
+		dev->double_buffering = 1;
+	}
 }
 
 static int
@@ -286,27 +379,41 @@ khci_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	unsigned long flags;
 	int epn, tx;
 
-	dbg(1, "%s:%i %s %p %i %p %i\n", __FUNCTION__, __LINE__,
-			_ep->name, _req->buf,
-			_req->length, _req->complete, _req->zero);
+#if DEBUG >= 3
+	ep = container_of(_ep, struct khci_ep, ep);
+	dev = ep->udc;
+	epn = ep->bEndpointAddress & 0xf;
+	tx = epn ? (ep->bEndpointAddress & USB_DIR_IN) >> 7 : dev->ep0_in;
+	printk("{Qext_%s%d", tx ? "T" : "R", epn);
+	if (_req->length) {
+		if (tx)
+			printk(".%02x", *(char *)(_req->buf));
+		else
+			printk(".**");
+	} else {
+		printk(".--");
+	}
+	if (_req->length) printk("/%d", _req->length);
+	printk("}");
+#endif
 
 	req = container_of(_req, struct khci_request, req);
 	if (unlikely(!_req || !_req->complete || !_req->buf
 			|| !list_empty(&req->queue))) {
-		dbg(0, "%s, bad params\n", __func__);
+		pr_err("%s: bad params\n", __func__);
 		return -EINVAL;
 	}
 
 	ep = container_of(_ep, struct khci_ep, ep);
 	if (unlikely(!_ep || (!ep->desc && ep->ep.name != ep0name))) {
-		dbg(0, "%s, bad ep\n", __func__);
+		pr_err("%s: bad ep\n", __func__);
 		return -EINVAL;
 	}
 
 	dev = ep->udc;
 	if (unlikely(!dev->driver
 			|| dev->gadget.speed == USB_SPEED_UNKNOWN)) {
-		dbg(0, "%s, bogus device state\n", __func__);
+		pr_err("%s: bogus device state\n", __func__);
 		return -ESHUTDOWN;
 	}
 
@@ -317,6 +424,22 @@ khci_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	/* Silently ignore zero packet on ep0? We do status phase ourselves */
 	if (!epn && !_req->length) {
+		/*
+		 * Set Configuration is delayed by some gadgets,
+		 * e.g. by Mass Storage, so handle it in a special way.
+		 * Proceed with the status phase only after confirmation
+		 * from the gadget driver.
+		 */
+		if (dev->ep0_set_config) {
+			dbg(3, "<ep0_set_config:STATUS-SEND>");
+			/*
+			 * Proceed with the status phase
+			 */
+			queue_ep0_request(dev, GFP_ATOMIC, 1,
+				0, 1, on_gadget_rq);
+		} else {
+			dbg(3, "<ZERO-IGNORE>");
+		}
 		local_irq_restore(flags);
 		return 0;
 	}
@@ -328,13 +451,12 @@ khci_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	_req->actual = 0;
 
 	/* kickstart this i/o queue? */
-	dbg(8, "%s:%i %i %i\n", __FUNCTION__, __LINE__, list_empty(&ep->queue), ep->stopped);
 	req->started = 0;
 	if (list_empty(&ep->queue) && !ep->stopped) {
 		khci_start_bd(dev, epn,
 			(epn ? tx : req->tx), _req->buf,
 			min((u32)ep->maxpacket, (u32)_req->length),
-			(epn ? 0 : 1));
+			(epn ? 0 : 1), 0);
 		req->started = 1;
 	}
 
@@ -354,8 +476,6 @@ static void nuke(struct khci_ep *ep, int status)
 {
 	struct khci_request *req;
 
-	dbg(8, "%s:%i addr %x\n", __FUNCTION__, __LINE__, ep->bEndpointAddress);
-
 	/* called with irqs blocked */
 	while (!list_empty(&ep->queue)) {
 		req = list_entry(ep->queue.next,
@@ -370,8 +490,6 @@ static int khci_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	struct khci_ep *ep;
 	struct khci_request *req;
 	unsigned long flags;
-
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 
 	ep = container_of(_ep, struct khci_ep, ep);
 	if (!_ep || ep->ep.name == ep0name)
@@ -403,8 +521,6 @@ static int khci_ep_set_halt(struct usb_ep *_ep, int value)
 	unsigned long flags;
 	u8 epn;
 
-	dbg(1, "%s:%i\n", __FUNCTION__, __LINE__);
-
 	ep = container_of(_ep, struct khci_ep, ep);
 	dev = ep->udc;
 
@@ -416,8 +532,7 @@ static int khci_ep_set_halt(struct usb_ep *_ep, int value)
 		dev->reg->ep[epn].endpt = KHCI_EP_STALL;
 	else
 		dev->reg->ep[epn].endpt =
-			KHCI_EP_RETRYDIS | KHCI_EP_EPRXEN |
-			KHCI_EP_EPTXEN | KHCI_EP_EPHSHK;
+			KHCI_EP_EPRXEN | KHCI_EP_EPTXEN | KHCI_EP_EPHSHK;
 
 	local_irq_restore(flags);
 
@@ -426,13 +541,11 @@ static int khci_ep_set_halt(struct usb_ep *_ep, int value)
 
 static int khci_ep_fifo_status(struct usb_ep *_ep)
 {
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 	return -EOPNOTSUPP;
 }
 
 static void khci_ep_fifo_flush(struct usb_ep *_ep)
 {
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 }
 
 static struct usb_ep_ops khci_ep_ops = {
@@ -465,8 +578,6 @@ khci_ep_setup(char *name, u8 addr, u8 type, u32 maxp)
 		return -ENODEV;
 	}
 
-	dbg(8, "%s addr %02x maxp %d\n", name, addr, maxp);
-
 	/* set up driver data structures */
 	BUG_ON(strlen(name) >= sizeof(ep->name));
 	strlcpy(ep->name, name, sizeof(ep->name));
@@ -487,8 +598,6 @@ static int khci_udc_get_frame(struct usb_gadget *_gadget)
 {
 	struct khci_udc	*udc;
 
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
-
 	udc = container_of(_gadget, struct khci_udc, gadget);
 
 	return udc->reg->frmnumh << 8 | udc->reg->frmnuml;
@@ -496,25 +605,21 @@ static int khci_udc_get_frame(struct usb_gadget *_gadget)
 
 static int khci_udc_wakeup(struct usb_gadget *_gadget)
 {
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 	return 0;
 }
 
 static int khci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 	return 0;
 }
 
 static int khci_udc_pullup(struct usb_gadget *_gadget, int is_active)
 {
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 	return 0;
 }
 
 static int khci_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 {
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 	return 0;
 }
 
@@ -528,7 +633,6 @@ static const struct usb_gadget_ops khci_udc_ops = {
 
 static void khci_udc_release(struct device *dev)
 {
-	dbg(8, "%s %s\n", __func__, dev_name(dev));
 }
 
 /*
@@ -537,8 +641,6 @@ static void khci_udc_release(struct device *dev)
 static void udc_reinit(struct khci_udc *dev)
 {
 	u32	i;
-
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 
 	/* device/ep0 records init */
 	INIT_LIST_HEAD (&dev->gadget.ep_list);
@@ -563,9 +665,6 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	volatile struct khci_reg *reg = dev->reg;
 	int			retval;
 
-	dbg(8, "%s:%i %s\n", __FUNCTION__, __LINE__,
-		driver ? driver->driver.name : "NULL");
-
 	if (!driver
 			|| driver->speed < USB_SPEED_FULL
 			|| !driver->bind
@@ -581,25 +680,28 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
 
-	dbg(8, "%s:%i %s %p\n", __FUNCTION__, __LINE__, driver->driver.name, dev);
 	retval = device_add(&dev->gadget.dev);
 	if (retval) {
-		dbg(1, "device_add fail --> error %d\n", retval);
+		pr_err("%s: device_add fail --> error %d\n", __FUNCTION__, retval);
 		goto add_fail;
 	}
-	dbg(8, "%s:%i %p\n", __FUNCTION__, __LINE__, driver->bind);
 	retval = driver->bind(&dev->gadget);
 	if (retval) {
-		dbg(1, "bind to driver %s --> error %d\n",
+		pr_err("%s: bind to driver %s --> error %d\n", __FUNCTION__,
 				driver->driver.name, retval);
 		goto bind_fail;
 	}
-	dbg(8, "%s:%i %s %p\n", __FUNCTION__, __LINE__, driver->driver.name, dev);
+
+	/*
+	 * Initialize status (needed for rmmod/insmod sequence)
+	 */
+	dev->double_buffering = 0;
+	dev->device_configured = 0;
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
 	 */
-	dbg(1, "registered gadget driver '%s'\n", driver->driver.name);
+	dbg(1, "%s: registered gadget driver '%s'\n", driver_name, driver->driver.name);
 
 	/*
 	 * Clear interrupt statuses
@@ -651,9 +753,18 @@ EXPORT_SYMBOL(usb_gadget_register_driver);
 static void
 stop_activity(struct khci_udc *dev, struct usb_gadget_driver *driver)
 {
+	volatile struct khci_reg *reg = dev->reg;
 	int i;
 
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
+	/*
+	 * Disable IRQs
+	 */
+	reg->inten = 0;
+
+	/*
+	 * Disable the D+ pull-up so the host will think we're gone
+	 */
+	reg->otgctl &= ~(KHCI_OTGCTL_DPHIGH | KHCI_OTGCTL_OTGEN);
 
 	/* don't disconnect drivers more than once */
 	if (dev->gadget.speed == USB_SPEED_UNKNOWN)
@@ -680,16 +791,12 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
 	struct khci_udc	*dev = the_controller;
 
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
-
 	if (!dev)
 		return -ENODEV;
 	if (!driver || driver != dev->driver || !driver->unbind)
 		return -EINVAL;
 
-	local_irq_disable();
 	stop_activity(dev, driver);
-	local_irq_enable();
 
 	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
@@ -697,7 +804,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	device_del(&dev->gadget.dev);
 
-	dbg(1, "unregistered gadget driver '%s'\n", driver->driver.name);
+	dbg(1, "%s: unregistered gadget driver '%s'\n", driver_name, driver->driver.name);
 	return 0;
 }
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
@@ -711,8 +818,18 @@ static int queue_ep0_request(struct khci_udc *dev, gfp_t gfp_flags,
 	struct khci_ep *kep = container_of(ep, struct khci_ep, ep);
 	struct khci_request *krq;
 
-	dbg(1, "%s:%i %s %i %s %p\n", __FUNCTION__, __LINE__,
-		tx ? "tx" : "rx", length, data1 ? "data1" : "data0", complete);
+#if DEBUG >= 3
+	printk("{Qint_%s%d", tx ? "T" : "R", 0);
+	if (length) {
+		if (tx)
+			printk(".??");
+		else
+			printk(".**");
+		printk("/%d", length);
+	} else
+		printk(".--");
+	printk("}");
+#endif
 
 	rq = khci_ep_alloc_request(ep, gfp_flags);
 	if (!rq)
@@ -734,9 +851,8 @@ static int queue_ep0_request(struct khci_udc *dev, gfp_t gfp_flags,
 	krq->tx = !!tx;
 
 	if (list_empty(&kep->queue)) {
-		khci_start_bd(dev, 0, krq->tx, rq->buf, rq->length, data1);
+		khci_start_bd(dev, 0, krq->tx, rq->buf, rq->length, data1, 0);
 		krq->started = 1;
-		dbg(1, "start ep0 in %s %p\n", __func__, krq);
 	}
 
 	krq->req.status = -EINPROGRESS;
@@ -771,6 +887,10 @@ static void on_set_address(struct usb_ep *ep, struct usb_request *req)
 		pr_err("%s: stall ep0 after set addr %i\n", __func__, rv);
 		dev->reg->ep[0].endpt = KHCI_EP_STALL;
 	}
+
+#if DEBUG >= 2
+	khci_debug_dump(dev);
+#endif
 }
 
 static void on_gadget_rq(struct usb_ep *ep, struct usb_request *req)
@@ -780,8 +900,6 @@ static void on_gadget_rq(struct usb_ep *ep, struct usb_request *req)
 
 	dev = req->context;
 	status = req->status;
-
-	dbg(8, "%s:%i status %i\n", __FUNCTION__, __LINE__, status);
 
 	khci_ep_free_request(ep, req);
 
@@ -807,8 +925,6 @@ static void on_setup_packet(struct usb_ep *ep, struct usb_request *req)
 	struct khci_udc *dev;
 	int rv, len, status;
 
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
-
 	dev = req->context;
 	memcpy(&ctrl_rq, req->buf, sizeof(ctrl_rq));
 	len = req->actual;
@@ -826,45 +942,69 @@ static void on_setup_packet(struct usb_ep *ep, struct usb_request *req)
 		return;
 	}
 
-	dbg(1, "SETUP %02x.%02x v%04x i%04x l%04x\n",
-		ctrl_rq.bRequestType, ctrl_rq.bRequest,
-		le16_to_cpu(ctrl_rq.wValue),
-		le16_to_cpu(ctrl_rq.wIndex),
-		le16_to_cpu(ctrl_rq.wLength));
+	/*
+	 * Are we handling Set Configuration currently?
+	 */
+	dev->ep0_set_config = (ctrl_rq.bRequest == USB_REQ_SET_CONFIGURATION);
+	/*
+	 * If yes, are we activating (wValue != 0)
+	 * or de-activating (wValue == 0) the configuration?
+	 */
+	if (dev->ep0_set_config)
+		dev->device_configured = le16_to_cpu(ctrl_rq.wValue);
 
 	switch (ctrl_rq.bRequest) {
 	case USB_REQ_SET_ADDRESS:
 		dev->usb_addr = le16_to_cpu(ctrl_rq.wValue);
+		dbg(3, "<setaddr>");
 		queue_ep0_request(dev, GFP_ATOMIC, 1, 0, 1, on_set_address);
+		dbg(3, "</setaddr>");
 		break;
 
 	default:
 		dev->ep0_in = (ctrl_rq.bRequestType & USB_DIR_IN) >> 7;
+		dbg(3, "<setup>");
 		rv = dev->driver->setup(&dev->gadget, &ctrl_rq);
-		dbg(8, "dev->driver->setup ret %i\n", rv);
+		dbg(3, "</setup>");
 		if (rv < 0) {
 			dev->reg->ep[0].endpt = KHCI_EP_STALL;
 			return;
 		}
-		queue_ep0_request(dev, GFP_ATOMIC, !dev->ep0_in,
-			0, 1, on_gadget_rq);
+		dbg(3, "<ack>");
+		/*
+		 * Set Configuration is delayed by some gadgets,
+		 * e.g. by Mass Storage, so handle it in a special way.
+		 * Proceed with the status phase only after confirmation
+		 * from the gadget driver.
+		 */
+		if (!dev->ep0_set_config) {
+			/*
+			 * Proceed with the status phase
+			 */
+			queue_ep0_request(dev, GFP_ATOMIC, !dev->ep0_in,
+				0, 1, on_gadget_rq);
+		} else {
+			dbg(3, "<ep0_set_config:STATUS-IGNORE>");
+		}
+		dbg(3, "</ack>");
 		break;
 	}
 }
 
 static int prepare_for_setup_packet(struct khci_udc *dev, gfp_t gfp_flags)
 {
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
+	int rv;
 	nuke(&dev->ep[0], -ESHUTDOWN);
-	return queue_ep0_request(dev, gfp_flags, 0, 64, 0, on_setup_packet);
+	dbg(3, "<prep>");
+	rv = queue_ep0_request(dev, gfp_flags, 0, 64, 0, on_setup_packet);
+	dbg(3, "</prep>");
+	return rv;
 }
 
 static void khci_usb_reset(struct khci_udc *dev)
 {
 	volatile struct khci_reg *reg = dev->reg;
 	int i, rv;
-
-	dbg(1, "%s:%i\n", __FUNCTION__, __LINE__);
 
 	reg->istat = KHCI_INT_RST;
 
@@ -893,8 +1033,7 @@ static void khci_usb_reset(struct khci_udc *dev)
 
 	dev->gadget.speed = USB_SPEED_FULL;
 
-	reg->ep[0].endpt = KHCI_EP_RETRYDIS | KHCI_EP_EPRXEN |
-		KHCI_EP_EPTXEN | KHCI_EP_EPHSHK;
+	reg->ep[0].endpt = KHCI_EP_EPRXEN | KHCI_EP_EPTXEN | KHCI_EP_EPHSHK;
 	reg->addr = 0;
 
 	/* Start ep0 rx */
@@ -910,23 +1049,17 @@ static void khci_start_next_transfer(struct khci_udc *dev)
 	struct khci_request *rq;
 	int epn, tx;
 
-	dbg(1, "%s:%i\n", __FUNCTION__, __LINE__);
-
 	for (epn = 0; epn < 32; epn++) {
 		ep = &dev->ep[epn];
 		tx = epn >= 16;
-		dbg(8, "%s:%i ep%i %sempty and %sstopped\n", __FUNCTION__, __LINE__, epn,
-				list_empty(&ep->queue) ? "" : "not ",
-				ep->stopped ? "" : "not ");
 		if (!list_empty(&ep->queue) && !ep->stopped) {
 			rq = list_first_entry(&ep->queue,
 					struct khci_request, queue);
 			if (!rq->started) {
-				dbg(8, "start ep%i in %s %p %i\n", epn, __func__, rq, rq->started);
 				khci_start_bd(dev, epn % 16,
 					epn ? tx : rq->tx, rq->req.buf,
 					min((u32)ep->maxpacket, (u32)rq->req.length),
-					epn ? 0 : 1);
+					epn ? 0 : 1, 0);
 				rq->started = 1;
 			}
 			continue;
@@ -944,9 +1077,7 @@ static void khci_usb_transfer_done(struct khci_udc *dev)
 	struct khci_request *rq;
 	char *p;
 
-	dbg(1, "%s:%i %x\n", __FUNCTION__, __LINE__, stat);
-
-	dev->reg->istat = KHCI_INT_TOKDNE;
+	reg->istat = KHCI_INT_TOKDNE;
 
 	epn = KHCI_STAT_EP(stat);
 	tx = KHCI_STAT_TX(stat);
@@ -954,17 +1085,24 @@ static void khci_usb_transfer_done(struct khci_udc *dev)
 
 	bd = KHCI_BD_PTR(dev, epn, tx, odd);
 	len = KHCI_BD_BC_GET(bd->flg);
-	dbg(1, "bd done %p %p %x\n", bd, (void *)bd->adr, bd->flg);
 
 	p = (char *)bd->adr;
 
-	dbg(8, "%p %02x%02x%02x%02x%02x%02x%02x%02x\n", dev->driver->setup, p[0], p[1], p[2],
-		p[3], p[4], p[5], p[6], p[7]);
-
+#if DEBUG >= 2
+	khci_debug_count++;
+	printk("(%03d)", khci_debug_count);
+	if (tx) {
+		if (len) printk("[T%d.%02x/%d] ", epn, p[0], len);
+		else printk("[T%d.--] ", epn);
+	} else {
+		if (len) printk("[R%d.%02x.%02x/%d] ", epn, p[0], p[1], len);
+		else printk("[R%d.--] ", epn);
+	}
+#endif
 	ep = &dev->ep[epn + (epn ? 16 * tx : 0)];
 
 	if (list_empty(&ep->queue)) {
-		pr_err("%s: rx/tx on empty queue of %s?", __func__, ep->ep.name);
+		dbg(1, "%s: %s on empty queue of %s\n", driver_name, tx ? "tx" : "rx", ep->ep.name);
 	} else {
 		rq = list_first_entry(&ep->queue, struct khci_request, queue);
 
@@ -983,7 +1121,7 @@ static void khci_usb_transfer_done(struct khci_udc *dev)
 				len == ep->ep.maxpacket && rq->req.zero) {
 			khci_start_bd(dev, epn,
 				epn ? tx : rq->tx, NULL, 0,
-				KHCI_BD_DATA_GET(bd->flg));
+				!KHCI_BD_DATA_GET(bd->flg), 1);
 		}
 		else if (rq->req.actual == rq->req.length ||
 				(!tx && len < ep->ep.maxpacket)) {
@@ -998,7 +1136,7 @@ static void khci_usb_transfer_done(struct khci_udc *dev)
 				tx ? rq->req.buf + rq->req.actual : NULL,
 				min((u32)ep->maxpacket,
 					(u32)(rq->req.length - rq->req.actual)),
-				KHCI_BD_DATA_GET(bd->flg));
+				!KHCI_BD_DATA_GET(bd->flg), 0);
 		}
 	}
 
@@ -1013,8 +1151,9 @@ static irqreturn_t khci_udc_irq(int irq, void *_dev)
 
 	istat = reg->istat;
 
-	if (istat != KHCI_INT_SOFTOK && istat != 0)
-		dbg(1, "%s:%i %x\n", __FUNCTION__, __LINE__, istat);
+#if DEBUG >= 2
+	khci_debug_dump_irq(dev, istat);
+#endif
 
 	if (istat & KHCI_INT_TOKDNE)
 		khci_usb_transfer_done(dev);
@@ -1022,15 +1161,28 @@ static irqreturn_t khci_udc_irq(int irq, void *_dev)
 	if (istat & KHCI_INT_RST)
 		khci_usb_reset(dev);
 
-	if (istat & KHCI_INT_ERROR) {
-		dbg(1, "error irq %x\n", reg->errstat);
-		dev->reg->ep[0].endpt = KHCI_EP_STALL;
+	if (istat & KHCI_INT_SLEEP) {
+		/*
+		 * Unconfigure the device on the cable disconnect.
+		 * We assume it has only one configuration,
+		 * which will be true in most cases.
+		 */
+		if (dev->device_configured) {
+			struct usb_ctrlrequest ctrl_rq = {
+				.bRequest = USB_REQ_SET_CONFIGURATION
+			};
+			dev->driver->setup(&dev->gadget, &ctrl_rq);
+			dev->device_configured = 0;
+		}
 	}
 
-	reg->istat = 0xff & ~(KHCI_INT_RST | KHCI_INT_TOKDNE);
-	if (reg->istat != 0) {
-		dbg(1, "%s:%i %x\n", __FUNCTION__, __LINE__, reg->istat);
+	if (istat & KHCI_INT_ERROR) {
+		pr_err("%s: error irq %x\n", driver_name, reg->errstat);
+		reg->errstat = 0xff;
+		reg->ep[0].endpt = KHCI_EP_STALL;
 	}
+
+	reg->istat = istat & ~(KHCI_INT_RST | KHCI_INT_TOKDNE);
 
 	return IRQ_HANDLED;
 }
@@ -1045,8 +1197,6 @@ static int __devinit khci_udc_probe(struct platform_device *pdev)
 	struct khci_udc	*udc = NULL;
 	unsigned long	msk;
 	int		rv, irq, i;
-
-	dbg(8, "%s:%i\n", __FUNCTION__, __LINE__);
 
 	/*
 	 * Verify and get resources
@@ -1109,13 +1259,28 @@ static int __devinit khci_udc_probe(struct platform_device *pdev)
 
 	udc->reg = reg;
 
+#ifdef CONFIG_USB_KHCI_BUF_IN_SRAM
+#if CONFIG_USB_KHCI_BUF_IN_SRAM_BASE < 0x200
+#error KHCI RX / TX buffer overlays the interrupt vector table
+#endif
+#if CONFIG_USB_KHCI_BUF_IN_SRAM_BASE + 16 * 2 * 2 * (8 + 64) > SRAM_PHYS_SIZE
+#error KHCI RX / TX buffer is outside of the SRAM area
+#endif
+#if CONFIG_USB_KHCI_BUF_IN_SRAM_BASE % 512 != 0
+#error KHCI BDT is not 512-byte aligned
+#endif
+	udc->bdt = (void *)SRAM_PHYS_OFFSET + CONFIG_USB_KHCI_BUF_IN_SRAM_BASE;
+#else
 	udc->bdt = dma_pool_alloc(khci_bdt_pool, GFP_KERNEL, &udc->dma_addr);
+#endif
 	if (!udc->bdt) {
 		rv = -ENOMEM;
 		dev_err(&pdev->dev, "failed to alloc bdt\n");
 		goto out;
 	}
 	udc->dma_bufs = (void *)udc->bdt + 16 * 2 * 2 * sizeof(struct khci_bd);
+
+	dbg(1, "%s: BDT @ %p, BUFs @ %p\n", driver_name, udc->bdt, udc->dma_bufs);
 
 	udc->gadget.ops = &khci_udc_ops;
 	udc->gadget.ep0 = &udc->ep[0].ep;
@@ -1152,8 +1317,10 @@ out:
 
 		if (udc) {
 			if (udc->bdt) {
+#ifndef CONFIG_USB_KHCI_BUF_IN_SRAM
 				dma_pool_free(khci_bdt_pool, udc->bdt,
 					      udc->dma_addr);
+#endif
 			}
 			if (udc->clk)
 				clk_disable(udc->clk);
@@ -1167,8 +1334,20 @@ out:
 	return rv;
 }
 
-static void khci_udc_shutdown(struct platform_device *_dev)
+static void khci_udc_shutdown(struct platform_device *pdev)
 {
+	struct khci_udc	*dev = platform_get_drvdata(pdev);
+	volatile struct khci_reg *reg = dev->reg;
+
+	/*
+	 * Disable IRQs
+	 */
+	reg->inten = 0;
+
+	/*
+	 * Disable the D+ pull-up so the host will think we're gone
+	 */
+	reg->otgctl &= ~(KHCI_OTGCTL_DPHIGH | KHCI_OTGCTL_OTGEN);
 }
 
 static int __exit khci_udc_remove(struct platform_device *pdev)
@@ -1201,12 +1380,14 @@ static int __init udc_init(void)
 {
 	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
 
+#ifndef CONFIG_USB_KHCI_BUF_IN_SRAM
 	/*
 	 * Allocate pool for BDT tables (2 BDs per dir (x2) per EP (x16))
 	 * and 64 byte buffer for each BD
 	 */
 	khci_bdt_pool = dma_pool_create("khci_bdt", NULL,
 			16 * 2 * 2 * (sizeof(struct khci_bd) + 64), 512, 0);
+#endif
 
 	return platform_driver_probe(&udc_driver, khci_udc_probe);
 }

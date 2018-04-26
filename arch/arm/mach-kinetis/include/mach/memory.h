@@ -86,5 +86,12 @@
  */
 #define ENVM_PHYS_OFFSET	UL(0x00000000)
 
+/*
+ * Base/size of the upper SRAM.
+ * It is also hardcoded in __v7m_setup(), file arch/arm/mm/proc-v7m.S.
+ */
+#define SRAM_PHYS_OFFSET	UL(0x20000000)
+#define SRAM_PHYS_SIZE		UL(0x00010000)
+
 #endif
 
