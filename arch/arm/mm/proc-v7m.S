@@ -46,7 +46,7 @@ ENDPROC(cpu_v7m_reset)
  */
 ENTRY(cpu_v7m_do_idle)
 	dsb					@ WFI may enter a low-power mode
-#if !defined(CONFIG_ARCH_M2S)
+#if !defined(CONFIG_ARCH_M2S) && !defined(CONFIG_ARCH_KINETIS)
 	wfi
 #endif
 	mov	pc, lr
