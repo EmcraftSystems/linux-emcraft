@@ -82,9 +82,10 @@
 #define __arch_page_to_dma(dev, page)					\
 	((dma_addr_t) DMA_ALIAS_ADDR(page_to_phys(page)))
 /*
- * Base of the on-chip Flash
+ * Base/size of the on-chip Flash
  */
 #define ENVM_PHYS_OFFSET	UL(0x00000000)
+#define ENVM_PHYS_SIZE		UL(0x00100000)
 
 /*
  * Base/size of the upper SRAM.

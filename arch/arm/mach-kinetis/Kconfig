@@ -156,6 +156,13 @@ config KINETIS_DONT_BLANK_FB
 	bool "Don't blank frame buffer"
 	default n
 
+config KINETIS_ENVM
+	tristate "Enable Kinetis eNVM"
+	depends on ARCH_KINETIS
+	help
+	  Add support for accessing the integrated eNVM of
+	  Kinetis.
+
 endmenu
 
 endif

@@ -73,6 +73,7 @@ static int physmap_flash_remove(struct platform_device *dev)
 }
 
 static const char *rom_probe_types[] = {
+					"kinetis_envm",
 					"cfi_probe",
 					"jedec_probe",
 					"qinfo_probe",
@@ -127,7 +128,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 		info->map[i].virt = devm_ioremap(&dev->dev, info->map[i].phys,
 						 info->map[i].size);
-		if (info->map[i].virt == NULL) {
+		if (info->map[i].virt == NULL && info->map[i].phys != 0) {
 			dev_err(&dev->dev, "Failed to ioremap flash region\n");
 			err = -EIO;
 			goto err_out;

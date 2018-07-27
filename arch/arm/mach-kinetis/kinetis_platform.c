@@ -45,6 +45,7 @@
 #include <mach/spi.h>
 #include <mach/rtc.h>
 #include <mach/flexcan.h>
+#include <mach/envm.h>
 
 #if defined(CONFIG_GPIOLIB)
 #include <mach/i2c-gpio.h>
@@ -245,6 +246,13 @@ static void __init kinetis_init(void)
 	 * Configure the external NAND Flash
 	 */
 	kinetis_nand_init();
+#endif
+
+#if defined(CONFIG_KINETIS_ENVM)
+	/*
+	 * Configure the internal Flash
+	 */
+	kinetis_envm_init();
 #endif
 
 #if defined(CONFIG_GPIOLIB)
