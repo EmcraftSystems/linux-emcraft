@@ -48,6 +48,7 @@ obj-$(CONFIG_NUC900_WATCHDOG) += nuc900_wdt.o
 obj-$(CONFIG_ADX_WATCHDOG) += adx_wdt.o
 obj-$(CONFIG_LPC2K_WATCHDOG) += lpc2k_wdt.o
 obj-$(CONFIG_A2F_WATCHDOG) += a2f_wdt.o
+obj-$(CONFIG_STM32_WATCHDOG) += stm32_iwdg.o
 
 # AVR32 Architecture
 obj-$(CONFIG_AT32AP700X_WDT) += at32ap700x_wdt.o

@@ -52,6 +52,8 @@
 #define STM32_HSI_HZ			16000000	/* STM32F2: 16 MHz */
 #endif
 
+#define STM32_LSI_HZ			32000		/* 32 KHz */
+
 /*
  * Offsets and bitmasks of some RCC regs
  */
@@ -498,6 +500,8 @@ void __init stm32_clock_init(void)
 	if (tmp != STM32_RCC_CFGR_PPRE2_DIVNO)
 		clock_val[CLOCK_PTMR2] *= 2;
 
+
+	clock_val[CLOCK_LSI] = STM32_LSI_HZ;
 	/*
 	 * Initialize the `clk_*` structures
 	 */

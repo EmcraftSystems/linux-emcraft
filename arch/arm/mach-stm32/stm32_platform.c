@@ -50,6 +50,7 @@
 #include <mach/dac.h>
 #include <mach/pwm.h>
 #include <mach/adc.h>
+#include <mach/wdt.h>
 
 /*
  * Linker symbols
@@ -331,5 +332,9 @@ static void __init stm32_init(void)
 
 #if defined(CONFIG_STM32_DAC)
 	stm32_dac_init();
+#endif
+
+#if defined(CONFIG_STM32_WATCHDOG)
+	stm32_wdt_init();
 #endif
 }
